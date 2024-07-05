@@ -1,5 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
+import org.e2immu.analyzer.modification.prepwork.variable.LV;
+import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -11,23 +13,24 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LV.*;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 
-public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Map.Entry<Variable, LV>> {
+
+public class LinkedVariablesImpl implements LinkedVariables, Comparable<LinkedVariables>, Iterable<Map.Entry<Variable, LV>> {
 
     public static final String NOT_YET_SET_STR = "NOT_YET_SET";
     private final Map<Variable, LV> variables;
 
-    private LinkedVariables(Map<Variable, LV> variables) {
+    private LinkedVariablesImpl(Map<Variable, LV> variables) {
         assert variables != null;
         this.variables = variables;
         assert variables.values().stream().noneMatch(lv -> lv == LINK_INDEPENDENT || lv == LINK_COMMON_HC);
     }
 
     // never use .equals() here, marker
-    public static final LinkedVariables NOT_YET_SET = new LinkedVariables(Map.of());
+    public static final LinkedVariables NOT_YET_SET = new LinkedVariablesImpl(Map.of());
     // use .equals, not a marker
-    public static final LinkedVariables EMPTY = new LinkedVariables(Map.of());
+    public static final LinkedVariables EMPTY = new LinkedVariablesImpl(Map.of());
 
     public static LV fromIndependentToLinkedVariableLevel(Value.Independent independent) {
         if (independent.isIndependent()) return LINK_INDEPENDENT;
@@ -41,15 +44,15 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
     }
 
     public static LinkedVariables of(Variable variable, LV value) {
-        return new LinkedVariables(Map.of(variable, value));
+        return new LinkedVariablesImpl(Map.of(variable, value));
     }
 
     public static LinkedVariables of(Map<Variable, LV> map) {
-        return new LinkedVariables(Map.copyOf(map));
+        return new LinkedVariablesImpl(Map.copyOf(map));
     }
 
     public static LinkedVariables of(Variable var1, LV v1, Variable var2, LV v2) {
-        return new LinkedVariables(Map.of(var1, v1, var2, v2));
+        return new LinkedVariablesImpl(Map.of(var1, v1, var2, v2));
     }
 
     public static boolean isAssigned(LV level) {
@@ -77,11 +80,12 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
     (leaving the hidden content hidden?) to x  max(1,0)=1
     if INDEPENDENT_1, then x is hidden content linked to b is hidden content linked to c, max(1,1)=1
      */
+    @Override
     public LinkedVariables merge(LinkedVariables other, LV minimum) {
         if (this == NOT_YET_SET || other == NOT_YET_SET) return NOT_YET_SET;
 
         HashMap<Variable, LV> map = new HashMap<>(variables);
-        other.variables.forEach((v, i) -> {
+        other.variables().forEach((v, i) -> {
             LV newValue = minimum.isInitialDelay() ? i : i.max(minimum);
             LV inMap = map.get(v);
             if (inMap == null) {
@@ -96,10 +100,12 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables merge(LinkedVariables other) {
-        return merge(other, LV.LINK_INITIAL_DELAY); // no effect
+        return merge(other, LINK_INITIAL_DELAY); // no effect
     }
 
+    @Override
     public boolean isEmpty() {
         return variables.isEmpty();
     }
@@ -128,7 +134,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         LinkedVariables that = (LinkedVariables) o;
-        return variables.equals(that.variables);
+        return variables.equals(that.variables());
     }
 
     @Override
@@ -136,26 +142,31 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return variables.hashCode();
     }
 
+    @Override
     public boolean contains(Variable variable) {
         return variables.containsKey(variable);
     }
 
+    @Override
     public Stream<Map.Entry<Variable, LV>> stream() {
         return variables.entrySet().stream();
     }
 
+    @Override
     public LinkedVariables maximum(LV other) {
         if (this == NOT_YET_SET) return NOT_YET_SET;
         return of(variables.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> other.max(e.getValue()))));
     }
 
+    @Override
     public Stream<Variable> variablesAssigned() {
         return variables.entrySet().stream()
                 .filter(e -> isAssigned(e.getValue()))
                 .map(Map.Entry::getKey);
     }
 
+    @Override
     public LinkedVariables translate(TranslationMap translationMap) {
         if (isEmpty() || this == NOT_YET_SET) return this;
         var translatedVariables = variables.entrySet().stream()
@@ -164,6 +175,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(translatedVariables);
     }
 
+    @Override
     public LinkedVariables changeToDelay() {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -171,6 +183,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables remove(Set<Variable> reassigned) {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -179,6 +192,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables remove(Predicate<Variable> remove) {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -187,6 +201,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables changeNonStaticallyAssignedToDelay() {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -197,6 +212,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables changeAllTo(LV value) {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -204,6 +220,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables changeAllToUnlessDelayed(LV value) {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -211,6 +228,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LV value(Variable variable) {
         if (this == NOT_YET_SET) return LINK_DELAYED;
         return variables.get(variable);
@@ -220,6 +238,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return dependent.ge(LINK_STATICALLY_ASSIGNED) && dependent.le(LINK_DEPENDENT);
     }
 
+    @Override
     public Map<Variable, LV> variables() {
         return variables;
     }
@@ -231,35 +250,42 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
 
     @Override
     public int compareTo(LinkedVariables o) {
-        return MapUtil.compareMaps(variables, o.variables);
+        return MapUtil.compareMaps(variables, o.variables());
     }
 
-    private Set<Variable> staticallyAssigned() {
+    @Override
+    public Set<Variable> staticallyAssigned() {
         return staticallyAssignedStream().collect(Collectors.toUnmodifiableSet());
     }
 
+    @Override
     public boolean identicalStaticallyAssigned(LinkedVariables linkedVariables) {
         return staticallyAssigned().equals(linkedVariables.staticallyAssigned());
     }
 
+    @Override
     public Set<Variable> directAssignmentVariables() {
         if (isEmpty() || this == NOT_YET_SET) return Set.of();
         return variables.entrySet().stream().filter(e -> e.getValue().equals(LINK_STATICALLY_ASSIGNED))
                 .map(Map.Entry::getKey).collect(Collectors.toUnmodifiableSet());
     }
 
+    @Override
     public Stream<Variable> staticallyAssignedStream() {
         return variables.entrySet().stream().filter(e -> LINK_STATICALLY_ASSIGNED.equals(e.getValue())).map(Map.Entry::getKey);
     }
 
+    @Override
     public Stream<Variable> dependentVariables() {
         return variables.entrySet().stream().filter(e -> e.getValue().isDependent()).map(Map.Entry::getKey);
     }
 
+    @Override
     public Stream<Variable> assignedOrDependentVariables() {
         return variables.entrySet().stream().filter(e -> isAssignedOrLinked(e.getValue())).map(Map.Entry::getKey);
     }
 
+    @Override
     public LinkedVariables removeStaticallyAssigned() {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()
@@ -268,6 +294,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
+    @Override
     public LinkedVariables map(Function<LV, LV> function) {
         if (isEmpty() || this == NOT_YET_SET) return this;
         Map<Variable, LV> map = variables.entrySet().stream()

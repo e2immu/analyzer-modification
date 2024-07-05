@@ -1,6 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
+import org.e2immu.analyzer.modification.prepwork.variable.Index;
+import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -13,8 +15,8 @@ import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.Indices.ALL_INDICES;
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.Indices.UNSPECIFIED;
+import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.UNSPECIFIED;
 
 /*
 Numeric encoding of the Indices:
@@ -63,7 +65,7 @@ public class HiddenContentSelector implements Value {
 
     // for testing
     public static HiddenContentSelector selectTypeParameter(HiddenContentTypes hiddenContentTypes, int i) {
-        return new HiddenContentSelector(hiddenContentTypes, Map.of(i, new Indices(i)));
+        return new HiddenContentSelector(hiddenContentTypes, Map.of(i, new IndicesImpl(i)));
     }
 
     @Override
@@ -169,7 +171,7 @@ public class HiddenContentSelector implements Value {
 
         if (index != null) {
             if (haveArrays) {
-                map.put(index, new Indices(index));
+                map.put(index, new IndicesImpl(index));
             } else {
                 map.put(index, ALL_INDICES);
             }
@@ -179,11 +181,11 @@ public class HiddenContentSelector implements Value {
             if (type.typeInfo() == null) {
                 // ?, equivalent to ? extends Object
                 return new HiddenContentSelector(hiddenContentTypes,
-                        Map.of(HiddenContentTypes.UNSPECIFIED_EXTENSION, new Indices((UNSPECIFIED))));
+                        Map.of(HiddenContentTypes.UNSPECIFIED_EXTENSION, new IndicesImpl(UNSPECIFIED)));
             } else if (type.arrays() == 0) {
                 recursivelyCollectHiddenContentParameters(hiddenContentTypes, type, new Stack<>(), map);
                 hiddenContentTypes.typesOfExtensibleFields()
-                        .forEach(e -> map.put(e.getValue(), new Indices(e.getValue())));
+                        .forEach(e -> map.put(e.getValue(), new IndicesImpl(e.getValue())));
             } // else: we don't combine type parameters and arrays for now
         }
         return new HiddenContentSelector(hiddenContentTypes, Map.copyOf(map));
@@ -195,7 +197,7 @@ public class HiddenContentSelector implements Value {
                                                                   Map<Integer, Indices> map) {
         Integer index = hiddenContentTypes.indexOfOrNull(type.copyWithoutArrays());
         if (index != null && type.parameters().isEmpty() && !prefix.isEmpty()) {
-            map.merge(index, new Indices(Set.of(new Index(List.copyOf(prefix)))), Indices::merge);
+            map.merge(index, new IndicesImpl(Set.of(new IndexImpl(List.copyOf(prefix)))), Indices::merge);
         } else {
             int i = 0;
             for (ParameterizedType parameter : type.parameters()) {
@@ -250,7 +252,7 @@ public class HiddenContentSelector implements Value {
         for (Map.Entry<Indices, ParameterizedType> entry1 : map1.entrySet()) {
             IndicesAndType iat;
             if (from.arrays() > 0 && hiddenContentSelector.selectArrayElement(from.arrays())) {
-                Indices indices = new Indices(Set.of(Index.createZeroes(from.arrays())));
+                Indices indices = new IndicesImpl(Set.of(IndexImpl.createZeroes(from.arrays())));
                 iat = new IndicesAndType(indices, to);
             } else if (from.typeParameter() != null || from.equals(to)) {
                 iat = new IndicesAndType(entry1.getKey(), to);
@@ -285,7 +287,7 @@ public class HiddenContentSelector implements Value {
         // but once we have found it, we must make sure that we return all occurrences
         assert res.indices.set().size() == 1;
         assert res.type != null;
-        Indices findAll = Indices.allOccurrencesOf(res.type, to);
+        Indices findAll = IndicesImpl.staticAllOccurrencesOf(res.type, to);
         return new IndicesAndType(findAll, res.type);
     }
 
@@ -311,7 +313,7 @@ public class HiddenContentSelector implements Value {
                 } else {
                     concrete = to.parameters().get(atPos);
                 }
-                return new IndicesAndType(new Indices(Set.of(index)), concrete);
+                return new IndicesAndType(new IndicesImpl(Set.of(index)), concrete);
             }
             ParameterizedType formalTo = to.typeInfo().asParameterizedType(runtime);
             Map<NamedType, ParameterizedType> map1;
@@ -326,7 +328,7 @@ public class HiddenContentSelector implements Value {
             HiddenContentTypes hct = to.typeInfo().analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
             int iTo = hct.indexOf(ptTo);
             Index indexTo = index.replaceLast(iTo);
-            Indices indicesTo = new Indices(Set.of(indexTo));
+            Indices indicesTo = new IndicesImpl(Set.of(indexTo));
             Map<NamedType, ParameterizedType> map2 = to.initialTypeParameterMap(runtime);
             ParameterizedType concreteTypeTo = map2.get(ptTo.namedType());
             assert concreteTypeTo != null;

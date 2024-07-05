@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
+import org.e2immu.analyzer.modification.prepwork.variable.Index;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
@@ -12,19 +13,19 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public record Index(List<Integer> list) implements Comparable<Index> {
+public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> {
     public static final int ALL = -1;
-    public static final Index ALL_INDEX = new Index(List.of(ALL));
+    public static final Index ALL_INDEX = new IndexImpl(List.of(ALL));
 
     public static Index createZeroes(int arrays) {
         List<Integer> list = new ArrayList<>(arrays);
         for (int i = 0; i < arrays; i++) list.add(0);
-        return new Index(List.copyOf(list));
+        return new IndexImpl(List.copyOf(list));
     }
 
     @Override
     public int compareTo(Index o) {
-        return ListUtil.compare(list, o.list);
+        return ListUtil.compare(list, o.list());
     }
 
     @Override
@@ -37,10 +38,12 @@ public record Index(List<Integer> list) implements Comparable<Index> {
      Map.Entry<A,B>, with index 0, will return K in Map.Entry
      Set<Map.Entry<A,B>>, with indices 0.1, will return V in Map.Entry.
      */
+    @Override
     public ParameterizedType findInFormal(Runtime runtime, ParameterizedType type) {
         return findInFormal(runtime, type, 0, true);
     }
 
+    @Override
     public ParameterizedType find(Runtime ru, ParameterizedType type) {
         return findInFormal(ru, type, 0, false);
     }
@@ -69,11 +72,13 @@ public record Index(List<Integer> list) implements Comparable<Index> {
         return findInFormal(runtime, nextType, pos + 1, switchToFormal);
     }
 
+    @Override
     public Index replaceLast(int v) {
         if (list.get(list.size() - 1) == v) return this;
-        return new Index(Stream.concat(list.stream().limit(list.size() - 1), Stream.of(v)).toList());
+        return new IndexImpl(Stream.concat(list.stream().limit(list.size() - 1), Stream.of(v)).toList());
     }
 
+    @Override
     public int countSequentialZeros() {
         int cnt = 0;
         for (int i : list) {
@@ -83,26 +88,31 @@ public record Index(List<Integer> list) implements Comparable<Index> {
         return cnt;
     }
 
+    @Override
     public Index dropFirst() {
         assert list.size() > 1;
-        return new Index(list.subList(1, list.size()));
+        return new IndexImpl(list.subList(1, list.size()));
     }
 
+    @Override
     public Index takeFirst() {
         assert list.size() > 1;
-        return new Index(List.of(list.get(0)));
+        return new IndexImpl(List.of(list.get(0)));
     }
 
+    @Override
     public Index prefix(int index) {
-        return new Index(Stream.concat(Stream.of(index), list.stream()).toList());
+        return new IndexImpl(Stream.concat(Stream.of(index), list.stream()).toList());
     }
 
+    @Override
     public Integer single() {
         return list.size() == 1 ? list.get(0) : null;
     }
 
+    @Override
     public Index map(IntFunction<Integer> intFunction) {
         int index = list.get(0);
-        return new Index(Stream.concat(Stream.of(intFunction.apply(index)), list.stream().skip(1)).toList());
+        return new IndexImpl(Stream.concat(Stream.of(intFunction.apply(index)), list.stream().skip(1)).toList());
     }
 }
