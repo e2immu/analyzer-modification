@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.CausesOfDelay;
 import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.hcs.Index;
 import org.e2immu.analyzer.modification.linkedvariables.hcs.Indices;
@@ -658,21 +657,22 @@ public class LinkHelper {
         assert targetType != null;
 
         // RULE 1: no linking when the source is not linked or there is no transfer
-        if (sourceLvs.isEmpty() || MultiLevel.INDEPENDENT_DV.equals(transferIndependent)) {
+        if (sourceLvs.isEmpty() || transferIndependent != null && transferIndependent.isIndependent()) {
             return LinkedVariables.EMPTY;
         }
-        assert !(hiddenContentSelectorOfTarget.isNone() && transferIndependent.equals(MultiLevel.INDEPENDENT_HC_DV))
+        assert !(hiddenContentSelectorOfTarget.isNone()
+                 && transferIndependent != null && transferIndependent.isIndependentHc())
                 : "Impossible to have no knowledge of hidden content, and INDEPENDENT_HC";
 
-        DV immutableOfSource = context.evaluationContext().immutable(sourceType);
+        Value.Immutable immutableOfSource = analysisHelper.typeImmutable(methodInfo.typeInfo(), sourceType);
 
         // RULE 2: delays
-        if (immutableOfSource.isDelayed()) {
-            return sourceLvs.changeToDelay(LV.delay(immutableOfSource.causesOfDelay()));
+        if (immutableOfSource == null) {
+            return sourceLvs.changeToDelay();
         }
 
         // RULE 3: immutable -> no link
-        if (MultiLevel.isAtLeastEventuallyRecursivelyImmutable(immutableOfSource)) {
+        if (immutableOfSource.isImmutable()) {
             /*
              if the result type immutable because of a choice in type parameters, methodIndependent will return
              INDEPENDENT_HC, but the concrete type is deeply immutable
@@ -681,21 +681,16 @@ public class LinkHelper {
         }
 
         // RULE 4: delays
-        if (transferIndependent.isDelayed()) {
+        if (transferIndependent == null) {
             // delay in method independent
-            return sourceLvs.changeToDelay(LV.delay(transferIndependent.causesOfDelay()));
+            return sourceLvs.changeToDelay();
         }
-        InspectionProvider inspectionProvider = context.getAnalyserContext();
 
         // special code block for functional interfaces with both return value and parameters (i.e. variants
         // on Function<T,R>, BiFunction<T,S,R> etc. Not Consumers (no return value) nor Suppliers (no parameters))
-        if (hiddenContentSelectorOfTarget.isOnlyAll() && INDEPENDENT_HC_DV.equals(transferIndependent)) {
-            HiddenContentTypes hctContext;
-            if (context.getCurrentMethod() != null) {
-                hctContext = context.getCurrentMethod().getMethodInfo().methodResolution.get().hiddenContentTypes();
-            } else {
-                hctContext = context.getCurrentType().typeResolution.get().hiddenContentTypes();
-            }
+        if (hiddenContentSelectorOfTarget.isOnlyAll() && transferIndependent.isIndependentHc()) {
+            HiddenContentTypes hctContext = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+
             HiddenContentSelector hcsTargetContext = HiddenContentSelector.selectAll(hctContext, targetType);
             HiddenContentSelector hcsSourceContext = HiddenContentSelector.selectAll(hctContext, sourceType);
             Set<Integer> set = new HashSet<>(hcsSourceContext.set());
@@ -709,9 +704,9 @@ public class LinkHelper {
                         Indices base = indices.first();
                         HiddenContentSelector newHiddenContentSelectorOfSource
                                 = new HiddenContentSelector(hctContext, Map.of(index, newIndices));
-                        ParameterizedType newSourceType = base.find(inspectionProvider, sourceType);
-                        Supplier<Map<Indices, HiddenContentTypes.IndicesAndType>> hctMethodToHctSourceSupplier =
-                                () -> Map.of(newIndices, new HiddenContentTypes.IndicesAndType(newIndices, newSourceType));
+                        ParameterizedType newSourceType = base.find(runtime, sourceType);
+                        Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
+                                () -> Map.of(newIndices, new HiddenContentSelector.IndicesAndType(newIndices, newSourceType));
                         HiddenContentSelector newHcsTarget;
                         ParameterizedType newTargetType;
                         if (reverse && !targetType.isTypeParameter()) {
@@ -728,8 +723,7 @@ public class LinkHelper {
                             newTargetType = targetType;
                         }
 
-                        LinkedVariables lvs = continueLinkedVariables(inspectionProvider, hctContext,
-                                newHiddenContentSelectorOfSource,
+                        LinkedVariables lvs = continueLinkedVariables(hctContext, newHiddenContentSelectorOfSource,
                                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
                                 newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
                                 reverse);
@@ -741,13 +735,13 @@ public class LinkHelper {
                 }
             }
         }
-        Supplier<Map<Indices, HiddenContentTypes.IndicesAndType>> hctMethodToHctSourceSupplier = () -> hiddenContentTypes
-                .translateHcs(inspectionProvider, hcsSource, methodSourceType, sourceType);
+        Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
+                () -> HiddenContentSelector.translateHcs(runtime, genericsHelper, hcsSource, methodSourceType, sourceType);
 
-        DV immutableOfFormalSource;
+        Value.Immutable immutableOfFormalSource;
         if (sourceType.typeInfo() != null) {
             ParameterizedType formalSource = sourceType.typeInfo().asParameterizedType(runtime);
-            immutableOfFormalSource = analysisHelper.immutable(formalSource);
+            immutableOfFormalSource = analysisHelper.typeImmutable(methodInfo.typeInfo(), formalSource);
         } else {
             immutableOfFormalSource = immutableOfSource;
         }
@@ -773,17 +767,16 @@ public class LinkHelper {
         Value.Independent correctedIndependent = correctIndependent(immutableOfFormalSource, transferIndependent,
                 targetType, hiddenContentSelectorOfTarget, hctMethodToHcsTarget);
 
+        if (correctedIndependent == null) {
+            // delay in method independent
+            return sourceLvs.changeToDelay();
+        }
         if (correctedIndependent.isIndependent()) {
             return LinkedVariables.EMPTY;
-        }
-        if (correctedIndependent.isDelayed()) {
-            // delay in method independent
-            return sourceLvs.changeToDelay(LV.delay());
         }
 
         Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHctSource = hctMethodToHctSourceSupplier.get();
         Map<Variable, LV> newLinked = new HashMap<>();
-        CausesOfDelay causesOfDelay = CausesOfDelay.EMPTY;
 
         for (Map.Entry<Variable, LV> e : sourceLvs) {
             ParameterizedType pt = e.getKey().parameterizedType();
@@ -792,9 +785,10 @@ public class LinkHelper {
             LV lv = e.getValue();
             assert lv.lt(LINK_INDEPENDENT);
 
-            if (immutable.isDelayed() || lv.isDelayed()) {
-                causesOfDelay = causesOfDelay.merge(immutable.causesOfDelay()).merge(lv.causesOfDelay());
-            } else if (!immutable.isImmutable()) {
+            if (immutable == null || lv.isDelayed()) {
+                return sourceLvs.changeToDelay();
+            }
+            if (!immutable.isImmutable()) {
 
                 if (hiddenContentSelectorOfTarget.isNone()) {
                     newLinked.put(e.getKey(), LINK_DEPENDENT);
@@ -838,20 +832,19 @@ public class LinkHelper {
                     }
                     for (Map.Entry<Integer, Indices> entry : entrySet) {
                         Indices indicesInTargetWrtMethod = entry.getValue();
-                        HiddenContentTypes.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
+                        HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
                         assert targetAndType != null;
                         ParameterizedType type = targetAndType.type();
                         assert type != null;
 
-                        DV typeImmutable = context.evaluationContext().immutable(type);
-                        if (typeImmutable.isDelayed()) {
-                            causesOfDelay = causesOfDelay.merge(typeImmutable.causesOfDelay());
-                            typeImmutable = MUTABLE_DV;
+                        Value.Immutable typeImmutable = analysisHelper.typeImmutable(methodInfo.typeInfo(), type);
+                        if (typeImmutable == null) {
+                            return sourceLvs.changeToDelay();
                         }
-                        if (MultiLevel.isAtLeastEventuallyRecursivelyImmutable(typeImmutable)) {
+                        if (typeImmutable.isImmutable()) {
                             continue;
                         }
-                        boolean mutable = isMutable(typeImmutable);
+                        boolean mutable = typeImmutable.isMutable();
                         if (sourceIsVarArgs) {
                             // we're in a varargs situation: the first element is the type itself
                             correctForVarargsMutable = mutable;
@@ -859,7 +852,7 @@ public class LinkHelper {
 
                         Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
                         assert indicesInSourceWrtMethod != null;
-                        HiddenContentTypes.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
+                        HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
                         assert indicesAndType != null;
                         Indices indicesInSourceWrtType = indicesAndType.indices();
                         assert indicesInSourceWrtType != null;
@@ -879,7 +872,7 @@ public class LinkHelper {
                     }
 
 
-                    boolean createDependentLink = MultiLevel.isMutable(immutable) && isDependent(transferIndependent,
+                    boolean createDependentLink = immutable.isMutable() && isDependent(transferIndependent,
                             correctedIndependent, immutableOfFormalSource, lv);
                     if (createDependentLink) {
                         if (linkMap.isEmpty()) {
@@ -898,9 +891,6 @@ public class LinkHelper {
             } else {
                 throw new UnsupportedOperationException("I believe we should not link");
             }
-        }
-        if (causesOfDelay.isDelayed()) {
-            return sourceLvs.changeToDelay(LV.delay(causesOfDelay));
         }
         return LinkedVariables.of(newLinked);
     }
@@ -954,7 +944,7 @@ public class LinkHelper {
                         return ValueImpl.IndependentImpl.INDEPENDENT_HC;
                     }
                     Value.Immutable immutablePt = analysisHelper.typeImmutable(methodInfo.primaryType(), entry.getValue().type());
-                    if (immutablePt.isDelayed()) return ValueImpl.IndependentImpl.DELAYED;
+                    if (immutablePt == null) return null;
                     if (!immutablePt.isAtLeastImmutableHC()) {
                         allIndependentHC = false;
                         break;
@@ -969,7 +959,7 @@ public class LinkHelper {
         if (independent.isIndependentHc()) {
             if (hiddenContentSelectorOfTarget.isOnlyAll()) {
                 Value.Immutable immutablePt = analysisHelper.typeImmutable(methodInfo.primaryType(), targetType);
-                if (immutablePt.isDelayed()) return ValueImpl.IndependentImpl.DELAYED;
+                if (immutablePt == null) return null; // no value yet
                 if (immutablePt.isImmutable()) {
                     return ValueImpl.IndependentImpl.INDEPENDENT;
                 }
@@ -1003,7 +993,7 @@ public class LinkHelper {
 
     public static LV follow(LV fromLv, LV toLv) {
         if (fromLv.isDelayed() || toLv.isDelayed()) {
-            return LV.delay(fromLv.causesOfDelay().merge(toLv.causesOfDelay()));
+            return LV.LINK_DELAYED;
         }
         boolean fromLvHaveLinks = fromLv.haveLinks();
         boolean toLvHaveLinks = toLv.haveLinks();
@@ -1061,7 +1051,7 @@ public class LinkHelper {
                                                  ParameterizedType scopeType) {
         if (linkedVariables.isDelayed()) {
             // the 'changeToDelay' call is mostly unnecessary, unless there's a direct :0 link to the scope
-            return linkedVariables.changeToDelay(LV.delay(linkedVariables.causesOfDelay()));
+            return linkedVariables.changeToDelay();
         }
         HiddenContentTypes hct = scopeType.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         HiddenContentSelector hcsTarget = HiddenContentSelector.selectAll(hct, formalFieldType);

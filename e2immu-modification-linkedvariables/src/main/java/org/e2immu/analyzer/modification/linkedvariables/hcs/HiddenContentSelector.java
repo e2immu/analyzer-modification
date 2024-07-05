@@ -33,7 +33,6 @@ public class HiddenContentSelector implements Value {
     public static final PropertyImpl HCS_METHOD = new PropertyImpl("hiddenContentSelectorMethod", NONE);
     public static final PropertyImpl HCS_PARAMETER = new PropertyImpl("hiddenContentSelectorParameter", NONE);
 
-    private final CausesOfDelay causesOfDelay;
     private final HiddenContentTypes hiddenContentTypes;
     /*
     map key: the index in HCT
@@ -44,22 +43,13 @@ public class HiddenContentSelector implements Value {
     // only used for NONE
     private HiddenContentSelector() {
         map = Map.of();
-        causesOfDelay = CausesOfDelay.EMPTY;
         hiddenContentTypes = HiddenContentTypes.OF_PRIMITIVE;
-    }
-
-    public HiddenContentSelector(HiddenContentTypes hiddenContentTypes, CausesOfDelay causes) {
-        this.map = Map.of();
-        this.hiddenContentTypes = hiddenContentTypes;
-        this.causesOfDelay = causes;
-        assert causes.isDelayed();
     }
 
     // note: if map is empty, isNone() will be true
     public HiddenContentSelector(HiddenContentTypes hiddenContentTypes, Map<Integer, Indices> map) {
         this.map = map;
         this.hiddenContentTypes = hiddenContentTypes;
-        this.causesOfDelay = CausesOfDelay.EMPTY;
     }
 
     @Override
@@ -86,9 +76,6 @@ public class HiddenContentSelector implements Value {
     }
 
     private String toString(boolean detailed) {
-        if (causesOfDelay.isDelayed()) {
-            return causesOfDelay.toString();
-        }
         if (map.isEmpty()) {
             return "X"; // None
         }
@@ -113,27 +100,17 @@ public class HiddenContentSelector implements Value {
         return map;
     }
 
-    public boolean isDelayed() {
-        return causesOfDelay().isDelayed();
-    }
-
-    public CausesOfDelay causesOfDelay() {
-        return causesOfDelay;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         HiddenContentSelector hcs = (HiddenContentSelector) o;
-        return hiddenContentTypes.equals(hcs.hiddenContentTypes)
-               && causesOfDelay.equals(hcs.causesOfDelay)
-               && map.equals(hcs.map);
+        return hiddenContentTypes.equals(hcs.hiddenContentTypes) && map.equals(hcs.map);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(causesOfDelay, hiddenContentTypes, map);
+        return Objects.hash(hiddenContentTypes, map);
     }
 
     public Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
@@ -231,13 +208,13 @@ public class HiddenContentSelector implements Value {
     }
 
     public boolean isNone() {
-        return map.isEmpty() && causesOfDelay.isDone();
+        return map.isEmpty();
     }
 
     // useful for testing
     public boolean isOnlyAll() {
-        return causesOfDelay.isDone() && map.keySet().size() == 1 &&
-               map.entrySet().stream().findFirst().orElseThrow().getValue().equals(ALL_INDICES);
+        return map.keySet().size() == 1
+               && map.entrySet().stream().findFirst().orElseThrow().getValue().equals(ALL_INDICES);
     }
 
      /*

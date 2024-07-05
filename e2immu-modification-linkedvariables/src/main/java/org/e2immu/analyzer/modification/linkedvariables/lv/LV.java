@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.CausesOfDelay;
 import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.hcs.Indices;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -8,36 +7,45 @@ import org.e2immu.language.cst.api.analysis.Value;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.CausesOfDelay.EMPTY;
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.Indices.ALL_INDICES;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.Links.NO_LINKS;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
+/*
+initial delay: value can still become statically_assigned
+ */
 public class LV implements Comparable<LV> {
-
+    private static final int I_INITIAL_DELAY = -2;
     private static final int I_DELAY = -1;
     private static final int I_HC = 4;
     private static final int I_DEPENDENT = 2;
 
-    public static final LV LINK_STATICALLY_ASSIGNED = new LV(0, NO_LINKS, "-0-", EMPTY, DEPENDENT);
-    public static final LV LINK_ASSIGNED = new LV(1, NO_LINKS, "-1-", EMPTY, DEPENDENT);
-    public static final LV LINK_DEPENDENT = new LV(I_DEPENDENT, NO_LINKS, "-2-", EMPTY, DEPENDENT);
+    public static final LV LINK_INITIAL_DELAY = new LV(-2, NO_LINKS, "<initial delay>", null);
+    public static final LV LINK_DELAYED = new LV(-1, NO_LINKS, "<delayed>", null);
+    public static final LV LINK_STATICALLY_ASSIGNED = new LV(0, NO_LINKS, "-0-", DEPENDENT);
+    public static final LV LINK_ASSIGNED = new LV(1, NO_LINKS, "-1-", DEPENDENT);
+    public static final LV LINK_DEPENDENT = new LV(I_DEPENDENT, NO_LINKS, "-2-", DEPENDENT);
 
     // do not use for equality! Use LV.isCommonHC()
-    public static final LV LINK_COMMON_HC = new LV(I_HC, NO_LINKS, "-4-", EMPTY, INDEPENDENT_HC);
-    public static final LV LINK_INDEPENDENT = new LV(5, NO_LINKS, "-5-", EMPTY, INDEPENDENT);
+    public static final LV LINK_COMMON_HC = new LV(I_HC, NO_LINKS, "-4-", INDEPENDENT_HC);
+    public static final LV LINK_INDEPENDENT = new LV(5, NO_LINKS, "-5-", INDEPENDENT);
 
     private final int value;
+    private final Links links;
+    private final String label;
+    private final Value.Independent correspondingIndependent;
+
+    private LV(int value, Links links, String label, Value.Independent correspondingIndependent) {
+        this.value = value;
+        this.links = links;
+        this.label = Objects.requireNonNull(label);
+        assert !label.isBlank();
+        this.correspondingIndependent = correspondingIndependent;
+    }
 
     public boolean haveLinks() {
         return !links.map().isEmpty();
     }
-
-
-    private final Links links;
-    private final String label;
-    private final CausesOfDelay causesOfDelay;
-    private final Value.Independent correspondingIndependent;
 
     public boolean isDependent() {
         return I_DEPENDENT == value;
@@ -45,19 +53,6 @@ public class LV implements Comparable<LV> {
 
     public boolean isCommonHC() {
         return I_HC == value;
-    }
-
-    private LV(int value, Links links, String label, CausesOfDelay causesOfDelay, Value.Independent correspondingIndependent) {
-        this.value = value;
-        this.links = links;
-        this.label = Objects.requireNonNull(label);
-        assert !label.isBlank();
-        this.causesOfDelay = Objects.requireNonNull(causesOfDelay);
-        this.correspondingIndependent = correspondingIndependent;
-    }
-
-    public static LV initialDelay() {
-        return delay(CausesOfDelay.INITIAL_DELAY);
     }
 
     public int value() {
@@ -72,13 +67,12 @@ public class LV implements Comparable<LV> {
         return label;
     }
 
-    public CausesOfDelay causesOfDelay() {
-        return causesOfDelay;
+    public boolean isInitialDelay() {
+        return value == I_INITIAL_DELAY;
     }
 
-    public static LV delay(CausesOfDelay causes) {
-        assert causes.isDelayed();
-        return new LV(I_DELAY, NO_LINKS, causes.label(), causes, null);
+    public boolean isDelayed() {
+        return value == I_DELAY || value == I_INITIAL_DELAY;
     }
 
     private static String createLabel(Links links, int hc) {
@@ -106,11 +100,11 @@ public class LV implements Comparable<LV> {
 
 
     public static LV createHC(Links links) {
-        return new LV(I_HC, links, createLabel(links, I_HC), EMPTY, INDEPENDENT);
+        return new LV(I_HC, links, createLabel(links, I_HC), INDEPENDENT);
     }
 
     public static LV createDependent(Links links) {
-        return new LV(I_DEPENDENT, links, createLabel(links, I_DEPENDENT), EMPTY, INDEPENDENT);
+        return new LV(I_DEPENDENT, links, createLabel(links, I_DEPENDENT), INDEPENDENT);
     }
 
     /*
@@ -142,10 +136,6 @@ public class LV implements Comparable<LV> {
         return this;
     }
 
-    public boolean isDelayed() {
-        return causesOfDelay.isDelayed();
-    }
-
     public boolean le(LV other) {
         return value <= other.value;
     }
@@ -159,12 +149,7 @@ public class LV implements Comparable<LV> {
     }
 
     public LV min(LV other) {
-        if (isDelayed()) {
-            if (other.isDelayed()) {
-                return delay(causesOfDelay.merge(other.causesOfDelay));
-            }
-            return this;
-        }
+        if (isDelayed()) return this;
         if (other.isDelayed()) return other;
         if (value > other.value) return other;
         if (isCommonHC() && other.isCommonHC()) {
@@ -188,12 +173,7 @@ public class LV implements Comparable<LV> {
     }
 
     public LV max(LV other) {
-        if (isDelayed()) {
-            if (other.isDelayed()) {
-                return delay(causesOfDelay.merge(other.causesOfDelay));
-            }
-            return this;
-        }
+        if (isDelayed()) return this;
         if (other.isDelayed()) return other;
         if (value < other.value) return other;
         assert value != I_HC || other.value != I_HC || sameLinks(other);
@@ -201,7 +181,7 @@ public class LV implements Comparable<LV> {
     }
 
     public boolean isDone() {
-        return causesOfDelay.isDone();
+        return value != I_DELAY;
     }
 
     @Override
@@ -214,23 +194,18 @@ public class LV implements Comparable<LV> {
         return correspondingIndependent;
     }
 
-    public boolean isInitialDelay() {
-        return causesOfDelay() == CausesOfDelay.INITIAL_DELAY;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         LV lv = (LV) o;
         if (value != lv.value) return false;
-        return Objects.equals(links, lv.links)
-               && Objects.equals(causesOfDelay, lv.causesOfDelay);
+        return Objects.equals(links, lv.links);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(value, links, causesOfDelay);
+        return Objects.hash(value, links);
     }
 
     @Override

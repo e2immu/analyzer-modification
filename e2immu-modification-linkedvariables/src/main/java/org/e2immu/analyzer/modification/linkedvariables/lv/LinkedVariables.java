@@ -1,10 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.CausesOfDelay;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.util.MapUtil;
 
 import java.util.*;
@@ -16,7 +14,6 @@ import java.util.stream.Stream;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LV.*;
 
 public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Map.Entry<Variable, LV>> {
-
 
     public static final String NOT_YET_SET_STR = "NOT_YET_SET";
     private final Map<Variable, LV> variables;
@@ -33,7 +30,6 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
     public static final LinkedVariables EMPTY = new LinkedVariables(Map.of());
 
     public static LV fromIndependentToLinkedVariableLevel(Value.Independent independent) {
-        if (independent.isDelayed()) return LV.delay(independent.causesOfDelay());
         if (independent.isIndependent()) return LINK_INDEPENDENT;
         if (!independent.isAtLeastIndependentHc()) return LINK_DEPENDENT;
         return LINK_COMMON_HC;
@@ -86,7 +82,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
 
         HashMap<Variable, LV> map = new HashMap<>(variables);
         other.variables.forEach((v, i) -> {
-            LV newValue = minimum.causesOfDelay().isInitialDelay() ? i : i.max(minimum);
+            LV newValue = minimum.isInitialDelay() ? i : i.max(minimum);
             LV inMap = map.get(v);
             if (inMap == null) {
                 map.put(v, newValue);
@@ -101,7 +97,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
     }
 
     public LinkedVariables merge(LinkedVariables other) {
-        return merge(other, LV.delay(CausesOfDelay.INITIAL_DELAY)); // no effect
+        return merge(other, LV.LINK_INITIAL_DELAY); // no effect
     }
 
     public boolean isEmpty() {
@@ -168,11 +164,10 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(translatedVariables);
     }
 
-    public LinkedVariables changeToDelay(LV delay) {
+    public LinkedVariables changeToDelay() {
         if (isEmpty() || this == NOT_YET_SET) return this;
-        assert delay.isDelayed();
         Map<Variable, LV> map = variables.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> delay.min(e.getValue())));
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> LINK_DELAYED));
         return of(map);
     }
 
@@ -192,14 +187,12 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
         return of(map);
     }
 
-    public LinkedVariables changeNonStaticallyAssignedToDelay(CausesOfDelay delay) {
+    public LinkedVariables changeNonStaticallyAssignedToDelay() {
         if (isEmpty() || this == NOT_YET_SET) return this;
-        assert delay.isDelayed();
-        LV delayedLV = LV.delay(delay);
         Map<Variable, LV> map = variables.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> {
                     LV lv = e.getValue();
-                    return LINK_STATICALLY_ASSIGNED.equals(lv) ? LINK_STATICALLY_ASSIGNED : delayedLV;
+                    return LINK_STATICALLY_ASSIGNED.equals(lv) ? LINK_STATICALLY_ASSIGNED : LINK_DELAYED;
                 }));
         return of(map);
     }
@@ -219,21 +212,12 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
     }
 
     public LV value(Variable variable) {
-        if (this == NOT_YET_SET) return LV.delay(NOT_YET_SET_DELAY);
+        if (this == NOT_YET_SET) return LINK_DELAYED;
         return variables.get(variable);
     }
 
     public static boolean isAssignedOrLinked(LV dependent) {
         return dependent.ge(LINK_STATICALLY_ASSIGNED) && dependent.le(LINK_DEPENDENT);
-    }
-
-    public CausesOfDelay causesOfDelay() {
-        if (this == NOT_YET_SET) {
-            return NOT_YET_SET_DELAY;
-        }
-        return variables.values().stream()
-                .map(LV::causesOfDelay)
-                .reduce(CausesOfDelay.EMPTY, CausesOfDelay::merge);
     }
 
     public Map<Variable, LV> variables() {
@@ -242,7 +226,7 @@ public class LinkedVariables implements Comparable<LinkedVariables>, Iterable<Ma
 
     public boolean isDone() {
         if (this == NOT_YET_SET) return false;
-        return causesOfDelay().isDone();
+        return !isDelayed();
     }
 
     @Override
