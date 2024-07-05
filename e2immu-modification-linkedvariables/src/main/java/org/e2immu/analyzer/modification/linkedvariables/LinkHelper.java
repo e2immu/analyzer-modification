@@ -10,6 +10,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.Links;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -117,14 +119,14 @@ public class LinkHelper {
 
     }
 
-    private static LinkedVariables linkedVariablesOfParameter(Runtime runtime,
-                                                              HiddenContentTypes hiddenContentTypes,
-                                                              ParameterizedType parameterMethodType,
-                                                              ParameterizedType parameterType,
-                                                              LinkedVariables linkedVariablesOfParameter,
-                                                              HiddenContentSelector hcsSource) {
-        AtomicReference<CausesOfDelay> causes = new AtomicReference<>(CausesOfDelay.EMPTY);
+    private LinkedVariables linkedVariablesOfParameter(Runtime runtime,
+                                                       HiddenContentTypes hiddenContentTypes,
+                                                       ParameterizedType parameterMethodType,
+                                                       ParameterizedType parameterType,
+                                                       LinkedVariables linkedVariablesOfParameter,
+                                                       HiddenContentSelector hcsSource) {
         Map<Variable, LV> map = new HashMap<>();
+        AtomicBoolean isDelayed = new AtomicBoolean();
 
         Integer index = hiddenContentTypes.indexOfOrNull(parameterMethodType);
         if (index != null && parameterMethodType.parameters().isEmpty()) {
@@ -133,15 +135,15 @@ public class LinkHelper {
                     Variable variable = e.getKey();
                     LV lv = e.getValue();
                     if (lv.isDelayed()) {
-                        causes.set(causes.get().merge(lv.causesOfDelay()));
+                        isDelayed.set(true);
                     }
-                    DV mutable = evaluationContext.immutable(parameterType);
-                    if (mutable.isDelayed()) {
-                        causes.set(causes.get().merge(mutable.causesOfDelay()));
-                        mutable = MUTABLE_DV;
+                    Value.Immutable immutable = analysisHelper.typeImmutable(methodInfo.typeInfo(), parameterType);
+                    if (immutable == null) {
+                        isDelayed.set(true);
+                        immutable = ValueImpl.ImmutableImpl.MUTABLE;
                     }
-                    if (!MultiLevel.isAtLeastEventuallyRecursivelyImmutable(mutable)) {
-                        boolean m = MultiLevel.isMutable(mutable);
+                    if (!immutable.isImmutable()) {
+                        boolean m = immutable.isMutable();
                         Indices indices = new Indices(Set.of(new Index(List.of(index))));
                         Links links = new Links(Map.of(indices, new Link(ALL_INDICES, m)));
                         boolean independentHc = lv.isCommonHC();
@@ -165,7 +167,7 @@ public class LinkHelper {
                 LV newLv;
                 LV lv = e.getValue();
                 if (lv.isDelayed()) {
-                    causes.set(causes.get().merge(lv.causesOfDelay()));
+                    isDelayed.set(true);
                 }
                 if (targetData != null && !targetData.isEmpty()) {
                     Map<Indices, Link> linkMap = new HashMap<>();
@@ -181,15 +183,14 @@ public class LinkHelper {
                         Indices iInHctTarget = lv.haveLinks() && lv.theirsIsAll() ? ALL_INDICES : value.indices();
                         ParameterizedType type = value.type();
                         assert type != null;
-                        DV immutable = evaluationContext.immutable(type);
-                        if (MultiLevel.isAtLeastEventuallyRecursivelyImmutable(immutable)) {
+                        Value.Immutable immutable = analysisHelper.typeImmutable(methodInfo.typeInfo(), type);
+                        if (immutable == null) {
+                            isDelayed.set(true);
+                            immutable = ValueImpl.ImmutableImpl.MUTABLE;
+                        } else if (immutable.isImmutable()) {
                             continue;
                         }
-                        if (immutable.isDelayed()) {
-                            causes.set(causes.get().merge(immutable.causesOfDelay()));
-                            immutable = MUTABLE_DV;
-                        }
-                        boolean mutable = MultiLevel.isMutable(immutable);
+                        boolean mutable = immutable.isMutable();
                         linkMap.put(iInHctSource, new Link(iInHctTarget, mutable));
                     }
                     if (linkMap.isEmpty()) {
@@ -207,8 +208,8 @@ public class LinkHelper {
             });
         }
         LinkedVariables lvs = LinkedVariables.of(map);
-        if (causes.get().isDelayed()) {
-            return lvs.changeToDelay(LV.delay(causes.get()));
+        if (isDelayed.get()) {
+            return lvs.changeToDelay();
         }
         return lvs;
     }
@@ -251,40 +252,39 @@ public class LinkHelper {
         if (independent.isIndependent()) return LinkedVariables.EMPTY;
         boolean independentHC = independent.isAtLeastIndependentHc();
         Map<Variable, LV> map = new HashMap<>();
-        List<CausesOfDelay> causesOfDelays = new ArrayList<>();
+        AtomicBoolean isDelayed = new AtomicBoolean();
         linkedVariables.forEach(e -> {
-            DV mutable = context.evaluationContext().immutable(type);
-            if (mutable.isDelayed()) {
-                causesOfDelays.add(mutable.causesOfDelay());
-                mutable = MUTABLE_DV;
+            Value.Immutable mutable = analysisHelper.typeImmutable(methodInfo.typeInfo(), type);
+            if (mutable == null) {
+                isDelayed.set(true);
+                mutable = ValueImpl.ImmutableImpl.MUTABLE;
             }
-            if (!MultiLevel.isAtLeastEventuallyRecursivelyImmutable(mutable)) {
+            if (!mutable.isImmutable()) {
                 Map<Indices, Link> correctedMap = new HashMap<>();
                 for (int hctIndex : hcs.set()) {
                     Indices indices = new Indices(hctIndex);
                     // see e.g. Linking_1A,f9m(): we correct 0 to 0;1, and 1 to 0;1
                     Indices corrected = indices.allOccurrencesOf(runtime, concreteFunctionalType);
-                    Link link = new Link(indices, MultiLevel.isMutable(mutable));
+                    Link link = new Link(indices, mutable.isMutable());
                     correctedMap.put(corrected, link);
                 }
                 Links links = new Links(correctedMap);
                 LV lv = independentHC ? LV.createHC(links) : LV.createDependent(links);
                 map.put(e.getKey(), lv);
             }
-            if (e.getValue().isDelayed()) causesOfDelays.add(e.getValue().causesOfDelay());
+            if (e.getValue().isDelayed()) isDelayed.set(true);
         });
         if (map.isEmpty()) return LinkedVariables.EMPTY;
-        if (!causesOfDelays.isEmpty()) {
-            LV delay = LV.delay(causesOfDelays.stream().reduce(CausesOfDelay.EMPTY, CausesOfDelay::merge));
-            return LinkedVariables.of(map).changeToDelay(delay);
+        if (isDelayed.get()) {
+            return LinkedVariables.of(map).changeToDelay();
         }
         return LinkedVariables.of(map);
     }
 
     public record LambdaResult(List<LinkedVariables> linkedToParameters, LinkedVariables linkedToReturnValue) {
-        public LinkedVariables delay(CausesOfDelay causesOfDelay) {
+        public LinkedVariables delay() {
             return linkedToParameters.stream().reduce(LinkedVariables.EMPTY, LinkedVariables::merge)
-                    .merge(linkedToReturnValue.changeToDelay(LV.delay(causesOfDelay)));
+                    .merge(linkedToReturnValue.changeToDelay());
         }
 
         public LinkedVariables mergedLinkedToParameters() {
