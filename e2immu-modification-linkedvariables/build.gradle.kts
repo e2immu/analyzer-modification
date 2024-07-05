@@ -31,9 +31,12 @@ java {
 
 dependencies {
     implementation("org.e2immu:e2immu-external-support:some.version")
+    implementation("org.e2immu:e2immu-internal-util:some.version")
+    implementation("org.e2immu:e2immu-internal-graph:some.version")
     implementation("org.e2immu:e2immu-cst-api:some.version")
     implementation("org.e2immu:e2immu-cst-impl:some.version")
     implementation("org.e2immu:e2immu-inspection-api:some.version")
+    implementation("org.e2immu:e2immu-shallow-analyzer:some.version")
     implementation("org.e2immu:e2immu-modification-prepwork:some.version")
     implementation("org.slf4j:slf4j-api:2.0.7")
 

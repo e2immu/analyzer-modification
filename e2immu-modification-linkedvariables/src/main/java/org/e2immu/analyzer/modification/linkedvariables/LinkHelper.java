@@ -1,0 +1,1106 @@
+package org.e2immu.analyzer.modification.linkedvariables;
+
+import org.e2immu.analyzer.modification.linkedvariables.hcs.CausesOfDelay;
+import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.linkedvariables.hcs.Index;
+import org.e2immu.analyzer.modification.linkedvariables.hcs.Indices;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LV;
+import org.e2immu.analyzer.modification.linkedvariables.lv.Link;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariables;
+import org.e2immu.analyzer.modification.linkedvariables.lv.Links;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
+import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.e2immu.language.inspection.api.parser.GenericsHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.*;
+import static org.e2immu.analyzer.modification.linkedvariables.hcs.Indices.ALL_INDICES;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LV.LINK_DEPENDENT;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LV.LINK_INDEPENDENT;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
+
+public class LinkHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LinkHelper.class);
+
+    private final Runtime runtime;
+    private final GenericsHelper genericsHelper;
+    private final AnalysisHelper analysisHelper;
+
+    private final MethodInfo methodInfo;
+    private final HiddenContentTypes hiddenContentTypes;
+    private final HiddenContentSelector hcsSource;
+
+    public LinkHelper(Runtime runtime, GenericsHelper genericsHelper,
+                      AnalysisHelper analysisHelper,
+                      MethodInfo methodInfoIn) {
+        this.runtime = runtime;
+        this.analysisHelper = analysisHelper;
+        this.genericsHelper = genericsHelper;
+        hiddenContentTypes = bestHiddenContentTypes(methodInfoIn);
+        this.methodInfo = Objects.requireNonNullElse(hiddenContentTypes.getMethodInfo(), methodInfoIn);
+        ParameterizedType formalObject = this.methodInfo.typeInfo().asParameterizedType(runtime);
+        hcsSource = HiddenContentSelector.selectAll(hiddenContentTypes, formalObject);
+    }
+
+    // IMPROVE consider storing this information in methodAnalysis; it is often needed
+    private static HiddenContentTypes bestHiddenContentTypes(MethodInfo methodInfo) {
+        HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
+        if (methodHcs != null && !methodHcs.isNone()) return methodHcs.hiddenContentTypes();
+        for (ParameterInfo pi : methodInfo.parameters()) {
+            HiddenContentSelector paramHcs = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
+            if (paramHcs != null && !paramHcs.isNone()) {
+                return paramHcs.hiddenContentTypes();
+            }
+        }
+        // fall back
+        return methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+    }
+
+    private LinkHelper(Runtime runtime,
+                       GenericsHelper genericsHelper,
+                       AnalysisHelper analysisHelper,
+                       HiddenContentTypes hctMethod, HiddenContentSelector hcsSource) {
+        this.runtime = runtime;
+        this.methodInfo = null;
+        this.hiddenContentTypes = hctMethod;
+        this.hcsSource = hcsSource;
+        this.genericsHelper = genericsHelper;
+        this.analysisHelper = analysisHelper;
+    }
+
+    /*
+    Linked variables of parameter.
+    There are 2 types involved:
+      1. type in declaration = parameterMethodType
+      2. type in method call = parameterExpression.returnType() == parameterType
+
+    This is a prep method, where we re-compute the base of the parameter's link to the hidden content types of the method.
+    The minimum link level is LINK_DEPENDENT.
+    The direction of the links is from the method to the variables linked to the parameter, correcting for the concrete parameter type.
+    All Indices on the 'from'-side are single HCT indices.
+
+    If the parameterMethodType is a type parameter, we'll have an index of hc wrt the method:
+    If the argument is a variable, the link is typically v:0; we'll link 'index of hc' -2-> ALL if the concrete type
+      allows so.
+    If the argument is dependently linked to a variable, e.g. v.subList(..), then we'll still link DEPENDENT, and
+      add the 'index of hc' -2-> ALL.
+    If the argument is HC linked to a variable, e.g. new ArrayList<>(..), we'll link 'index of hc' -4-> ALL.
+
+    If parameterMethodType is not a type parameter, we'll compute a translation map which expresses
+    the hidden content of the method, expressed in parameterMethodType, to indices in the parameter type.
+
+    IMPORTANT: these links are meant to be combined with either links to object, or links to other parameters.
+    This code is different from the normal linkedVariables(...) method.
+
+    In the case of links between parameters, the "source" becomes the object.
+     */
+    private LinkedVariables linkedVariablesOfParameter(ParameterizedType parameterMethodType,
+                                                       ParameterizedType parameterType,
+                                                       LinkedVariables linkedVariablesOfParameter,
+                                                       HiddenContentSelector hcsSource) {
+        return linkedVariablesOfParameter(runtime, hiddenContentTypes,
+                parameterMethodType, parameterType, linkedVariablesOfParameter, hcsSource);
+
+    }
+
+    private static LinkedVariables linkedVariablesOfParameter(Runtime runtime,
+                                                              HiddenContentTypes hiddenContentTypes,
+                                                              ParameterizedType parameterMethodType,
+                                                              ParameterizedType parameterType,
+                                                              LinkedVariables linkedVariablesOfParameter,
+                                                              HiddenContentSelector hcsSource) {
+        AtomicReference<CausesOfDelay> causes = new AtomicReference<>(CausesOfDelay.EMPTY);
+        Map<Variable, LV> map = new HashMap<>();
+
+        Integer index = hiddenContentTypes.indexOfOrNull(parameterMethodType);
+        if (index != null && parameterMethodType.parameters().isEmpty()) {
+            if (parameterType.parameters().isEmpty()) {
+                linkedVariablesOfParameter.stream().forEach(e -> {
+                    Variable variable = e.getKey();
+                    LV lv = e.getValue();
+                    if (lv.isDelayed()) {
+                        causes.set(causes.get().merge(lv.causesOfDelay()));
+                    }
+                    DV mutable = evaluationContext.immutable(parameterType);
+                    if (mutable.isDelayed()) {
+                        causes.set(causes.get().merge(mutable.causesOfDelay()));
+                        mutable = MUTABLE_DV;
+                    }
+                    if (!MultiLevel.isAtLeastEventuallyRecursivelyImmutable(mutable)) {
+                        boolean m = MultiLevel.isMutable(mutable);
+                        Indices indices = new Indices(Set.of(new Index(List.of(index))));
+                        Links links = new Links(Map.of(indices, new Link(ALL_INDICES, m)));
+                        boolean independentHc = lv.isCommonHC();
+                        LV newLv = independentHc ? LV.createHC(links) : LV.createDependent(links);
+                        map.put(variable, newLv);
+                    }
+                });
+            } else {
+                // we have type parameters in the concrete type --- must link into those
+                HiddenContentTypes newHiddenContentTypes = parameterType.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+                ParameterizedType newParameterMethodType = parameterType.typeInfo().asParameterizedType(runtime);
+                HiddenContentSelector newHcsSource = HiddenContentSelector.selectAll(newHiddenContentTypes, newParameterMethodType);
+                LinkedVariables recursive = linkedVariablesOfParameter(runtime, newHiddenContentTypes,
+                        newParameterMethodType, parameterType, linkedVariablesOfParameter, newHcsSource);
+                return recursive.map(lv -> lv.prefixMine(index));
+            }
+        } else {
+            Map<Indices, HiddenContentSelector.IndicesAndType> targetData = HiddenContentSelector
+                    .translateHcs(runtime, genericsHelper, hcsSource, parameterMethodType, parameterType);
+            linkedVariablesOfParameter.stream().forEach(e -> {
+                LV newLv;
+                LV lv = e.getValue();
+                if (lv.isDelayed()) {
+                    causes.set(causes.get().merge(lv.causesOfDelay()));
+                }
+                if (targetData != null && !targetData.isEmpty()) {
+                    Map<Indices, Link> linkMap = new HashMap<>();
+                    Collection<Indices> targetDataKeys;
+                    // NOTE: this type of filter occurs in 'continueLinkedVariables' as well
+                    if (lv.haveLinks()) {
+                        targetDataKeys = lv.links().map().keySet().stream().filter(targetData::containsKey).toList();
+                    } else {
+                        targetDataKeys = targetData.keySet();
+                    }
+                    for (Indices iInHctSource : targetDataKeys) {
+                        HiddenContentSelector.IndicesAndType value = targetData.get(iInHctSource);
+                        Indices iInHctTarget = lv.haveLinks() && lv.theirsIsAll() ? ALL_INDICES : value.indices();
+                        ParameterizedType type = value.type();
+                        assert type != null;
+                        DV immutable = evaluationContext.immutable(type);
+                        if (MultiLevel.isAtLeastEventuallyRecursivelyImmutable(immutable)) {
+                            continue;
+                        }
+                        if (immutable.isDelayed()) {
+                            causes.set(causes.get().merge(immutable.causesOfDelay()));
+                            immutable = MUTABLE_DV;
+                        }
+                        boolean mutable = MultiLevel.isMutable(immutable);
+                        linkMap.put(iInHctSource, new Link(iInHctTarget, mutable));
+                    }
+                    if (linkMap.isEmpty()) {
+                        newLv = LINK_DEPENDENT;
+                    } else {
+                        Links links = new Links(Map.copyOf(linkMap));
+                        boolean independentHc = lv.isCommonHC();
+                        newLv = independentHc ? LV.createHC(links) : LV.createDependent(links);
+                    }
+                } else {
+                    newLv = LINK_DEPENDENT;
+                }
+                Variable variable = e.getKey();
+                map.put(variable, newLv);
+            });
+        }
+        LinkedVariables lvs = LinkedVariables.of(map);
+        if (causes.get().isDelayed()) {
+            return lvs.changeToDelay(LV.delay(causes.get()));
+        }
+        return lvs;
+    }
+
+    public LinkedVariables functional(Value.Independent independentOfMethod,
+                                      HiddenContentSelector hcsMethod,
+                                      LinkedVariables linkedVariablesOfObject,
+                                      ParameterizedType concreteReturnType,
+                                      List<Value.Independent> independentOfParameter,
+                                      List<HiddenContentSelector> hcsParameters,
+                                      List<ParameterizedType> expressionTypes,
+                                      List<LinkedVariables> linkedVariablesOfParameters,
+                                      ParameterizedType concreteFunctionalType) {
+        LinkedVariables lvs = functional(independentOfMethod, hcsMethod, linkedVariablesOfObject, concreteReturnType,
+                concreteFunctionalType);
+        int i = 0;
+        for (ParameterizedType expressionType : expressionTypes) {
+            int index = Math.min(hcsParameters.size() - 1, i);
+            Value.Independent independent = independentOfParameter.get(index);
+            HiddenContentSelector hcs = hcsParameters.get(index);
+            LinkedVariables linkedVariables = linkedVariablesOfParameters.get(index);
+            LinkedVariables lvsParameter;
+            if (linkedVariables == LinkedVariables.NOT_YET_SET) {
+                lvsParameter = linkedVariables;
+            } else {
+                lvsParameter = functional(independent, hcs, linkedVariables, expressionType,
+                        concreteFunctionalType);
+            }
+            lvs = lvs.merge(lvsParameter);
+            i++;
+        }
+        return lvs;
+    }
+
+    private LinkedVariables functional(Value.Independent independent,
+                                       HiddenContentSelector hcs,
+                                       LinkedVariables linkedVariables,
+                                       ParameterizedType type,
+                                       ParameterizedType concreteFunctionalType) {
+        if (independent.isIndependent()) return LinkedVariables.EMPTY;
+        boolean independentHC = independent.isAtLeastIndependentHc();
+        Map<Variable, LV> map = new HashMap<>();
+        List<CausesOfDelay> causesOfDelays = new ArrayList<>();
+        linkedVariables.forEach(e -> {
+            DV mutable = context.evaluationContext().immutable(type);
+            if (mutable.isDelayed()) {
+                causesOfDelays.add(mutable.causesOfDelay());
+                mutable = MUTABLE_DV;
+            }
+            if (!MultiLevel.isAtLeastEventuallyRecursivelyImmutable(mutable)) {
+                Map<Indices, Link> correctedMap = new HashMap<>();
+                for (int hctIndex : hcs.set()) {
+                    Indices indices = new Indices(hctIndex);
+                    // see e.g. Linking_1A,f9m(): we correct 0 to 0;1, and 1 to 0;1
+                    Indices corrected = indices.allOccurrencesOf(runtime, concreteFunctionalType);
+                    Link link = new Link(indices, MultiLevel.isMutable(mutable));
+                    correctedMap.put(corrected, link);
+                }
+                Links links = new Links(correctedMap);
+                LV lv = independentHC ? LV.createHC(links) : LV.createDependent(links);
+                map.put(e.getKey(), lv);
+            }
+            if (e.getValue().isDelayed()) causesOfDelays.add(e.getValue().causesOfDelay());
+        });
+        if (map.isEmpty()) return LinkedVariables.EMPTY;
+        if (!causesOfDelays.isEmpty()) {
+            LV delay = LV.delay(causesOfDelays.stream().reduce(CausesOfDelay.EMPTY, CausesOfDelay::merge));
+            return LinkedVariables.of(map).changeToDelay(delay);
+        }
+        return LinkedVariables.of(map);
+    }
+
+    public record LambdaResult(List<LinkedVariables> linkedToParameters, LinkedVariables linkedToReturnValue) {
+        public LinkedVariables delay(CausesOfDelay causesOfDelay) {
+            return linkedToParameters.stream().reduce(LinkedVariables.EMPTY, LinkedVariables::merge)
+                    .merge(linkedToReturnValue.changeToDelay(LV.delay(causesOfDelay)));
+        }
+
+        public LinkedVariables mergedLinkedToParameters() {
+            return linkedToParameters.stream().reduce(LinkedVariables.EMPTY, LinkedVariables::merge);
+        }
+    }
+
+    /*
+    SITUATION 0: both return value and all parameters @Independent
+    no linking
+
+    predicate is the typical example
+
+    SITUATION 1: interesting return value, no parameters, or all parameters @Independent
+
+    rv = supplier.get()             rv *-4-0 supplier       non-modifying, object to return value
+    s = () -> supplier.get()        s 0-4-0 supplier
+    s = supplier::get               s 0-4-0 supplier
+
+    rv = iterator.next()            rv *-4-0 iterator (it is not relevant if the method is modifying, or not)
+    s = () -> iterator.next()       s 0-4-0 iterator
+    s = iterator::next              s 0-4-0 iterator
+    t = s.get()                     t *-4-0 s, *-0-4 iterator
+
+    rv = biSupplier.get()           rv *-4-0.0;0.1
+    s = () -> biSupplier.get()      s 0.0;0.1-4-0.0;0.1
+    pair = s.get()                  pair 0.0;0.1-4-0.0;0.1 biSupplier,s
+    x = pair.x                      x *-4-0.0 pair, *-4-0.0 biSupplier
+
+    -4- links depending on the HCS of the method (@Independent(hc), @Dependent?)
+    -4-M links depending on the concrete type of rv when computing
+    -2- links are also possible, e.g. subList(0, 2)
+
+    sub = list.subList(0, 3)        sub 0-2-0 list
+    s = i -> list.subList(0, i)     s 0-2-0 list
+
+    conclusion:
+     - irrespective of method modification.
+     - @Independent of method is primary selector (-2-,-4-,no link)
+     - * gets upgraded to the value in method HCS
+
+    SITUATION 2: no return value, or an @Independent return value; at least one interesting parameter
+
+    consumer.accept(t)              t *-4-0 consumer        modifying, parameter to object
+    s = (t -> consumer.accept(t))   s 0-4-0 consumer
+    sx.foreach(consumer)            sx 0-4-0 consumer
+
+    list.add(t)                     t *-4-0 list
+    s = t -> list.add(t)            s 0-4-0 list
+
+    conclusion:
+    - identical to situation 1, where the parameter(s) takes the role of the return value; each independently of the other
+
+    SITUATION 3: neither return value, nor at least one parameter is @Independent
+    (the return value links to the object, and at least one parameter links to the object)
+
+    do both of 1 and 2, and take union. 0.0-4-0.1 and 0.0-4-0.0 may result in 0.0;0.1-4-0.0;0.1
+    example??
+
+    FIXME split method so that it can be called from MR as well
+    */
+    public static LambdaResult lambdaLinking(Runtime runtime, MethodInfo concreteMethod) {
+
+        MethodAnalysis methodAnalysis = evaluationContext.getAnalyserContext().getMethodAnalysis(concreteMethod);
+        StatementAnalysis lastStatement = methodAnalysis.getLastStatement();
+        if (lastStatement == null) {
+            return new LambdaResult(List.of(), LinkedVariables.EMPTY);
+        }
+        MethodInspection methodInspection = evaluationContext.getAnalyserContext().getMethodInspection(concreteMethod);
+        List<LinkedVariables> result = new ArrayList<>(methodInspection.getParameters().size() + 1);
+
+        for (ParameterInfo pi : methodInspection.getParameters()) {
+            VariableInfo vi = lastStatement.getLatestVariableInfo(pi.fullyQualifiedName);
+            LinkedVariables lv = vi.getLinkedVariables().remove(v ->
+                    !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo));
+            result.add(lv);
+        }
+        if (concreteMethod.hasReturnValue()) {
+            ReturnVariable returnVariable = new ReturnVariable(concreteMethod);
+            VariableInfo vi = lastStatement.getLatestVariableInfo(returnVariable.fqn);
+            if (methodInspection.getParameters().isEmpty()) {
+                return new LambdaResult(result, vi.getLinkedVariables());
+            }
+            // link to the input types rather than the output type, see also HCT.mapMethodToTypeIndices
+            Map<Indices, Indices> correctionMap = new HashMap<>();
+            // FIXME 1??
+            correctionMap.put(new Indices(1), new Indices(0));
+            LinkedVariables corrected = vi.getLinkedVariables().map(lv -> lv.correctTo(correctionMap));
+            return new LambdaResult(result, corrected);
+        }
+        return new LambdaResult(result, LinkedVariables.EMPTY);
+    }
+
+    public record FromParameters(EvaluationResult intoObject, EvaluationResult intoResult,
+                                 Map<Integer, Integer> correctionMap) {
+    }
+
+    /*
+    Add all necessary links from parameters into scope, and in-between parameters
+     */
+    public FromParameters linksInvolvingParameters(ParameterizedType objectPt,
+                                                   ParameterizedType resultPt,
+                                                   List<Expression> parameterExpressions,
+                                                   List<EvaluationResult> parameterResults) {
+        MethodInspection methodInspection = context.getAnalyserContext().getMethodInspection(methodInfo);
+        EvaluationResultImpl.Builder intoObjectBuilder = new EvaluationResultImpl.Builder(context)
+                .setLinkedVariablesOfExpression(LinkedVariables.EMPTY);
+        EvaluationResultImpl.Builder intoResultBuilder = resultPt == null || resultPt.isVoid() ? null
+                : new EvaluationResultImpl.Builder(context).setLinkedVariablesOfExpression(LinkedVariables.EMPTY);
+        Map<Integer, Integer> correctionMap = new HashMap<>();
+        if (!methodInspection.getParameters().isEmpty()) {
+            boolean isFactoryMethod = methodInspection.isFactoryMethod();
+            // links between object/return value and parameters
+            for (ParameterAnalysis parameterAnalysis : methodAnalysis.getParameterAnalyses()) {
+                DV formalParameterIndependent = parameterAnalysis.getProperty(Property.INDEPENDENT);
+                LinkedVariables lvsToResult = isFactoryMethod ? parameterAnalysis.getLinkedVariables()
+                        : parameterAnalysis.getLinkToReturnValueOfMethod();
+                boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
+                if (!INDEPENDENT_DV.equals(formalParameterIndependent) || inResult) {
+                    ParameterInfo pi = parameterAnalysis.getParameterInfo();
+                    ParameterizedType parameterType = parameterExpressions.get(pi.index).returnType();
+                    LinkedVariables parameterLvs;
+                    EvaluationResult parameterResult = parameterResults.get(pi.index);
+                    if (inResult) {
+                        /*
+                        change the links of the parameter to the value of the return variable (see also MethodReference,
+                        computation of links when modified is true)
+                         */
+                        LinkedVariables returnValueLvs = linkedVariablesOfParameter(pi.parameterizedType,
+                                parameterExpressions.get(pi.index).returnType(),
+                                parameterResult.linkedVariablesOfExpression(), hcsSource);
+                        LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
+                                .map(Map.Entry::getValue).findFirst().orElseThrow();
+                        Map<Variable, LV> map = returnValueLvs.stream().collect(Collectors.toMap(Map.Entry::getKey,
+                                e -> Objects.requireNonNull(follow(valueOfReturnValue, e.getValue()))));
+                        parameterLvs = LinkedVariables.of(map);
+                        formalParameterIndependent = valueOfReturnValue.isCommonHC() ? INDEPENDENT_HC_DV : DEPENDENT_DV;
+                    } else {
+                        parameterLvs = linkedVariablesOfParameter(pi.parameterizedType,
+                                parameterExpressions.get(pi.index).returnType(),
+                                parameterResult.linkedVariablesOfExpression(), hcsSource);
+                    }
+                    EvaluationResultImpl.Builder builder = inResult ? intoResultBuilder : intoObjectBuilder;
+                    parameterResult.changeData().forEach((v, cd) -> {
+                        cd.linkedVariables().forEach(e -> {
+                            if (!e.getValue().isStaticallyAssignedOrAssigned()) {
+                                builder.link(v, e.getKey(), e.getValue());
+                            } // FIXME this is not the best way to approach copying, what with -1- links??
+                        });
+                    });
+                    ParameterizedType pt = inResult ? resultPt : objectPt;
+                    ParameterizedType methodPt;
+                    if (inResult) {
+                        methodPt = methodInspection.getReturnType();
+                    } else {
+                        methodPt = methodInfo.typeInfo.asParameterizedType(context.getAnalyserContext());
+                    }
+                    Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex = methodInfo.methodResolution.get().hiddenContentTypes()
+                            .mapMethodToTypeIndices(inResult ? methodInspection.getReturnType() : pi.parameterizedType);
+                    correctionMap.putAll(mapMethodHCTIndexToTypeHCTIndex);
+                    HiddenContentSelector hcsTarget = parameterAnalysis.getHiddenContentSelector().correct(mapMethodHCTIndexToTypeHCTIndex);
+                    if (pt != null) {
+                        LinkedVariables lv;
+                        if (inResult) {
+                            // parameter -> result
+
+                            HiddenContentSelector hcsSource = methodAnalysis.getHiddenContentSelector().correct(mapMethodHCTIndexToTypeHCTIndex);
+                            lv = linkedVariables(this.hcsSource, parameterType, pi.parameterizedType, hcsTarget,
+                                    parameterLvs, false, formalParameterIndependent, pt, methodPt,
+                                    hcsSource, false);
+                        } else {
+                            if (pi.parameterizedType.isTypeParameter() && !parameterType.parameters.isEmpty()) {
+                                DV mutable = context.evaluationContext().immutable(pi.parameterizedType);
+                                if (mutable.isDelayed()) {
+                                    lv = parameterLvs.changeToDelay(LV.delay(mutable.causesOfDelay()));
+                                } else if (MultiLevel.isMutable(mutable)) {
+                                    lv = parameterLvs;
+                                } else {
+                                    lv = parameterLvs.map(LV::changeToHc);
+                                }
+                            } else {
+                                // object -> parameter (rather than the other way around)
+                                lv = linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, false,
+                                        formalParameterIndependent, parameterType, pi.parameterizedType, hcsTarget,
+                                        true);
+                            }
+                        }
+                        builder.mergeLinkedVariablesOfExpression(lv);
+                    }
+                }
+            }
+
+            linksBetweenParameters(intoObjectBuilder, methodInfo, parameterExpressions, parameterResults);
+        }
+        return new FromParameters(intoObjectBuilder.build(), intoResultBuilder == null ? null :
+                intoResultBuilder.build(), Map.copyOf(correctionMap));
+    }
+
+    public void linksBetweenParameters(EvaluationResultImpl.Builder builder,
+                                       MethodInfo methodInfo,
+                                       List<Expression> parameterExpressions,
+                                       List<EvaluationResult> parameterResults) {
+        Map<ParameterInfo, LinkedVariables> crossLinks = methodInfo.crossLinks(context.getAnalyserContext());
+        if (crossLinks.isEmpty()) return;
+        crossLinks.forEach((pi, lv) -> {
+            boolean sourceIsVarArgs = pi.parameterInspection.get().isVarArgs();
+            assert !sourceIsVarArgs : "Varargs must always be a target";
+            HiddenContentSelector hcsSource = methodAnalysis.getParameterAnalyses().get(pi.index).getHiddenContentSelector();
+            ParameterizedType sourceType = parameterExpressions.get(pi.index).returnType();
+            LinkedVariables sourceLvs = linkedVariablesOfParameter(pi.parameterizedType,
+                    parameterExpressions.get(pi.index).returnType(),
+                    parameterResults.get(pi.index).linkedVariablesOfExpression(), hcsSource);
+
+            lv.stream().forEach(e -> {
+                ParameterInfo target = (ParameterInfo) e.getKey();
+
+                boolean targetIsVarArgs = target.parameterInspection.get().isVarArgs();
+                if (!targetIsVarArgs || parameterResults.size() > target.index) {
+
+                    LV level = e.getValue();
+
+                    for (int i = target.index; i < parameterResults.size(); i++) {
+                        ParameterizedType targetType = parameterExpressions.get(target.index).returnType();
+                        HiddenContentSelector hcsTarget = methodAnalysis.getParameterAnalyses().get(target.index).getHiddenContentSelector();
+
+                        LinkedVariables targetLinkedVariables = linkedVariablesOfParameter(target.parameterizedType,
+                                parameterExpressions.get(i).returnType(),
+                                parameterResults.get(i).linkedVariablesOfExpression(), hcsSource);
+
+                        DV independentDv = level.isCommonHC() ? INDEPENDENT_HC_DV : DEPENDENT_DV;
+                        LinkedVariables mergedLvs = linkedVariables(hcsSource, targetType, target.parameterizedType, hcsSource,
+                                targetLinkedVariables, targetIsVarArgs, independentDv, sourceType, pi.parameterizedType,
+                                hcsTarget, targetIsVarArgs);
+                        crossLink(sourceLvs, mergedLvs, builder);
+                    }
+                } // else: no value... empty varargs
+            });
+        });
+    }
+
+    /*
+   In general, the method result 'a', in 'a = b.method(c, d)', can link to 'b', 'c' and/or 'd'.
+   Independence and immutability restrict the ability to link.
+
+   The current implementation is heavily focused on understanding links towards the fields of a type,
+   i.e., in sub = list.subList(0, 10), we want to link sub to list.
+
+   Links from the parameters to the result (from 'c' to 'a', from 'd' to 'a') have currently only
+   been implemented for @Identity methods (i.e., between 'a' and 'c').
+
+   So we implement
+   1/ void methods cannot link
+   2/ if the method is @Identity, the result is linked to the 1st parameter 'c'
+   3/ if the method is a factory method, the result is linked to the parameter values
+
+   all other rules now determine whether we return an empty set, or the set {'a'}.
+
+   4/ independence is determined by the independence value of the method, and the independence value of the object 'a'
+    */
+
+    public LinkedVariables linkedVariablesMethodCallObjectToReturnType(ParameterizedType objectType,
+                                                                       EvaluationResult objectResult,
+                                                                       List<EvaluationResult> parameterResults,
+                                                                       ParameterizedType returnType) {
+        return linkedVariablesMethodCallObjectToReturnType(objectType, objectResult, parameterResults, returnType, Map.of());
+    }
+
+    public LinkedVariables linkedVariablesMethodCallObjectToReturnType(ParameterizedType objectType,
+                                                                       EvaluationResult objectResult,
+                                                                       List<EvaluationResult> parameterResults,
+                                                                       ParameterizedType returnType,
+                                                                       Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex) {
+        // RULE 1: void method cannot link
+        if (methodInfo.noReturnValue()) return LinkedVariables.EMPTY;
+        boolean recursiveCall = recursiveCall(methodInfo, context.evaluationContext());
+        boolean breakCallCycleDelay = methodInfo.methodResolution.get().ignoreMeBecauseOfPartOfCallCycle();
+        if (recursiveCall || breakCallCycleDelay) {
+            return LinkedVariables.EMPTY;
+        }
+        MethodAnalysis methodAnalysis = context.getAnalyserContext().getMethodAnalysis(methodInfo);
+
+        // RULE 2: @Identity links to the 1st parameter
+        DV identity = methodAnalysis.getProperty(Property.IDENTITY);
+        if (identity.valueIsTrue()) {
+            return parameterResults.get(0).linkedVariablesOfExpression().maximum(LINK_ASSIGNED);
+        }
+        LinkedVariables linkedVariablesOfObject = objectResult.linkedVariablesOfExpression()
+                .maximum(LINK_ASSIGNED); // should be delay-able!
+
+        if (identity.isDelayed() && !parameterResults.isEmpty()) {
+            // temporarily link to both the object and the parameter, in a delayed way
+            LinkedVariables allParams = parameterResults.stream()
+                    .map(EvaluationResult::linkedVariablesOfExpression)
+                    .reduce(LinkedVariables.EMPTY, LinkedVariables::merge);
+            return linkedVariablesOfObject
+                    .merge(allParams)
+                    .changeToDelay(LV.delay(identity.causesOfDelay()));
+        }
+
+        // RULE 3: @Fluent simply returns the same object, hence, the same linked variables
+        DV fluent = methodAnalysis.getMethodProperty(Property.FLUENT);
+        if (fluent.valueIsTrue()) {
+            return linkedVariablesOfObject;
+        }
+        if (fluent.isDelayed()) {
+            return linkedVariablesOfObject.changeNonStaticallyAssignedToDelay(fluent.causesOfDelay());
+        }
+        DV independent = methodAnalysis.getProperty(Property.INDEPENDENT);
+        ParameterizedType methodType = methodInfo.typeInfo.asParameterizedType(context.getAnalyserContext());
+        ParameterizedType methodReturnType = context.getAnalyserContext().getMethodInspection(methodInfo).getReturnType();
+
+        HiddenContentSelector hcsTarget = Objects.requireNonNullElse(methodAnalysis.getHiddenContentSelector(),
+                NONE).correct(mapMethodHCTIndexToTypeHCTIndex);
+
+        return linkedVariables(hcsSource, objectType,
+                methodType, hcsSource, linkedVariablesOfObject,
+                false,
+                independent, returnType, methodReturnType, hcsTarget,
+                false);
+    }
+
+       /* we have to probe the object first, to see if there is a value
+       A. if there is a value, and the value offers a concrete implementation, we replace methodInfo by that
+       concrete implementation.
+       B. if there is no value, and the delay indicates that a concrete implementation may be forthcoming,
+       we delay
+       C otherwise (no value, no concrete implementation forthcoming) we continue with the abstract method.
+       */
+
+    public static boolean recursiveCall(MethodInfo methodInfo, EvaluationContext evaluationContext) {
+        MethodAnalyser currentMethod = evaluationContext.getCurrentMethod();
+        if (currentMethod != null && currentMethod.getMethodInfo() == methodInfo) return true;
+        if (evaluationContext.getClosure() != null) {
+            LOGGER.debug("Going recursive on call to {}, to {} ", methodInfo.fullyQualifiedName,
+                    evaluationContext.getClosure().getCurrentType().fullyQualifiedName);
+            return recursiveCall(methodInfo, evaluationContext.getClosure());
+        }
+        return false;
+    }
+
+    /**
+     * Important: this method does not deal with hidden content specific to the method, because it has been designed
+     * to connect the object to the return value, as called from <code>linkedVariablesMethodCallObjectToReturnType</code>.
+     * Calls originating from <code>linksInvolvingParameters</code> must take this into account.
+     *
+     * @param sourceType                    must be type of object or parameterExpression, return type, non-evaluated
+     * @param methodSourceType              the method declaration's type of the source
+     * @param hiddenContentSelectorOfSource with respect to the method's HCT and methodSourceType
+     * @param sourceLvs                     linked variables of the source
+     * @param sourceIsVarArgs               allow for a correction of array -> element
+     * @param transferIndependent           the transfer mode (dependent, independent HC, independent)
+     * @param targetType                    must be type of object or parameterExpression, return type, non-evaluated
+     * @param methodTargetType              the method declaration's type of the target
+     * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
+     * @param reverse                       reverse the link, because we're reversing source and target, because we
+     *                                      only deal with *->0 in this method, never 0->*,
+     * @return the linked values of the target
+     */
+    private LinkedVariables linkedVariables(HiddenContentSelector hcsSource,
+                                            ParameterizedType sourceType,
+                                            ParameterizedType methodSourceType,
+                                            HiddenContentSelector hiddenContentSelectorOfSource,
+                                            LinkedVariables sourceLvs,
+                                            boolean sourceIsVarArgs,
+                                            Value.Independent transferIndependent,
+                                            ParameterizedType targetType,
+                                            ParameterizedType methodTargetType,
+                                            HiddenContentSelector hiddenContentSelectorOfTarget,
+                                            boolean reverse) {
+        assert targetType != null;
+
+        // RULE 1: no linking when the source is not linked or there is no transfer
+        if (sourceLvs.isEmpty() || MultiLevel.INDEPENDENT_DV.equals(transferIndependent)) {
+            return LinkedVariables.EMPTY;
+        }
+        assert !(hiddenContentSelectorOfTarget.isNone() && transferIndependent.equals(MultiLevel.INDEPENDENT_HC_DV))
+                : "Impossible to have no knowledge of hidden content, and INDEPENDENT_HC";
+
+        DV immutableOfSource = context.evaluationContext().immutable(sourceType);
+
+        // RULE 2: delays
+        if (immutableOfSource.isDelayed()) {
+            return sourceLvs.changeToDelay(LV.delay(immutableOfSource.causesOfDelay()));
+        }
+
+        // RULE 3: immutable -> no link
+        if (MultiLevel.isAtLeastEventuallyRecursivelyImmutable(immutableOfSource)) {
+            /*
+             if the result type immutable because of a choice in type parameters, methodIndependent will return
+             INDEPENDENT_HC, but the concrete type is deeply immutable
+             */
+            return LinkedVariables.EMPTY;
+        }
+
+        // RULE 4: delays
+        if (transferIndependent.isDelayed()) {
+            // delay in method independent
+            return sourceLvs.changeToDelay(LV.delay(transferIndependent.causesOfDelay()));
+        }
+        InspectionProvider inspectionProvider = context.getAnalyserContext();
+
+        // special code block for functional interfaces with both return value and parameters (i.e. variants
+        // on Function<T,R>, BiFunction<T,S,R> etc. Not Consumers (no return value) nor Suppliers (no parameters))
+        if (hiddenContentSelectorOfTarget.isOnlyAll() && INDEPENDENT_HC_DV.equals(transferIndependent)) {
+            HiddenContentTypes hctContext;
+            if (context.getCurrentMethod() != null) {
+                hctContext = context.getCurrentMethod().getMethodInfo().methodResolution.get().hiddenContentTypes();
+            } else {
+                hctContext = context.getCurrentType().typeResolution.get().hiddenContentTypes();
+            }
+            HiddenContentSelector hcsTargetContext = HiddenContentSelector.selectAll(hctContext, targetType);
+            HiddenContentSelector hcsSourceContext = HiddenContentSelector.selectAll(hctContext, sourceType);
+            Set<Integer> set = new HashSet<>(hcsSourceContext.set());
+            set.retainAll(hcsTargetContext.set());
+            if (!set.isEmpty()) {
+                List<LinkedVariables> lvsList = new ArrayList<>();
+                for (int index : set) {
+                    Indices indices = hcsSourceContext.getMap().get(index);
+                    if (indices.containsSize2Plus()) {
+                        Indices newIndices = indices.size2PlusDropOne();
+                        Indices base = indices.first();
+                        HiddenContentSelector newHiddenContentSelectorOfSource
+                                = new HiddenContentSelector(hctContext, Map.of(index, newIndices));
+                        ParameterizedType newSourceType = base.find(inspectionProvider, sourceType);
+                        Supplier<Map<Indices, HiddenContentTypes.IndicesAndType>> hctMethodToHctSourceSupplier =
+                                () -> Map.of(newIndices, new HiddenContentTypes.IndicesAndType(newIndices, newSourceType));
+                        HiddenContentSelector newHcsTarget;
+                        ParameterizedType newTargetType;
+                        if (reverse && !targetType.isTypeParameter()) {
+                            // List<T> as parameter
+                            newHcsTarget = newHiddenContentSelectorOfSource;
+                            newTargetType = newSourceType;
+                        } else if (!reverse && !targetType.isTypeParameter()) {
+                            // List<T> as return type
+                            newTargetType = targetType;
+                            newHcsTarget = newHiddenContentSelectorOfSource;
+                        } else {
+                            // object -> return
+                            newHcsTarget = new HiddenContentSelector(hctContext, Map.of(index, ALL_INDICES));
+                            newTargetType = targetType;
+                        }
+
+                        LinkedVariables lvs = continueLinkedVariables(inspectionProvider, hctContext,
+                                newHiddenContentSelectorOfSource,
+                                sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
+                                newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
+                                reverse);
+                        lvsList.add(lvs);
+                    }
+                }
+                if (!lvsList.isEmpty()) {
+                    return lvsList.stream().reduce(LinkedVariables.EMPTY, LinkedVariables::merge);
+                }
+            }
+        }
+        Supplier<Map<Indices, HiddenContentTypes.IndicesAndType>> hctMethodToHctSourceSupplier = () -> hiddenContentTypes
+                .translateHcs(inspectionProvider, hcsSource, methodSourceType, sourceType);
+
+        DV immutableOfFormalSource;
+        if (sourceType.typeInfo() != null) {
+            ParameterizedType formalSource = sourceType.typeInfo().asParameterizedType(runtime);
+            immutableOfFormalSource = analysisHelper.immutable(formalSource);
+        } else {
+            immutableOfFormalSource = immutableOfSource;
+        }
+        return continueLinkedVariables(hiddenContentTypes,
+                hiddenContentSelectorOfSource,
+                sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
+                methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse);
+    }
+
+    private LinkedVariables continueLinkedVariables(HiddenContentTypes hiddenContentTypes,
+                                                    HiddenContentSelector hiddenContentSelectorOfSource,
+                                                    LinkedVariables sourceLvs,
+                                                    boolean sourceIsVarArgs,
+                                                    Value.Independent transferIndependent,
+                                                    Value.Immutable immutableOfFormalSource,
+                                                    ParameterizedType targetType,
+                                                    ParameterizedType methodTargetType,
+                                                    HiddenContentSelector hiddenContentSelectorOfTarget,
+                                                    Supplier<Map<Indices, IndicesAndType>> hctMethodToHctSourceSupplier,
+                                                    boolean reverse) {
+        Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget = HiddenContentSelector
+                .translateHcs(runtime, genericsHelper, hiddenContentSelectorOfTarget, methodTargetType, targetType);
+        Value.Independent correctedIndependent = correctIndependent(immutableOfFormalSource, transferIndependent,
+                targetType, hiddenContentSelectorOfTarget, hctMethodToHcsTarget);
+
+        if (correctedIndependent.isIndependent()) {
+            return LinkedVariables.EMPTY;
+        }
+        if (correctedIndependent.isDelayed()) {
+            // delay in method independent
+            return sourceLvs.changeToDelay(LV.delay());
+        }
+
+        Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHctSource = hctMethodToHctSourceSupplier.get();
+        Map<Variable, LV> newLinked = new HashMap<>();
+        CausesOfDelay causesOfDelay = CausesOfDelay.EMPTY;
+
+        for (Map.Entry<Variable, LV> e : sourceLvs) {
+            ParameterizedType pt = e.getKey().parameterizedType();
+            // for the purpose of this algorithm, unbound type parameters are HC
+            Value.Immutable immutable = analysisHelper.typeImmutable(methodInfo.primaryType(), pt);
+            LV lv = e.getValue();
+            assert lv.lt(LINK_INDEPENDENT);
+
+            if (immutable.isDelayed() || lv.isDelayed()) {
+                causesOfDelay = causesOfDelay.merge(immutable.causesOfDelay()).merge(lv.causesOfDelay());
+            } else if (!immutable.isImmutable()) {
+
+                if (hiddenContentSelectorOfTarget.isNone()) {
+                    newLinked.put(e.getKey(), LINK_DEPENDENT);
+                } else {
+                    // from mine==target to theirs==source
+                    Map<Indices, Link> linkMap = new HashMap<>();
+
+                        /*
+                        this is the only place during computational analysis where we create common HC links.
+                        all other links are created in the ShallowMethodAnalyser.
+                         */
+                 /*   if (hiddenContentSelectorOfTarget instanceof HiddenContentSelector.All all) {
+                        DV typeImmutable = context.evaluationContext().immutable(targetType);
+                        if (typeImmutable.isDelayed()) {
+                            causesOfDelay = causesOfDelay.merge(typeImmutable.causesOfDelay());
+                        }
+                        boolean mutable = MultiLevel.isMutable(typeImmutable);
+                        int i = all.getHiddenContentIndex();
+
+                        assert hctMethodToHctSource != null;
+                        // the indices contain a single number, the index in the hidden content types of the source.
+                        HiddenContentTypes.IndicesAndType indicesAndType = hctMethodToHctSource.get(new Indices(i));
+                        assert indicesAndType != null;
+                        Indices iInHctSource = indicesAndType.indices();
+                        if (iInHctSource != null) {
+                            linkMap.put(ALL_INDICES, new Link(iInHctSource, mutable));
+                        }// else: no type parameters available, see e.g. Linking_0P.reverse5
+                    } else {*/
+                    // both are CsSet, we'll set mutable what is mutable, in a common way
+
+                    Boolean correctForVarargsMutable = null;
+
+                    assert hctMethodToHctSource != null;
+
+                    // NOTE: this type of filtering occurs in 'linkedVariablesOfParameter' as well
+                    Set<Map.Entry<Integer, Indices>> entrySet;
+                    if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
+                        entrySet = hiddenContentSelectorOfTarget.getMap().entrySet();
+                    } else {
+                        entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
+                    }
+                    for (Map.Entry<Integer, Indices> entry : entrySet) {
+                        Indices indicesInTargetWrtMethod = entry.getValue();
+                        HiddenContentTypes.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
+                        assert targetAndType != null;
+                        ParameterizedType type = targetAndType.type();
+                        assert type != null;
+
+                        DV typeImmutable = context.evaluationContext().immutable(type);
+                        if (typeImmutable.isDelayed()) {
+                            causesOfDelay = causesOfDelay.merge(typeImmutable.causesOfDelay());
+                            typeImmutable = MUTABLE_DV;
+                        }
+                        if (MultiLevel.isAtLeastEventuallyRecursivelyImmutable(typeImmutable)) {
+                            continue;
+                        }
+                        boolean mutable = isMutable(typeImmutable);
+                        if (sourceIsVarArgs) {
+                            // we're in a varargs situation: the first element is the type itself
+                            correctForVarargsMutable = mutable;
+                        }
+
+                        Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
+                        assert indicesInSourceWrtMethod != null;
+                        HiddenContentTypes.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
+                        assert indicesAndType != null;
+                        Indices indicesInSourceWrtType = indicesAndType.indices();
+                        assert indicesInSourceWrtType != null;
+
+                        // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
+                        Indices indicesInTargetWrtType = (lv.theirsIsAll()
+                                                          && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()
+                                                          && reverse) ? ALL_INDICES : targetAndType.indices();
+                        Indices correctedIndicesInTargetWrtType;
+                        if (correctForVarargsMutable != null) {
+                            correctedIndicesInTargetWrtType = ALL_INDICES;
+                        } else {
+                            correctedIndicesInTargetWrtType = indicesInTargetWrtType;
+                        }
+                        assert correctedIndicesInTargetWrtType != null;
+                        linkMap.put(correctedIndicesInTargetWrtType, new Link(indicesInSourceWrtType, mutable));
+                    }
+
+
+                    boolean createDependentLink = MultiLevel.isMutable(immutable) && isDependent(transferIndependent,
+                            correctedIndependent, immutableOfFormalSource, lv);
+                    if (createDependentLink) {
+                        if (linkMap.isEmpty()) {
+                            newLinked.put(e.getKey(), LINK_DEPENDENT);
+                        } else {
+                            Links links = new Links(Map.copyOf(linkMap));
+                            LV dependent = reverse ? LV.createDependent(links.reverse()) : LV.createDependent(links);
+                            newLinked.put(e.getKey(), dependent);
+                        }
+                    } else if (!linkMap.isEmpty()) {
+                        Links links = new Links(Map.copyOf(linkMap));
+                        LV commonHC = reverse ? LV.createHC(links.reverse()) : LV.createHC(links);
+                        newLinked.put(e.getKey(), commonHC);
+                    }
+                }
+            } else {
+                throw new UnsupportedOperationException("I believe we should not link");
+            }
+        }
+        if (causesOfDelay.isDelayed()) {
+            return sourceLvs.changeToDelay(LV.delay(causesOfDelay));
+        }
+        return LinkedVariables.of(newLinked);
+    }
+
+    private Set<Map.Entry<Integer, Indices>> filter(Set<Indices> indices, Set<Map.Entry<Integer, Indices>> entries) {
+        return entries.stream().filter(e -> indices.contains(e.getValue())).collect(Collectors.toUnmodifiableSet());
+    }
+
+    private boolean isDependent(Value.Independent transferIndependent,
+                                Value.Independent correctedIndependent,
+                                Value.Immutable immutableOfSource,
+                                LV lv) {
+        return
+                // situation immutable(mutable), we'll have to override
+                transferIndependent.isIndependentHc()
+                && correctedIndependent.isDependent()
+                ||
+                // situation mutable(immutable), dependent method,
+                transferIndependent.isDependent()
+                && !lv.isCommonHC()
+                && !immutableOfSource.isAtLeastImmutableHC();
+    }
+    
+    /*
+     Important: the last three parameters should form a consistent set, all computed with respect to the same
+     formal type (targetType.typeInfo).
+    
+     First translate the HCS from the method target to the target!
+     */
+
+    private Value.Independent correctIndependent(Value.Immutable immutableOfSource,
+                                                 Value.Independent independent,
+                                                 ParameterizedType targetType,
+                                                 HiddenContentSelector hiddenContentSelectorOfTarget,
+                                                 Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget) {
+        // immutableOfSource is not recursively immutable, independent is not fully independent
+        // remaining values immutable: mutable, immutable HC
+        // remaining values independent: dependent, independent hc
+        if (independent.isDependent()) {
+            if (immutableOfSource.isAtLeastImmutableHC()) {
+                return ValueImpl.IndependentImpl.INDEPENDENT_HC;
+            }
+
+            // if all types of the hcs are independent HC, then we can upgrade
+            Map<Integer, Indices> selectorSet = hiddenContentSelectorOfTarget.getMap();
+            boolean allIndependentHC = true;
+            assert hctMethodToHcsTarget != null;
+            for (Map.Entry<Indices, HiddenContentSelector.IndicesAndType> entry : hctMethodToHcsTarget.entrySet()) {
+                if (selectorSet.containsValue(entry.getKey())) {
+                    if (hiddenContentSelectorOfTarget.hiddenContentTypes().isExtensible(entry.getKey().single()) != null) {
+                        return ValueImpl.IndependentImpl.INDEPENDENT_HC;
+                    }
+                    Value.Immutable immutablePt = analysisHelper.typeImmutable(methodInfo.primaryType(), entry.getValue().type());
+                    if (immutablePt.isDelayed()) return ValueImpl.IndependentImpl.DELAYED;
+                    if (!immutablePt.isAtLeastImmutableHC()) {
+                        allIndependentHC = false;
+                        break;
+                    }
+                }
+            }
+            if (allIndependentHC) {
+                return ValueImpl.IndependentImpl.INDEPENDENT_HC;
+            }
+
+        }
+        if (independent.isIndependentHc()) {
+            if (hiddenContentSelectorOfTarget.isOnlyAll()) {
+                Value.Immutable immutablePt = analysisHelper.typeImmutable(methodInfo.primaryType(), targetType);
+                if (immutablePt.isDelayed()) return ValueImpl.IndependentImpl.DELAYED;
+                if (immutablePt.isImmutable()) {
+                    return ValueImpl.IndependentImpl.INDEPENDENT;
+                }
+            } else {
+                assert !hiddenContentSelectorOfTarget.isNone();
+            }
+        }
+        return independent;
+    }
+
+    public interface CreateLink {
+        void link(Variable from, Variable to, LV lv);
+    }
+
+    public void crossLink(LinkedVariables linkedVariablesOfObject,
+                          LinkedVariables linkedVariablesOfObjectFromParams,
+                          CreateLink link) {
+        linkedVariablesOfObject.stream().forEach(e ->
+                linkedVariablesOfObjectFromParams.stream().forEach(e2 -> {
+                    Variable from = e.getKey();
+                    Variable to = e2.getKey();
+                    LV fromLv = e.getValue();
+                    LV toLv = e2.getValue();
+                    LV lv = follow(fromLv, toLv);
+                    if (lv != null) {
+                        link.link(from, to, lv);
+                    }
+                })
+        );
+    }
+
+    public static LV follow(LV fromLv, LV toLv) {
+        if (fromLv.isDelayed() || toLv.isDelayed()) {
+            return LV.delay(fromLv.causesOfDelay().merge(toLv.causesOfDelay()));
+        }
+        boolean fromLvHaveLinks = fromLv.haveLinks();
+        boolean toLvHaveLinks = toLv.haveLinks();
+        if (!fromLvHaveLinks && !toLvHaveLinks) {
+            return fromLv.max(toLv); // -0- and -1-, -1- and -2-
+        }
+        if (fromLv.isStaticallyAssignedOrAssigned()) {
+            return toLv; // -0- 0-4-1
+        }
+        if (toLv.isStaticallyAssignedOrAssigned()) {
+            return fromLv; // 1-2-1 -1-
+        }
+        if (fromLvHaveLinks && toLvHaveLinks) {
+            boolean fromLvMineIsAll = fromLv.mineIsAll();
+            boolean toLvMineIsAll = toLv.mineIsAll();
+            if (fromLvMineIsAll && !toLvMineIsAll) {
+                return fromLv.reverse();
+            }
+            if (toLvMineIsAll && !fromLvMineIsAll) {
+                return toLv;
+            } else if (toLvMineIsAll) {
+                return LV.createHC(fromLv.links().theirsToTheirs(toLv.links()));
+            }
+            boolean fromLvTheirsIsAll = fromLv.theirsIsAll();
+            boolean toLvTheirsIsAll = toLv.theirsIsAll();
+            if (fromLvTheirsIsAll && !toLvTheirsIsAll) {
+                return LV.createHC(toLv.links().theirsToTheirs(fromLv.links()));
+            }
+            if (toLvTheirsIsAll && fromLvTheirsIsAll) {
+                return null;
+            }
+            return LV.createHC(fromLv.links().mineToTheirs(toLv.links()));
+        }
+        if (fromLv.isDependent()) {
+            assert !fromLvHaveLinks && toLv.isCommonHC();
+            return null;
+        }
+        if (toLv.isDependent()) {
+            assert !toLvHaveLinks && fromLv.isCommonHC();
+            return null;
+        }
+        throw new UnsupportedOperationException("?");
+    }
+
+    /*
+    by-pass the method for field access; used in VariableExpression
+     */
+    public static LinkedVariables forFieldAccess(Runtime runtime,
+                                                 GenericsHelper genericsHelper,
+                                                 AnalysisHelper analysisHelper,
+                                                 LinkedVariables linkedVariables,
+                                                 TypeInfo currentType,
+                                                 ParameterizedType fieldType,
+                                                 ParameterizedType formalFieldType,
+                                                 ParameterizedType scopeType) {
+        if (linkedVariables.isDelayed()) {
+            // the 'changeToDelay' call is mostly unnecessary, unless there's a direct :0 link to the scope
+            return linkedVariables.changeToDelay(LV.delay(linkedVariables.causesOfDelay()));
+        }
+        HiddenContentTypes hct = scopeType.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        HiddenContentSelector hcsTarget = HiddenContentSelector.selectAll(hct, formalFieldType);
+        if (hcsTarget.isOnlyAll() && formalFieldType.isTypeParameter() && !fieldType.parameters().isEmpty()) {
+            int index = hcsTarget.getMap().keySet().stream().findFirst().orElseThrow();
+            ParameterizedType fft = fieldType.typeInfo().asParameterizedType(runtime);
+            LinkedVariables recursive = forFieldAccess(runtime, genericsHelper, analysisHelper, linkedVariables,
+                    currentType, fieldType, fft, fieldType);
+            return recursive.map(lv -> lv.prefixTheirs(index));
+        }
+        ParameterizedType formalScopeType = scopeType.typeInfo().asParameterizedType(runtime);
+        HiddenContentSelector hcsSource = HiddenContentSelector.selectAll(hct, formalScopeType);
+        LinkHelper lh = new LinkHelper(runtime, genericsHelper, analysisHelper, hct, hcsSource);
+        Value.Immutable immutable = analysisHelper.typeImmutable(currentType, fieldType);
+        Value.Independent independent = immutable.toCorrespondingIndependent();
+        return lh.linkedVariables(hcsSource, scopeType, formalScopeType, hcsSource, linkedVariables, false,
+                independent, fieldType, formalFieldType, hcsTarget, false);
+    }
+
+    public static Links factoryMethodLinks(HiddenContentTypes hct,
+                                           HiddenContentSelector hcsFrom,
+                                           HiddenContentSelector hcsTo,
+                                           boolean isDependent) {
+        if (hcsFrom.isNone() || hcsTo.isNone()) return null;
+        if (hcsFrom.isOnlyAll() && hcsTo.isOnlyAll()) return null;
+        Map<Indices, Link> linkMap = new HashMap<>();
+        Map<Integer, Integer> correct = hct.mapMethodToTypeIndices(null);
+
+        for (Map.Entry<Integer, Indices> entry : hcsFrom.getMap().entrySet()) {
+            Indices to = hcsTo.getMap().get(entry.getKey());
+            if (to != null) {
+                Indices correctedTo = to.map(i -> correct.getOrDefault(i, i));
+                linkMap.put(correctedTo, new Link(entry.getValue(), false));
+            } // FIXME: else to be reviewed
+        }
+
+        if (linkMap.isEmpty()) return null;
+        return new Links(linkMap);
+    }
+
+}
+

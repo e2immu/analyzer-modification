@@ -1,10 +1,13 @@
 package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
+import org.e2immu.language.cst.api.analysis.Codec;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 
 import java.util.*;
@@ -25,8 +28,10 @@ end with extensible fields and  method parameters
 -1: the object itself, when extensible
 
  */
-public class HiddenContentSelector {
+public class HiddenContentSelector implements Value {
     public static final HiddenContentSelector NONE = new HiddenContentSelector();
+    public static final PropertyImpl HCS_METHOD = new PropertyImpl("hiddenContentSelectorMethod", NONE);
+    public static final PropertyImpl HCS_PARAMETER = new PropertyImpl("hiddenContentSelectorParameter", NONE);
 
     private final CausesOfDelay causesOfDelay;
     private final HiddenContentTypes hiddenContentTypes;
@@ -55,6 +60,11 @@ public class HiddenContentSelector {
         this.map = map;
         this.hiddenContentTypes = hiddenContentTypes;
         this.causesOfDelay = CausesOfDelay.EMPTY;
+    }
+
+    @Override
+    public Codec.EncodedValue encode(Codec codec) {
+        return null;
     }
 
     public HiddenContentTypes hiddenContentTypes() {
@@ -252,11 +262,11 @@ public class HiddenContentSelector {
     public record IndicesAndType(Indices indices, ParameterizedType type) {
     }
 
-    public Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
-                                                     GenericsHelper genericsHelper,
-                                                     HiddenContentSelector hiddenContentSelector,
-                                                     ParameterizedType from,
-                                                     ParameterizedType to) {
+    public static Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
+                                                            GenericsHelper genericsHelper,
+                                                            HiddenContentSelector hiddenContentSelector,
+                                                            ParameterizedType from,
+                                                            ParameterizedType to) {
         if (hiddenContentSelector.isNone()) return Map.of();
         Map<Indices, ParameterizedType> map1 = hiddenContentSelector.extract(runtime, from);
         Map<Indices, IndicesAndType> result = new HashMap<>();
