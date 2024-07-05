@@ -1,5 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork;
-
+package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;

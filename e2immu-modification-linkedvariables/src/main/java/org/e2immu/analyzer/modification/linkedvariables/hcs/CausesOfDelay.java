@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork;
+package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 public record CausesOfDelay(boolean isDelayed) {
 

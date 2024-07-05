@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork;
+package org.e2immu.analyzer.modification.prepwork.hct;
 
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -13,8 +13,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.e2immu.analyzer.modification.prepwork.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
-import static org.e2immu.analyzer.modification.prepwork.HiddenContentTypes.NO_VALUE;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 
 public class ComputeHiddenContent {
     private final Runtime runtime;

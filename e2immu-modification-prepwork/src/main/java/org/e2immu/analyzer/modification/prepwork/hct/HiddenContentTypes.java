@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork;
+package org.e2immu.analyzer.modification.prepwork.hct;
 
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -9,8 +9,6 @@ import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.type.TypeParameter;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
-import org.e2immu.language.inspection.api.parser.GenericsHelper;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -203,129 +201,6 @@ public class HiddenContentTypes implements Value {
         if (single == null) return null;
         NamedType nt = typeByIndex(single);
         return nt instanceof TypeInfo ti ? ti : null;
-    }
-
-    /*
-     The hidden content selector's hct indices (the keys in the map) are computed with respect to 'this'.
-     They map to indices (the values in the map) which exist in 'from'.
-
-     'to' is a concrete type for 'from'. We'll map the indices of the selector to indices wrt the formal
-     type of to, also attaching the concrete types at those indices.
-
-     E.g. method context is the type ArrayList<EA>.new ArrayList<>(Collection<? extends EA>)
-     concrete constructor call is new ArrayList<>(List<M>)
-
-     'this' is with respect to ArrayList<EA> and the constructor, mapping EA=0 (and EL=0, EC=0 for List, Collection)
-     'from' is Collection<? extends EA>, formal type Collection<EC>.
-     The hidden content selector is 0=0.
-
-     'to' is List<M>, with formal type List<EL>.
-     The result maps 'indices' 0 to the combination of "M" and indices 0.
-    */
-
-    // FIXME move to HCS, and use the HCT of the HCS
-    public record IndicesAndType(Indices indices, ParameterizedType type) {
-    }
-
-    public Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
-                                                     GenericsHelper genericsHelper,
-                                                     HiddenContentSelector hiddenContentSelector,
-                                                     ParameterizedType from,
-                                                     ParameterizedType to) {
-        if (hiddenContentSelector.isNone()) return Map.of();
-        Map<Indices, ParameterizedType> map1 = hiddenContentSelector.extract(runtime, from);
-        Map<Indices, IndicesAndType> result = new HashMap<>();
-        for (Map.Entry<Indices, ParameterizedType> entry1 : map1.entrySet()) {
-            IndicesAndType iat;
-            if (from.arrays() > 0 && hiddenContentSelector.selectArrayElement(from.arrays())) {
-                Indices indices = new Indices(Set.of(Index.createZeroes(from.arrays())));
-                iat = new IndicesAndType(indices, to);
-            } else if (from.typeParameter() != null || from.equals(to)) {
-                iat = new IndicesAndType(entry1.getKey(), to);
-            } else {
-                iat = findAll(runtime, genericsHelper, entry1.getKey(), entry1.getValue(), from, to);
-            }
-            result.put(entry1.getKey(), iat);
-        }
-        return Map.copyOf(result);
-    }
-
-    /*
-    if what is a type parameter, is will be with respect to the formal type of that level of generics.
-
-    what == the result of 'ptInFrom in from' translated to ('to' == where)
-
-    Given what=EL, with where==List<String>, return 0,String
-    Given what=K in Map.Entry, with where = Set<Map.Entry<A,B>>, return 0.0,A
-
-    If from=Set<Set<K>>, and we extract K at 0.0
-    If to=Collection<ArrayList<String>>, we'll have to return 0.0, String
-     */
-    private static IndicesAndType findAll(Runtime runtime,
-                                          GenericsHelper genericsHelper,
-                                          Indices indices,
-                                          ParameterizedType ptInFrom,
-                                          ParameterizedType from,
-                                          ParameterizedType to) {
-        // it does not matter with which index we start
-        Index index = indices.set().stream().findFirst().orElseThrow();
-        IndicesAndType res = findAll(runtime, genericsHelper, index, 0, ptInFrom, from, to);
-        // but once we have found it, we must make sure that we return all occurrences
-        assert res.indices.set().size() == 1;
-        assert res.type != null;
-        Indices findAll = Indices.allOccurrencesOf(res.type, to);
-        return new IndicesAndType(findAll, res.type);
-    }
-
-
-    private static IndicesAndType findAll(Runtime runtime,
-                                          GenericsHelper genericsHelper,
-                                          Index index,
-                                          int pos,
-                                          ParameterizedType ptFrom,
-                                          ParameterizedType from,
-                                          ParameterizedType to) {
-        int atPos = index.list().get(pos);
-        if (pos == index.list().size() - 1) {
-            // the last entry
-            assert from.typeInfo() != null;
-            ParameterizedType formalFrom = from.typeInfo().asParameterizedType(runtime);
-            assert formalFrom.parameters().get(atPos).equals(ptFrom);
-            if (formalFrom.typeInfo() == to.typeInfo()) {
-                ParameterizedType concrete;
-                if (atPos >= to.parameters().size()) {
-                    // type parameters are missing, we'd expect <> so that they get filled in automatically
-                    concrete = runtime.objectParameterizedType();
-                } else {
-                    concrete = to.parameters().get(atPos);
-                }
-                return new IndicesAndType(new Indices(Set.of(index)), concrete);
-            }
-            ParameterizedType formalTo = to.typeInfo().asParameterizedType(runtime);
-            Map<NamedType, ParameterizedType> map1;
-            if (formalFrom.isAssignableFrom(runtime, formalTo)) {
-                map1 = genericsHelper.mapInTermsOfParametersOfSuperType(to.typeInfo(), formalFrom);
-            } else {
-                map1 = genericsHelper.mapInTermsOfParametersOfSubType(from.typeInfo(), formalTo);
-            }
-            assert map1 != null;
-            ParameterizedType ptTo = map1.get(ptFrom.namedType());
-            assert ptTo != null;
-            HiddenContentTypes hct = to.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-            int iTo = hct.indexOf(ptTo);
-            Index indexTo = index.replaceLast(iTo);
-            Indices indicesTo = new Indices(Set.of(indexTo));
-            Map<NamedType, ParameterizedType> map2 = to.initialTypeParameterMap(runtime);
-            ParameterizedType concreteTypeTo = map2.get(ptTo.namedType());
-            assert concreteTypeTo != null;
-            return new IndicesAndType(indicesTo, concreteTypeTo);
-        }
-        if (from.typeInfo() == to.typeInfo()) {
-            ParameterizedType inFrom = from.parameters().get(atPos);
-            ParameterizedType inTo = to.parameters().get(atPos);
-            return findAll(runtime, genericsHelper, index, pos + 1, ptFrom, inFrom, inTo);
-        }
-        throw new UnsupportedOperationException();
     }
 
     public HiddenContentTypes getHcsTypeInfo() {

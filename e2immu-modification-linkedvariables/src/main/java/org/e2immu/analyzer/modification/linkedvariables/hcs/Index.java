@@ -1,5 +1,6 @@
-package org.e2immu.analyzer.modification.prepwork;
+package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
@@ -10,8 +11,6 @@ import java.util.List;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.e2immu.analyzer.modification.prepwork.HiddenContentTypes.*;
 
 public record Index(List<Integer> list) implements Comparable<Index> {
     public static final int ALL = -1;
@@ -50,7 +49,7 @@ public record Index(List<Integer> list) implements Comparable<Index> {
         if (type.parameters().isEmpty()) {
             // no generics, so substitute "Object"
             if (type.typeInfo() != null) {
-                HiddenContentTypes hct = type.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+                HiddenContentTypes hct = type.typeInfo().analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
                 NamedType byIndex = hct.typeByIndex(pos);
                 if (byIndex != null) {
                     return byIndex.asParameterizedType(runtime);
