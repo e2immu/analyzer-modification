@@ -20,6 +20,8 @@ public interface LinkedVariables extends Iterable<Map.Entry<Variable, LV>> {
 
     boolean isDelayed();
 
+    boolean isNotYetSet();
+
     LinkedVariables map(Function<LV, LV> function);
 
     LinkedVariables removeStaticallyAssigned();

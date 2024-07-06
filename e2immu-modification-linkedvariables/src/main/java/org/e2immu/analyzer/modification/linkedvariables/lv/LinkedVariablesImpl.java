@@ -38,6 +38,11 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<LinkedVa
         return LINK_COMMON_HC;
     }
 
+    @Override
+    public boolean isNotYetSet() {
+        return this == NOT_YET_SET;
+    }
+
     public boolean isDelayed() {
         if (this == NOT_YET_SET) return true;
         return variables.values().stream().anyMatch(LV::isDelayed);
