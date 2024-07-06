@@ -29,6 +29,10 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
                || previousOrInitial.isRight() && previousOrInitial.getRight().variable() == variable;
     }
 
+    public void setMerge(VariableInfoImpl merge) {
+        this.merge.set(merge);
+    }
+
     @Override
     public Variable variable() {
         return variable;

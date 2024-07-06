@@ -32,6 +32,10 @@ public class AssignmentIds implements Comparable<AssignmentIds>, Iterable<String
         this.ids.addAll(previous.ids);
     }
 
+    private AssignmentIds(TreeSet<String> ids) {
+        this.ids = ids;
+    }
+
     public boolean hasNotYetBeenAssigned() {
         return ids.isEmpty();
     }
@@ -51,6 +55,12 @@ public class AssignmentIds implements Comparable<AssignmentIds>, Iterable<String
 
     public String getLatestAssignmentIndex() {
         return ids.isEmpty() ? "-" : Util.stripStage(getLatestAssignment());
+    }
+
+    public AssignmentIds merge(AssignmentIds other) {
+        TreeSet<String> ts = new TreeSet<>(ids);
+        ts.addAll(other.ids);
+        return new AssignmentIds(ts);
     }
 
     @Override

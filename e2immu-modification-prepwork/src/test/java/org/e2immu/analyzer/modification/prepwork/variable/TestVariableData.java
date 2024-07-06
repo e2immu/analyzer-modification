@@ -127,4 +127,44 @@ public class TestVariableData {
         assertNotSame(vii, vic00.getPreviousOrInitial());
         assertTrue(vic00.isInitial());
     }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            class C {
+                int j;
+                void method1(String s) {
+                    assert s != null;
+                    if(j > 0) {
+                        System.out.println(s);
+                    }
+                }
+            }
+            """;
+
+    @Test
+    public void test3() {
+        TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT3).get(0);
+        MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
+        Analyze analyze = new Analyze(javaInspector.runtime());
+        analyze.doMethod(method1);
+
+        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assert vd != null;
+        List<VariableInfo> vis = vd.variableInfoStream().toList();
+        assertEquals(4, vis.size());
+
+        VariableInfoContainer vicJ = vd.variableInfoContainerOrNull("a.b.C.j");
+        assertNotNull(vicJ);
+        assertEquals("1", vicJ.best().readId());
+
+        VariableInfoContainer vicThis = vd.variableInfoContainerOrNull("a.b.C.this");
+        assertNotNull(vicThis);
+        VariableInfo this1E = vicThis.best(Stage.EVALUATION);
+        assertEquals("1", this1E.readId());
+        VariableInfo this1M = vicThis.best();
+        assertNotSame(this1E, this1M);
+        assertEquals("1", this1M.readId());
+    }
 }

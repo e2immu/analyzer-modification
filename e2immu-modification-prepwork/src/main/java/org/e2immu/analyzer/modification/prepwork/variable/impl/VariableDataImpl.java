@@ -21,7 +21,7 @@ public class VariableDataImpl implements VariableData {
     }
 
     public void putIfAbsent(Variable v, VariableInfoContainer vic) {
-        if(!vicByFqn.isSet(v.fullyQualifiedName())) {
+        if (!vicByFqn.isSet(v.fullyQualifiedName())) {
             vicByFqn.put(v.fullyQualifiedName(), vic);
         }
     }
@@ -56,7 +56,12 @@ public class VariableDataImpl implements VariableData {
     }
 
     @Override
-    public Stream<VariableInfo> variableInfoStream() {
-        return vicByFqn.valueStream().map(VariableInfoContainer::best);
+    public Stream<VariableInfo> variableInfoStream(Stage stage) {
+        return vicByFqn.valueStream().map(vic -> vic.best(stage));
+    }
+
+    @Override
+    public VariableInfo variableInfo(Variable variable, Stage stage) {
+        return vicByFqn.get(variable.fullyQualifiedName()).best(stage);
     }
 }
