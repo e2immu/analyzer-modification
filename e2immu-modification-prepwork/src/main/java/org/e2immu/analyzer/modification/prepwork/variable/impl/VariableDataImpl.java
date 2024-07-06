@@ -1,17 +1,15 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
-import org.e2immu.analyzer.modification.prepwork.variable.Stage;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
+import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.support.SetOnceMap;
 
 import java.util.stream.Stream;
 
-public class VariableDataImpl implements VariableData, Value {
+public class VariableDataImpl implements VariableData {
     public static final PropertyImpl VARIABLE_DATA = new PropertyImpl("variableData", new VariableDataImpl());
 
     private final SetOnceMap<String, VariableInfoContainer> vicByFqn = new SetOnceMap<>();
@@ -22,8 +20,12 @@ public class VariableDataImpl implements VariableData, Value {
     }
 
     @Override
-    public VariableInfo getLatestVariableInfo(String fqn) {
+    public VariableInfo variableInfo(String fqn) {
         return vicByFqn.get(fqn).best(Stage.MERGE);
+    }
+
+    public void put(Variable v, VariableInfoContainer vic) {
+        vicByFqn.put(v.fullyQualifiedName(), vic);
     }
 
     @Override

@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
-public class AssignmentIds  implements Comparable<AssignmentIds>, Iterable<String> {
+public class AssignmentIds implements Comparable<AssignmentIds>, Iterable<String> {
     public static AssignmentIds NOT_YET_ASSIGNED = new AssignmentIds();
 
     private final TreeSet<String> ids;
@@ -26,6 +26,12 @@ public class AssignmentIds  implements Comparable<AssignmentIds>, Iterable<Strin
         stream.forEach(a -> ids.addAll(a.ids));
     }
 
+    public AssignmentIds(String assignmentId, AssignmentIds previous) {
+        this.ids = new TreeSet<>();
+        this.ids.add(assignmentId);
+        this.ids.addAll(previous.ids);
+    }
+
     public boolean hasNotYetBeenAssigned() {
         return ids.isEmpty();
     }
@@ -33,6 +39,7 @@ public class AssignmentIds  implements Comparable<AssignmentIds>, Iterable<Strin
     public String getLatestAssignment() {
         return ids.isEmpty() ? "-" : ids.floor("~");
     }
+
     public String getLatestAssignmentNullWhenEmpty() {
         return ids.isEmpty() ? null : ids.floor("~");
     }

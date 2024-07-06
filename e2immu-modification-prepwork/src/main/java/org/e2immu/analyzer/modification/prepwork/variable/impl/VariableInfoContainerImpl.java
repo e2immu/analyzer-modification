@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.support.Either;
+import org.e2immu.support.SetOnce;
 
 import java.util.Objects;
 
@@ -11,19 +12,18 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
     private final VariableNature variableNature;
     private final Either<VariableInfoContainer, VariableInfoImpl> previousOrInitial;
     private final VariableInfoImpl evaluation;
-    private final VariableInfoImpl merge;
+    private final SetOnce<VariableInfoImpl> merge;
 
-    private VariableInfoContainerImpl(Variable variable,
-                                      VariableNature variableNature,
-                                      Either<VariableInfoContainer, VariableInfoImpl> previousOrInitial,
-                                      VariableInfoImpl evaluation,
-                                      VariableInfoImpl merge) {
+    public VariableInfoContainerImpl(Variable variable,
+                                     VariableNature variableNature,
+                                     Either<VariableInfoContainer, VariableInfoImpl> previousOrInitial,
+                                     VariableInfoImpl evaluation,
+                                     boolean haveMerge) {
         this.variable = variable;
         this.variableNature = variableNature;
         this.previousOrInitial = previousOrInitial;
         this.evaluation = evaluation;
-        this.merge = merge; // nullable
-        assert merge == null || merge.variable() == variable;
+        this.merge = haveMerge ? new SetOnce<>() : null;
         assert evaluation == null || evaluation.variable() == variable;
         assert previousOrInitial.isLeft() && previousOrInitial.getLeft().variable() == variable
                || previousOrInitial.isRight() && previousOrInitial.getRight().variable() == variable;
@@ -61,7 +61,7 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
         return switch (stage) {
             case INITIAL -> (VariableInfoImpl) getRecursiveInitialOrNull();
             case EVALUATION -> Objects.requireNonNull(evaluation);
-            case MERGE -> Objects.requireNonNull(merge);
+            case MERGE -> Objects.requireNonNull(merge.get());
         };
     }
 
@@ -81,12 +81,12 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
 
     @Override
     public VariableInfo best() {
-        return merge != null ? merge : evaluation != null ? evaluation : getPreviousOrInitial();
+        return merge != null ? merge.get() : evaluation != null ? evaluation : getPreviousOrInitial();
     }
 
     @Override
     public VariableInfo best(Stage level) {
-        if (level == Stage.MERGE && merge != null) return merge;
+        if (level == Stage.MERGE && merge != null) return merge.get();
         if ((level == Stage.MERGE || level == Stage.EVALUATION) && evaluation != null) return evaluation;
         return getPreviousOrInitial();
     }

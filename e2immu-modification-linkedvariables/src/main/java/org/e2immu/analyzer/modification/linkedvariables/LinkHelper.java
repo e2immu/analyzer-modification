@@ -374,7 +374,7 @@ public class LinkHelper {
 
         for (ParameterInfo pi : concreteMethod.parameters()) {
             VariableInfo vi = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class)
-                    .getLatestVariableInfo(pi.fullyQualifiedName());
+                    .variableInfo(pi.fullyQualifiedName());
             LinkedVariables lv = vi.linkedVariables().remove(v ->
                     !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
             result.add(lv);
@@ -382,7 +382,7 @@ public class LinkHelper {
         if (concreteMethod.hasReturnValue()) {
             ReturnVariable returnVariable = new ReturnVariableImpl(concreteMethod);
             VariableInfo vi = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class)
-                    .getLatestVariableInfo(returnVariable.fullyQualifiedName());
+                    .variableInfo(returnVariable.fullyQualifiedName());
             if (concreteMethod.parameters().isEmpty()) {
                 return new LambdaResult(result, vi.linkedVariables());
             }
