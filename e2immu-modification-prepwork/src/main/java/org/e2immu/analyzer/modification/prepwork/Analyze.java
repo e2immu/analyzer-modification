@@ -10,11 +10,13 @@ import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.variable.ThisImpl;
 import org.e2immu.support.Either;
 import org.e2immu.util.internal.graph.V;
 
@@ -32,6 +34,11 @@ do all the analysis of this phase
 
  */
 public class Analyze {
+    private Runtime runtime;
+
+    public Analyze(Runtime runtime) {
+        this.runtime = runtime;
+    }
 
     private record ReadWriteData(VariableData previous, String index,
                                  Set<Variable> seenFirstTime,
@@ -76,6 +83,11 @@ public class Analyze {
         for (Variable v : readWriteData.variablesSeenFirstTime()) {
             vdi.put(v, initial(v, readWriteData, hasMerge));
         }
+        This thisVar = methodInfo.isStatic() ? null : runtime.newThis(methodInfo.typeInfo());
+        if (thisVar != null) {
+            vdi.put(thisVar, initial(thisVar, readWriteData, hasMerge));
+        }
+
         if (statement.block() != null) {
             List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
             // make "merge" VIs for each variable
@@ -90,7 +102,8 @@ public class Analyze {
                 .toList();
     }
 
-    private VariableData doBlock(Block block, VariableData vdOfFirstStatement, VariableData vdOfParent, ReturnVariable rv) {
+    private VariableData doBlock(Block block, VariableData vdOfFirstStatement, VariableData vdOfParent,
+                                 ReturnVariable rv) {
         VariableData previous = vdOfFirstStatement != null ? vdOfFirstStatement : vdOfParent;
         VariableData last = previous;
         int start = vdOfFirstStatement != null ? 1 : 0;
