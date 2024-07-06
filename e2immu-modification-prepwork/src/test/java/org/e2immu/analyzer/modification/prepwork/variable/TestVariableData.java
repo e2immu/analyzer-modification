@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -150,6 +151,9 @@ public class TestVariableData {
         Analyze analyze = new Analyze(javaInspector.runtime());
         analyze.doMethod(method1);
 
+        VariableData vd0 = method1.methodBody().statements().get(0).analysis().getOrNull(VariableDataImpl.VARIABLE_DATA,
+                VariableData.class);
+
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
         List<VariableInfo> vis = vd.variableInfoStream().toList();
@@ -158,6 +162,7 @@ public class TestVariableData {
         VariableInfoContainer vicJ = vd.variableInfoContainerOrNull("a.b.C.j");
         assertNotNull(vicJ);
         assertEquals("1", vicJ.best().readId());
+        assertFalse(vd0.isKnown(vicJ.variable().fullyQualifiedName()));
 
         VariableInfoContainer vicThis = vd.variableInfoContainerOrNull("a.b.C.this");
         assertNotNull(vicThis);
@@ -166,5 +171,65 @@ public class TestVariableData {
         VariableInfo this1M = vicThis.best();
         assertNotSame(this1E, this1M);
         assertEquals("1", this1M.readId());
+        assertTrue(vd0.isKnown(vicThis.variable().fullyQualifiedName()));
+
+        VariableInfoContainer vicOut = vd.variableInfoContainerOrNull("java.lang.System.out");
+        assertNotNull(vicOut);
+        VariableInfo out1E = vicOut.best(Stage.EVALUATION);
+        VariableInfo out1M = vicOut.best();
+        assertNotSame(out1M, out1E);
+        assertEquals("-", out1E.readId());
+        assertEquals("1.0.0", out1M.readId());
+        assertFalse(vd0.isKnown(vicOut.variable().fullyQualifiedName()));
+
+        ReturnVariable rv = new ReturnVariableImpl(method1);
+        assertFalse(vd.isKnown(rv.fullyQualifiedName()));
     }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            class C {
+                int j;
+                int method1(String s) {
+                    assert s != null;
+                    if(j > 0) {
+                        System.out.println(s);
+                    } else {
+                        //noinspection ALL
+                        int c = s.length();
+                        j = c;
+                    }
+                    return j+1;
+                }
+            }
+            """;
+
+    @Test
+    public void test4() {
+        TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT4).get(0);
+        MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
+        Analyze analyze = new Analyze(javaInspector.runtime());
+        analyze.doMethod(method1);
+
+        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assert vd != null;
+
+        ReturnVariable rv = new ReturnVariableImpl(method1);
+        assertTrue(vd.isKnown(rv.fullyQualifiedName()));
+        VariableInfo viRv = vd.variableInfo(rv.fullyQualifiedName());
+        assertEquals("-", viRv.readId());
+        assertEquals("2", viRv.assignmentIds().getLatestAssignment());
+
+        Statement s111 = method1.methodBody().statements().get(1).otherBlocks().get(0).statements().get(1);
+        assertEquals("1.1.1", s111.source().index());
+
+        VariableInfoContainer vicJ = vd.variableInfoContainerOrNull("a.b.C.j");
+        assertNotNull(vicJ);
+        VariableInfo viJ = vicJ.best();
+        assertEquals("2", viJ.readId());
+        assertEquals("1.1.1", viJ.assignmentIds().getLatestAssignment());
+    }
+
 }

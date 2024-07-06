@@ -101,7 +101,6 @@ public class Analyze {
     private VariableData doBlock(Block block, VariableData vdOfFirstStatement, VariableData vdOfParent,
                                  ReturnVariable rv) {
         VariableData previous = vdOfFirstStatement != null ? vdOfFirstStatement : vdOfParent;
-        VariableData last = previous;
         int start = vdOfFirstStatement != null ? 1 : 0;
         for (int i = start; i < block.statements().size(); i++) {
             Statement statement = block.statements().get(i);
@@ -131,9 +130,9 @@ public class Analyze {
             }
 
             statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
-            last = vdi;
+            previous = vdi;
         }
-        return last;
+        return previous;
     }
 
     /*
