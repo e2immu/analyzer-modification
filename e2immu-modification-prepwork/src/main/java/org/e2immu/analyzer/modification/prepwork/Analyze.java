@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.element.Element;
@@ -34,7 +35,7 @@ do all the analysis of this phase
 
  */
 public class Analyze {
-    private Runtime runtime;
+    private final Runtime runtime;
 
     public Analyze(Runtime runtime) {
         this.runtime = runtime;
@@ -45,8 +46,10 @@ public class Analyze {
                                  Set<Variable> read,
                                  Set<Variable> assigned) {
         public AssignmentIds assignmentIds(Variable v) {
-            AssignmentIds prev = previous == null ? AssignmentIds.NOT_YET_ASSIGNED
-                    : previous.variableInfo(v.fullyQualifiedName()).assignmentIds();
+            String fqn = v.fullyQualifiedName();
+            AssignmentIds prev = previous == null || !previous.isKnown(fqn)
+                    ? AssignmentIds.NOT_YET_ASSIGNED
+                    : previous.variableInfo(fqn).assignmentIds();
             if (assigned.contains(v)) {
                 return new AssignmentIds(index, prev);
             }
@@ -54,8 +57,10 @@ public class Analyze {
         }
 
         public String isRead(Variable v) {
-            return read.contains(v) ? index : previous == null ? NOT_YET_READ
-                    : previous.variableInfo(v.fullyQualifiedName()).readId();
+            String fqn = v.fullyQualifiedName();
+            return read.contains(v) ? index : previous == null || !previous.isKnown(fqn)
+                    ? NOT_YET_READ
+                    : previous.variableInfo(fqn).readId();
         }
 
         public Set<Integer> modificationIds(Variable v) {
@@ -81,12 +86,13 @@ public class Analyze {
             vdi.put(pi, initial(pi, readWriteData, hasMerge));
         }
         for (Variable v : readWriteData.variablesSeenFirstTime()) {
-            vdi.put(v, initial(v, readWriteData, hasMerge));
+            vdi.putIfAbsent(v, initial(v, readWriteData, hasMerge));
         }
         This thisVar = methodInfo.isStatic() ? null : runtime.newThis(methodInfo.typeInfo());
         if (thisVar != null) {
-            vdi.put(thisVar, initial(thisVar, readWriteData, hasMerge));
+            vdi.putIfAbsent(thisVar, initial(thisVar, readWriteData, hasMerge));
         }
+        statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
 
         if (statement.block() != null) {
             List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
@@ -113,9 +119,21 @@ public class Analyze {
             ReadWriteData readWriteData = analyzeEval(previous, index, statement, rv);
             VariableDataImpl vdi = new VariableDataImpl();
             boolean hasMerge = statement.block() != null;
+
+            previous.variableInfoContainerStream().forEach(vic -> {
+                VariableInfo vi = vic.best();
+                Variable variable = vi.variable();
+                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable),
+                        readWriteData.isRead(variable), readWriteData.modificationIds(variable));
+                VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
+                        Either.left(vic), eval, hasMerge);
+                vdi.put(variable, newVic);
+            });
+
             for (Variable v : readWriteData.variablesSeenFirstTime()) {
                 vdi.put(v, initial(v, readWriteData, hasMerge));
             }
+            statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
             // FIXME add
             last = vdi;
         }
@@ -131,7 +149,7 @@ public class Analyze {
     }
 
     private ReadWriteData analyzeEval(VariableData previous, String index, Statement statement, ReturnVariable rv) {
-        Visitor v = new Visitor();
+        Visitor v = new Visitor(previous == null ? Set.of() : previous.knownVariableNames());
         if (statement instanceof ReturnStatement && rv != null) {
             v.assigned.add(rv);
         } else if (statement instanceof LocalVariableCreation lvc) {
@@ -179,11 +197,20 @@ public class Analyze {
         final Set<Variable> read = new HashSet<>();
         final Set<Variable> assigned = new HashSet<>();
         final Set<Variable> seenFirstTime = new HashSet<>();
+        final Set<String> knownVariableNames;
+
+        Visitor(Set<String> knownVariableNames) {
+            this.knownVariableNames = knownVariableNames;
+        }
 
         @Override
         public boolean test(Element e) {
             if (e instanceof VariableExpression ve) {
-                ve.variable().variableStreamDescend().forEach(read::add);
+                Variable variable = ve.variable();
+                variable.variableStreamDescend().forEach(read::add);
+                if (!knownVariableNames.contains(variable.fullyQualifiedName())) {
+                    seenFirstTime.add(variable);
+                }
                 return false;
             }
             if (e instanceof Assignment a) {
