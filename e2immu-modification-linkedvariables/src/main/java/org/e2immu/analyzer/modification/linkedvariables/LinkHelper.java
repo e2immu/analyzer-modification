@@ -370,8 +370,9 @@ public class LinkHelper {
         for (ParameterInfo pi : concreteMethod.parameters()) {
             VariableInfo vi = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class)
                     .variableInfo(pi.fullyQualifiedName());
-            LinkedVariables lv = vi.linkedVariables().remove(v ->
-                    !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
+            LinkedVariables lv = vi.linkedVariables();
+                    //.remove(v -> FIXME not yet implemented
+                   // !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
             result.add(lv);
         }
         if (concreteMethod.hasReturnValue()) {
