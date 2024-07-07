@@ -2,9 +2,13 @@ package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
+import org.e2immu.language.cst.api.analysis.Codec;
+import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.util.internal.util.MapUtil;
 
 import java.util.*;
@@ -16,10 +20,33 @@ import java.util.stream.Stream;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 
 
-public class LinkedVariablesImpl implements LinkedVariables, Comparable<LinkedVariables>, Iterable<Map.Entry<Variable, LV>> {
+public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
+        Iterable<Map.Entry<Variable, LV>> {
+    // never use .equals() here, marker
+    public static final LinkedVariables NOT_YET_SET = new LinkedVariablesImpl(Map.of());
+    // use .equals, not a marker
+    public static final LinkedVariables EMPTY = new LinkedVariablesImpl(Map.of());
+
+    public static final Property LINKED_VARIABLES_PARAMETER = new PropertyImpl("linkedVariablesOfParameter", EMPTY);
+    public static final Property PARAMETER_LINKS_TO_RETURN_VALUE_OF_METHOD = new PropertyImpl("parameterLinksToReturnValueOfMethod", EMPTY);
+    public static final Property PARAMETER_CROSS_LINKS = new PropertyImpl("parameterCrossLinks", CrossLinksImpl.EMPTY);
+
+    public interface CrossLinks extends Value {
+        Map<ParameterInfo, LinkedVariables> map();
+    }
+
+    public record CrossLinksImpl(Map<ParameterInfo, LinkedVariables> map) implements CrossLinks {
+        public static final CrossLinks EMPTY = new CrossLinksImpl(Map.of());
+
+        @Override
+        public Codec.EncodedValue encode(Codec codec) {
+            throw new UnsupportedOperationException();
+        }
+    }
 
     public static final String NOT_YET_SET_STR = "NOT_YET_SET";
     private final Map<Variable, LV> variables;
+
 
     private LinkedVariablesImpl(Map<Variable, LV> variables) {
         assert variables != null;
@@ -27,15 +54,15 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<LinkedVa
         assert variables.values().stream().noneMatch(lv -> lv == LINK_INDEPENDENT || lv == LINK_COMMON_HC);
     }
 
-    // never use .equals() here, marker
-    public static final LinkedVariables NOT_YET_SET = new LinkedVariablesImpl(Map.of());
-    // use .equals, not a marker
-    public static final LinkedVariables EMPTY = new LinkedVariablesImpl(Map.of());
-
     public static LV fromIndependentToLinkedVariableLevel(Value.Independent independent) {
         if (independent.isIndependent()) return LINK_INDEPENDENT;
         if (!independent.isAtLeastIndependentHc()) return LINK_DEPENDENT;
         return LINK_COMMON_HC;
+    }
+
+    @Override
+    public Codec.EncodedValue encode(Codec codec) {
+        throw new UnsupportedOperationException("NYI");
     }
 
     @Override
@@ -254,8 +281,11 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<LinkedVa
     }
 
     @Override
-    public int compareTo(LinkedVariables o) {
-        return MapUtil.compareMaps(variables, o.variables());
+    public int compareTo(Value o) {
+        if (o instanceof LinkedVariables lv) {
+            return MapUtil.compareMaps(variables, lv.variables());
+        }
+        throw new UnsupportedOperationException();
     }
 
     @Override

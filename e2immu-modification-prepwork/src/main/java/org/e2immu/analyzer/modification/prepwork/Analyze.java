@@ -65,7 +65,7 @@ public class Analyze {
     public void doMethod(MethodInfo methodInfo) {
         VariableDataImpl vdi = new VariableDataImpl();
         Statement statement = methodInfo.methodBody().statements().get(0);
-        boolean hasMerge = statement.block() != null;
+        boolean hasMerge = statement.hasSubBlocks();
         ReturnVariable rv = methodInfo.hasReturnValue() ? new ReturnVariableImpl(methodInfo) : null;
         ReadWriteData readWriteData = analyzeEval(null, "0", statement, rv);
         if (methodInfo.hasReturnValue()) {
@@ -84,7 +84,7 @@ public class Analyze {
         }
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
 
-        if (statement.block() != null) {
+        if (statement.hasSubBlocks()) {
             List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
             addMerge(vdi, lastOfEachSubBlock);
         }
@@ -107,7 +107,7 @@ public class Analyze {
             String index = statement.source().index();
             ReadWriteData readWriteData = analyzeEval(previous, index, statement, rv);
             VariableDataImpl vdi = new VariableDataImpl();
-            boolean hasMerge = statement.block() != null;
+            boolean hasMerge = statement.hasSubBlocks();
             Stage stage = i == 0 ? Stage.EVALUATION : Stage.MERGE;
             previous.variableInfoContainerStream().forEach(vic -> {
                 VariableInfo vi = vic.best(stage);
@@ -124,7 +124,7 @@ public class Analyze {
             }
 
             // sub-blocks
-            if (statement.block() != null) {
+            if (statement.hasSubBlocks()) {
                 List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
                 addMerge(vdi, lastOfEachSubBlock);
             }
