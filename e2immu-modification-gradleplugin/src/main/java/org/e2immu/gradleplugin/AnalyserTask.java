@@ -14,10 +14,7 @@
 
 package org.e2immu.gradleplugin;
 
-import org.e2immu.analyser.cli.ExecuteAction;
-import org.e2immu.analyser.cli.Main;
-import org.e2immu.analyser.cli.RunAnalyser;
-import org.e2immu.analyser.config.Configuration;
+
 import org.gradle.api.internal.ConventionTask;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
@@ -40,7 +37,8 @@ public class AnalyserTask extends ConventionTask {
             LOGGER.warn("Skipping e2immu analysis: no properties configured, was it skipped in all projects?");
             return;
         }
-        if (!LOGGER.isInfoEnabled()) {
+    /*    FIXME to do
+     if (!LOGGER.isInfoEnabled()) {
             properties.put(Main.QUIET, "true");
         } else if (LOGGER.isDebugEnabled()) {
             String inExtension = properties.get(Main.DEBUG);
@@ -68,7 +66,7 @@ public class AnalyserTask extends ConventionTask {
         int exitValue = runAnalyser.getExitValue();
         if (exitValue != 0) {
             throw new RuntimeException("Analyser exited with error value " + exitValue + ": " + Main.exitMessage(exitValue));
-        }
+        }*/
     }
 
     /**
