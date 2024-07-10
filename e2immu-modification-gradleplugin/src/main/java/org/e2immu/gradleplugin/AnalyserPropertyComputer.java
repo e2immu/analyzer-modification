@@ -45,6 +45,9 @@ public record AnalyserPropertyComputer(
     // used for round trip String[] -> String -> String[]; TODO this should be done in a better way
     public static final String M_A_G_I_C = "__M_A_G_I_C__";
 
+    public static final String DEPENDENCIES = "dependencies";
+
+
     public Map<String, Object> computeProperties() {
         Map<String, Object> properties = new LinkedHashMap<>();
         computeProperties(targetProject, properties, "");
@@ -96,7 +99,7 @@ public record AnalyserPropertyComputer(
     }
 
     private void detectProperties(Project project, Map<String, Object> properties, AnalyserExtension extension) {
-        properties.put(Main.DEBUG, extension.debug);
+   /*     properties.put(Main.DEBUG, extension.debug);
         properties.put(Main.SOURCE_PACKAGES, extension.sourcePackages);
         properties.put(Main.TEST_SOURCE_PACKAGES, extension.testSourcePackages);
         properties.put(Main.JRE, extension.jre);
@@ -137,7 +140,7 @@ public record AnalyserPropertyComputer(
             if (hasSource) {
                 detectSourceEncoding(project, properties);
             }
-        });
+        });*/
     }
 
     private static String getOrDefault(String property, String defaultValue) {
@@ -148,30 +151,30 @@ public record AnalyserPropertyComputer(
         project.getTasks().withType(JavaCompile.class, compile -> {
             String encoding = compile.getOptions().getEncoding();
             if (encoding != null) {
-                properties.put(Main.SOURCE_ENCODING, encoding);
+           //     properties.put(Main.SOURCE_ENCODING, encoding);
             }
         });
     }
 
-    private static final String[] UNRESOLVABLE_CONFIGURATIONS =
+    private static final String[] UNRESOLVABLE_CONFIGURATIONS = null;/*
             Arrays.stream(GradleConfiguration.values()).filter(c -> !c.transitive)
-                    .map(c -> c.gradle).toArray(String[]::new);
+                    .map(c -> c.gradle).toArray(String[]::new);*/
 
-    private static final String[] RESOLVABLE_CONFIGURATIONS =
+    private static final String[] RESOLVABLE_CONFIGURATIONS =null;/*
             Arrays.stream(GradleConfiguration.values()).filter(c -> c.transitive)
-                    .map(c -> c.gradle).toArray(String[]::new);
+                    .map(c -> c.gradle).toArray(String[]::new);*/
 
-    private static final Map<String, String> CONFIG_SHORTHAND =
+    private static final Map<String, String> CONFIG_SHORTHAND =null;/*
             Arrays.stream(GradleConfiguration.values()).collect(Collectors.toUnmodifiableMap(
                     c -> c.gradle, c -> c.abbrev
-            ));
+            ));*/
 
     private static boolean detectSourceDirsAndJavaClasspath(Project project, Map<String, Object> properties, String jmods) {
         JavaPluginExtension javaPluginExtension = new DslObject(project).getExtensions().getByType(JavaPluginExtension.class);
 
         SourceSet main = javaPluginExtension.getSourceSets().getAt("main");
         String sourceDirectoriesPathSeparated = sourcePathFromSourceSet(main);
-        properties.put(Main.SOURCE, sourceDirectoriesPathSeparated);
+   /*     properties.put(Main.SOURCE, sourceDirectoriesPathSeparated);
         properties.put(Main.ANNOTATED_API_SOURCE, sourceDirectoriesPathSeparated);
 
         SourceSet test = javaPluginExtension.getSourceSets().getAt("test");
@@ -181,18 +184,18 @@ public record AnalyserPropertyComputer(
         String jmodsSeparated;
         if (jmods == null || jmods.trim().isEmpty()) jmodsSeparated = "";
         else {
-            jmodsSeparated = Arrays.stream(jmods.trim().split("[" + Main.COMMA + Main.PATH_SEPARATOR + "]"))
-                    .map(s -> Main.PATH_SEPARATOR + "jmods/" + s)
+            jmodsSeparated = Arrays.stream(jmods.trim().split("[" + Main.COMMA + File.pathSeparator + "]"))
+                    .map(s -> File.pathSeparator + "jmods/" + s)
                     .collect(Collectors.joining());
         }
-        String classPathSeparated = jmodsSeparated + Main.PATH_SEPARATOR + librariesFromSourceSet(main);
+        String classPathSeparated = jmodsSeparated + File.pathSeparator + librariesFromSourceSet(main);
         properties.put(Main.CLASSPATH, classPathSeparated);
 
         String runtimeClassPathSeparated = runtimeLibrariesFromSourceSet(main);
         properties.put(Main.RUNTIME_CLASSPATH, runtimeClassPathSeparated);
 
         String testClassPathSeparated = librariesFromSourceSet(test);
-        properties.put(Main.TEST_CLASSPATH, jmodsSeparated + Main.PATH_SEPARATOR + testClassPathSeparated);
+        properties.put(Main.TEST_CLASSPATH, jmodsSeparated + File.pathSeparator + testClassPathSeparated);
 
         String testRuntimeClassPathSeparated = runtimeLibrariesFromSourceSet(test);
         properties.put(Main.TESTS_RUNTIME_CLASSPATH, testRuntimeClassPathSeparated);
@@ -231,9 +234,9 @@ public record AnalyserPropertyComputer(
         }
 
         String dependencies = String.join(",", dependencyList);
-        properties.put(Main.DEPENDENCIES, dependencies);
+        properties.put(DEPENDENCIES, dependencies);
 
-        return !sourceDirectoriesPathSeparated.isEmpty() || !testDirectoriesPathSeparated.isEmpty();
+        return !sourceDirectoriesPathSeparated.isEmpty() || !testDirectoriesPathSeparated.isEmpty();*/ return false;
     }
 
     private static String sourcePathFromSourceSet(SourceSet sourceSet) {
@@ -241,7 +244,7 @@ public record AnalyserPropertyComputer(
                 .stream()
                 .filter(File::canRead)
                 .map(File::getAbsolutePath)
-                .collect(Collectors.joining(Main.PATH_SEPARATOR));
+                .collect(Collectors.joining(File.pathSeparator));
     }
 
     private static String librariesFromSourceSet(SourceSet sourceSet) {
@@ -249,7 +252,7 @@ public record AnalyserPropertyComputer(
                 .stream()
                 .filter(File::canRead)
                 .map(File::getAbsolutePath)
-                .collect(Collectors.joining(Main.PATH_SEPARATOR));
+                .collect(Collectors.joining(File.pathSeparator));
     }
 
     private static String runtimeLibrariesFromSourceSet(SourceSet sourceSet) {
@@ -257,7 +260,7 @@ public record AnalyserPropertyComputer(
                 .stream()
                 .filter(File::canRead)
                 .map(File::getAbsolutePath)
-                .collect(Collectors.joining(Main.PATH_SEPARATOR));
+                .collect(Collectors.joining(File.pathSeparator));
     }
 
     private static void addSystemProperties(Map<String, Object> properties) {

@@ -20,6 +20,8 @@ public class AnalyserExtension {
     public static final String ANALYSER_EXTENSION_NAME = "e2immu";
     public static final String ANALYSER_TASK_NAME = "e2immu-analyser";
 
+    public boolean skipProject;
+
     /* from InputConfiguration -- sources taken from Gradle */
     public String jmods; // part of the class path
     public String jre;
