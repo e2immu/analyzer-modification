@@ -21,7 +21,7 @@ public class HiddenContentTypes implements Value {
     public static HiddenContentTypes OF_PRIMITIVE = new HiddenContentTypes(null, false, Map.of(), Map.of());
     public static HiddenContentTypes NO_VALUE = new HiddenContentTypes(null, false, Map.of(), Map.of());
 
-    public static PropertyImpl HIDDEN_CONTENT_TYPES = new PropertyImpl("hiddenContentTypesOfType", NO_VALUE);
+    public static PropertyImpl HIDDEN_CONTENT_TYPES = new PropertyImpl("hct", NO_VALUE);
 
     public static final int UNSPECIFIED_EXTENSION = -2; // extension of the type itself, only if typeIsExtensible == true
 
@@ -77,7 +77,26 @@ public class HiddenContentTypes implements Value {
 
     @Override
     public Codec.EncodedValue encode(Codec codec) {
-        return null;
+        Map<Codec.EncodedValue, Codec.EncodedValue> map = new HashMap<>();
+        if (methodInfo == null) {
+            if (typeIsExtensible) {
+                map.put(codec.encodeString("E"), codec.encodeBoolean(typeIsExtensible));
+            }
+            if (startOfMethodParameters != 0) {
+                map.put(codec.encodeString("M"), codec.encodeInt(startOfMethodParameters));
+            }
+        }
+        indexToType.forEach((key, value) -> {
+            Codec.EncodedValue v;
+            if (value instanceof TypeInfo ti) {
+                v = codec.encodeInfo(ti);
+            } else if (value instanceof TypeParameter tp) {
+                v = codec.encodeString(tp.simpleName());
+            } else throw new UnsupportedOperationException();
+            map.put(codec.encodeInt(key), v);
+        });
+        if (map.isEmpty()) return null;
+        return codec.encodeMap(map);
     }
 
     public boolean forMethod() {
