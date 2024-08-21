@@ -93,7 +93,7 @@ public class Analyze {
     }
 
     private List<VariableData> doBlocks(Statement parentStatement, VariableData vdOfParent, ReturnVariable rv) {
-        return Stream.concat(Stream.of(parentStatement.block()), parentStatement.otherBlocks().stream())
+        return Stream.concat(Stream.of(parentStatement.block()), parentStatement.otherBlocksStream())
                 .map(block -> doBlock(block, null, vdOfParent, rv))
                 .toList();
     }

@@ -222,7 +222,8 @@ public class TestVariableData {
         assertEquals("-", viRv.readId());
         assertEquals("2", viRv.assignmentIds().getLatestAssignment());
 
-        Statement s111 = method1.methodBody().statements().get(1).otherBlocks().get(0).statements().get(1);
+        Statement s111 = method1.methodBody().statements().get(1)
+                .otherBlocksStream().findFirst().orElseThrow().statements().get(1);
         assertEquals("1.1.1", s111.source().index());
 
         VariableInfoContainer vicJ = vd.variableInfoContainerOrNull("a.b.C.j");
