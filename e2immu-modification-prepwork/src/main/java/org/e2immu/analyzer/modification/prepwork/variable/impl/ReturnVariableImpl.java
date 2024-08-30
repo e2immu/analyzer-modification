@@ -61,7 +61,7 @@ public class ReturnVariableImpl implements ReturnVariable {
     }
 
     @Override
-    public boolean isLocal() {
+    public boolean containsLocalComponent(boolean parametersAreLocal) {
         return true;
     }
 
