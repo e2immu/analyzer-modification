@@ -33,16 +33,17 @@ public class Analyze {
         this.runtime = runtime;
     }
 
-    private record ReadWriteData(VariableData previous, String index,
+    private record ReadWriteData(VariableData previous,
+                                 String index,
                                  Set<Variable> seenFirstTime,
                                  Set<Variable> read,
                                  Set<Variable> assigned) {
-        public AssignmentIds assignmentIds(Variable v, Stage stage) {
-            AssignmentIds prev = previous == null || !previous.isKnown(v.fullyQualifiedName())
-                    ? AssignmentIds.NOT_YET_ASSIGNED
-                    : previous.variableInfo(v, stage).assignmentIds();
+        public Assignments assignmentIds(Variable v, Stage stage) {
+            Assignments prev = previous == null || !previous.isKnown(v.fullyQualifiedName())
+                    ? Assignments.NOT_YET_ASSIGNED
+                    : previous.variableInfo(v, stage).assignments();
             if (assigned.contains(v)) {
-                return new AssignmentIds(index, prev);
+                return Assignments.newAssignment(index, prev);
             }
             return prev;
         }
@@ -51,10 +52,6 @@ public class Analyze {
             return read.contains(v) ? index : previous == null || !previous.isKnown(v.fullyQualifiedName())
                     ? NOT_YET_READ
                     : previous.variableInfo(v, stage).readId();
-        }
-
-        public Set<Integer> modificationIds(Variable v) {
-            return Set.of();
         }
 
         public Set<Variable> variablesSeenFirstTime() {
@@ -86,7 +83,7 @@ public class Analyze {
 
         if (statement.hasSubBlocks()) {
             List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
-            addMerge(vdi, lastOfEachSubBlock);
+            addMerge("0", vdi, lastOfEachSubBlock);
         }
         VariableData lastOfMainBlock = doBlock(methodInfo.methodBody(), vdi, null, rv);
         methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
@@ -98,7 +95,9 @@ public class Analyze {
                 .toList();
     }
 
-    private VariableData doBlock(Block block, VariableData vdOfFirstStatement, VariableData vdOfParent,
+    private VariableData doBlock(Block block,
+                                 VariableData vdOfFirstStatement,
+                                 VariableData vdOfParent,
                                  ReturnVariable rv) {
         VariableData previous = vdOfFirstStatement != null ? vdOfFirstStatement : vdOfParent;
         int start = vdOfFirstStatement != null ? 1 : 0;
@@ -113,7 +112,7 @@ public class Analyze {
                 VariableInfo vi = vic.best(stage);
                 Variable variable = vi.variable();
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stage),
-                        readWriteData.isRead(variable, stage), readWriteData.modificationIds(variable));
+                        readWriteData.isRead(variable, stage));
                 VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
                         Either.left(vic), eval, hasMerge);
                 vdi.put(variable, newVic);
@@ -126,7 +125,7 @@ public class Analyze {
             // sub-blocks
             if (statement.hasSubBlocks()) {
                 List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
-                addMerge(vdi, lastOfEachSubBlock);
+                addMerge(index, vdi, lastOfEachSubBlock);
             }
 
             statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
@@ -143,7 +142,7 @@ public class Analyze {
 
     Some variables already exist, but are not referenced in any of the blocks at all.
      */
-    private void addMerge(VariableDataImpl vdStatement, List<VariableData> lastOfEachSubBlock) {
+    private void addMerge(String index, VariableDataImpl vdStatement, List<VariableData> lastOfEachSubBlock) {
         Map<Variable, List<VariableInfo>> map = new HashMap<>();
         for (VariableData vd : lastOfEachSubBlock) {
             vd.variableInfoStream().forEach(vi -> {
@@ -156,15 +155,15 @@ public class Analyze {
             map.computeIfAbsent(vi.variable(), v -> new ArrayList<>()).add(vi);
         });
         map.forEach((v, vis) -> {
-            AssignmentIds assignmentIds = vis.stream().map(VariableInfo::assignmentIds)
-                    .reduce(AssignmentIds.NOT_YET_ASSIGNED, AssignmentIds::merge);
+            List<Assignments> assignmentsPerBlock = vis.stream().map(VariableInfo::assignments).toList();
+            Assignments assignments = Assignments.mergeBlocks(index, assignmentsPerBlock);
             String readId = vis.stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
-            VariableInfoImpl merge = new VariableInfoImpl(v, assignmentIds, readId, Set.of());
+            VariableInfoImpl merge = new VariableInfoImpl(v, assignments, readId);
             VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
             VariableInfoContainerImpl vici;
             if (inMap == null) {
-                VariableInfoImpl initial = new VariableInfoImpl(v, AssignmentIds.NOT_YET_ASSIGNED, NOT_YET_READ, Set.of());
+                VariableInfoImpl initial = new VariableInfoImpl(v, Assignments.NOT_YET_ASSIGNED, NOT_YET_READ);
                 vici = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE, Either.right(initial), initial,
                         true);
                 vdStatement.put(v, vici);
@@ -180,9 +179,9 @@ public class Analyze {
     }
 
     private VariableInfoContainer initial(Variable v, ReadWriteData readWriteData, boolean hasMerge) {
-        VariableInfoImpl initial = new VariableInfoImpl(v, AssignmentIds.NOT_YET_ASSIGNED, NOT_YET_READ, Set.of());
+        VariableInfoImpl initial = new VariableInfoImpl(v, Assignments.NOT_YET_ASSIGNED, NOT_YET_READ);
         VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, Stage.MERGE),
-                readWriteData.isRead(v, Stage.MERGE), readWriteData.modificationIds(v));
+                readWriteData.isRead(v, Stage.MERGE));
         return new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
                 Either.right(initial), eval, hasMerge);
     }

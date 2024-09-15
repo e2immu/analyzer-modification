@@ -73,7 +73,7 @@ public class TestVariableData {
         ParameterInfo pi = method1.parameters().get(0);
         VariableInfo vi0 = vd.variableInfo(pi.fullyQualifiedName());
         assertSame("0", vi0.readId());
-        assertTrue(vi0.assignmentIds().hasNotYetBeenAssigned());
+        assertTrue(vi0.assignments().hasNotYetBeenAssigned());
     }
 
     @Language("java")
@@ -114,7 +114,7 @@ public class TestVariableData {
         ParameterInfo pi = method1.parameters().get(0);
         VariableInfo vi0 = vd.variableInfo(pi.fullyQualifiedName());
         assertEquals("1", vi0.readId());
-        assertTrue(vi0.assignmentIds().hasNotYetBeenAssigned());
+        assertTrue(vi0.assignments().hasNotYetBeenAssigned());
         VariableInfoContainer vic0 = vd.variableInfoContainerOrNull(pi.fullyQualifiedName());
         assertSame(vi0, vic0.best());
         assertSame(vi0, vic0.best(Stage.MERGE));
@@ -220,7 +220,7 @@ public class TestVariableData {
         assertTrue(vd.isKnown(rv.fullyQualifiedName()));
         VariableInfo viRv = vd.variableInfo(rv.fullyQualifiedName());
         assertEquals("-", viRv.readId());
-        assertEquals("2", viRv.assignmentIds().getLatestAssignment());
+        assertEquals("2", viRv.assignments().getLatestAssignmentIndex());
 
         Statement s111 = method1.methodBody().statements().get(1)
                 .otherBlocksStream().findFirst().orElseThrow().statements().get(1);
@@ -230,7 +230,7 @@ public class TestVariableData {
         assertNotNull(vicJ);
         VariableInfo viJ = vicJ.best();
         assertEquals("2", viJ.readId());
-        assertEquals("1.1.1", viJ.assignmentIds().getLatestAssignment());
+        assertEquals("1.1.1", viJ.assignments().getLatestAssignmentIndex());
     }
 
 }

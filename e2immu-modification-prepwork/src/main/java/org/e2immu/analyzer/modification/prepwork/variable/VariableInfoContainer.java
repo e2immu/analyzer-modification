@@ -28,20 +28,8 @@ public interface VariableInfoContainer {
 
     boolean hasMerge();
 
-    default boolean isNotAssignedInThisStatement() {
-        return !hasEvaluation() ||
-               getPreviousOrInitial().assignmentIds().compareTo(best(Stage.EVALUATION).assignmentIds()) >= 0;
-    }
-
     default boolean isReadInThisStatement() {
         return hasEvaluation() && getPreviousOrInitial().readId().compareTo(best(Stage.EVALUATION).readId()) < 0;
-    }
-
-    default boolean hasBeenAccessedInThisBlock(String blockIndex) {
-        VariableInfo current = best();
-        String subBlock = blockIndex + ".";
-        if (subBlock.compareTo(current.readId()) < 0) return true;
-        return subBlock.compareTo(current.assignmentIds().getLatestAssignment()) < 0;
     }
 
     /*

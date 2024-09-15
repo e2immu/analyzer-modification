@@ -6,6 +6,7 @@ import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.support.EventuallyFinal;
+import org.e2immu.support.FirstThen;
 import org.e2immu.support.SetOnce;
 
 import java.util.Set;
@@ -13,19 +14,16 @@ import java.util.Set;
 public class VariableInfoImpl implements VariableInfo {
 
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
-    private final SetOnce<Integer> modificationTime = new SetOnce<>();
     private final PropertyValueMap analysis = new PropertyValueMapImpl();
 
     private final Variable variable;
-    private final AssignmentIds assignmentIds;
+    private final Assignments assignments;
     private final String readId;
-    private final Set<Integer> readAtStatementTimes;
 
-    public VariableInfoImpl(Variable variable, AssignmentIds assignmentIds, String readId, Set<Integer> readAtStatementTimes) {
+    public VariableInfoImpl(Variable variable, Assignments assignments, String readId) {
         this.variable = variable;
-        this.assignmentIds = assignmentIds;
+        this.assignments = assignments;
         this.readId = readId;
-        this.readAtStatementTimes = readAtStatementTimes;
     }
 
     public boolean setLinkedVariables(LinkedVariables linkedVariables) {
@@ -74,13 +72,8 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     @Override
-    public Set<Integer> readAtStatementTimes() {
-        return readAtStatementTimes;
-    }
-
-    @Override
-    public AssignmentIds assignmentIds() {
-        return assignmentIds;
+    public Assignments assignments() {
+        return assignments;
     }
 
     @Override
