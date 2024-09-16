@@ -255,4 +255,119 @@ public class TestAnalyze1Assignments extends CommonTest {
         Assignments jA = jVi.assignments();
         assertEquals("D:1, A:[2.0.1-E=[2.0.1-E], 3=[2.0.1-E, 3]]", jA.toString());
     }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            import java.util.Vector;
+            public class X {
+                public void quickSort(Vector elements, int lowIndex, int highIndex) {
+                    int lowToHighIndex;
+                    int highToLowIndex;
+                    int pivotIndex;
+                    Comparable pivotValue;
+                    Comparable lowToHighValue;
+                    Comparable highToLowValue;
+                    Comparable parking;
+                    int newLowIndex;
+                    int newHighIndex;
+                    int compareResult;
+                    lowToHighIndex = lowIndex;
+                    highToLowIndex = highIndex;
+                    pivotIndex = (lowToHighIndex + highToLowIndex) / 2;
+                    pivotValue = (Comparable) elements.elementAt(pivotIndex);
+                    newLowIndex = highIndex + 1;
+                    newHighIndex = lowIndex - 1;
+                    while ((newHighIndex + 1) < newLowIndex) {
+                        lowToHighValue = (Comparable) elements.elementAt(lowToHighIndex);
+                        while (lowToHighIndex < newLowIndex & lowToHighValue.compareTo(pivotValue) < 0) {
+                            newHighIndex = lowToHighIndex;
+                            lowToHighIndex++;
+                            lowToHighValue = (Comparable) elements.elementAt(lowToHighIndex);
+                        }
+                        highToLowValue = (Comparable) elements.elementAt(highToLowIndex);
+                        while (newHighIndex <= highToLowIndex & (highToLowValue.compareTo(pivotValue) > 0)) {
+                            newLowIndex = highToLowIndex;
+                            highToLowIndex--;
+                            highToLowValue = (Comparable) elements.elementAt(highToLowIndex);
+                        }
+                        if (lowToHighIndex == highToLowIndex) {
+                            newHighIndex = lowToHighIndex;
+                        } else if (lowToHighIndex < highToLowIndex) {
+                            int result = lowToHighValue.compareTo(highToLowValue);
+                            boolean bCompareResult = (result >= 0);
+                            if (bCompareResult) {
+                                parking = lowToHighValue;
+                                elements.setElementAt(highToLowValue, lowToHighIndex);
+                                elements.setElementAt(parking, highToLowIndex);
+                                newLowIndex = highToLowIndex;
+                                newHighIndex = lowToHighIndex;
+                                lowToHighIndex++;
+                                highToLowIndex--;
+                            }
+                        }
+                    }
+                    if (lowIndex < newHighIndex) {
+                        this.quickSort(elements, lowIndex, newHighIndex);
+                    }
+                    if (newLowIndex < highIndex) {
+                        this.quickSort(elements, newLowIndex, highIndex);
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("complex example with nested while-loops")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        MethodInfo method = X.findUniqueMethod("quickSort", 3);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+        assertEquals(14, vdMethod.knownVariableNames().size());
+
+        assertEquals("""
+                        X.quickSort(java.util.Vector,int,int):0:elements, X.quickSort(java.util.Vector,int,int):1:lowIndex, \
+                        X.quickSort(java.util.Vector,int,int):2:highIndex, X.this, compareResult, highToLowIndex, \
+                        highToLowValue, lowToHighIndex, lowToHighValue, newHighIndex, newLowIndex, parking, \
+                        pivotIndex, pivotValue\
+                        """,
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo elementsVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
+        assertEquals("elements", elementsVi.variable().simpleName());
+        assertEquals("18.0.0", elementsVi.readId());
+        assertEquals("D:-, A:[]", elementsVi.assignments().toString());
+
+        VariableInfo lowIndexVi = vdMethod.variableInfo(method.parameters().get(1).fullyQualifiedName());
+        assertEquals("lowIndex", lowIndexVi.variable().simpleName());
+        assertEquals("17.0.0", lowIndexVi.readId());
+        assertEquals("D:-, A:[]", lowIndexVi.assignments().toString());
+
+        VariableInfo highIndexVi = vdMethod.variableInfo(method.parameters().get(2).fullyQualifiedName());
+        assertEquals("highIndex", highIndexVi.variable().simpleName());
+        assertEquals("18.0.0", highIndexVi.readId());
+        assertEquals("D:-, A:[]", highIndexVi.assignments().toString());
+
+        VariableInfo newHighIndexVi = vdMethod.variableInfo("newHighIndex");
+        assertEquals("newHighIndex", newHighIndexVi.variable().simpleName());
+        assertEquals("""
+                D:08, A:[15=[15], 16.0.1.0.0=[15, 16.0.1.0.0], 16.0.4.0.0=[15, 16.0.1.0.0, 16.0.4.0.0], \
+                16.0.4.1.0.0.2.0.4=[15, 16.0.1.0.0, 16.0.4.1.0.0.2.0.4]]\
+                """, newHighIndexVi.assignments().toString());
+
+        VariableInfo newLowIndexVi = vdMethod.variableInfo("newLowIndex");
+        assertEquals("newLowIndex", newLowIndexVi.variable().simpleName());
+        assertEquals("""
+                D:07, A:[14=[14], 16.0.3.0.0=[14, 16.0.3.0.0], 16.0.4.1.0.0.2.0.3=[14, 16.0.3.0.0, 16.0.4.1.0.0.2.0.3]]\
+                """, newLowIndexVi.assignments().toString());
+
+        VariableInfo highToLowVi = vdMethod.variableInfo("highToLowIndex");
+        assertEquals("16.0.4.1.0.0.2.0.3", highToLowVi.readId());
+        assertEquals("""
+                D:01, A:[11=[11], 16.0.3.0.1=[11, 16.0.3.0.1], 16.0.4.1.0.0.2.0.6=[11, 16.0.3.0.1, 16.0.4.1.0.0.2.0.6]]\
+                """, highToLowVi.assignments().toString());
+    }
 }

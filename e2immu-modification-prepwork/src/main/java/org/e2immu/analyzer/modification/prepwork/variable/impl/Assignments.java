@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
 
+import org.e2immu.analyzer.modification.prepwork.Util;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.statement.*;
 
@@ -13,10 +14,15 @@ public class Assignments {
         return assignments.isEmpty();
     }
 
-    public record I(String index, List<String> actualAssignmentIndices) {
+    public record I(String index, List<String> actualAssignmentIndices) implements Comparable<I> {
         @Override
         public String toString() {
             return index + "=" + actualAssignmentIndices;
+        }
+
+        @Override
+        public int compareTo(I o) {
+            return index.compareTo(o.index);
         }
     }
 
@@ -60,27 +66,36 @@ public class Assignments {
     3- Synchronized, Block, Do-While, While(true), For(..;;..): 1 block, unconditionally
     4- Try: 1 block unconditionally, n blocks conditionally, exclusive, 0-1 block unconditionally
      */
-    public static Assignments mergeBlocks(String index, int assignmentsRequiredForMerge, List<Assignments> assignmentsInBlocks) {
+    public static Assignments mergeBlocks(String index,
+                                          int assignmentsRequiredForMerge,
+                                          Map<String, Assignments> assignmentsInBlocks) {
         int blocksWithAssignment = 0;
         List<I> unrelatedToMerge = new ArrayList<>();
         List<I> inSubBlocks = new ArrayList<>();
         boolean first = true;
         Assignments aFirst = null;
-        for (Assignments a : assignmentsInBlocks) {
-            int size = inSubBlocks.size();
+        for (Map.Entry<String, Assignments> entry : assignmentsInBlocks.entrySet()) {
+            Assignments a = entry.getValue();
+            String subIndex = entry.getKey();
+            boolean haveAssignment = false;
             if (first) {
                 aFirst = a;
                 for (I i : a.assignments) {
                     if (i.index.compareTo(index) < 0) unrelatedToMerge.add(i);
-                    else inSubBlocks.add(i);
+                    else {
+                        haveAssignment |= Util.atSameLevel(subIndex, i.index);
+                        inSubBlocks.add(i);
+                    }
                 }
                 first = false;
             } else {
                 for (I i : a.assignments) {
-                    if (i.index.compareTo(index) > 0) inSubBlocks.add(i);
+                    if (i.index.compareTo(index) > 0){
+                        haveAssignment |=  Util.atSameLevel(subIndex, i.index);
+                        inSubBlocks.add(i);
+                    }
                 }
             }
-            boolean haveAssignment = inSubBlocks.size() > size;
             if (haveAssignment) {
                 // nothing was added, so no assignment
                 ++blocksWithAssignment;
@@ -89,13 +104,14 @@ public class Assignments {
         assert aFirst != null;
         if (blocksWithAssignment == assignmentsRequiredForMerge) {
             String mergeIndex = index + ":M";
-            List<String> actual = inSubBlocks.stream().flatMap(i -> i.actualAssignmentIndices.stream()).distinct().toList();
+            List<String> actual = inSubBlocks.stream().flatMap(i -> i.actualAssignmentIndices.stream())
+                    .distinct().sorted().toList();
             I merge = new I(mergeIndex, actual);
             return new Assignments(aFirst.indexOfDefinition, unrelatedToMerge, merge);
         }
         // just concat everything...
         return new Assignments(aFirst.indexOfDefinition,
-                Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).toList());
+                Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).sorted().toList());
     }
 
     public static int assignmentsRequiredForMerge(Statement statement) {
@@ -114,12 +130,6 @@ public class Assignments {
 
     public List<I> assignments() {
         return assignments;
-    }
-
-    public String getLatestAssignmentIndex() {
-        return assignments.isEmpty()
-                ? VariableInfoContainer.NOT_YET_READ
-                : assignments.get(assignments.size() - 1).index;
     }
 
     public I latest() {

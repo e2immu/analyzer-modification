@@ -2,6 +2,12 @@ package org.e2immu.analyzer.modification.prepwork;
 
 public class Util {
 
+    public static boolean atSameLevel(String i0, String i1) {
+        int d0 = i0.lastIndexOf('.');
+        int d1 = i1.lastIndexOf('.');
+        return d0 > 0 && d1 > 0 && i0.substring(0, d0).equals(i1.substring(0, d1));
+    }
+
     /**
      * all
      *
@@ -10,9 +16,9 @@ public class Util {
      * @return true when the index is in the scope
      */
     public static boolean inScopeOf(String scope, String index) {
-        if("-".equals(scope)) return true;
+        if ("-".equals(scope)) return true;
         int dashScope = scope.lastIndexOf("-");
-        if(dashScope>=0) {
+        if (dashScope >= 0) {
             // 0-E -> in scope means starting with 0
             String sub = scope.substring(0, dashScope);
             return index.startsWith(sub);
@@ -37,12 +43,12 @@ public class Util {
         throw new UnsupportedOperationException();
     }
 
-    public static String stripStage(String assignmentId) {
-        int dash = assignmentId.lastIndexOf('-');
-        if (dash >= 0) return assignmentId.substring(0, dash);
-        int colon = assignmentId.lastIndexOf(':');
-        if (colon >= 0) return assignmentId.substring(0, colon);
-        throw new UnsupportedOperationException("? " + assignmentId);
+    public static String stripStage(String index) {
+        int dash = index.lastIndexOf('-');
+        if (dash >= 0) return index.substring(0, dash);
+        int colon = index.lastIndexOf(':');
+        if (colon >= 0) return index.substring(0, colon);
+        return index;
     }
 
     // add a character so that we're definitely beyond this index

@@ -16,6 +16,7 @@ import org.e2immu.support.Either;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer.NOT_YET_READ;
@@ -70,14 +71,15 @@ public class Analyze {
         methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
     }
 
-    private List<VariableData> doBlocks(MethodInfo methodInfo,
+    private Map<String, VariableData> doBlocks(MethodInfo methodInfo,
                                         Statement parentStatement,
                                         VariableData vdOfParent,
                                         ReturnVariable rv) {
         return parentStatement.subBlockStream()
                 .filter(b -> !b.isEmpty())
-                .map(block -> doBlock(methodInfo, block, vdOfParent, rv))
-                .toList();
+                .collect(Collectors.toUnmodifiableMap(
+                        block -> block.statements().get(0).source().index(),
+                        block -> doBlock(methodInfo, block, vdOfParent, rv)));
     }
 
     private VariableData doBlock(MethodInfo methodInfo,
@@ -117,7 +119,7 @@ public class Analyze {
 
             // sub-blocks
             if (statement.hasSubBlocks()) {
-                List<VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, rv);
+                Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, rv);
                 addMerge(index, statement, vdi, lastOfEachSubBlock);
             }
 
@@ -139,20 +141,23 @@ public class Analyze {
     private void addMerge(String index,
                           Statement statement,
                           VariableDataImpl vdStatement,
-                          List<VariableData> lastOfEachSubBlock) {
-        Map<Variable, List<VariableInfo>> map = new HashMap<>();
-        for (VariableData vd : lastOfEachSubBlock) {
+                          Map<String, VariableData> lastOfEachSubBlock) {
+        Map<Variable, Map<String, VariableInfo>> map = new HashMap<>();
+        for (Map.Entry<String, VariableData> entry : lastOfEachSubBlock.entrySet()) {
+            String subIndex = entry.getKey();
+            VariableData vd = entry.getValue();
             vd.variableInfoStream().forEach(vi -> {
                 if (copyToMerge(index, vi)) {
-                    map.computeIfAbsent(vi.variable(), v -> new ArrayList<>()).add(vi);
+                    map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                 }
             });
         }
         map.forEach((v, vis) -> {
-            List<Assignments> assignmentsPerBlock = vis.stream().map(VariableInfo::assignments).toList();
+            Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
+                    .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
             int assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement);
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
-            String readId = vis.stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
+            String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
             VariableInfoImpl merge = new VariableInfoImpl(v, assignments, readId);
             VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
