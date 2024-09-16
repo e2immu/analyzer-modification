@@ -96,12 +96,62 @@ public class TestAnalyze1Assignments extends CommonTest {
 
         VariableInfo rv = vdMethod.variableInfo(method.fullyQualifiedName());
         assertEquals("-", rv.readId());
-        // FIXME check?
         assertEquals("D:-, A:[3.0.2.0.0=[3.0.2.0.0], 4=[3.0.2.0.0, 4]]", rv.assignments().toString());
     }
 
+
     @Language("java")
     private static final String INPUT2 = """
+            package a.b;
+            class X {
+                static int method(String in) {
+                    for(int i=0; i<in.toCharArray(); i++) {
+                        System.out.println(i);
+                        for(int j=i; j<in.length(); j++) {
+                            if(j % 3 == 0) return i+j;
+                        }
+                    }
+                    return -1;
+                }
+            }
+            """;
+
+    @DisplayName("for-loop, local definition")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+        assertEquals(3, vdMethod.knownVariableNames().size());
+
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+        VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
+        assertEquals("in", inVi.variable().simpleName());
+        assertEquals("3", inVi.readId()); // last time read in method
+        assertEquals("D:-, A:[]", inVi.assignments().toString());
+
+        VariableInfo thisVi = vdMethod.variableInfo(X.fullyQualifiedName() + ".this");
+        assertEquals("this", thisVi.variable().simpleName());
+        assertEquals("-", thisVi.readId());
+        assertEquals("D:-, A:[]", thisVi.assignments().toString());
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("i", iVi.variable().simpleName());
+        Assignments iA = iVi.assignments();
+        assertEquals("D:0, A:[2:M=[2], 4:M=[2, 4]]", iA.toString());
+
+        VariableInfo jVi = vdMethod.variableInfo("j");
+        assertEquals("j", jVi.variable().simpleName());
+        Assignments jA = jVi.assignments();
+        assertEquals("D:1, A:[3=[2.0.1, 3]]", jA.toString());
+    }
+
+    @Language("java")
+    private static final String INPUT3 = """
             package a.b;
             class X {
                 int method(String in) {
@@ -124,8 +174,8 @@ public class TestAnalyze1Assignments extends CommonTest {
 
     @DisplayName("re-use of variables")
     @Test
-    public void test2() {
-        TypeInfo X = javaInspector.parse(INPUT2);
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
         MethodInfo method = X.findUniqueMethod("method", 1);
         Analyze analyze = new Analyze(runtime);
         analyze.doMethod(method);

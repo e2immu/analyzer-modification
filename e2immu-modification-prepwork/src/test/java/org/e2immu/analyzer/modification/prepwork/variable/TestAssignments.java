@@ -12,7 +12,7 @@ public class TestAssignments {
 
     @Test
     public void test() {
-        Assignments a = new Assignments("0", false);
+        Assignments a = new Assignments("0");
         assertEquals(0, a.assignments().size());
         Assignments a0 = Assignments.newAssignment("0", a);
         assertEquals("[0]", a0.latest().actualAssignmentIndices().toString());
@@ -26,7 +26,7 @@ public class TestAssignments {
         assertEquals("[0, 1.0.1, 1.0.2]", a102.latest().actualAssignmentIndices().toString());
 
         // there have been assignments in 1.0.x, but none in 1.1.x -> keep as is
-        Assignments a1 = Assignments.mergeBlocks("1", List.of(a102, a0));
+        Assignments a1 = Assignments.mergeBlocks("1", 2, List.of(a102, a0));
         assertEquals(3, a1.assignments().size());
         assertSame(a0.latest(), a1.assignments().get(0));
         assertSame(a101.latest(), a1.assignments().get(1));
@@ -38,7 +38,7 @@ public class TestAssignments {
 
         // in this situation, there has been a full merge. we drop information about sub-blocks in the main
         // array, but store it in actualAssignmentIndices
-        Assignments b1 = Assignments.mergeBlocks("1", List.of(a102, a110));
+        Assignments b1 = Assignments.mergeBlocks("1", 2, List.of(a102, a110));
         assertEquals(2, b1.assignments().size());
         Assignments.I b1i1 = b1.assignments().get(1);
         assertEquals("1:M", b1i1.index());
