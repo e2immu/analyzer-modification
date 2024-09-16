@@ -10,6 +10,13 @@ public class Util {
      * @return true when the index is in the scope
      */
     public static boolean inScopeOf(String scope, String index) {
+        if("-".equals(scope)) return true;
+        int dashScope = scope.lastIndexOf("-");
+        if(dashScope>=0) {
+            // 0-E -> in scope means starting with 0
+            String sub = scope.substring(0, dashScope);
+            return index.startsWith(sub);
+        }
         int lastDotScope = scope.lastIndexOf('.');
         if (lastDotScope < 0) {
             // scope = 3 --> 3.0.0 ok, 3 ok, 4 ok

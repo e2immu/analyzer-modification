@@ -85,31 +85,34 @@ public class Analyze {
                                  VariableData vdOfParent,
                                  ReturnVariable rv) {
         VariableData previous = vdOfParent;
-        int i = 0;
+        boolean first = true;
         for (Statement statement : block.statements()) {
             String index = statement.source().index();
             ReadWriteData readWriteData = analyzeEval(previous, index, statement, rv);
             VariableDataImpl vdi = new VariableDataImpl();
             boolean hasMerge = statement.hasSubBlocks();
-            Stage stage = i == 0 ? Stage.EVALUATION : Stage.MERGE;
             Stream<VariableInfoContainer> stream;
             if (previous == null) {
                 stream = Stream.of();
             } else {
                 stream = previous.variableInfoContainerStream();
             }
+            Stage stage = first ? Stage.EVALUATION : Stage.MERGE;
             stream.forEach(vic -> {
                 VariableInfo vi = vic.best(stage);
-                Variable variable = vi.variable();
-                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stage),
-                        readWriteData.isRead(variable, stage));
-                VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
-                        Either.left(vic), eval, hasMerge);
-                vdi.put(variable, newVic);
+                if(Util.inScopeOf(vi.assignments().indexOfDefinition(), index)) {
+                    Variable variable = vi.variable();
+                    VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stage),
+                            readWriteData.isRead(variable, stage));
+                    boolean specificHasMerge = hasMerge && !readWriteData.variablesSeenFirstTime().contains(variable);
+                    VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
+                            Either.left(vic), eval, specificHasMerge);
+                    vdi.put(variable, newVic);
+                }
             });
 
             for (Variable v : readWriteData.variablesSeenFirstTime()) {
-                vdi.put(v, initialVariable(index, v, readWriteData, hasMerge));
+                vdi.put(v, initialVariable(index, v, readWriteData, hasMerge && !(v instanceof LocalVariable)));
             }
 
             // sub-blocks
@@ -120,7 +123,7 @@ public class Analyze {
 
             statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
             previous = vdi;
-            ++i;
+            if (first) first = false;
         }
         return previous;
     }

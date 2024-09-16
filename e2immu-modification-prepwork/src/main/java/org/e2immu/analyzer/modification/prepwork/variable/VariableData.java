@@ -15,6 +15,10 @@ public interface VariableData extends Value {
 
     VariableInfo variableInfo(String fullyQualifiedName);
 
+    default VariableInfo variableInfo(Variable variable) {
+        return variableInfo(variable, Stage.MERGE);
+    }
+
     VariableInfo variableInfo(Variable variable, Stage stage);
 
     VariableInfoContainer variableInfoContainerOrNull(String fullyQualifiedName);

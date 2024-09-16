@@ -12,8 +12,7 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestAnalyze1Assignments extends CommonTest {
 
@@ -105,10 +104,9 @@ public class TestAnalyze1Assignments extends CommonTest {
             package a.b;
             class X {
                 static int method(String in) {
-                    for(int i=0; i<in.toCharArray(); i++) {
-                        System.out.println(i);
-                        for(int j=i; j<in.length(); j++) {
-                            if(j % 3 == 0) return i+j;
+                    for(int i=0; i<in.length(); i++) {
+                        if(in.charAt(i) == '0') {
+                            return i;
                         }
                     }
                     return -1;
@@ -125,29 +123,86 @@ public class TestAnalyze1Assignments extends CommonTest {
         analyze.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
+        assertEquals(2, vdMethod.knownVariableNames().size());
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in", vdMethod.knownVariableNamesToString());
+
+        VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
+        assertEquals("in", inVi.variable().simpleName());
+        assertEquals("0.0.0-E", inVi.readId()); // last time read in method
+        assertEquals("D:-, A:[]", inVi.assignments().toString());
+
+        Statement s0 = method.methodBody().statements().get(0);
+        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfo iVi = vd0.variableInfo("i");
+        assertEquals("i", iVi.variable().simpleName());
+        assertFalse(vd0.variableInfoContainerOrNull("i").hasMerge());
+        assertEquals("0-E", iVi.readId()); // is not a merge, so we cannot see the read in 'return i'
+        Assignments iA = iVi.assignments();
+        assertEquals("D:0-E, A:[0-E=[0-E]]", iA.toString());
+
+        Statement s000 = s0.block().statements().get(0);
+        VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertTrue(vd000.variableInfoContainerOrNull("i").hasMerge());
+        VariableInfo iVi000 = vd000.variableInfo("i");
+        assertEquals("0.0.0.0.0", iVi000.readId());
+
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("return method", rvVi.variable().simpleName());
+        Assignments rvA = rvVi.assignments();
+        assertEquals("D:-, A:[0.0.0.0.0=[0.0.0.0.0], 1=[0.0.0.0.0, 1]]", rvA.toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT2b = """
+            package a.b;
+            class X {
+                static int method(String in) {
+                    for(int i=0; i<in.length(); i++) {
+                        System.out.println(i);
+                        for(int j=i; j<in.length(); j++) {
+                            if(in.charAt(j) == '?') return i+j;
+                        }
+                    }
+                    return -1;
+                }
+            }
+            """;
+
+    @DisplayName("nested for-loops, local definition")
+    @Test
+    public void test2b() {
+        TypeInfo X = javaInspector.parse(INPUT2b);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
 
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("3", inVi.readId()); // last time read in method
+        assertEquals("0.0.1.0.0-E", inVi.readId()); // last time read in method
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
-        VariableInfo thisVi = vdMethod.variableInfo(X.fullyQualifiedName() + ".this");
-        assertEquals("this", thisVi.variable().simpleName());
-        assertEquals("-", thisVi.readId());
-        assertEquals("D:-, A:[]", thisVi.assignments().toString());
+        assertFalse(vdMethod.isKnown("i"));
 
-        VariableInfo iVi = vdMethod.variableInfo("i");
+        Statement s0 = method.methodBody().statements().get(0);
+        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0, A:[2:M=[2], 4:M=[2, 4]]", iA.toString());
+        assertEquals("D:0-E, A:[0-E=[0-E]]", iA.toString());
 
-        VariableInfo jVi = vdMethod.variableInfo("j");
+        Statement s001 = s0.block().statements().get(1);
+        VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, i, j, java.lang.System.out", vd001.knownVariableNamesToString());
+        VariableInfo jVi = vd001.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
-        assertEquals("D:1, A:[3=[2.0.1, 3]]", jA.toString());
+        assertEquals("D:0.0.1-E, A:[0.0.1-E=[0.0.1-E]]", jA.toString());
     }
 
     @Language("java")
@@ -157,10 +212,10 @@ public class TestAnalyze1Assignments extends CommonTest {
                 int method(String in) {
                     int i;
                     int j;
-                    for(i=0; i<in.toCharArray(); i++) {
+                    for(i=0; i<in.length(); i++) {
                         System.out.println(i);
                         for(j=i; j<in.length(); j++) {
-                            if(j % 3 == 0) return i+j;
+                            if(in.charAt(j) == '!') return i+j;
                         }
                     }
                     j=in.length();
@@ -181,28 +236,23 @@ public class TestAnalyze1Assignments extends CommonTest {
         analyze.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
-        assertEquals(6, vdMethod.knownVariableNames().size());
+        assertEquals(5, vdMethod.knownVariableNames().size());
 
-        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, a.b.X.this, i, j, java.lang.System.out",
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, i, j, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
         assertEquals("3", inVi.readId()); // last time read in method
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
-        VariableInfo thisVi = vdMethod.variableInfo(X.fullyQualifiedName() + ".this");
-        assertEquals("this", thisVi.variable().simpleName());
-        assertEquals("-", thisVi.readId());
-        assertEquals("D:-, A:[]", thisVi.assignments().toString());
-
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0, A:[2:M=[2], 4:M=[2, 4]]", iA.toString());
+        assertEquals("D:0, A:[2-E=[2-E], 4-E=[2-E, 4-E]]", iA.toString());
 
         VariableInfo jVi = vdMethod.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
-        assertEquals("D:1, A:[3=[2.0.1, 3]]", jA.toString());
+        assertEquals("D:1, A:[2.0.1-E=[2.0.1-E], 3=[2.0.1-E, 3]]", jA.toString());
     }
 }
