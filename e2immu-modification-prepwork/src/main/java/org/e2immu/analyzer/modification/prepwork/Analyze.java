@@ -60,6 +60,7 @@ public class Analyze {
     }
 
     public void doMethod(MethodInfo methodInfo) {
+        // build up the initial variableInfo in the first statement
         VariableDataImpl vdi = new VariableDataImpl();
         Statement statement = methodInfo.methodBody().statements().get(0);
         boolean hasMerge = statement.hasSubBlocks();
@@ -80,17 +81,18 @@ public class Analyze {
             vdi.putIfAbsent(thisVar, initial(thisVar, readWriteData, hasMerge));
         }
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
-
         if (statement.hasSubBlocks()) {
             List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
             addMerge("0", vdi, lastOfEachSubBlock);
         }
+        // start analysis, and copy results of last statement into method
         VariableData lastOfMainBlock = doBlock(methodInfo.methodBody(), vdi, null, rv);
         methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
     }
 
     private List<VariableData> doBlocks(Statement parentStatement, VariableData vdOfParent, ReturnVariable rv) {
-        return Stream.concat(Stream.of(parentStatement.block()), parentStatement.otherBlocksStream())
+        return parentStatement.subBlockStream()
+                .filter(b -> !b.isEmpty())
                 .map(block -> doBlock(block, null, vdOfParent, rv))
                 .toList();
     }
@@ -99,6 +101,7 @@ public class Analyze {
                                  VariableData vdOfFirstStatement,
                                  VariableData vdOfParent,
                                  ReturnVariable rv) {
+
         VariableData previous = vdOfFirstStatement != null ? vdOfFirstStatement : vdOfParent;
         int start = vdOfFirstStatement != null ? 1 : 0;
         for (int i = start; i < block.statements().size(); i++) {

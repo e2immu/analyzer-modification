@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -24,21 +25,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestVariableData {
-
-    private static JavaInspector javaInspector;
-
-    @BeforeAll
-    public static void beforeAll() throws IOException {
-        ((Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
-        ((Logger) LoggerFactory.getLogger("org.e2immu.analyzer.shallow")).setLevel(Level.DEBUG);
-
-        InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
-                .addClassPath(InputConfigurationImpl.DEFAULT_CLASSPATH);
-        InputConfiguration inputConfiguration = builder.build();
-        javaInspector = new JavaInspectorImpl();
-        javaInspector.initialize(inputConfiguration);
-    }
+public class TestVariableData extends CommonTest {
 
     @Language("java")
     private static final String INPUT = """
@@ -58,6 +45,7 @@ public class TestVariableData {
         analyze.doMethod(method1);
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
+        assertEquals("a.b.C.method1(String):0:s, a.b.C.this", vd.knownVariableNamesToString());
         List<VariableInfo> vis = vd.variableInfoStream().toList();
         assertEquals(2, vis.size());
 
@@ -95,7 +83,10 @@ public class TestVariableData {
         analyze.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
-        assert vd != null;
+
+        assertEquals("a.b.C.method1(String):0:s, a.b.C.this, java.lang.System.out",
+                vd.knownVariableNamesToString());
+
         List<VariableInfo> vis = vd.variableInfoStream().toList();
         assertEquals(3, vis.size());
 
@@ -156,6 +147,8 @@ public class TestVariableData {
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
+        assertEquals("a.b.C.j, a.b.C.method1(String):0:s, a.b.C.this, java.lang.System.out", vd.knownVariableNamesToString());
+
         List<VariableInfo> vis = vd.variableInfoStream().toList();
         assertEquals(4, vis.size());
 

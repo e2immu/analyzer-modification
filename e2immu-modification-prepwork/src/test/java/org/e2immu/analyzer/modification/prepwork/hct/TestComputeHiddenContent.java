@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.prepwork.hct;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.io.CodecImpl;
@@ -18,21 +19,10 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TestComputeHiddenContent {
+public class TestComputeHiddenContent extends CommonTest {
 
     @Test
-    public void test() throws IOException {
-        ((Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
-        ((Logger) LoggerFactory.getLogger("org.e2immu.analyzer.shallow")).setLevel(Level.DEBUG);
-
-        InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
-                .addClassPath(InputConfigurationImpl.DEFAULT_CLASSPATH);
-        InputConfiguration inputConfiguration = builder.build();
-        JavaInspector javaInspector = new JavaInspectorImpl();
-        javaInspector.initialize(inputConfiguration);
-
-        javaInspector.preload("java.util");
-
+    public void test() {
         ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
 
         TypeInfo list = javaInspector.compiledTypesManager().get(List.class);

@@ -90,8 +90,12 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
 
     @Override
     public VariableInfo best(Stage level) {
-        if (level == Stage.MERGE && merge != null) return merge.get();
-        if ((level == Stage.MERGE || level == Stage.EVALUATION) && evaluation != null) return evaluation;
+        if (level == Stage.MERGE && merge != null) {
+            return merge.get();
+        }
+        if ((level == Stage.MERGE || level == Stage.EVALUATION) && evaluation != null) {
+            return evaluation;
+        }
         return getPreviousOrInitial();
     }
 

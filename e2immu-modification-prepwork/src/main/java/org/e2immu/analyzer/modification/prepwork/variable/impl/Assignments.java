@@ -14,6 +14,10 @@ public class Assignments {
     }
 
     public record I(String index, List<String> actualAssignmentIndices) {
+        @Override
+        public String toString() {
+            return "I[" + index + ", " + actualAssignmentIndices + "]";
+        }
     }
 
     private final List<I> assignments;
@@ -24,6 +28,11 @@ public class Assignments {
 
     private Assignments(List<I> previous, I i) {
         this.assignments = Stream.concat(previous.stream(), Stream.of(i)).toList();
+    }
+
+    @Override
+    public String toString() {
+        return assignments.toString();
     }
 
     public static Assignments newAssignment(String index, Assignments previous) {

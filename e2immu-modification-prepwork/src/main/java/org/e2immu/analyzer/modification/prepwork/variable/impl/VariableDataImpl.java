@@ -56,6 +56,11 @@ public class VariableDataImpl implements VariableData {
     }
 
     @Override
+    public String knownVariableNamesToString() {
+        return knownVariableNames().stream().map(Object::toString).sorted().collect(Collectors.joining(", "));
+    }
+
+    @Override
     public Stream<VariableInfo> variableInfoStream(Stage stage) {
         return vicByFqn.valueStream().map(vic -> vic.best(stage));
     }

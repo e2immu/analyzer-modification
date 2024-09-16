@@ -11,6 +11,8 @@ public interface VariableData extends Value {
 
     boolean isKnown(String fullyQualifiedName);
 
+    String knownVariableNamesToString();
+
     VariableInfo variableInfo(String fullyQualifiedName);
 
     VariableInfo variableInfo(Variable variable, Stage stage);
