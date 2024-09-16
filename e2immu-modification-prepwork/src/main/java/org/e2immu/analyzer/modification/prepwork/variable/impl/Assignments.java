@@ -7,7 +7,6 @@ import java.util.*;
 import java.util.stream.Stream;
 
 public class Assignments {
-    public static Assignments NOT_YET_ASSIGNED = new Assignments(List.of());
 
     public boolean hasNotYetBeenAssigned() {
         return assignments.isEmpty();
@@ -16,23 +15,31 @@ public class Assignments {
     public record I(String index, List<String> actualAssignmentIndices) {
         @Override
         public String toString() {
-            return "I[" + index + ", " + actualAssignmentIndices + "]";
+            return index + "=" + actualAssignmentIndices;
         }
     }
 
+    private final String indexOfDefinition;
     private final List<I> assignments;
 
-    private Assignments(List<I> assignments) {
-        this.assignments = assignments;
+    public Assignments(String indexOfDefinition, boolean assigned) {
+        this.indexOfDefinition = indexOfDefinition;
+        assignments = assigned ? List.of(new I(indexOfDefinition, List.of(indexOfDefinition))) : List.of();
     }
 
-    private Assignments(List<I> previous, I i) {
+    private Assignments(String indexOfDefinition, List<I> assignments) {
+        this.assignments = assignments;
+        this.indexOfDefinition = indexOfDefinition;
+    }
+
+    private Assignments(String indexOfDefinition, List<I> previous, I i) {
         this.assignments = Stream.concat(previous.stream(), Stream.of(i)).toList();
+        this.indexOfDefinition = indexOfDefinition;
     }
 
     @Override
     public String toString() {
-        return assignments.toString();
+        return "D:" + indexOfDefinition + ", A:" + assignments.toString();
     }
 
     public static Assignments newAssignment(String index, Assignments previous) {
@@ -41,7 +48,7 @@ public class Assignments {
                 : Stream.concat(previous.assignments.get(previous.assignments.size() - 1).actualAssignmentIndices.stream(),
                 Stream.of(index)).toList();
         I i = new I(index, allActualAssignmentIndices);
-        return new Assignments(previous.assignments, i);
+        return new Assignments(previous.indexOfDefinition, previous.assignments, i);
     }
 
     public static Assignments mergeBlocks(String index, List<Assignments> assignmentsInBlocks) {
@@ -49,9 +56,11 @@ public class Assignments {
         List<I> unrelatedToMerge = new ArrayList<>();
         List<I> inSubBlocks = new ArrayList<>();
         boolean first = true;
+        Assignments aFirst = null;
         for (Assignments a : assignmentsInBlocks) {
             int size = inSubBlocks.size();
             if (first) {
+                aFirst = a;
                 for (I i : a.assignments) {
                     if (i.index.compareTo(index) < 0) unrelatedToMerge.add(i);
                     else inSubBlocks.add(i);
@@ -67,14 +76,16 @@ public class Assignments {
                 doMerge = false;
             }
         }
+        assert aFirst != null;
         if (doMerge) {
             String mergeIndex = index + ":M";
             List<String> actual = inSubBlocks.stream().flatMap(i -> i.actualAssignmentIndices.stream()).distinct().toList();
             I merge = new I(mergeIndex, actual);
-            return new Assignments(unrelatedToMerge, merge);
+            return new Assignments(aFirst.indexOfDefinition, unrelatedToMerge, merge);
         }
         // just concat everything...
-        return new Assignments(Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).toList());
+        return new Assignments(aFirst.indexOfDefinition,
+                Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).toList());
     }
 
     public List<I> assignments() {
@@ -89,6 +100,10 @@ public class Assignments {
 
     public I latest() {
         return assignments.isEmpty() ? null : assignments.get(assignments.size() - 1);
+    }
+
+    public String indexOfDefinition() {
+        return indexOfDefinition;
     }
 }
 

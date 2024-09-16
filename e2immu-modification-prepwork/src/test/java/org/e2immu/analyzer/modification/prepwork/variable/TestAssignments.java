@@ -12,7 +12,7 @@ public class TestAssignments {
 
     @Test
     public void test() {
-        Assignments a = Assignments.NOT_YET_ASSIGNED;
+        Assignments a = new Assignments("0", false);
         assertEquals(0, a.assignments().size());
         Assignments a0 = Assignments.newAssignment("0", a);
         assertEquals("[0]", a0.latest().actualAssignmentIndices().toString());

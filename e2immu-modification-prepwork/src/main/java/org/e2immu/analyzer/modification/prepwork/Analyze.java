@@ -27,6 +27,7 @@ do all the analysis of this phase
 
  */
 public class Analyze {
+    public static final String FIRST = "0";
     private final Runtime runtime;
 
     public Analyze(Runtime runtime) {
@@ -39,13 +40,17 @@ public class Analyze {
                                  Set<Variable> read,
                                  Set<Variable> assigned) {
         public Assignments assignmentIds(Variable v, Stage stage) {
-            Assignments prev = previous == null || !previous.isKnown(v.fullyQualifiedName())
-                    ? Assignments.NOT_YET_ASSIGNED
-                    : previous.variableInfo(v, stage).assignments();
-            if (assigned.contains(v)) {
-                return Assignments.newAssignment(index, prev);
+            boolean isAssigned = assigned.contains(v);
+            if (previous == null || !previous.isKnown(v.fullyQualifiedName())) {
+                String indexOfDefinition = v instanceof LocalVariable ? index : "-";
+                return new Assignments(indexOfDefinition, isAssigned);
+            } else {
+                Assignments prev = previous.variableInfo(v, stage).assignments();
+                if (isAssigned) {
+                    return Assignments.newAssignment(index, prev);
+                }
+                return prev;
             }
-            return prev;
         }
 
         public String isRead(Variable v, Stage stage) {
@@ -65,25 +70,25 @@ public class Analyze {
         Statement statement = methodInfo.methodBody().statements().get(0);
         boolean hasMerge = statement.hasSubBlocks();
         ReturnVariable rv = methodInfo.hasReturnValue() ? new ReturnVariableImpl(methodInfo) : null;
-        ReadWriteData readWriteData = analyzeEval(null, "0", statement, rv);
+        ReadWriteData readWriteData = analyzeEval(null, FIRST, statement, rv);
         if (methodInfo.hasReturnValue()) {
             assert rv != null;
-            vdi.put(rv, initial(rv, readWriteData, hasMerge));
+            vdi.put(rv, initial(FIRST, rv, readWriteData, hasMerge));
         }
         for (ParameterInfo pi : methodInfo.parameters()) {
-            vdi.put(pi, initial(pi, readWriteData, hasMerge));
+            vdi.put(pi, initial(FIRST, pi, readWriteData, hasMerge));
         }
         for (Variable v : readWriteData.variablesSeenFirstTime()) {
-            vdi.putIfAbsent(v, initial(v, readWriteData, hasMerge));
+            vdi.putIfAbsent(v, initial(FIRST, v, readWriteData, hasMerge));
         }
         This thisVar = methodInfo.isStatic() ? null : runtime.newThis(methodInfo.typeInfo());
         if (thisVar != null) {
-            vdi.putIfAbsent(thisVar, initial(thisVar, readWriteData, hasMerge));
+            vdi.putIfAbsent(thisVar, initial(FIRST, thisVar, readWriteData, hasMerge));
         }
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
         if (statement.hasSubBlocks()) {
             List<VariableData> lastOfEachSubBlock = doBlocks(statement, vdi, rv);
-            addMerge("0", vdi, lastOfEachSubBlock);
+            addMerge(FIRST, vdi, lastOfEachSubBlock);
         }
         // start analysis, and copy results of last statement into method
         VariableData lastOfMainBlock = doBlock(methodInfo.methodBody(), vdi, null, rv);
@@ -122,7 +127,7 @@ public class Analyze {
             });
 
             for (Variable v : readWriteData.variablesSeenFirstTime()) {
-                vdi.put(v, initial(v, readWriteData, hasMerge));
+                vdi.put(v, initial(index, v, readWriteData, hasMerge));
             }
 
             // sub-blocks
@@ -149,14 +154,11 @@ public class Analyze {
         Map<Variable, List<VariableInfo>> map = new HashMap<>();
         for (VariableData vd : lastOfEachSubBlock) {
             vd.variableInfoStream().forEach(vi -> {
-                if (copyToMerge(vi.variable())) {
+                if (copyToMerge(index, vi)) {
                     map.computeIfAbsent(vi.variable(), v -> new ArrayList<>()).add(vi);
                 }
             });
         }
-        vdStatement.variableInfoStream(Stage.EVALUATION).forEach(vi -> {
-            map.computeIfAbsent(vi.variable(), v -> new ArrayList<>()).add(vi);
-        });
         map.forEach((v, vis) -> {
             List<Assignments> assignmentsPerBlock = vis.stream().map(VariableInfo::assignments).toList();
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsPerBlock);
@@ -166,7 +168,9 @@ public class Analyze {
             VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
             VariableInfoContainerImpl vici;
             if (inMap == null) {
-                VariableInfoImpl initial = new VariableInfoImpl(v, Assignments.NOT_YET_ASSIGNED, NOT_YET_READ);
+                String indexOfDefinition = v instanceof LocalVariable ? index : "-";
+                Assignments notYetAssigned = new Assignments(indexOfDefinition, false);
+                VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
                 vici = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE, Either.right(initial), initial,
                         true);
                 vdStatement.put(v, vici);
@@ -177,19 +181,22 @@ public class Analyze {
         });
     }
 
-    private boolean copyToMerge(Variable variable) {
-        return !(variable instanceof LocalVariable);
+    private boolean copyToMerge(String index, VariableInfo vi) {
+        return !(vi.variable() instanceof LocalVariable) || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
     }
 
-    private VariableInfoContainer initial(Variable v, ReadWriteData readWriteData, boolean hasMerge) {
-        VariableInfoImpl initial = new VariableInfoImpl(v, Assignments.NOT_YET_ASSIGNED, NOT_YET_READ);
+    private VariableInfoContainer initial(String index, Variable v, ReadWriteData readWriteData, boolean hasMerge) {
+        String indexOfDefinition = v instanceof LocalVariable ? index : "-";
+        Assignments notYetAssigned = new Assignments(indexOfDefinition, false);
+        VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
         VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, Stage.MERGE),
                 readWriteData.isRead(v, Stage.MERGE));
         return new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
                 Either.right(initial), eval, hasMerge);
     }
 
-    private ReadWriteData analyzeEval(VariableData previous, String index, Statement statement, ReturnVariable rv) {
+    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, ReturnVariable rv) {
+        String index = statement.hasSubBlocks() ? indexIn + "-E" : indexIn;
         Visitor v = new Visitor(previous == null ? Set.of() : previous.knownVariableNames());
         if (statement instanceof ReturnStatement && rv != null) {
             v.assigned.add(rv);
@@ -222,12 +229,14 @@ public class Analyze {
 
     private static void handleLvc(LocalVariableCreation lvc, Visitor v) {
         v.seenFirstTime.add(lvc.localVariable());
-        if (lvc.localVariable().assignmentExpression() != null) {
+        Expression assignmentExpression = lvc.localVariable().assignmentExpression();
+        if (!assignmentExpression.isEmpty()) {
             v.assigned.add(lvc.localVariable());
+            assignmentExpression.visit(v);
         }
         for (LocalVariable lv : lvc.otherLocalVariables()) {
             v.seenFirstTime.add(lv);
-            if (lv.assignmentExpression() != null) {
+            if (!lv.assignmentExpression().isEmpty()) {
                 v.assigned.add(lv);
                 lv.assignmentExpression().visit(v);
             }
