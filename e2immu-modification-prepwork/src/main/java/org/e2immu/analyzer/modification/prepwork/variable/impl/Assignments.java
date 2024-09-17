@@ -82,7 +82,7 @@ public class Assignments {
 
         @Override
         public boolean complete() {
-            return count == target;
+            return count >= target;
         }
     }
 
@@ -108,7 +108,7 @@ public class Assignments {
 
         @Override
         public boolean complete() {
-            return hitFinally || count == target;
+            return hitFinally || count >= target;
         }
     }
 
@@ -180,7 +180,7 @@ public class Assignments {
                         String firstStatementIndex = e.getKey();
                         VariableData vd = e.getValue();
                         VariableInfoContainer vic = vd.variableInfoContainerOrNull(returnVariable.fullyQualifiedName());
-                        if(vic == null) return false;
+                        if (vic == null) return false;
                         VariableInfo vi = vic.best();
                         return vi.assignments().lastAssignmentIsMergeInBlockOf(firstStatementIndex);
                     })
@@ -197,14 +197,16 @@ public class Assignments {
             n = 2;
         } else if (statement instanceof SwitchStatementNewStyle) {
             n = (int) statement.subBlockStream().count();
-        } else if (statement instanceof WhileStatement && statement.expression().isBoolValueTrue()
-                   || statement instanceof ForStatement && (statement.expression().isBoolValueTrue() || statement.expression().isEmpty())
-                   || statement instanceof Block
+        } else if (statement instanceof Block
                    || statement instanceof SynchronizedStatement
-                   || statement instanceof DoStatement) {
+                   || statement instanceof DoStatement && !statement.expression().isBoolValueTrue()) {
             n = 1;
         } else if (statement instanceof LoopStatement) {
-            n = -1;// there can be no merge
+            if (statement.expression().isEmpty() || statement.expression().isBoolValueTrue()) {
+                n = 0; // anything goes, infinite loop, so there is no need for a value
+            } else {
+                n = Integer.MAX_VALUE;// there can be no merge
+            }
         } else if (statement instanceof SwitchStatementOldStyle) {
             n = lastOfEachStatement.size();
         } else {
@@ -256,7 +258,7 @@ public class Assignments {
     public List<String> mergeIndices() {
         return assignments.stream()
                 .filter(i -> i.index.endsWith(":M"))
-                .map(i-> Util.stripStage(i.index)).toList();
+                .map(i -> Util.stripStage(i.index)).toList();
     }
 }
 
