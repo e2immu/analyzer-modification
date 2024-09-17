@@ -58,6 +58,57 @@ public class Assignments {
         return new Assignments(previous.indexOfDefinition, previous.assignments, i);
     }
 
+    public interface CompleteMerge {
+        void add(String subIndex);
+
+        boolean complete();
+    }
+
+    static class CompleteMergeByCounting implements CompleteMerge {
+        int count;
+        final int target;
+
+        CompleteMergeByCounting(int target) {
+            this.target = target;
+        }
+
+        @Override
+        public void add(String subIndex) {
+            ++count;
+        }
+
+        @Override
+        public boolean complete() {
+            return count == target;
+        }
+    }
+
+    static class CompleteMergeForTry implements CompleteMerge {
+        int count;
+        boolean hitFinally;
+        final int target;
+        final String indexFinally;
+
+        CompleteMergeForTry(int target, String indexFinally) {
+            this.target = target;
+            this.indexFinally = indexFinally;
+        }
+
+        @Override
+        public void add(String subIndex) {
+            if (subIndex.equals(indexFinally)) {
+                hitFinally = true;
+            } else {
+                ++count;
+            }
+        }
+
+        @Override
+        public boolean complete() {
+            return hitFinally || count == target;
+        }
+    }
+
     /*
     There are different "modes" depending on the statement.
 
@@ -67,9 +118,8 @@ public class Assignments {
     4- Try: 1 block unconditionally, n blocks conditionally, exclusive, 0-1 block unconditionally
      */
     public static Assignments mergeBlocks(String index,
-                                          int assignmentsRequiredForMerge,
+                                          CompleteMerge completeMerge,
                                           Map<String, Assignments> assignmentsInBlocks) {
-        int blocksWithAssignment = 0;
         List<I> unrelatedToMerge = new ArrayList<>();
         List<I> inSubBlocks = new ArrayList<>();
         boolean first = true;
@@ -98,11 +148,11 @@ public class Assignments {
             }
             if (haveAssignment) {
                 // nothing was added, so no assignment
-                ++blocksWithAssignment;
+                completeMerge.add(subIndex);
             }
         }
         assert aFirst != null;
-        if (blocksWithAssignment == assignmentsRequiredForMerge) {
+        if (completeMerge.complete()) {
             String mergeIndex = index + ":M";
             List<String> actual = inSubBlocks.stream().flatMap(i -> i.actualAssignmentIndices.stream())
                     .distinct().sorted().toList();
@@ -114,24 +164,29 @@ public class Assignments {
                 Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).sorted().toList());
     }
 
-    public static int assignmentsRequiredForMerge(Statement statement) {
+    public static CompleteMerge assignmentsRequiredForMerge(Statement statement) {
         if (statement instanceof IfElseStatement) {
-            return 2;
+            return new CompleteMergeByCounting(2);
         }
         if (statement instanceof SwitchStatementNewStyle) {
-            return (int) statement.subBlockStream().count();
+            return new CompleteMergeByCounting((int) statement.subBlockStream().count());
         }
         // NOTE: 'finally' blocks will be handled separately, this is about the main block here
-        if (statement instanceof TryStatement
-            || statement instanceof WhileStatement && statement.expression().isBoolValueTrue()
+        if (statement instanceof WhileStatement && statement.expression().isBoolValueTrue()
             || statement instanceof ForStatement && (statement.expression().isBoolValueTrue() || statement.expression().isEmpty())
             || statement instanceof Block
             || statement instanceof SynchronizedStatement
             || statement instanceof DoStatement) {
-            return 1;
+            return new CompleteMergeByCounting(1);
         }
         if (statement instanceof LoopStatement) {
-            return -1; // there can be no merge
+            return new CompleteMergeByCounting(-1); // there can be no merge
+        }
+        if (statement instanceof TryStatement ts) {
+            int target = 1 + ts.catchClauses().size();
+            boolean haveFinally = !ts.finallyBlock().isEmpty();
+            String haveFinallyIndex = haveFinally ? ts.source().index() + "." + target + ".0" : null;
+            return new CompleteMergeForTry(target, haveFinallyIndex);
         }
         if (statement instanceof SwitchStatementOldStyle) {
             throw new UnsupportedOperationException("Should be handled separately, too complex");
@@ -159,10 +214,10 @@ public class Assignments {
             if (Util.inScopeOf(i.index, index)) return true;
             if (i.index.endsWith(":M")) {
                 String withoutM = i.index.substring(0, i.index.length() - 2);
-                if(withoutM.equals(index)) {
+                if (withoutM.equals(index)) {
                     return true;
                 }
-                if(index.startsWith(withoutM)) {
+                if (index.startsWith(withoutM)) {
                     // we may have to check with the individual definition points
                     for (String aai : i.actualAssignmentIndices) {
                         if (Util.inScopeOf(aai, index)) return true;

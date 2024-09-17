@@ -156,10 +156,10 @@ public class Analyze {
                 }
             });
         }
-        int assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement);
         map.forEach((v, vis) -> {
             Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
                     .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
+            Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement);
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
             String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
