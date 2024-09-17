@@ -19,20 +19,25 @@ public class TestAssignmentsSwitch extends CommonTest {
     private static final String INPUT1 = """
             package a.b;
             class X {
-                static char method(String in, int i) {
-                    char c;
-                    try {
-                        c = in.charAt(i);
-                    } catch (IndexOutOfBoundsException e) {
-                        c = '2';
+                static int method(char c, boolean b) {
+                    int i;
+                    switch (c) {
+                        case 'a':
+                            if (b) i = 3;
+                            else i = 1;
+                            break;
+                        case 'b':
+                            i = 2;
+                            break;
+                        default:
+                            i = 4;
                     }
-                    System.out.println("c is "+c);
-                    return c;
+                    return i;
                 }
             }
             """;
 
-    @DisplayName("basics of try-catch")
+    @DisplayName("clean old-style switch")
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
@@ -41,68 +46,23 @@ public class TestAssignmentsSwitch extends CommonTest {
         analyze.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
-        assertEquals("a.b.X.method(String,int), a.b.X.method(String,int):0:in, a.b.X.method(String,int):1:i, c, java.lang.System.out",
+        assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
-        assertEquals("in", inVi.variable().simpleName());
-        assertEquals("1.0.0", inVi.readId()); // last time read in method
+        assertEquals("c", inVi.variable().simpleName());
+        assertEquals("1-E", inVi.readId()); // last time read in method
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
-        VariableInfo cVi = vdMethod.variableInfo("c");
-        assertEquals("3", cVi.readId());
-        Assignments cA = cVi.assignments();
-        assertEquals("D:0, A:[1:M=[1.0.0, 1.1.0]]", cA.toString());
+        VariableInfo bVi = vdMethod.variableInfo(method.parameters().get(1).fullyQualifiedName());
+        assertEquals("b", bVi.variable().simpleName());
+        assertEquals("1.0.0-E", bVi.readId()); // last time read in method
+        assertEquals("D:-, A:[]", bVi.assignments().toString());
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("2", iVi.readId());
+        Assignments cA = iVi.assignments();
+        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.2, 1.0.4]]", cA.toString());
     }
-
-
-    @Language("java")
-    private static final String INPUT2 = """
-            package a.b;
-            class X {
-                static char method(String in, int i) {
-                    char c;
-                    char d;
-                    try {
-                        c = in.charAt(i);
-                    } catch (IndexOutOfBoundsException e) {
-                        c = '2';
-                    } finally {
-                        d = '9';
-                    }
-                    System.out.println("d is "+d+", c is "+c);
-                    return c;
-                }
-            }
-            """;
-
-    @DisplayName("basics of try-catch-finally")
-    @Test
-    public void test2() {
-        TypeInfo X = javaInspector.parse(INPUT2);
-        MethodInfo method = X.findUniqueMethod("method", 2);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
-        assertNotNull(vdMethod);
-        assertEquals("a.b.X.method(String,int), a.b.X.method(String,int):0:in, a.b.X.method(String,int):1:i, c, d, java.lang.System.out",
-                vdMethod.knownVariableNamesToString());
-
-        VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
-        assertEquals("in", inVi.variable().simpleName());
-        assertEquals("2.0.0", inVi.readId()); // last time read in method
-        assertEquals("D:-, A:[]", inVi.assignments().toString());
-
-        VariableInfo cVi = vdMethod.variableInfo("c");
-        assertEquals("4", cVi.readId());
-        Assignments cA = cVi.assignments();
-        assertEquals("D:0, A:[2:M=[2.0.0, 2.1.0]]", cA.toString());
-
-        VariableInfo dVi = vdMethod.variableInfo("d");
-        assertEquals("3", dVi.readId());
-        Assignments dA = dVi.assignments();
-        assertEquals("D:1, A:[2:M=[2.2.0]]", dA.toString());
-    }
-
 
 }

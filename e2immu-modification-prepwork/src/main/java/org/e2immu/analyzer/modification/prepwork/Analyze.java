@@ -70,15 +70,15 @@ public class Analyze {
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
         VariableData lastOfMainBlock = doBlock(methodInfo, methodInfo.methodBody(), null, rv);
-        if(lastOfMainBlock != null) {
+        if (lastOfMainBlock != null) {
             methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
         } // else: empty
     }
 
     private Map<String, VariableData> doBlocks(MethodInfo methodInfo,
-                                        Statement parentStatement,
-                                        VariableData vdOfParent,
-                                        ReturnVariable rv) {
+                                               Statement parentStatement,
+                                               VariableData vdOfParent,
+                                               ReturnVariable rv) {
         return parentStatement.subBlockStream()
                 .filter(b -> !b.isEmpty())
                 .collect(Collectors.toUnmodifiableMap(
@@ -93,45 +93,92 @@ public class Analyze {
         VariableData previous = vdOfParent;
         boolean first = true;
         for (Statement statement : block.statements()) {
-            String index = statement.source().index();
-            ReadWriteData readWriteData = analyzeEval(previous, index, statement, rv);
-            VariableDataImpl vdi = new VariableDataImpl();
-            boolean hasMerge = statement.hasSubBlocks();
-            Stream<VariableInfoContainer> stream;
-            if (previous == null) {
-                stream = Stream.of();
-            } else {
-                stream = previous.variableInfoContainerStream();
-            }
-            Stage stage = first ? Stage.EVALUATION : Stage.MERGE;
-            stream.forEach(vic -> {
-                VariableInfo vi = vic.best(stage);
-                if(Util.inScopeOf(vi.assignments().indexOfDefinition(), index)) {
-                    Variable variable = vi.variable();
-                    VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stage),
-                            readWriteData.isRead(variable, stage));
-                    boolean specificHasMerge = hasMerge && !readWriteData.variablesSeenFirstTime().contains(variable);
-                    VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
-                            Either.left(vic), eval, specificHasMerge);
-                    vdi.put(variable, newVic);
-                }
-            });
+            previous = doStatement(methodInfo, statement, previous, first, rv);
+            if (first) first = false;
+        }
+        return previous;
+    }
 
-            for (Variable v : readWriteData.variablesSeenFirstTime()) {
-                vdi.put(v, initialVariable(index, v, readWriteData, hasMerge && !(v instanceof LocalVariable)));
+    private VariableData doStatement(MethodInfo methodInfo,
+                                     Statement statement,
+                                     VariableData previous,
+                                     boolean first,
+                                     ReturnVariable rv) {
+        String index = statement.source().index();
+        ReadWriteData readWriteData = analyzeEval(previous, index, statement, rv);
+        VariableDataImpl vdi = new VariableDataImpl();
+        boolean hasMerge = statement.hasSubBlocks();
+        Stage stage = first ? Stage.EVALUATION : Stage.MERGE;
+        Stream<VariableInfoContainer> stream;
+        if (previous == null) {
+            stream = Stream.of();
+        } else {
+            stream = previous.variableInfoContainerStream();
+        }
+        stream.forEach(vic -> {
+            VariableInfo vi = vic.best(stage);
+            if (Util.inScopeOf(vi.assignments().indexOfDefinition(), index)) {
+                Variable variable = vi.variable();
+                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stage),
+                        readWriteData.isRead(variable, stage));
+                boolean specificHasMerge = hasMerge && !readWriteData.variablesSeenFirstTime().contains(variable);
+                VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
+                        Either.left(vic), eval, specificHasMerge);
+                vdi.put(variable, newVic);
             }
+        });
 
+        for (Variable v : readWriteData.variablesSeenFirstTime()) {
+            vdi.put(v, initialVariable(index, v, readWriteData, hasMerge && !(v instanceof LocalVariable)));
+        }
+
+        if (statement instanceof SwitchStatementOldStyle oss) {
+            doOldStyleSwitchBlock(methodInfo, oss, vdi, rv);
+        } else {
             // sub-blocks
             if (statement.hasSubBlocks()) {
                 Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, rv);
                 addMerge(index, statement, vdi, lastOfEachSubBlock);
             }
-
-            statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
-            previous = vdi;
-            if (first) first = false;
         }
-        return previous;
+        statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
+        return vdi;
+    }
+
+    /*
+     completely custom block-code
+     */
+    private void doOldStyleSwitchBlock(MethodInfo methodInfo,
+                                       SwitchStatementOldStyle oss,
+                                       VariableDataImpl vdOfParent,
+                                       ReturnVariable rv) {
+        assert vdOfParent != null;
+        VariableData previous = vdOfParent;
+        boolean first = true;
+        String indexOfFirstStatement = null;
+        Map<String, VariableData> lastOfEachSubBlock = new HashMap<>();
+        for (Statement statement : oss.block().statements()) {
+            if (indexOfFirstStatement == null) {
+                indexOfFirstStatement = statement.source().index();
+            }
+            VariableData vd = doStatement(methodInfo, statement, previous, first, rv);
+            if (statement instanceof BreakStatement || statement instanceof ReturnStatement) {
+                if (indexOfFirstStatement != null) {
+                    lastOfEachSubBlock.put(indexOfFirstStatement, vd);
+                    indexOfFirstStatement = null;
+                }
+                first = true;
+                previous = vdOfParent;
+            } else {
+                previous = vd;
+                first = false;
+            }
+        }
+        if (indexOfFirstStatement != null) {
+            lastOfEachSubBlock.put(indexOfFirstStatement, previous);
+        }
+        String index = oss.source().index();
+        addMerge(index, oss, vdOfParent, lastOfEachSubBlock);
     }
 
     /*
@@ -159,7 +206,8 @@ public class Analyze {
         map.forEach((v, vis) -> {
             Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
                     .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
-            Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement);
+            Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
+                    lastOfEachSubBlock); // only old-style switch needs this 'lastOfEachSubBlock'
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
             String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);

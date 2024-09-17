@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
 
 import org.e2immu.analyzer.modification.prepwork.Util;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.statement.*;
 
@@ -164,7 +165,7 @@ public class Assignments {
                 Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).sorted().toList());
     }
 
-    public static CompleteMerge assignmentsRequiredForMerge(Statement statement) {
+    public static CompleteMerge assignmentsRequiredForMerge(Statement statement, Map<String, VariableData> lastOfEachStatement) {
         if (statement instanceof IfElseStatement) {
             return new CompleteMergeByCounting(2);
         }
@@ -189,7 +190,7 @@ public class Assignments {
             return new CompleteMergeForTry(target, haveFinallyIndex);
         }
         if (statement instanceof SwitchStatementOldStyle) {
-            throw new UnsupportedOperationException("Should be handled separately, too complex");
+            return new CompleteMergeByCounting(lastOfEachStatement.size());
         }
         throw new UnsupportedOperationException("NYI");
     }
