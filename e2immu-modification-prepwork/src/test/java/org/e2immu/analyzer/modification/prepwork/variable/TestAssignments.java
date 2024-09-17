@@ -562,4 +562,41 @@ public class TestAssignments extends CommonTest {
         assertTrue(rvVi.hasBeenDefined("3"));
     }
 
+
+    @Language("java")
+    private static final String INPUT9 = """
+            package a.b;
+            public class X {
+                public static int method(int j) {
+                    int i=0;
+                    if(j==1) {
+                        System.out.println(i);
+                    }
+                    i=1;
+                    return i;
+                }
+            }
+            """;
+
+    @DisplayName("simple re-assigns")
+    @Test
+    public void test9() {
+        TypeInfo X = javaInspector.parse(INPUT9);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertEquals("a.b.X.method(int), a.b.X.method(int):0:j, i, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("3", iVi.readId());
+
+        Statement s2 = method.methodBody().statements().get(2);
+        VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfo iVi2 = vd2.variableInfo("i");
+        assertEquals("1.0.0", iVi2.readId());
+        assertEquals("D:0, A:[0=[0], 2=[0, 2]]", iVi2.assignments().toString());
+    }
+
 }

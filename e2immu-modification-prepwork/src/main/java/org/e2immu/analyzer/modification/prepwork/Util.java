@@ -34,6 +34,18 @@ public class Util {
         return index.compareTo(scope) >= 0;
     }
 
+
+    public static boolean isSeenBy(String index, String seenBy) {
+        int dotI = index.lastIndexOf('.');
+        int dotS = seenBy.lastIndexOf('.');
+        // 2 < 3.1, 2.1 < 3, 2 < 3
+        if (dotI < 0 || dotS < 0) return index.compareTo(seenBy) < 0;
+        String index1 = index.substring(0, dotI);
+        String seenBy1 = seenBy.substring(0, dotS);
+        // 3.0.1, 3.0.2 -> 3.0, 3.0  3.0.1, 3.0.2.1.1 -> 3.0, 3.0.2.1
+        if (seenBy1.startsWith(index1)) return index.compareTo(seenBy) < 0;
+    }
+
     // 3.0.0-E, -I
     public static String stage(String assignmentId) {
         int dash = assignmentId.lastIndexOf('-');

@@ -274,5 +274,26 @@ public class Assignments {
                 .filter(i -> i.index.endsWith(":M"))
                 .map(i -> Util.stripStage(i.index)).toList();
     }
+
+    /*
+    do we have an assignment after 'after', seen by 'seenBy'?
+
+    examples:
+    0 - 1 - 2 --> yes
+    0 - 1.0.0 - 1.1.0 --> no
+    1.1.0 - 2 - 2.0.1 --> yes
+     */
+    public boolean hasBeenDefinedAfterFor(String after, String seenBy) {
+        for (int i = assignments.size() - 1; i >= 0; --i) {
+            I a = assignments.get(i);
+            if (a.index.compareTo(after) >= 0) {
+                if(Util.isSeenBy(a.index, seenBy)) return true;
+            } else {
+                break;
+            }
+        }
+        return false;
+    }
+
 }
 
