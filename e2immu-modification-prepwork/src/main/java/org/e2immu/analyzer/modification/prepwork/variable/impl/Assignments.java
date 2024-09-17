@@ -253,5 +253,10 @@ public class Assignments {
         return false;
     }
 
+    public List<String> mergeIndices() {
+        return assignments.stream()
+                .filter(i -> i.index.endsWith(":M"))
+                .map(i-> Util.stripStage(i.index)).toList();
+    }
 }
 

@@ -11,8 +11,10 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.io.IOException;
+import java.io.Reader;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestAssignmentsSwitch extends CommonTest {
 
@@ -107,4 +109,44 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertEquals("D:0, A:[1.0.0:M=[1.0.0.0.0, 1.0.0.1.0]]", iViIfElse.assignments().toString());
     }
 
+
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            class X {
+                static int method(char c, boolean b) {
+                    int i;
+                    switch (c) {
+                        case 'a':
+                            if (b) i = 3;
+                            else i = 1;
+                            break;
+                        case 'b':
+                            return -1;
+                        default:
+                            i = 4;
+                    }
+                    return i;
+                }
+            }
+            """;
+
+
+    @DisplayName("clean old-style switch, break and return")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+        assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.3]]", iVi.assignments().toString());
+        assertTrue(iVi.hasBeenDefined("2"));
+    }
 }
