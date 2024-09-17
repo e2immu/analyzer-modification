@@ -138,7 +138,7 @@ public class Analyze {
             // sub-blocks
             if (statement.hasSubBlocks()) {
                 Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, rv);
-                addMerge(index, statement, vdi, lastOfEachSubBlock);
+                addMerge(index, statement, vdi, lastOfEachSubBlock, rv);
             }
         }
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
@@ -178,7 +178,7 @@ public class Analyze {
             lastOfEachSubBlock.put(indexOfFirstStatement, previous);
         }
         String index = oss.source().index();
-        addMerge(index, oss, vdOfParent, lastOfEachSubBlock);
+        addMerge(index, oss, vdOfParent, lastOfEachSubBlock, rv);
     }
 
     /*
@@ -192,7 +192,8 @@ public class Analyze {
     private void addMerge(String index,
                           Statement statement,
                           VariableDataImpl vdStatement,
-                          Map<String, VariableData> lastOfEachSubBlock) {
+                          Map<String, VariableData> lastOfEachSubBlock,
+                          ReturnVariable rv) {
         Map<Variable, Map<String, VariableInfo>> map = new HashMap<>();
         for (Map.Entry<String, VariableData> entry : lastOfEachSubBlock.entrySet()) {
             String subIndex = entry.getKey();
@@ -206,8 +207,10 @@ public class Analyze {
         map.forEach((v, vis) -> {
             Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
                     .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
+            // the return variable passed on for corrections is 'null' when we're computing for the return variable
+            ReturnVariable returnVariable = v.equals(rv) ? null : rv;
             Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
-                    lastOfEachSubBlock); // only old-style switch needs this 'lastOfEachSubBlock'
+                    lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
             String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);

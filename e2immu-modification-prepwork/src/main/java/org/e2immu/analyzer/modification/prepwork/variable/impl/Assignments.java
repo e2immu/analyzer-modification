@@ -2,7 +2,9 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
 
 import org.e2immu.analyzer.modification.prepwork.Util;
+import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.statement.*;
 
@@ -165,34 +167,56 @@ public class Assignments {
                 Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).sorted().toList());
     }
 
-    public static CompleteMerge assignmentsRequiredForMerge(Statement statement, Map<String, VariableData> lastOfEachStatement) {
-        if (statement instanceof IfElseStatement) {
-            return new CompleteMergeByCounting(2);
-        }
-        if (statement instanceof SwitchStatementNewStyle) {
-            return new CompleteMergeByCounting((int) statement.subBlockStream().count());
-        }
-        // NOTE: 'finally' blocks will be handled separately, this is about the main block here
-        if (statement instanceof WhileStatement && statement.expression().isBoolValueTrue()
-            || statement instanceof ForStatement && (statement.expression().isBoolValueTrue() || statement.expression().isEmpty())
-            || statement instanceof Block
-            || statement instanceof SynchronizedStatement
-            || statement instanceof DoStatement) {
-            return new CompleteMergeByCounting(1);
-        }
-        if (statement instanceof LoopStatement) {
-            return new CompleteMergeByCounting(-1); // there can be no merge
+    public static CompleteMerge assignmentsRequiredForMerge(Statement statement,
+                                                            Map<String, VariableData> lastOfEachStatement,
+                                                            ReturnVariable returnVariable) {
+        int blocksWithReturn;
+        if (returnVariable == null) {
+            // when we're computing this for the return variable, no corrections allowed
+            blocksWithReturn = 0;
+        } else {
+            blocksWithReturn = (int) lastOfEachStatement.entrySet().stream()
+                    .filter(e -> {
+                        String firstStatementIndex = e.getKey();
+                        VariableData vd = e.getValue();
+                        VariableInfoContainer vic = vd.variableInfoContainerOrNull(returnVariable.fullyQualifiedName());
+                        if(vic == null) return false;
+                        VariableInfo vi = vic.best();
+                        return vi.assignments().lastAssignmentIsMergeInBlockOf(firstStatementIndex);
+                    })
+                    .count();
         }
         if (statement instanceof TryStatement ts) {
-            int target = 1 + ts.catchClauses().size();
+            int target = 1 + ts.catchClauses().size() - blocksWithReturn;
             boolean haveFinally = !ts.finallyBlock().isEmpty();
             String haveFinallyIndex = haveFinally ? ts.source().index() + "." + target + ".0" : null;
             return new CompleteMergeForTry(target, haveFinallyIndex);
         }
-        if (statement instanceof SwitchStatementOldStyle) {
-            return new CompleteMergeByCounting(lastOfEachStatement.size());
+        int n;
+        if (statement instanceof IfElseStatement) {
+            n = 2;
+        } else if (statement instanceof SwitchStatementNewStyle) {
+            n = (int) statement.subBlockStream().count();
+        } else if (statement instanceof WhileStatement && statement.expression().isBoolValueTrue()
+                   || statement instanceof ForStatement && (statement.expression().isBoolValueTrue() || statement.expression().isEmpty())
+                   || statement instanceof Block
+                   || statement instanceof SynchronizedStatement
+                   || statement instanceof DoStatement) {
+            n = 1;
+        } else if (statement instanceof LoopStatement) {
+            n = -1;// there can be no merge
+        } else if (statement instanceof SwitchStatementOldStyle) {
+            n = lastOfEachStatement.size();
+        } else {
+            throw new UnsupportedOperationException("NYI");
         }
-        throw new UnsupportedOperationException("NYI");
+        return new CompleteMergeByCounting(n - blocksWithReturn);
+    }
+
+    private boolean lastAssignmentIsMergeInBlockOf(String firstStatementIndex) {
+        if (assignments.isEmpty()) return false;
+        I last = assignments.get(assignments.size() - 1);
+        return Util.atSameLevel(firstStatementIndex, last.index);
     }
 
     public List<I> assignments() {

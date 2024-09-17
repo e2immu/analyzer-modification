@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,10 +38,47 @@ public class TestAssignmentsSwitch extends CommonTest {
             }
             """;
 
+    @Language("java")
+    private static final String INPUT1b = """
+            package a.b;
+            class X {
+                static int method(char c, boolean b) {
+                    int i;
+                    switch (c) {
+                        case 'a':
+                            if (b) {
+                                i = 3;
+                            } else {
+                                i = 1;
+                            }
+                            break;
+                        case 'b':
+                            i = 2;
+                            break;
+                        default:
+                            i = 4;
+                            break;
+                    }
+                    return i;
+                }
+            }
+            """;
+
     @DisplayName("clean old-style switch")
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
+        test1Code(X);
+    }
+
+    @DisplayName("clean old-style switch, unnecessary break after default")
+    @Test
+    public void test1b() {
+        TypeInfo X = javaInspector.parse(INPUT1b);
+        test1Code(X);
+    }
+
+    private void test1Code(TypeInfo X) {
         MethodInfo method = X.findUniqueMethod("method", 2);
         Analyze analyze = new Analyze(runtime);
         analyze.doMethod(method);
@@ -61,8 +99,12 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId());
-        Assignments cA = iVi.assignments();
-        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.2, 1.0.4]]", cA.toString());
+        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.2, 1.0.4]]", iVi.assignments().toString());
+
+        Statement ifElse = method.methodBody().statements().get(1).block().statements().get(0);
+        VariableData vdIfElse = ifElse.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfo iViIfElse = vdIfElse.variableInfo("i");
+        assertEquals("D:0, A:[1.0.0:M=[1.0.0.0.0, 1.0.0.1.0]]", iViIfElse.assignments().toString());
     }
 
 }
