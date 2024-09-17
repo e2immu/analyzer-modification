@@ -157,10 +157,16 @@ public class Assignments {
         }
         for (I i : assignments) {
             if (Util.inScopeOf(i.index, index)) return true;
-            if (i.index.endsWith(":M") && index.startsWith(i.index.substring(0, i.index.length() - 2))) {
-                // we may have to check with the individual definition points
-                for (String aai : i.actualAssignmentIndices) {
-                    if (Util.inScopeOf(aai, index)) return true;
+            if (i.index.endsWith(":M")) {
+                String withoutM = i.index.substring(0, i.index.length() - 2);
+                if(withoutM.equals(index)) {
+                    return true;
+                }
+                if(index.startsWith(withoutM)) {
+                    // we may have to check with the individual definition points
+                    for (String aai : i.actualAssignmentIndices) {
+                        if (Util.inScopeOf(aai, index)) return true;
+                    }
                 }
             }
         }

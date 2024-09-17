@@ -387,7 +387,7 @@ public class TestAnalyze1Assignments extends CommonTest {
             }
             """;
 
-    @DisplayName("exit")
+    @DisplayName("exit, not all if-else branches")
     @Test
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
@@ -410,7 +410,6 @@ public class TestAnalyze1Assignments extends CommonTest {
     }
 
 
-
     @Language("java")
     private static final String INPUT6 = """
             package a.b;
@@ -429,7 +428,7 @@ public class TestAnalyze1Assignments extends CommonTest {
             }
             """;
 
-    @DisplayName("exit 2, simple if-else")
+    @DisplayName("exit, all if-else branches covered")
     @Test
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
@@ -447,9 +446,120 @@ public class TestAnalyze1Assignments extends CommonTest {
         assertTrue(rvVi.hasBeenDefined("0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.1")); // fictitious
+        assertFalse(rvVi.hasBeenDefined("0.1.0.1.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.1.1"));
         assertTrue(rvVi.hasBeenDefined("1"));
         assertTrue(rvVi.hasBeenDefined("2.0.1")); // fictitious
+    }
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            public class X {
+                private final Object o = new Object();
+                public int method(String in) {
+                    System.out.println(in);
+                    synchronized (o) {
+                        return in.length();
+                    }
+                    System.out.println("unreachable, illegal java");
+                }
+            }
+            """;
+
+    @DisplayName("exit, synchronized")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, a.b.X.o, a.b.X.this, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[1:M=[1.0.0]]", rvVi.assignments().toString());
+        assertFalse(rvVi.hasBeenDefined("0"));
+        assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
+        assertTrue(rvVi.hasBeenDefined("1"));
+        assertTrue(rvVi.hasBeenDefined("1.0.0"));
+        assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
+        assertTrue(rvVi.hasBeenDefined("2"));
+    }
+
+
+    @Language("java")
+    private static final String INPUT8 = """
+            package a.b;
+            public class X {
+                public static int method(String in) {
+                    System.out.println(in);
+                    while (true) {
+                        return in.length();
+                    }
+                    System.out.println("unreachable, illegal java");
+                }
+            }
+            """;
+
+    @DisplayName("exit, while(true)")
+    @Test
+    public void test8() {
+        TypeInfo X = javaInspector.parse(INPUT8);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[1:M=[1.0.0]]", rvVi.assignments().toString());
+        assertFalse(rvVi.hasBeenDefined("0"));
+        assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
+        assertTrue(rvVi.hasBeenDefined("1"));
+        assertTrue(rvVi.hasBeenDefined("1.0.0"));
+        assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
+        assertTrue(rvVi.hasBeenDefined("2"));
+    }
+
+
+    @Language("java")
+    private static final String INPUT8b = """
+            package a.b;
+            public class X {
+                public static int method(String in) {
+                    int i=0;
+                    while (i<in.length()) {
+                        return in.length();
+                    }
+                    System.out.println("reachable");
+                    return 0;
+                }
+            }
+            """;
+
+    @DisplayName("exit, while(real condition)")
+    @Test
+    public void test8b() {
+        TypeInfo X = javaInspector.parse(INPUT8b);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, i, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[1.0.0=[1.0.0], 3=[1.0.0, 3]]", rvVi.assignments().toString());
+        assertFalse(rvVi.hasBeenDefined("0"));
+        assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
+        assertFalse(rvVi.hasBeenDefined("1"));
+        assertTrue(rvVi.hasBeenDefined("1.0.0"));
+        assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
+        assertFalse(rvVi.hasBeenDefined("2"));
+        assertTrue(rvVi.hasBeenDefined("3"));
     }
 
 }

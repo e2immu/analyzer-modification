@@ -70,7 +70,9 @@ public class Analyze {
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
         VariableData lastOfMainBlock = doBlock(methodInfo, methodInfo.methodBody(), null, rv);
-        methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
+        if(lastOfMainBlock != null) {
+            methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
+        } // else: empty
     }
 
     private Map<String, VariableData> doBlocks(MethodInfo methodInfo,
