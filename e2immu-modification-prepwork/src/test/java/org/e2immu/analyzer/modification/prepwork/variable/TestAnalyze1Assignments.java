@@ -370,4 +370,86 @@ public class TestAnalyze1Assignments extends CommonTest {
                 D:01, A:[11=[11], 16.0.3.0.1=[11, 16.0.3.0.1], 16.0.4.1.0.0.2.0.6=[11, 16.0.3.0.1, 16.0.4.1.0.0.2.0.6]]\
                 """, highToLowVi.assignments().toString());
     }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            class X {
+                static void method(String in) {
+                    if(in == null) {
+                        throw new UnsupportedOperationException();
+                    } else if(in.length() == 1) {
+                        return;
+                    }
+                    System.out.println("Reachable");
+                }
+            }
+            """;
+
+    @DisplayName("exit")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+        assertEquals(3, vdMethod.knownVariableNames().size());
+
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[0.0.0=[0.0.0], 0.1.0.0.0=[0.1.0.0.0]]", rvVi.assignments().toString());
+        assertTrue(rvVi.hasBeenDefined("0.0.0"));
+        assertTrue(rvVi.hasBeenDefined("0.0.1")); // fictitious here
+        assertTrue(rvVi.hasBeenDefined("0.1.0.0.0"));
+        assertFalse(rvVi.hasBeenDefined("1"));
+        assertFalse(rvVi.hasBeenDefined("2.0.1")); // fictitious
+    }
+
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            class X {
+                static void method(String in) {
+                    if(in == null) {
+                        throw new UnsupportedOperationException();
+                    } else if(in.length() == 1) {
+                        return;
+                    } else {
+                        System.out.println("Reachable");
+                        return;
+                    }
+                    System.out.println("unreachable, illegal java");
+                }
+            }
+            """;
+
+    @DisplayName("exit 2, simple if-else")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+        assertEquals(3, vdMethod.knownVariableNames().size());
+
+        assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
+                vdMethod.knownVariableNamesToString());
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[0:M=[0.0.0, 0.1.0.0.0, 0.1.0.1.1]]", rvVi.assignments().toString());
+        assertTrue(rvVi.hasBeenDefined("0.0.0"));
+        assertTrue(rvVi.hasBeenDefined("0.1.0.0.0"));
+        assertTrue(rvVi.hasBeenDefined("0.1.0.0.1")); // fictitious
+        assertTrue(rvVi.hasBeenDefined("0.1.0.1.1"));
+        assertTrue(rvVi.hasBeenDefined("1"));
+        assertTrue(rvVi.hasBeenDefined("2.0.1")); // fictitious
+    }
+
 }

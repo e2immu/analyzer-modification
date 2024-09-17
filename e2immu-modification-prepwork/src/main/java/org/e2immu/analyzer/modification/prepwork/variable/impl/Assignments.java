@@ -90,8 +90,8 @@ public class Assignments {
                 first = false;
             } else {
                 for (I i : a.assignments) {
-                    if (i.index.compareTo(index) > 0){
-                        haveAssignment |=  Util.atSameLevel(subIndex, i.index);
+                    if (i.index.compareTo(index) > 0) {
+                        haveAssignment |= Util.atSameLevel(subIndex, i.index);
                         inSubBlocks.add(i);
                     }
                 }
@@ -118,14 +118,25 @@ public class Assignments {
         if (statement instanceof IfElseStatement) {
             return 2;
         }
-        if (statement instanceof DoStatement
+        if (statement instanceof SwitchStatementNewStyle) {
+            return (int) statement.subBlockStream().count();
+        }
+        // NOTE: 'finally' blocks will be handled separately, this is about the main block here
+        if (statement instanceof TryStatement
             || statement instanceof WhileStatement && statement.expression().isBoolValueTrue()
             || statement instanceof ForStatement && (statement.expression().isBoolValueTrue() || statement.expression().isEmpty())
             || statement instanceof Block
-            || statement instanceof SynchronizedStatement) {
+            || statement instanceof SynchronizedStatement
+            || statement instanceof DoStatement) {
             return 1;
         }
-        return -1; // there can be no merge
+        if (statement instanceof LoopStatement) {
+            return -1; // there can be no merge
+        }
+        if (statement instanceof SwitchStatementOldStyle) {
+            throw new UnsupportedOperationException("Should be handled separately, too complex");
+        }
+        throw new UnsupportedOperationException("NYI");
     }
 
     public List<I> assignments() {
@@ -139,5 +150,22 @@ public class Assignments {
     public String indexOfDefinition() {
         return indexOfDefinition;
     }
+
+    public boolean hasBeenDefined(String index) {
+        if (indexOfDefinition.compareTo(index) > 0) {
+            throw new UnsupportedOperationException("not yet defined");
+        }
+        for (I i : assignments) {
+            if (Util.inScopeOf(i.index, index)) return true;
+            if (i.index.endsWith(":M") && index.startsWith(i.index.substring(0, i.index.length() - 2))) {
+                // we may have to check with the individual definition points
+                for (String aai : i.actualAssignmentIndices) {
+                    if (Util.inScopeOf(aai, index)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
 }
 

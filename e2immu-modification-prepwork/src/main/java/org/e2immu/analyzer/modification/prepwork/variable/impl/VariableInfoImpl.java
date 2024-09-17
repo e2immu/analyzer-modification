@@ -1,8 +1,10 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
+import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
+import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.support.EventuallyFinal;
@@ -38,7 +40,7 @@ public class VariableInfoImpl implements VariableInfo {
             }
             return false;
         }
-        if (!this.linkedVariables.get() .isNotYetSet()) {
+        if (!this.linkedVariables.get().isNotYetSet()) {
             // the first time, there are no restrictions on statically assigned values
             // as soon as we have a real value, we cannot change SA anymore
 
@@ -79,5 +81,13 @@ public class VariableInfoImpl implements VariableInfo {
     @Override
     public String readId() {
         return readId;
+    }
+
+    @Override
+    public boolean hasBeenDefined(String index) {
+        if (variable instanceof LocalVariable || variable instanceof ReturnVariable) {
+            return assignments.hasBeenDefined(index);
+        }
+        return true;
     }
 }

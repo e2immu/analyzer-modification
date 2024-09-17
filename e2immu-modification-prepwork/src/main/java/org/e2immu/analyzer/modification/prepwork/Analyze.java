@@ -65,7 +65,9 @@ public class Analyze {
     }
 
     public void doMethod(MethodInfo methodInfo) {
-        ReturnVariable rv = methodInfo.hasReturnValue() ? new ReturnVariableImpl(methodInfo) : null;
+        // even if the method does not return a value, we'll compute "assignments" to the return variable,
+        // in order to know when the method exits (we'll track 'throw' and 'return' statements)
+        ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
         VariableData lastOfMainBlock = doBlock(methodInfo, methodInfo.methodBody(), null, rv);
         methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
@@ -152,10 +154,10 @@ public class Analyze {
                 }
             });
         }
+        int assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement);
         map.forEach((v, vis) -> {
             Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
                     .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
-            int assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement);
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
             String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
@@ -193,7 +195,7 @@ public class Analyze {
     private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, ReturnVariable rv) {
         String index = statement.hasSubBlocks() ? indexIn + "-E" : indexIn;
         Visitor v = new Visitor(previous == null ? Set.of() : previous.knownVariableNames());
-        if (statement instanceof ReturnStatement && rv != null) {
+        if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assigned.add(rv);
             if (!v.knownVariableNames.contains(rv.fullyQualifiedName())) {
                 v.seenFirstTime.add(rv);
