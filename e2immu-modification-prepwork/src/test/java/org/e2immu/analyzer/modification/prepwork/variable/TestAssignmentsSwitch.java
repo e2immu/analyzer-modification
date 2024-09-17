@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 
 import org.e2immu.analyzer.modification.prepwork.Analyze;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -10,9 +9,6 @@ import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.io.Reader;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -110,6 +106,53 @@ public class TestAssignmentsSwitch extends CommonTest {
     }
 
 
+
+    @Language("java")
+    private static final String INPUT1c = """
+            package a.b;
+            class X {
+                static int method(char c, boolean b) {
+                    int i;
+                    switch (c) {
+                        case 'a':
+                            if (b) {
+                                i = 3;
+                                break;
+                            } else {
+                                i = 1;
+                                break;
+                            }
+                        case 'b':
+                            break;
+                        default:
+                            i = 4;
+                            break;
+                    }
+                    return i;
+                }
+            }
+            """;
+
+
+    @DisplayName("clean old-style switch, break hidden in if-statement")
+    @Test
+    public void test1c() {
+        TypeInfo X = javaInspector.parse(INPUT1c);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+        assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
+                vdMethod.knownVariableNamesToString());
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("D:0, A:[1.0.0:M=[1.0.0.0.0, 1.0.0.1.0], 1.0.2=[1.0.2]]", iVi.assignments().toString());
+        assertFalse(iVi.hasBeenDefined("2"));
+    }
+
+
     @Language("java")
     private static final String INPUT2 = """
             package a.b;
@@ -143,6 +186,81 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertNotNull(vdMethod);
         assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
                 vdMethod.knownVariableNamesToString());
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.3]]", iVi.assignments().toString());
+        assertTrue(iVi.hasBeenDefined("2"));
+    }
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            class X {
+                static int method(char c, boolean b) {
+                    int i;
+                    switch (c) {
+                        case 'a':
+                            if (b) i = 3;
+                            else i = 1;
+                            break;
+                        case 'b':
+                            System.out.println("b!!");
+                        default:
+                            i = 4;
+                    }
+                    return i;
+                }
+            }
+            """;
+
+
+    @DisplayName("old-style switch with irrelevant fall-through")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+
+        VariableInfo iVi = vdMethod.variableInfo("i");
+        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.3]]", iVi.assignments().toString());
+        assertTrue(iVi.hasBeenDefined("2"));
+    }
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            class X {
+                static int method(char c, boolean b) {
+                    int i;
+                    switch (c) {
+                        case 'a':
+                            if (b) i = 3;
+                            else i = 1;
+                        case 'b':
+                            System.out.println("b!!");
+                        default:
+                            i = 4;
+                    }
+                    return i;
+                }
+            }
+            """;
+
+
+    @DisplayName("old-style switch with real fall-through and overwrite")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method

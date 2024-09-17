@@ -33,6 +33,33 @@ public class Analyze {
         this.runtime = runtime;
     }
 
+    private static class InternalVariables {
+        final ReturnVariable rv;
+        final Stack<LocalVariable> breakVariables = new Stack<>();
+
+        InternalVariables(ReturnVariable rv) {
+            this.rv = rv;
+        }
+
+        public List<Variable> currentVariables() {
+            if(breakVariables.isEmpty()) return List.of(rv);
+            return List.of(rv, breakVariables.peek());
+        }
+
+        public void popBreakVariable(LocalVariable bv) {
+            LocalVariable top = breakVariables.pop();
+            assert top == bv;
+        }
+
+        public void pushBreakVariable(LocalVariable bv) {
+            breakVariables.push(bv);
+        }
+
+        public LocalVariable bv() {
+            return breakVariables.isEmpty() ? null : breakVariables.peek();
+        }
+    }
+
     private record ReadWriteData(VariableData previous,
                                  String index,
                                  Set<Variable> seenFirstTime,
@@ -69,7 +96,8 @@ public class Analyze {
         // in order to know when the method exits (we'll track 'throw' and 'return' statements)
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
-        VariableData lastOfMainBlock = doBlock(methodInfo, methodInfo.methodBody(), null, rv);
+        InternalVariables iv = new InternalVariables(rv);
+        VariableData lastOfMainBlock = doBlock(methodInfo, methodInfo.methodBody(), null, iv);
         if (lastOfMainBlock != null) {
             methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
         } // else: empty
@@ -78,22 +106,22 @@ public class Analyze {
     private Map<String, VariableData> doBlocks(MethodInfo methodInfo,
                                                Statement parentStatement,
                                                VariableData vdOfParent,
-                                               ReturnVariable rv) {
+                                               InternalVariables iv) {
         return parentStatement.subBlockStream()
                 .filter(b -> !b.isEmpty())
                 .collect(Collectors.toUnmodifiableMap(
                         block -> block.statements().get(0).source().index(),
-                        block -> doBlock(methodInfo, block, vdOfParent, rv)));
+                        block -> doBlock(methodInfo, block, vdOfParent, iv)));
     }
 
     private VariableData doBlock(MethodInfo methodInfo,
                                  Block block,
                                  VariableData vdOfParent,
-                                 ReturnVariable rv) {
+                                 InternalVariables iv) {
         VariableData previous = vdOfParent;
         boolean first = true;
         for (Statement statement : block.statements()) {
-            previous = doStatement(methodInfo, statement, previous, first, rv);
+            previous = doStatement(methodInfo, statement, previous, first, iv);
             if (first) first = false;
         }
         return previous;
@@ -103,9 +131,9 @@ public class Analyze {
                                      Statement statement,
                                      VariableData previous,
                                      boolean first,
-                                     ReturnVariable rv) {
+                                     InternalVariables iv) {
         String index = statement.source().index();
-        ReadWriteData readWriteData = analyzeEval(previous, index, statement, rv);
+        ReadWriteData readWriteData = analyzeEval(previous, index, statement, iv);
         VariableDataImpl vdi = new VariableDataImpl();
         boolean hasMerge = statement.hasSubBlocks();
         Stage stage = first ? Stage.EVALUATION : Stage.MERGE;
@@ -133,17 +161,20 @@ public class Analyze {
         }
 
         if (statement instanceof SwitchStatementOldStyle oss) {
-            doOldStyleSwitchBlock(methodInfo, oss, vdi, rv);
+            doOldStyleSwitchBlock(methodInfo, oss, vdi, iv);
         } else {
             // sub-blocks
             if (statement.hasSubBlocks()) {
-                Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, rv);
-                addMerge(index, statement, vdi, lastOfEachSubBlock, rv);
+                Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, iv);
+                addMerge(index, statement, vdi, lastOfEachSubBlock, iv);
             }
         }
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
         return vdi;
     }
+
+    private static final VariableNature SYNTHETIC = new VariableNature() {
+    };
 
     /*
      completely custom block-code
@@ -151,8 +182,16 @@ public class Analyze {
     private void doOldStyleSwitchBlock(MethodInfo methodInfo,
                                        SwitchStatementOldStyle oss,
                                        VariableDataImpl vdOfParent,
-                                       ReturnVariable rv) {
+                                       InternalVariables iv) {
+        String index = oss.source().index();
         assert vdOfParent != null;
+        LocalVariable bv = runtime.newLocalVariable("bv-" + index, runtime.booleanParameterizedType(),
+                runtime.newEmptyExpression());
+        iv.pushBreakVariable(bv);
+        Assignments notYetAssigned = new Assignments(index + "-E");
+        VariableInfoImpl vii = new VariableInfoImpl(bv, notYetAssigned, NOT_YET_READ);
+        vdOfParent.put(bv, new VariableInfoContainerImpl(bv, SYNTHETIC, Either.right(vii), null,
+                false));
         VariableData previous = vdOfParent;
         boolean first = true;
         String indexOfFirstStatement = null;
@@ -161,8 +200,10 @@ public class Analyze {
             if (indexOfFirstStatement == null) {
                 indexOfFirstStatement = statement.source().index();
             }
-            VariableData vd = doStatement(methodInfo, statement, previous, first, rv);
-            if (statement instanceof BreakStatement || statement instanceof ReturnStatement) {
+            VariableData vd = doStatement(methodInfo, statement, previous, first, iv);
+            if (statement instanceof BreakStatement
+                || statement instanceof ReturnStatement
+                || statementGuaranteedToExit(indexOfFirstStatement, vd, iv)) {
                 if (indexOfFirstStatement != null) {
                     lastOfEachSubBlock.put(indexOfFirstStatement, vd);
                     indexOfFirstStatement = null;
@@ -177,8 +218,19 @@ public class Analyze {
         if (indexOfFirstStatement != null) {
             lastOfEachSubBlock.put(indexOfFirstStatement, previous);
         }
-        String index = oss.source().index();
-        addMerge(index, oss, vdOfParent, lastOfEachSubBlock, rv);
+        addMerge(index, oss, vdOfParent, lastOfEachSubBlock, iv);
+        iv.popBreakVariable(bv);
+    }
+
+    private boolean statementGuaranteedToExit(String index, VariableData vd, InternalVariables iv) {
+        for (Variable v : iv.currentVariables()) {
+            VariableInfoContainer vic = vd.variableInfoContainerOrNull(v.fullyQualifiedName());
+            if (vic != null) {
+                VariableInfo vi = vic.best();
+                if (vi.assignments().lastAssignmentIsMergeInBlockOf(index)) return true;
+            }
+        }
+        return false;
     }
 
     /*
@@ -193,7 +245,7 @@ public class Analyze {
                           Statement statement,
                           VariableDataImpl vdStatement,
                           Map<String, VariableData> lastOfEachSubBlock,
-                          ReturnVariable rv) {
+                          InternalVariables iv) {
         Map<Variable, Map<String, VariableInfo>> map = new HashMap<>();
         for (Map.Entry<String, VariableData> entry : lastOfEachSubBlock.entrySet()) {
             String subIndex = entry.getKey();
@@ -208,7 +260,7 @@ public class Analyze {
             Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
                     .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
             // the return variable passed on for corrections is 'null' when we're computing for the return variable
-            ReturnVariable returnVariable = v.equals(rv) ? null : rv;
+            ReturnVariable returnVariable = v.equals(iv.rv) ? null : iv.rv;
             Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
                     lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
@@ -245,38 +297,47 @@ public class Analyze {
                 Either.right(initial), eval, hasMerge);
     }
 
-    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, ReturnVariable rv) {
+    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement,
+                                      InternalVariables iv) {
         String index = statement.hasSubBlocks() ? indexIn + "-E" : indexIn;
         Visitor v = new Visitor(previous == null ? Set.of() : previous.knownVariableNames());
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
-            v.assigned.add(rv);
-            if (!v.knownVariableNames.contains(rv.fullyQualifiedName())) {
-                v.seenFirstTime.add(rv);
+            v.assigned.add(iv.rv);
+            if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
+                v.seenFirstTime.add(iv.rv);
             }
-        } else if (statement instanceof LocalVariableCreation lvc) {
-            handleLvc(lvc, v);
-        } else if (statement instanceof ForStatement fs) {
-            for (Element initializer : fs.initializers()) {
-                if (initializer instanceof LocalVariableCreation lvc) {
-                    handleLvc(lvc, v);
-                } else if (initializer instanceof Expression e) {
-                    e.visit(v);
-                } else throw new UnsupportedOperationException();
+        } else {
+            LocalVariable bv = iv.bv();
+            if (statement instanceof BreakStatement && bv != null) {
+                v.assigned.add(bv);
+                if (!v.knownVariableNames.contains(bv.fullyQualifiedName())) {
+                    v.seenFirstTime.add(bv);
+                }
+            } else if (statement instanceof LocalVariableCreation lvc) {
+                handleLvc(lvc, v);
+            } else if (statement instanceof ForStatement fs) {
+                for (Element initializer : fs.initializers()) {
+                    if (initializer instanceof LocalVariableCreation lvc) {
+                        handleLvc(lvc, v);
+                    } else if (initializer instanceof Expression e) {
+                        e.visit(v);
+                    } else throw new UnsupportedOperationException();
+                }
+                for (Expression updater : fs.updaters()) {
+                    updater.visit(v);
+                }
+            } else if (statement instanceof ForEachStatement fe) {
+                handleLvc(fe.initializer(), v);
+            } else if (statement instanceof AssertStatement as) {
+                if (as.message() != null) as.message().visit(v);
+            } else if (statement instanceof ExplicitConstructorInvocation eci) {
+                eci.parameterExpressions().forEach(e -> e.visit(v));
+            } else if (statement instanceof TryStatement ts) {
+                ts.resources().forEach(r -> handleLvc(r, v));
             }
-            for (Expression updater : fs.updaters()) {
-                updater.visit(v);
-            }
-        } else if (statement instanceof ForEachStatement fe) {
-            handleLvc(fe.initializer(), v);
-        } else if (statement instanceof AssertStatement as) {
-            if (as.message() != null) as.message().visit(v);
-        } else if (statement instanceof ExplicitConstructorInvocation eci) {
-            eci.parameterExpressions().forEach(e -> e.visit(v));
-        } else if (statement instanceof TryStatement ts) {
-            ts.resources().forEach(r -> handleLvc(r, v));
         }
         Expression expression = statement.expression();
-        if (expression != null) expression.visit(v);
+        if (expression != null && !expression.isEmpty()) expression.visit(v);
         return new ReadWriteData(previous, index, v.seenFirstTime, v.read, v.assigned);
     }
 

@@ -215,7 +215,7 @@ public class Assignments {
         return new CompleteMergeByCounting(n - blocksWithReturn);
     }
 
-    private boolean lastAssignmentIsMergeInBlockOf(String firstStatementIndex) {
+    public boolean lastAssignmentIsMergeInBlockOf(String firstStatementIndex) {
         if (assignments.isEmpty()) return false;
         I last = assignments.get(assignments.size() - 1);
         return Util.atSameLevel(firstStatementIndex, last.index);
