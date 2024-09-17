@@ -201,8 +201,9 @@ public class Assignments {
         }
         if (statement instanceof TryStatement ts) {
             int target = 1 + ts.catchClauses().size() - blocksWithReturn;
+            int finallyIndex = (ts.resources().isEmpty() ? 1 : 2) + ts.catchClauses().size();
             boolean haveFinally = !ts.finallyBlock().isEmpty();
-            String haveFinallyIndex = haveFinally ? ts.source().index() + "." + target + ".0" : null;
+            String haveFinallyIndex = haveFinally ? ts.source().index() + "." + finallyIndex + ".0" : null;
             return new CompleteMergeForTry(target, haveFinallyIndex);
         }
         int n;

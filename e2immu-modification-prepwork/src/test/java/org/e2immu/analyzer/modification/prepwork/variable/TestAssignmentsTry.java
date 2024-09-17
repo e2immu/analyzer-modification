@@ -6,6 +6,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.statement.TryStatement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -103,5 +105,44 @@ public class TestAssignmentsTry extends CommonTest {
         assertEquals("D:1, A:[2:M=[2.2.0]]", dA.toString());
     }
 
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.io.*;
+            public class X {
+                public void method(File file, String in) {
+                    try(FileWriter fw = new FileWriter(file); Writer w = new BufferedWriter(fw)) {
+                        w.append("input: ").append(in);
+                    } catch (IOException ioe) {
+                        System.out.println("Caught io exception!");
+                        throw new RuntimeException(ioe.getMessage());
+                    } finally {
+                        System.out.println("end of writing");
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("try-catch-finally, exit in catch")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        TryStatement ts = (TryStatement)method.methodBody().statements().get(0);
+        TryStatement.CatchClause cc = ts.catchClauses().get(0);
+        Statement cc0 = cc.block().statements().get(0);
+        assertEquals("0.2.0", cc0.source().index());
+
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+
+        VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[0.2.1=[0.2.1]]", rvVi.assignments().toString());
+        assertFalse(rvVi.hasBeenDefined("1"));
+    }
 
 }
