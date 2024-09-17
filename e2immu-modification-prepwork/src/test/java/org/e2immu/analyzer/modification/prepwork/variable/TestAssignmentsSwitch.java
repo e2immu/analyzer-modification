@@ -243,14 +243,14 @@ public class TestAssignmentsSwitch extends CommonTest {
                             else i = 1;
                         case 'b':
                             System.out.println("b!!");
+                            break;
                         default:
                             i = 4;
                     }
-                    return i;
+                    return i; // i has not been defined! illegal java
                 }
             }
             """;
-
 
     @DisplayName("old-style switch with real fall-through and overwrite")
     @Test
@@ -264,7 +264,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.3]]", iVi.assignments().toString());
-        assertTrue(iVi.hasBeenDefined("2"));
+        assertEquals("D:0, A:[1.0.1:M=[1.0.0.0.0, 1.0.0.1.0], 1.0.3=[1.0.3]]", iVi.assignments().toString());
+        assertFalse(iVi.hasBeenDefined("2"));
     }
 }

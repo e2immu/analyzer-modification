@@ -27,6 +27,11 @@ public class Assignments {
         public int compareTo(I o) {
             return index.compareTo(o.index);
         }
+
+        public I with(List<String> fromFallThrough) {
+            if (fromFallThrough == null || fromFallThrough.isEmpty()) return this;
+            return new I(index, Stream.concat(fromFallThrough.stream(), actualAssignmentIndices.stream()).toList());
+        }
     }
 
     private final String indexOfDefinition;
@@ -122,7 +127,8 @@ public class Assignments {
      */
     public static Assignments mergeBlocks(String index,
                                           CompleteMerge completeMerge,
-                                          Map<String, Assignments> assignmentsInBlocks) {
+                                          Map<String, Assignments> assignmentsInBlocks,
+                                          Map<String, List<String>> assignmentsToAddFromFallThrough) {
         List<I> unrelatedToMerge = new ArrayList<>();
         List<I> inSubBlocks = new ArrayList<>();
         boolean first = true;
@@ -130,6 +136,8 @@ public class Assignments {
         for (Map.Entry<String, Assignments> entry : assignmentsInBlocks.entrySet()) {
             Assignments a = entry.getValue();
             String subIndex = entry.getKey();
+            List<String> fromFallThrough = assignmentsToAddFromFallThrough.get(subIndex);
+            boolean wroteFallThrough = false;
             boolean haveAssignment = false;
             if (first) {
                 aFirst = a;
@@ -137,7 +145,8 @@ public class Assignments {
                     if (i.index.compareTo(index) < 0) unrelatedToMerge.add(i);
                     else {
                         haveAssignment |= Util.atSameLevel(subIndex, i.index);
-                        inSubBlocks.add(i);
+                        inSubBlocks.add(i.with(fromFallThrough));
+                        wroteFallThrough = fromFallThrough != null;
                     }
                 }
                 first = false;
@@ -145,9 +154,13 @@ public class Assignments {
                 for (I i : a.assignments) {
                     if (i.index.compareTo(index) > 0) {
                         haveAssignment |= Util.atSameLevel(subIndex, i.index);
-                        inSubBlocks.add(i);
+                        inSubBlocks.add(i.with(fromFallThrough));
+                        wroteFallThrough = fromFallThrough != null;
                     }
                 }
+            }
+            if (fromFallThrough != null && !wroteFallThrough) {
+                inSubBlocks.add(new I(subIndex + (fromFallThrough.size() > 1 ? ":M" : ""), fromFallThrough));
             }
             if (haveAssignment) {
                 // nothing was added, so no assignment

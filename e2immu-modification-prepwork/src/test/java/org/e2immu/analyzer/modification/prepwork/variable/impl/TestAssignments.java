@@ -27,7 +27,7 @@ public class TestAssignments {
         // there have been assignments in 1.0.x, but none in 1.1.x -> keep as is
         Assignments.CompleteMergeByCounting cmA = new Assignments.CompleteMergeByCounting(2);
         Assignments a1 = Assignments.mergeBlocks("1",
-                cmA, Map.of("1.0.0", a102, "1.1.0", a0));
+                cmA, Map.of("1.0.0", a102, "1.1.0", a0), Map.of());
         assertEquals(3, a1.assignments().size());
         assertSame(a0.latest(), a1.assignments().get(0));
         assertSame(a101.latest(), a1.assignments().get(1));
@@ -40,7 +40,7 @@ public class TestAssignments {
         // in this situation, there has been a full merge. we drop information about sub-blocks in the main
         // array, but store it in actualAssignmentIndices
         Assignments.CompleteMergeByCounting cmB = new Assignments.CompleteMergeByCounting(2);
-        Assignments b1 = Assignments.mergeBlocks("1", cmB, Map.of("1.0.0", a102, "1.1.0", a110));
+        Assignments b1 = Assignments.mergeBlocks("1", cmB, Map.of("1.0.0", a102, "1.1.0", a110), Map.of());
         assertEquals(2, b1.assignments().size());
         Assignments.I b1i1 = b1.assignments().get(1);
         assertEquals("1:M", b1i1.index());

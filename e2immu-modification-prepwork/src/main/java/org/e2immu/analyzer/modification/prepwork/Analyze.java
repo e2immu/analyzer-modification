@@ -42,7 +42,7 @@ public class Analyze {
         }
 
         public List<Variable> currentVariables() {
-            if(breakVariables.isEmpty()) return List.of(rv);
+            if (breakVariables.isEmpty()) return List.of(rv);
             return List.of(rv, breakVariables.peek());
         }
 
@@ -166,7 +166,7 @@ public class Analyze {
             // sub-blocks
             if (statement.hasSubBlocks()) {
                 Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, iv);
-                addMerge(index, statement, vdi, lastOfEachSubBlock, iv);
+                addMerge(index, statement, vdi, lastOfEachSubBlock, iv, Map.of());
             }
         }
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
@@ -183,6 +183,7 @@ public class Analyze {
                                        SwitchStatementOldStyle oss,
                                        VariableDataImpl vdOfParent,
                                        InternalVariables iv) {
+        Set<String> startOfNewLabels = oss.switchLabelMap().keySet();
         String index = oss.source().index();
         assert vdOfParent != null;
         LocalVariable bv = runtime.newLocalVariable("bv-" + index, runtime.booleanParameterizedType(),
@@ -196,9 +197,22 @@ public class Analyze {
         boolean first = true;
         String indexOfFirstStatement = null;
         Map<String, VariableData> lastOfEachSubBlock = new HashMap<>();
+
+        List<VariableData> fallThrough = new ArrayList<>();
+        Map<String, List<VariableData>> fallThroughRecord = new HashMap<>();
+
         for (Statement statement : oss.block().statements()) {
+            String statementIndex = statement.source().index();
             if (indexOfFirstStatement == null) {
-                indexOfFirstStatement = statement.source().index();
+                indexOfFirstStatement = statementIndex;
+            }
+            if (!first && startOfNewLabels.contains(statementIndex)) {
+                // fall-through, we'll start again, but append the current data
+                assert previous != vdOfParent;
+                fallThrough.add(previous);
+                indexOfFirstStatement = statementIndex;
+                previous = vdOfParent;
+                first = true;
             }
             VariableData vd = doStatement(methodInfo, statement, previous, first, iv);
             if (statement instanceof BreakStatement
@@ -206,6 +220,10 @@ public class Analyze {
                 || statementGuaranteedToExit(indexOfFirstStatement, vd, iv)) {
                 if (indexOfFirstStatement != null) {
                     lastOfEachSubBlock.put(indexOfFirstStatement, vd);
+                    if (!fallThrough.isEmpty()) {
+                        fallThroughRecord.put(indexOfFirstStatement, List.copyOf(fallThrough));
+                        fallThrough.clear();
+                    }
                     indexOfFirstStatement = null;
                 }
                 first = true;
@@ -218,7 +236,7 @@ public class Analyze {
         if (indexOfFirstStatement != null) {
             lastOfEachSubBlock.put(indexOfFirstStatement, previous);
         }
-        addMerge(index, oss, vdOfParent, lastOfEachSubBlock, iv);
+        addMerge(index, oss, vdOfParent, lastOfEachSubBlock, iv, fallThroughRecord);
         iv.popBreakVariable(bv);
     }
 
@@ -245,7 +263,8 @@ public class Analyze {
                           Statement statement,
                           VariableDataImpl vdStatement,
                           Map<String, VariableData> lastOfEachSubBlock,
-                          InternalVariables iv) {
+                          InternalVariables iv,
+                          Map<String, List<VariableData>> fallThroughRecord) {
         Map<Variable, Map<String, VariableInfo>> map = new HashMap<>();
         for (Map.Entry<String, VariableData> entry : lastOfEachSubBlock.entrySet()) {
             String subIndex = entry.getKey();
@@ -263,7 +282,10 @@ public class Analyze {
             ReturnVariable returnVariable = v.equals(iv.rv) ? null : iv.rv;
             Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
                     lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
-            Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock);
+
+            Map<String, List<String>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
+            Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock,
+                    fallThroughForV);
             String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
                     (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
             VariableInfoImpl merge = new VariableInfoImpl(v, assignments, readId);
@@ -281,6 +303,26 @@ public class Analyze {
             }
             vici.setMerge(merge);
         });
+    }
+
+    private static Map<String, List<String>> computeFallThrough(Map<String, List<VariableData>> fallThroughRecord, Variable v) {
+        if (fallThroughRecord.isEmpty()) return Map.of();
+        Map<String, List<String>> res = new HashMap<>();
+        fallThroughRecord.forEach((index, vds) -> {
+            vds.forEach(vd -> {
+                VariableInfoContainer vic = vd.variableInfoContainerOrNull(v.fullyQualifiedName());
+                if (vic != null) {
+                    VariableInfo vi = vic.best();
+                    Assignments a = vi.assignments();
+                    if (!a.assignments().isEmpty()) {
+                        Assignments.I i = a.assignments().get(a.assignments().size() - 1);
+                        List<String> list = res.computeIfAbsent(index, ii -> new ArrayList<>());
+                        list.addAll(i.actualAssignmentIndices());
+                    }
+                }
+            });
+        });
+        return res;
     }
 
     private boolean copyToMerge(String index, VariableInfo vi) {
