@@ -1,10 +1,12 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
+import org.e2immu.analyzer.modification.prepwork.StatementIndex;
+
 // suffixes in assignment id; these act as the 3 levels for setProperty
 public enum Stage {
-    INITIAL("-C"), // C for creation, but essentially, it should be < E
-    EVALUATION("-E"), // the - comes before the digits
-    MERGE(":M"); // the : comes after the digits
+    INITIAL(StatementIndex.INIT), // +I, + comes before '-', '.', and the digits
+    EVALUATION(StatementIndex.EVAL), // -E the - comes before the digits
+    MERGE(StatementIndex.MERGE); // =M, the '=' comes after the digits
     public final String label;
 
     Stage(String label) {
@@ -24,9 +26,9 @@ public enum Stage {
 
     public static Stage from(String stage) {
         return switch (stage) {
-            case "-C" -> INITIAL;
+            case "+I" -> INITIAL;
             case "-E" -> EVALUATION;
-            case ":M" -> MERGE;
+            case "=M" -> MERGE;
             default -> throw new UnsupportedOperationException();
         };
     }

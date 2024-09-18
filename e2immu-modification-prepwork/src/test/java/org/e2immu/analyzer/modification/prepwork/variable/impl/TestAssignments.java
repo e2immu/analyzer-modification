@@ -33,7 +33,7 @@ public class TestAssignments {
         // array, but store it in actualAssignmentIndices
         Assignments.CompleteMergeByCounting cmB = new Assignments.CompleteMergeByCounting(2);
         Assignments b1 = Assignments.mergeBlocks("1", cmB, Map.of("1.0.0", a102, "1.1.0", a110), Map.of());
-        assertEquals("D:0, A:[0, 1.0.1, 1.0.2, 1.1.0, 1:M]", b1.toString());
+        assertEquals("D:0, A:[0, 1.0.1, 1.0.2, 1.1.0, 1=M]", b1.toString());
 
         assertTrue(b1.hasAValueAt("0"));
         assertTrue(b1.hasAValueAt("1"));
@@ -69,7 +69,7 @@ public class TestAssignments {
         // array, but store it in actualAssignmentIndices
         Assignments.CompleteMergeByCounting cmB = new Assignments.CompleteMergeByCounting(2);
         Assignments b1 = Assignments.mergeBlocks("1", cmB, Map.of("1.0.0", a102, "1.1.0", a110), Map.of());
-        assertEquals("D:0, A:[1.0.1, 1.0.2, 1.1.0, 1:M]", b1.toString());
+        assertEquals("D:0, A:[1.0.1, 1.0.2, 1.1.0, 1=M]", b1.toString());
 
         assertFalse(b1.hasAValueAt("0"));
         assertFalse(b1.hasAValueAt("1"));
@@ -107,7 +107,7 @@ public class TestAssignments {
         // array, but store it in actualAssignmentIndices
         Assignments.CompleteMergeByCounting cmB = new Assignments.CompleteMergeByCounting(2);
         Assignments b1 = Assignments.mergeBlocks("2.0.3", cmB, Map.of("2.0.3.0.0", a102, "2.0.3.1.0", a110), Map.of());
-        assertEquals("D:2.0.1, A:[2.0.2, 2.0.3.0.0, 2.0.3.1.2, 2.0.3:M]", b1.toString());
+        assertEquals("D:2.0.1, A:[2.0.2, 2.0.3.0.0, 2.0.3.1.2, 2.0.3=M]", b1.toString());
 
         assertThrows(UnsupportedOperationException.class, () -> b1.hasAValueAt("0"));
         assertFalse(b1.hasAValueAt("2.0.1"));

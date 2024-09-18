@@ -1,10 +1,14 @@
 package org.e2immu.analyzer.modification.prepwork;
 
+import java.util.regex.Matcher;
+
+import static org.e2immu.analyzer.modification.prepwork.StatementIndex.*;
+
 public class Util {
 
     public static boolean atSameLevel(String i0, String i1) {
-        int d0 = i0.lastIndexOf('.');
-        int d1 = i1.lastIndexOf('.');
+        int d0 = i0.lastIndexOf(DOT);
+        int d1 = i1.lastIndexOf(DOT);
         return d0 > 0 && d1 > 0 && i0.substring(0, d0).equals(i1.substring(0, d1));
     }
 
@@ -16,14 +20,14 @@ public class Util {
      * @return true when the index is in the scope
      */
     public static boolean inScopeOf(String scope, String index) {
-        if ("-".equals(scope)) return true;
-        int dashScope = Math.max(scope.lastIndexOf("-"), scope.lastIndexOf("+"));
+        if (BEFORE_METHOD.equals(scope)) return true;
+        int dashScope = Math.max(scope.lastIndexOf(DASH), scope.lastIndexOf(PLUS));
         if (dashScope >= 0) {
             // 0-E -> in scope means starting with 0
             String sub = scope.substring(0, dashScope);
             return index.startsWith(sub);
         }
-        int lastDotScope = scope.lastIndexOf('.');
+        int lastDotScope = scope.lastIndexOf(DOT);
         if (lastDotScope < 0) {
             // scope = 3 --> 3.0.0 ok, 3 ok, 4 ok
             return index.compareTo(scope) >= 0;
@@ -34,25 +38,22 @@ public class Util {
         return index.compareTo(scope) >= 0;
     }
 
-    // 3.0.0-E, -I
+
+    // 3.0.0-E, +I
     public static String stage(String assignmentId) {
-        int dash = assignmentId.lastIndexOf('-');
-        if (dash >= 0) return assignmentId.substring(dash);
-        int colon = assignmentId.lastIndexOf(':');
-        if (colon >= 0) return assignmentId.substring(colon);
+        Matcher m = StatementIndex.STAGE_PATTERN.matcher(assignmentId);
+        if (m.matches()) return m.group(2);
         throw new UnsupportedOperationException();
     }
 
     public static String stripStage(String index) {
-        int dash = index.lastIndexOf('-');
-        if (dash >= 0) return index.substring(0, dash);
-        int colon = index.lastIndexOf(':');
-        if (colon >= 0) return index.substring(0, colon);
+        Matcher m = StatementIndex.STAGE_PATTERN.matcher(index);
+        if (m.matches()) return m.group(1);
         return index;
     }
 
     // add a character so that we're definitely beyond this index
     public static String beyond(String index) {
-        return index + "~";
+        return index + END;
     }
 }

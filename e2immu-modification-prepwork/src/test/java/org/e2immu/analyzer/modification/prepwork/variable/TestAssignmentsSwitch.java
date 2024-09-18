@@ -97,14 +97,13 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId());
-        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.2, 1.0.4, 1:M]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.2, 1.0.4, 1=M]", iVi.assignments().toString());
 
         Statement ifElse = method.methodBody().statements().get(1).block().statements().get(0);
         VariableData vdIfElse = ifElse.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo iViIfElse = vdIfElse.variableInfo("i");
-        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M]", iViIfElse.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M]", iViIfElse.assignments().toString());
     }
-
 
 
     @Language("java")
@@ -148,7 +147,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.2]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.2]", iVi.assignments().toString());
         assertFalse(iVi.hasBeenDefined("2"));
     }
 
@@ -189,7 +188,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.3, 1:M]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.3, 1=M]", iVi.assignments().toString());
         assertTrue(iVi.hasBeenDefined("2"));
     }
 
@@ -227,7 +226,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.3, 1:M]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.3, 1=M]", iVi.assignments().toString());
         assertTrue(iVi.hasBeenDefined("2"));
     }
 
@@ -264,7 +263,64 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.3]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.3]", iVi.assignments().toString());
         assertFalse(iVi.hasBeenDefined("2"));
+    }
+
+
+    @Language("java")
+    public static final String INPUT5 = """
+            package a.b;
+            import java.io.IOException;
+            import java.io.Reader;
+            class X {
+                 private String parse(Reader in, int state) throws IOException {
+                     in.mark(1);
+                     int c = in.read();
+                     StringBuilder str = new StringBuilder();
+                     switch(c) {
+                        case -1:
+                            switch(state) {
+                                case 0:
+                                    return null;
+                                default:
+                                    return str.toString();
+                            }
+                        case '\\n':
+                            return str.toString();
+                        default:
+                            switch(state) {
+                                case 2:
+                                case 3:
+                                    in.reset();
+                                    return str.toString();
+                                default:
+                                    state = 1;
+                                    str.append((char) c);
+                            }
+                    }
+                    return "?";
+                }
+            }
+            """;
+
+
+    @DisplayName("nested old-style switches, almost return everywhere")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        MethodInfo method = X.findUniqueMethod("parse", 2);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vdMethod);
+
+        VariableInfo iVi = vdMethod.variableInfo(method.fullyQualifiedName());
+        assertEquals("D:-, A:[3.0.0.0.0, 3.0.0.0.1, 3.0.0=M, 3.0.1, 3.0.2.0.1, 4]", iVi.assignments().toString());
+        assertFalse(iVi.hasBeenDefined("3"));
+        assertTrue(iVi.hasBeenDefined("4"));
+        assertTrue(iVi.hasBeenDefined("5"));
+        assertEquals("[3.0.0.0.0, 3.0.0.0.1, 3.0.0, 3.0.1, 3.0.2.0.1, 4]",
+                iVi.assignments().mergeIndices().toString());
     }
 }

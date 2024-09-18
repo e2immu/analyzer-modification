@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
 
+import org.e2immu.analyzer.modification.prepwork.StatementIndex;
 import org.e2immu.analyzer.modification.prepwork.Util;
 import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
@@ -143,7 +144,7 @@ public class Assignments {
         }
         assert aFirst != null;
         if (completeMerge.complete()) {
-            String mergeIndex = index + ":M";
+            String mergeIndex = index + StatementIndex.MERGE;
             list.add(mergeIndex);
         }
         return new Assignments(aFirst, list.stream().distinct().sorted().toArray(String[]::new));
@@ -172,7 +173,9 @@ public class Assignments {
             int target = 1 + ts.catchClauses().size() - blocksWithReturn;
             int finallyIndex = (ts.resources().isEmpty() ? 1 : 2) + ts.catchClauses().size();
             boolean haveFinally = !ts.finallyBlock().isEmpty();
-            String haveFinallyIndex = haveFinally ? ts.source().index() + "." + finallyIndex + ".0" : null;
+            String haveFinallyIndex = haveFinally
+                    ? ts.source().index() + StatementIndex.DOT + finallyIndex + StatementIndex.DOT_ZERO
+                    : null;
             return new CompleteMergeForTry(target, haveFinallyIndex);
         }
         int n;
@@ -225,18 +228,9 @@ public class Assignments {
         if (insert == 0) return false;
         for (int k = insert - 1; k >= 0; k--) {
             String s = assignmentIndices[k];
-            if (seenBy(s, index)) return true;
+            if (StatementIndex.seenBy(s, index)) return true;
         }
         return false;
-    }
-
-    private static boolean seenBy(String s, String index) {
-        int dot = s.lastIndexOf('.');
-        if (dot < 0) {
-            return s.compareTo(index) < 0;
-        }
-        String sDot = s.substring(0, dot);
-        return index.startsWith(sDot) && s.compareTo(index) < 0;
     }
 
     /*
@@ -261,7 +255,7 @@ public class Assignments {
             start = -(pos + 1);
         }
         for (int i = start; i < assignmentIndices.length; i++) {
-            if (seenBy(assignmentIndices[i], seenBy)) return true;
+            if (StatementIndex.seenBy(assignmentIndices[i], seenBy)) return true;
         }
         return false;
     }

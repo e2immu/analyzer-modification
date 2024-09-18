@@ -79,13 +79,13 @@ public class TestAssignments extends CommonTest {
         VariableData vdJIf = ifElseStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo jViJIf = vdJIf.variableInfo("j");
         assertEquals("-", jViJIf.readId());
-        assertEquals("D:1, A:[3.0.0, 3.1.0, 3:M]", jViJIf.assignments().toString());
+        assertEquals("D:1, A:[3.0.0, 3.1.0, 3=M]", jViJIf.assignments().toString());
 
         VariableInfo jVi = vdMethod.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         assertEquals("4", jVi.readId());
         Assignments jA = jVi.assignments();
-        assertEquals("D:1, A:[3.0.0, 3.1.0, 3:M]", jA.toString());
+        assertEquals("D:1, A:[3.0.0, 3.1.0, 3=M]", jA.toString());
 
         VariableInfo kVi = vdMethod.variableInfo("k");
         assertEquals("k", kVi.variable().simpleName());
@@ -139,7 +139,7 @@ public class TestAssignments extends CommonTest {
         assertFalse(vd0.variableInfoContainerOrNull("i").hasMerge());
         assertEquals("0-E", iVi.readId()); // is not a merge, so we cannot see the read in 'return i'
         Assignments iA = iVi.assignments();
-        assertEquals("D:0+E, A:[0+E, 0=E]", iA.toString());
+        assertEquals("D:0+E, A:[0+E, 0:E]", iA.toString());
 
         Statement s000 = s0.block().statements().get(0);
         VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -195,7 +195,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0+E, A:[0+E, 0=E]", iA.toString());
+        assertEquals("D:0+E, A:[0+E, 0:E]", iA.toString());
 
         Statement s001 = s0.block().statements().get(1);
         VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -203,7 +203,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo jVi = vd001.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
-        assertEquals("D:0.0.1+E, A:[0.0.1+E, 0.0.1=E]", jA.toString());
+        assertEquals("D:0.0.1+E, A:[0.0.1+E, 0.0.1:E]", jA.toString());
     }
 
 
@@ -292,12 +292,12 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0, A:[2+E, 2=E, 4+E, 4=E]", iA.toString());
+        assertEquals("D:0, A:[2+E, 2:E, 4+E, 4:E]", iA.toString());
 
         VariableInfo jVi = vdMethod.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
-        assertEquals("D:1, A:[2.0.1+E, 2.0.1=E, 3]", jA.toString());
+        assertEquals("D:1, A:[2.0.1+E, 2.0.1:E, 3]", jA.toString());
     }
 
 
@@ -480,7 +480,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[0.0.0, 0.1.0.0.0, 0.1.0.1.1, 0.1.0:M, 0:M]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[0.0.0, 0.1.0.0.0, 0.1.0.1.1, 0.1.0=M, 0=M]", rvVi.assignments().toString());
         assertTrue(rvVi.hasBeenDefined("0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.1")); // fictitious
@@ -517,12 +517,12 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[1.0.0, 1:M]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[1.0.0, 1=M]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("0"));
         assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
         assertFalse(rvVi.hasBeenDefined("1"));
         assertFalse(rvVi.hasBeenDefined("1-E"));
-        assertTrue(rvVi.hasBeenDefined("1:M"));
+        assertTrue(rvVi.hasBeenDefined("1=M"));
         assertTrue(rvVi.hasBeenDefined("1.0.0"));
         assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
         assertTrue(rvVi.hasBeenDefined("2"));
@@ -555,12 +555,12 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[1.0.0, 1:M]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[1.0.0, 1=M]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("0"));
         assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
         assertFalse(rvVi.hasBeenDefined("1"));
         assertFalse(rvVi.hasBeenDefined("1-E"));
-        assertTrue(rvVi.hasBeenDefined("1:M"));
+        assertTrue(rvVi.hasBeenDefined("1=M"));
         assertTrue(rvVi.hasBeenDefined("1.0.0"));
         assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
         assertTrue(rvVi.hasBeenDefined("2"));
@@ -634,8 +634,8 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("3", iVi.readId());
         assertEquals("D:0, A:[0, 2]", iVi.assignments().toString());
-        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1:M", "3"));
-        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1:M", "3.0.1"));
+        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3"));
+        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3.0.1"));
 
         Statement s2 = method.methodBody().statements().get(2);
         VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);

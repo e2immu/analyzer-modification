@@ -19,6 +19,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.e2immu.analyzer.modification.prepwork.StatementIndex.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer.NOT_YET_READ;
 
 /*
@@ -26,7 +27,6 @@ do all the analysis of this phase
 
  */
 public class Analyze {
-    public static final String FIRST = "0";
     private final Runtime runtime;
 
     public Analyze(Runtime runtime) {
@@ -69,8 +69,7 @@ public class Analyze {
             Assignments prev;
             if (previous == null) {
                 assert !(v instanceof LocalVariable);
-                String indexOfDefinition = "-";
-                prev = new Assignments(indexOfDefinition);
+                prev = new Assignments(BEFORE_METHOD);
             } else {
                 prev = previous.assignments();
             }
@@ -141,7 +140,8 @@ public class Analyze {
         }
 
         readWriteData.seenFirstTime.forEach((v, i) -> {
-            VariableInfoContainer vic = initialVariable(i, v, readWriteData, hasMerge && !(v instanceof LocalVariable));
+            VariableInfoContainer vic = initialVariable(i, v, readWriteData,
+                    hasMerge && !(v instanceof LocalVariable));
             vdi.put(v, vic);
         });
 
@@ -189,7 +189,7 @@ public class Analyze {
         LocalVariable bv = runtime.newLocalVariable("bv-" + index, runtime.booleanParameterizedType(),
                 runtime.newEmptyExpression());
         iv.pushBreakVariable(bv);
-        Assignments notYetAssigned = new Assignments(index + "-E");
+        Assignments notYetAssigned = new Assignments(index + EVAL);
         VariableInfoImpl vii = new VariableInfoImpl(bv, notYetAssigned, NOT_YET_READ);
         vdOfParent.put(bv, new VariableInfoContainerImpl(bv, SYNTHETIC, Either.right(vii), null,
                 false));
@@ -292,7 +292,7 @@ public class Analyze {
             VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
             VariableInfoContainerImpl vici;
             if (inMap == null) {
-                String indexOfDefinition = v instanceof LocalVariable ? index : "-";
+                String indexOfDefinition = v instanceof LocalVariable ? index : BEFORE_METHOD;
                 Assignments notYetAssigned = new Assignments(indexOfDefinition);
                 VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
                 vici = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE, Either.right(initial), initial,
@@ -308,19 +308,17 @@ public class Analyze {
     private static Map<String, List<Assignments>> computeFallThrough(Map<String, List<VariableData>> fallThroughRecord, Variable v) {
         if (fallThroughRecord.isEmpty()) return Map.of();
         Map<String, List<Assignments>> res = new HashMap<>();
-        fallThroughRecord.forEach((index, vds) -> {
-            vds.forEach(vd -> {
-                VariableInfoContainer vic = vd.variableInfoContainerOrNull(v.fullyQualifiedName());
-                if (vic != null) {
-                    VariableInfo vi = vic.best();
-                    Assignments a = vi.assignments();
-                    if (a.size() > 0) {
-                        List<Assignments> list = res.computeIfAbsent(index, ii -> new ArrayList<>());
-                        list.add(a);
-                    }
+        fallThroughRecord.forEach((index, vds) -> vds.forEach(vd -> {
+            VariableInfoContainer vic = vd.variableInfoContainerOrNull(v.fullyQualifiedName());
+            if (vic != null) {
+                VariableInfo vi = vic.best();
+                Assignments a = vi.assignments();
+                if (a.size() > 0) {
+                    List<Assignments> list = res.computeIfAbsent(index, ii -> new ArrayList<>());
+                    list.add(a);
                 }
-            });
-        });
+            }
+        }));
         return res;
     }
 
@@ -329,7 +327,7 @@ public class Analyze {
     }
 
     private VariableInfoContainer initialVariable(String index, Variable v, ReadWriteData readWriteData, boolean hasMerge) {
-        String indexOfDefinition = v instanceof LocalVariable ? index : "-";
+        String indexOfDefinition = v instanceof LocalVariable ? index : StatementIndex.BEFORE_METHOD;
         Assignments notYetAssigned = new Assignments(indexOfDefinition);
         VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
         VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial),
@@ -340,7 +338,7 @@ public class Analyze {
 
     private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement,
                                       InternalVariables iv) {
-        String index = statement.hasSubBlocks() ? indexIn + "-E" : indexIn;
+        String index = statement.hasSubBlocks() ? indexIn + StatementIndex.EVAL : indexIn;
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
         Visitor v = new Visitor(index, knownVariableNames);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
@@ -360,16 +358,16 @@ public class Analyze {
             } else if (statement instanceof ForStatement fs) {
                 for (Element initializer : fs.initializers()) {
                     if (initializer instanceof LocalVariableCreation lvc) {
-                        handleLvc(lvc, v.withIndex(indexIn + "+E"));
+                        handleLvc(lvc, v.withIndex(indexIn + EVAL_INIT));
                     } else if (initializer instanceof Expression e) {
-                        e.visit(v.withIndex(indexIn + "+E"));
+                        e.visit(v.withIndex(indexIn + EVAL_INIT));
                     } else throw new UnsupportedOperationException();
                 }
                 for (Expression updater : fs.updaters()) {
-                    updater.visit(v.withIndex(indexIn + "=E"));
+                    updater.visit(v.withIndex(indexIn + EVAL_UPDATE));
                 }
             } else if (statement instanceof ForEachStatement fe) {
-                handleLvc(fe.initializer(), v.withIndex(indexIn + "+E"));
+                handleLvc(fe.initializer(), v.withIndex(indexIn + EVAL_INIT));
                 v.assignedAdd(fe.initializer().localVariable());
             } else if (statement instanceof AssertStatement as) {
                 if (as.message() != null) as.message().visit(v);
