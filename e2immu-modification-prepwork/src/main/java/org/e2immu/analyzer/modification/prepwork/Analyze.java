@@ -65,13 +65,13 @@ public class Analyze {
                                  Set<Variable> seenFirstTime,
                                  Set<Variable> read,
                                  Set<Variable> assigned) {
-        public Assignments assignmentIds(Variable v, Stage stage) {
+        public Assignments assignmentIds(Variable v, Stage stageOfPrevious) {
             Assignments prev;
             if (previous == null || !previous.isKnown(v.fullyQualifiedName())) {
                 String indexOfDefinition = v instanceof LocalVariable ? index : "-";
                 prev = new Assignments(indexOfDefinition);
             } else {
-                prev = previous.variableInfo(v, stage).assignments();
+                prev = previous.variableInfo(v, stageOfPrevious).assignments();
             }
             boolean isAssigned = assigned.contains(v);
             if (isAssigned) {
@@ -80,10 +80,10 @@ public class Analyze {
             return prev;
         }
 
-        public String isRead(Variable v, Stage stage) {
+        public String isRead(Variable v, Stage stageOfPrevious) {
             return read.contains(v) ? index : previous == null || !previous.isKnown(v.fullyQualifiedName())
                     ? NOT_YET_READ
-                    : previous.variableInfo(v, stage).readId();
+                    : previous.variableInfo(v, stageOfPrevious).readId();
         }
 
         public Set<Variable> variablesSeenFirstTime() {
@@ -136,7 +136,7 @@ public class Analyze {
         ReadWriteData readWriteData = analyzeEval(previous, index, statement, iv);
         VariableDataImpl vdi = new VariableDataImpl();
         boolean hasMerge = statement.hasSubBlocks();
-        Stage stage = first ? Stage.EVALUATION : Stage.MERGE;
+        Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         Stream<VariableInfoContainer> stream;
         if (previous == null) {
             stream = Stream.of();
@@ -144,11 +144,11 @@ public class Analyze {
             stream = previous.variableInfoContainerStream();
         }
         stream.forEach(vic -> {
-            VariableInfo vi = vic.best(stage);
+            VariableInfo vi = vic.best(stageOfPrevious);
             if (Util.inScopeOf(vi.assignments().indexOfDefinition(), index)) {
                 Variable variable = vi.variable();
-                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stage),
-                        readWriteData.isRead(variable, stage));
+                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stageOfPrevious),
+                        readWriteData.isRead(variable, stageOfPrevious));
                 boolean specificHasMerge = hasMerge && !readWriteData.variablesSeenFirstTime().contains(variable);
                 VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
                         Either.left(vic), eval, specificHasMerge);
