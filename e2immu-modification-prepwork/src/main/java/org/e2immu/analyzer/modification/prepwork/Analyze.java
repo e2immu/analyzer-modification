@@ -275,34 +275,44 @@ public class Analyze {
                 }
             });
         }
-        map.forEach((v, vis) -> {
-            Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
-                    .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
-            // the return variable passed on for corrections is 'null' when we're computing for the return variable
-            ReturnVariable returnVariable = v.equals(iv.rv) ? null : iv.rv;
-            Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
-                    lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
+        if(map.isEmpty()) {
+            // copy best(EVAL) into merge, if a merge is present
+            vdStatement.variableInfoContainerStream().forEach(vic -> {
+                if(vic.hasMerge()) {
+                    VariableInfoContainerImpl vici = (VariableInfoContainerImpl)vic;
+                    vici.setMerge((VariableInfoImpl) vic.best(Stage.EVALUATION));
+                }
+            });
+        } else {
+            map.forEach((v, vis) -> {
+                Map<String, Assignments> assignmentsPerBlock = vis.entrySet().stream()
+                        .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().assignments()));
+                // the return variable passed on for corrections is 'null' when we're computing for the return variable
+                ReturnVariable returnVariable = v.equals(iv.rv) ? null : iv.rv;
+                Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
+                        lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
 
-            Map<String, List<Assignments>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
-            Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock,
-                    fallThroughForV);
-            String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
-                    (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
-            VariableInfoImpl merge = new VariableInfoImpl(v, assignments, readId);
-            VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
-            VariableInfoContainerImpl vici;
-            if (inMap == null) {
-                String indexOfDefinition = v instanceof LocalVariable ? index : BEFORE_METHOD;
-                Assignments notYetAssigned = new Assignments(indexOfDefinition);
-                VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
-                vici = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE, Either.right(initial), initial,
-                        true);
-                vdStatement.put(v, vici);
-            } else {
-                vici = (VariableInfoContainerImpl) inMap;
-            }
-            vici.setMerge(merge);
-        });
+                Map<String, List<Assignments>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
+                Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock,
+                        fallThroughForV);
+                String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
+                        (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
+                VariableInfoImpl merge = new VariableInfoImpl(v, assignments, readId);
+                VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
+                VariableInfoContainerImpl vici;
+                if (inMap == null) {
+                    String indexOfDefinition = v instanceof LocalVariable ? index : BEFORE_METHOD;
+                    Assignments notYetAssigned = new Assignments(indexOfDefinition);
+                    VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
+                    vici = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE, Either.right(initial), initial,
+                            true);
+                    vdStatement.put(v, vici);
+                } else {
+                    vici = (VariableInfoContainerImpl) inMap;
+                }
+                vici.setMerge(merge);
+            });
+        }
     }
 
     private static Map<String, List<Assignments>> computeFallThrough(Map<String, List<VariableData>> fallThroughRecord, Variable v) {
