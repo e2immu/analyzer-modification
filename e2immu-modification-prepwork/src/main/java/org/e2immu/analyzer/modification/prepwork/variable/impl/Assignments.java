@@ -14,56 +14,38 @@ import java.util.stream.Stream;
 public class Assignments {
 
     public boolean hasNotYetBeenAssigned() {
-        return assignments.isEmpty();
-    }
-
-    public record I(String index, List<String> actualAssignmentIndices) implements Comparable<I> {
-        @Override
-        public String toString() {
-            return index + "=" + actualAssignmentIndices;
-        }
-
-        @Override
-        public int compareTo(I o) {
-            return index.compareTo(o.index);
-        }
-
-        public I with(List<String> fromFallThrough) {
-            if (fromFallThrough == null || fromFallThrough.isEmpty()) return this;
-            return new I(index, Stream.concat(fromFallThrough.stream(), actualAssignmentIndices.stream()).toList());
-        }
+        return assignmentIndices.length == 0;
     }
 
     private final String indexOfDefinition;
-    private final List<I> assignments;
+    private final String[] assignmentIndices;
 
     public Assignments(String indexOfDefinition) {
         this.indexOfDefinition = indexOfDefinition;
-        assignments = List.of();
+        assignmentIndices = new String[0];
     }
 
-    private Assignments(String indexOfDefinition, List<I> assignments) {
-        this.assignments = assignments;
+    private Assignments(String indexOfDefinition, String[] assignmentIndices) {
+        this.assignmentIndices = assignmentIndices;
         this.indexOfDefinition = indexOfDefinition;
     }
 
-    private Assignments(String indexOfDefinition, List<I> previous, I i) {
-        this.assignments = Stream.concat(previous.stream(), Stream.of(i)).toList();
+    private Assignments(String indexOfDefinition, String[] previous, String i) {
+        this.assignmentIndices = Stream.concat(Arrays.stream(previous), Stream.of(i)).toArray(String[]::new);
         this.indexOfDefinition = indexOfDefinition;
+    }
+
+    public int size() {
+        return assignmentIndices.length;
     }
 
     @Override
     public String toString() {
-        return "D:" + indexOfDefinition + ", A:" + assignments.toString();
+        return "D:" + indexOfDefinition + ", A:" + Arrays.toString(assignmentIndices);
     }
 
     public static Assignments newAssignment(String index, Assignments previous) {
-        List<String> allActualAssignmentIndices = previous.assignments.isEmpty()
-                ? List.of(index)
-                : Stream.concat(previous.assignments.get(previous.assignments.size() - 1).actualAssignmentIndices.stream(),
-                Stream.of(index)).toList();
-        I i = new I(index, allActualAssignmentIndices);
-        return new Assignments(previous.indexOfDefinition, previous.assignments, i);
+        return new Assignments(previous.indexOfDefinition, previous.assignmentIndices, index);
     }
 
     public interface CompleteMerge {
@@ -128,40 +110,26 @@ public class Assignments {
     public static Assignments mergeBlocks(String index,
                                           CompleteMerge completeMerge,
                                           Map<String, Assignments> assignmentsInBlocks,
-                                          Map<String, List<String>> assignmentsToAddFromFallThrough) {
-        List<I> unrelatedToMerge = new ArrayList<>();
-        List<I> inSubBlocks = new ArrayList<>();
-        boolean first = true;
+                                          Map<String, List<Assignments>> assignmentsToAddFromFallThrough) {
+        List<String> list = new ArrayList<>();
         Assignments aFirst = null;
         for (Map.Entry<String, Assignments> entry : assignmentsInBlocks.entrySet()) {
             Assignments a = entry.getValue();
             String subIndex = entry.getKey();
-            List<String> fromFallThrough = assignmentsToAddFromFallThrough.get(subIndex);
-            boolean wroteFallThrough = false;
+
+            List<Assignments> fromFallThrough = assignmentsToAddFromFallThrough.get(subIndex);
+            if (fromFallThrough != null) {
+                fromFallThrough.forEach(ff -> list.addAll(Arrays.asList(ff.assignmentIndices)));
+            }
+
             boolean haveAssignment = false;
-            if (first) {
-                aFirst = a;
-                for (I i : a.assignments) {
-                    if (i.index.compareTo(index) < 0) unrelatedToMerge.add(i);
-                    else {
-                        haveAssignment |= Util.atSameLevel(subIndex, i.index);
-                        inSubBlocks.add(i.with(fromFallThrough));
-                        wroteFallThrough = fromFallThrough != null;
-                    }
+            for (String s : a.assignmentIndices) {
+                if (s.compareTo(index) >= 0) {
+                    haveAssignment |= Util.atSameLevel(subIndex, s);
                 }
-                first = false;
-            } else {
-                for (I i : a.assignments) {
-                    if (i.index.compareTo(index) > 0) {
-                        haveAssignment |= Util.atSameLevel(subIndex, i.index);
-                        inSubBlocks.add(i.with(fromFallThrough));
-                        wroteFallThrough = fromFallThrough != null;
-                    }
-                }
+                list.add(s);
             }
-            if (fromFallThrough != null && !wroteFallThrough) {
-                inSubBlocks.add(new I(subIndex + (fromFallThrough.size() > 1 ? ":M" : ""), fromFallThrough));
-            }
+            if (aFirst == null) aFirst = a;
             if (haveAssignment) {
                 // nothing was added, so no assignment
                 completeMerge.add(subIndex);
@@ -170,14 +138,9 @@ public class Assignments {
         assert aFirst != null;
         if (completeMerge.complete()) {
             String mergeIndex = index + ":M";
-            List<String> actual = inSubBlocks.stream().flatMap(i -> i.actualAssignmentIndices.stream())
-                    .distinct().sorted().toList();
-            I merge = new I(mergeIndex, actual);
-            return new Assignments(aFirst.indexOfDefinition, unrelatedToMerge, merge);
+            list.add(mergeIndex);
         }
-        // just concat everything...
-        return new Assignments(aFirst.indexOfDefinition,
-                Stream.concat(unrelatedToMerge.stream(), inSubBlocks.stream()).sorted().toList());
+        return new Assignments(aFirst.indexOfDefinition, list.stream().distinct().sorted().toArray(String[]::new));
     }
 
     public static CompleteMerge assignmentsRequiredForMerge(Statement statement,
@@ -229,54 +192,47 @@ public class Assignments {
         return new CompleteMergeByCounting(n - blocksWithReturn);
     }
 
+    /*
+    first statement: 1.0.0, last assignment: 1.0.5-> OK, 1.0.4.0.1 not OK!
+     */
     public boolean lastAssignmentIsMergeInBlockOf(String firstStatementIndex) {
-        if (assignments.isEmpty()) return false;
-        I last = assignments.get(assignments.size() - 1);
-        return Util.atSameLevel(firstStatementIndex, last.index);
-    }
-
-    public List<I> assignments() {
-        return assignments;
-    }
-
-    public I latest() {
-        return assignments.isEmpty() ? null : assignments.get(assignments.size() - 1);
+        if (assignmentIndices.length == 0) return false;
+        String last = assignmentIndices[assignmentIndices.length - 1];
+        return Util.atSameLevel(firstStatementIndex, last);
     }
 
     public String indexOfDefinition() {
         return indexOfDefinition;
     }
 
-    public boolean hasBeenDefined(String index) {
+    /*
+    has the variable been assigned at this index?
+     */
+    public boolean hasAValueAt(String index) {
         if (indexOfDefinition.compareTo(index) > 0) {
             throw new UnsupportedOperationException("not yet defined");
         }
-        for (I i : assignments) {
-            if (Util.inScopeOf(i.index, index)) return true;
-            if (i.index.endsWith(":M")) {
-                String withoutM = i.index.substring(0, i.index.length() - 2);
-                if (withoutM.equals(index)) {
-                    return true;
-                }
-                if (index.startsWith(withoutM)) {
-                    // we may have to check with the individual definition points
-                    for (String aai : i.actualAssignmentIndices) {
-                        if (Util.inScopeOf(aai, index)) return true;
-                    }
-                }
+        if (assignmentIndices.length == 0) return false;
+        int pos = Arrays.binarySearch(assignmentIndices, index);
+        if (pos >= 0) return true; // we're hitting a definition point
+        int insert = -(pos + 1);
+        if (insert == 0) return false;
+        for (int k = insert - 1; k >= 0; k--) {
+            String s = assignmentIndices[k];
+            int dot = s.lastIndexOf('.');
+            if (dot < 0) {
+                return s.compareTo(index) < 0;
             }
+            String sDot = s.substring(0, dot);
+            if (index.startsWith(sDot) && s.compareTo(index) < 0) return true;
         }
         return false;
     }
 
-    public List<String> mergeIndices() {
-        return assignments.stream()
-                .filter(i -> i.index.endsWith(":M"))
-                .map(i -> Util.stripStage(i.index)).toList();
-    }
 
     /*
     do we have an assignment after 'after', seen by 'seenBy'?
+
 
     examples:
     0 - 1 - 2 --> yes
@@ -284,16 +240,12 @@ public class Assignments {
     1.1.0 - 2 - 2.0.1 --> yes
      */
     public boolean hasBeenDefinedAfterFor(String after, String seenBy) {
-        for (int i = assignments.size() - 1; i >= 0; --i) {
-            I a = assignments.get(i);
-            if (a.index.compareTo(after) >= 0) {
-                if(Util.isSeenBy(a.index, seenBy)) return true;
-            } else {
-                break;
-            }
-        }
-        return false;
+        return indexOfDefinition.compareTo(after) < 0 && hasAValueAt(seenBy);
     }
 
+    public List<String> mergeIndices() {
+        // FIXME trim :M?
+        return Arrays.stream(assignmentIndices).map(s -> s).toList();
+    }
 }
 

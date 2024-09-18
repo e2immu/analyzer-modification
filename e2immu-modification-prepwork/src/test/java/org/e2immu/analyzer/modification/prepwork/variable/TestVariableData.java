@@ -209,7 +209,7 @@ public class TestVariableData extends CommonTest {
         assertNotNull(vicJ);
         VariableInfo viJ = vicJ.best();
         assertEquals("2", viJ.readId());
-        assertEquals("D:-, A:[1.1.1=[1.1.1]]", viJ.assignments().toString());
+        assertEquals("D:-, A:[1.1.1]", viJ.assignments().toString());
 
         ReturnVariable rv = new ReturnVariableImpl(method1);
 
@@ -220,7 +220,7 @@ public class TestVariableData extends CommonTest {
         assertTrue(vd.isKnown(rv.fullyQualifiedName()));
         VariableInfo viRv = vd.variableInfo(rv.fullyQualifiedName());
         assertEquals("-", viRv.readId());
-        assertEquals("D:-, A:[2=[2]]", viRv.assignments().toString());
+        assertEquals("D:-, A:[2]", viRv.assignments().toString());
 
     }
 

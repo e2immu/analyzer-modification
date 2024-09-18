@@ -8,10 +8,6 @@ import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.support.EventuallyFinal;
-import org.e2immu.support.FirstThen;
-import org.e2immu.support.SetOnce;
-
-import java.util.Set;
 
 public class VariableInfoImpl implements VariableInfo {
 
@@ -86,7 +82,7 @@ public class VariableInfoImpl implements VariableInfo {
     @Override
     public boolean hasBeenDefined(String index) {
         if (variable instanceof LocalVariable || variable instanceof ReturnVariable) {
-            return assignments.hasBeenDefined(index);
+            return assignments.hasAValueAt(index);
         }
         return true;
     }

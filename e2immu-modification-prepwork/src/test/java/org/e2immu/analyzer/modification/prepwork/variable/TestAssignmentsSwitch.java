@@ -97,12 +97,12 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId());
-        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.2, 1.0.4]]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.2, 1.0.4, 1:M]", iVi.assignments().toString());
 
         Statement ifElse = method.methodBody().statements().get(1).block().statements().get(0);
         VariableData vdIfElse = ifElse.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo iViIfElse = vdIfElse.variableInfo("i");
-        assertEquals("D:0, A:[1.0.0:M=[1.0.0.0.0, 1.0.0.1.0]]", iViIfElse.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M]", iViIfElse.assignments().toString());
     }
 
 
@@ -148,7 +148,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1.0.0:M=[1.0.0.0.0, 1.0.0.1.0], 1.0.2=[1.0.2]]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.2]", iVi.assignments().toString());
         assertFalse(iVi.hasBeenDefined("2"));
     }
 
@@ -189,7 +189,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.3]]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.3, 1:M]", iVi.assignments().toString());
         assertTrue(iVi.hasBeenDefined("2"));
     }
 
@@ -227,7 +227,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1:M=[1.0.0.0.0, 1.0.0.1.0, 1.0.3]]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.3, 1:M]", iVi.assignments().toString());
         assertTrue(iVi.hasBeenDefined("2"));
     }
 
@@ -264,7 +264,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("2", iVi.readId()); // last time read in method
-        assertEquals("D:0, A:[1.0.1:M=[1.0.0.0.0, 1.0.0.1.0], 1.0.3=[1.0.3]]", iVi.assignments().toString());
+        assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0:M, 1.0.3]", iVi.assignments().toString());
         assertFalse(iVi.hasBeenDefined("2"));
     }
 }

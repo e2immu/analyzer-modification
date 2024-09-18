@@ -53,7 +53,7 @@ public class TestAssignmentsTry extends CommonTest {
         VariableInfo cVi = vdMethod.variableInfo("c");
         assertEquals("3", cVi.readId());
         Assignments cA = cVi.assignments();
-        assertEquals("D:0, A:[1:M=[1.0.0, 1.1.0]]", cA.toString());
+        assertEquals("D:0, A:[1.0.0, 1.1.0, 1:M]", cA.toString());
     }
 
 
@@ -97,12 +97,12 @@ public class TestAssignmentsTry extends CommonTest {
         VariableInfo cVi = vdMethod.variableInfo("c");
         assertEquals("4", cVi.readId());
         Assignments cA = cVi.assignments();
-        assertEquals("D:0, A:[2:M=[2.0.0, 2.1.0]]", cA.toString());
+        assertEquals("D:0, A:[2.0.0, 2.1.0, 2:M]", cA.toString());
 
         VariableInfo dVi = vdMethod.variableInfo("d");
         assertEquals("3", dVi.readId());
         Assignments dA = dVi.assignments();
-        assertEquals("D:1, A:[2:M=[2.2.0]]", dA.toString());
+        assertEquals("D:1, A:[2.2.0, 2:M]", dA.toString());
     }
 
 
@@ -141,7 +141,7 @@ public class TestAssignmentsTry extends CommonTest {
         assertNotNull(vdMethod);
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[0.2.1=[0.2.1]]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[0.2.1]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("1"));
     }
 

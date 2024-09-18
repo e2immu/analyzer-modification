@@ -283,7 +283,7 @@ public class Analyze {
             Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
                     lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
 
-            Map<String, List<String>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
+            Map<String, List<Assignments>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
             Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock,
                     fallThroughForV);
             String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
@@ -305,19 +305,18 @@ public class Analyze {
         });
     }
 
-    private static Map<String, List<String>> computeFallThrough(Map<String, List<VariableData>> fallThroughRecord, Variable v) {
+    private static Map<String, List<Assignments>> computeFallThrough(Map<String, List<VariableData>> fallThroughRecord, Variable v) {
         if (fallThroughRecord.isEmpty()) return Map.of();
-        Map<String, List<String>> res = new HashMap<>();
+        Map<String, List<Assignments>> res = new HashMap<>();
         fallThroughRecord.forEach((index, vds) -> {
             vds.forEach(vd -> {
                 VariableInfoContainer vic = vd.variableInfoContainerOrNull(v.fullyQualifiedName());
                 if (vic != null) {
                     VariableInfo vi = vic.best();
                     Assignments a = vi.assignments();
-                    if (!a.assignments().isEmpty()) {
-                        Assignments.I i = a.assignments().get(a.assignments().size() - 1);
-                        List<String> list = res.computeIfAbsent(index, ii -> new ArrayList<>());
-                        list.addAll(i.actualAssignmentIndices());
+                    if (a.size() > 0) {
+                        List<Assignments> list = res.computeIfAbsent(index, ii -> new ArrayList<>());
+                        list.add(a);
                     }
                 }
             });

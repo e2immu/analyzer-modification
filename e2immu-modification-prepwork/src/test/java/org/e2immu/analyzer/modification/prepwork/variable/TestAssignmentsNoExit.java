@@ -67,8 +67,10 @@ public class TestAssignmentsNoExit extends CommonTest {
         assertNotNull(vdMethod);
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[2:M=[2.0.2.0.0.0.0, 2.0.2.0.0.0.1, 2.0.2.0.1, 2.0.2.0.2.0.1]]", rvVi.assignments().toString());
-        assertTrue(rvVi.hasBeenDefined("2"));
+        assertEquals("D:-, A:[2.0.2.0.0.0.0, 2.0.2.0.0.0.1, 2.0.2.0.0:M, 2.0.2.0.1, 2.0.2.0.2.0.1, 2:M]",
+                rvVi.assignments().toString());
+        assertTrue(rvVi.hasBeenDefined("2:M"));
+        assertTrue(rvVi.hasBeenDefined("3.0.0"));
     }
 
 }

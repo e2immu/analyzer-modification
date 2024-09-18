@@ -61,41 +61,41 @@ public class TestAssignments extends CommonTest {
         assertEquals("3.0.2-E", iVi.readId());
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0, A:[0=[0]]", iA.toString());
+        assertEquals("D:0, A:[0]", iA.toString());
 
         IfElseStatement ifElseStatement = (IfElseStatement) method.methodBody().statements().get(3);
         Statement j1 = ifElseStatement.block().statements().get(0);
         VariableData vdJ1 = j1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo jViJ1 = vdJ1.variableInfo("j");
         assertEquals("-", jViJ1.readId());
-        assertEquals("D:1, A:[3.0.0=[3.0.0]]", jViJ1.assignments().toString());
+        assertEquals("D:1, A:[3.0.0]", jViJ1.assignments().toString());
 
         Statement j3 = ifElseStatement.elseBlock().statements().get(0);
         VariableData vdJ3 = j3.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo jViJ3 = vdJ3.variableInfo("j");
         assertEquals("-", jViJ3.readId());
-        assertEquals("D:1, A:[3.1.0=[3.1.0]]", jViJ3.assignments().toString());
+        assertEquals("D:1, A:[3.1.0]", jViJ3.assignments().toString());
 
         VariableData vdJIf = ifElseStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo jViJIf = vdJIf.variableInfo("j");
         assertEquals("-", jViJIf.readId());
-        assertEquals("D:1, A:[3:M=[3.0.0, 3.1.0]]", jViJIf.assignments().toString());
+        assertEquals("D:1, A:[3.0.0, 3.1.0, 3:M]", jViJIf.assignments().toString());
 
         VariableInfo jVi = vdMethod.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         assertEquals("4", jVi.readId());
         Assignments jA = jVi.assignments();
-        assertEquals("D:1, A:[3:M=[3.0.0, 3.1.0]]", jA.toString());
+        assertEquals("D:1, A:[3.0.0, 3.1.0, 3:M]", jA.toString());
 
         VariableInfo kVi = vdMethod.variableInfo("k");
         assertEquals("k", kVi.variable().simpleName());
         assertEquals("3.0.2.0.0", kVi.readId());
         Assignments kA = kVi.assignments();
-        assertEquals("D:2, A:[3.0.1=[3.0.1]]", kA.toString());
+        assertEquals("D:2, A:[3.0.1]", kA.toString());
 
         VariableInfo rv = vdMethod.variableInfo(method.fullyQualifiedName());
         assertEquals("-", rv.readId());
-        assertEquals("D:-, A:[3.0.2.0.0=[3.0.2.0.0], 4=[3.0.2.0.0, 4]]", rv.assignments().toString());
+        assertEquals("D:-, A:[3.0.2.0.0, 4]", rv.assignments().toString());
     }
 
 
@@ -138,7 +138,7 @@ public class TestAssignments extends CommonTest {
         assertFalse(vd0.variableInfoContainerOrNull("i").hasMerge());
         assertEquals("0-E", iVi.readId()); // is not a merge, so we cannot see the read in 'return i'
         Assignments iA = iVi.assignments();
-        assertEquals("D:0-E, A:[0-E=[0-E]]", iA.toString());
+        assertEquals("D:0-E, A:[0-E]", iA.toString());
 
         Statement s000 = s0.block().statements().get(0);
         VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -149,7 +149,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
         assertEquals("return method", rvVi.variable().simpleName());
         Assignments rvA = rvVi.assignments();
-        assertEquals("D:-, A:[0.0.0.0.0=[0.0.0.0.0], 1=[0.0.0.0.0, 1]]", rvA.toString());
+        assertEquals("D:-, A:[0.0.0.0.0, 1]", rvA.toString());
     }
 
 
@@ -194,7 +194,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0-E, A:[0-E=[0-E]]", iA.toString());
+        assertEquals("D:0-E, A:[0-E]", iA.toString());
 
         Statement s001 = s0.block().statements().get(1);
         VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -202,7 +202,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo jVi = vd001.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
-        assertEquals("D:0.0.1-E, A:[0.0.1-E=[0.0.1-E]]", jA.toString());
+        assertEquals("D:0.0.1-E, A:[0.0.1-E]", jA.toString());
     }
 
     @Language("java")
@@ -248,12 +248,12 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
-        assertEquals("D:0, A:[2-E=[2-E], 4-E=[2-E, 4-E]]", iA.toString());
+        assertEquals("D:0, A:[2-E, 4-E]", iA.toString());
 
         VariableInfo jVi = vdMethod.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
-        assertEquals("D:1, A:[2.0.1-E=[2.0.1-E], 3=[2.0.1-E, 3]]", jA.toString());
+        assertEquals("D:1, A:[2.0.1-E, 3]", jA.toString());
     }
 
 
@@ -353,22 +353,16 @@ public class TestAssignments extends CommonTest {
 
         VariableInfo newHighIndexVi = vdMethod.variableInfo("newHighIndex");
         assertEquals("newHighIndex", newHighIndexVi.variable().simpleName());
-        assertEquals("""
-                D:08, A:[15=[15], 16.0.1.0.0=[15, 16.0.1.0.0], 16.0.4.0.0=[15, 16.0.1.0.0, 16.0.4.0.0], \
-                16.0.4.1.0.0.2.0.4=[15, 16.0.1.0.0, 16.0.4.1.0.0.2.0.4]]\
-                """, newHighIndexVi.assignments().toString());
+        assertEquals("D:08, A:[15, 16.0.1.0.0, 16.0.4.0.0, 16.0.4.1.0.0.2.0.4]",
+                newHighIndexVi.assignments().toString());
 
         VariableInfo newLowIndexVi = vdMethod.variableInfo("newLowIndex");
         assertEquals("newLowIndex", newLowIndexVi.variable().simpleName());
-        assertEquals("""
-                D:07, A:[14=[14], 16.0.3.0.0=[14, 16.0.3.0.0], 16.0.4.1.0.0.2.0.3=[14, 16.0.3.0.0, 16.0.4.1.0.0.2.0.3]]\
-                """, newLowIndexVi.assignments().toString());
+        assertEquals("D:07, A:[14, 16.0.3.0.0, 16.0.4.1.0.0.2.0.3]", newLowIndexVi.assignments().toString());
 
         VariableInfo highToLowVi = vdMethod.variableInfo("highToLowIndex");
         assertEquals("16.0.4.1.0.0.2.0.3", highToLowVi.readId());
-        assertEquals("""
-                D:01, A:[11=[11], 16.0.3.0.1=[11, 16.0.3.0.1], 16.0.4.1.0.0.2.0.6=[11, 16.0.3.0.1, 16.0.4.1.0.0.2.0.6]]\
-                """, highToLowVi.assignments().toString());
+        assertEquals("D:01, A:[11, 16.0.3.0.1, 16.0.4.1.0.0.2.0.6]", highToLowVi.assignments().toString());
     }
 
 
@@ -401,7 +395,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[0.0.0=[0.0.0], 0.1.0.0.0=[0.1.0.0.0]]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[0.0.0, 0.1.0.0.0]", rvVi.assignments().toString());
         assertTrue(rvVi.hasBeenDefined("0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.0.1")); // fictitious here
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.0"));
@@ -442,7 +436,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[0:M=[0.0.0, 0.1.0.0.0, 0.1.0.1.1]]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[0.0.0, 0.1.0.0.0, 0.1.0.1.1, 0.1.0:M, 0:M]", rvVi.assignments().toString());
         assertTrue(rvVi.hasBeenDefined("0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.0"));
         assertTrue(rvVi.hasBeenDefined("0.1.0.0.1")); // fictitious
@@ -479,10 +473,12 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[1:M=[1.0.0]]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[1.0.0, 1:M]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("0"));
         assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
-        assertTrue(rvVi.hasBeenDefined("1"));
+        assertFalse(rvVi.hasBeenDefined("1"));
+        assertFalse(rvVi.hasBeenDefined("1-E"));
+        assertTrue(rvVi.hasBeenDefined("1:M"));
         assertTrue(rvVi.hasBeenDefined("1.0.0"));
         assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
         assertTrue(rvVi.hasBeenDefined("2"));
@@ -515,10 +511,12 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[1:M=[1.0.0]]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[1.0.0, 1:M]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("0"));
         assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
-        assertTrue(rvVi.hasBeenDefined("1"));
+        assertFalse(rvVi.hasBeenDefined("1"));
+        assertFalse(rvVi.hasBeenDefined("1-E"));
+        assertTrue(rvVi.hasBeenDefined("1:M"));
         assertTrue(rvVi.hasBeenDefined("1.0.0"));
         assertTrue(rvVi.hasBeenDefined("1.0.1")); // fictitious
         assertTrue(rvVi.hasBeenDefined("2"));
@@ -552,7 +550,7 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[1.0.0=[1.0.0], 3=[1.0.0, 3]]", rvVi.assignments().toString());
+        assertEquals("D:-, A:[1.0.0, 3]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("0"));
         assertFalse(rvVi.hasBeenDefined("0.0.0")); // fictitious
         assertFalse(rvVi.hasBeenDefined("1"));
@@ -596,7 +594,7 @@ public class TestAssignments extends CommonTest {
         VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo iVi2 = vd2.variableInfo("i");
         assertEquals("1.0.0", iVi2.readId());
-        assertEquals("D:0, A:[0=[0], 2=[0, 2]]", iVi2.assignments().toString());
+        assertEquals("D:0, A:[0, 2]", iVi2.assignments().toString());
     }
 
 }
