@@ -589,12 +589,17 @@ public class TestAssignments extends CommonTest {
 
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("3", iVi.readId());
+        assertEquals("D:0, A:[0, 2]", iVi.assignments().toString());
+        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1:M", "3"));
+        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1:M", "3.0.1"));
 
         Statement s2 = method.methodBody().statements().get(2);
         VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo iVi2 = vd2.variableInfo("i");
         assertEquals("1.0.0", iVi2.readId());
         assertEquals("D:0, A:[0, 2]", iVi2.assignments().toString());
+
+
     }
 
 }

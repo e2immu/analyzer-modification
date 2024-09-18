@@ -219,16 +219,19 @@ public class Assignments {
         if (insert == 0) return false;
         for (int k = insert - 1; k >= 0; k--) {
             String s = assignmentIndices[k];
-            int dot = s.lastIndexOf('.');
-            if (dot < 0) {
-                return s.compareTo(index) < 0;
-            }
-            String sDot = s.substring(0, dot);
-            if (index.startsWith(sDot) && s.compareTo(index) < 0) return true;
+            if (seenBy(s, index)) return true;
         }
         return false;
     }
 
+    private static boolean seenBy(String s, String index) {
+        int dot = s.lastIndexOf('.');
+        if (dot < 0) {
+            return s.compareTo(index) < 0;
+        }
+        String sDot = s.substring(0, dot);
+        return index.startsWith(sDot) && s.compareTo(index) < 0;
+    }
 
     /*
     do we have an assignment after 'after', seen by 'seenBy'?
@@ -239,13 +242,26 @@ public class Assignments {
     0 - 1.0.0 - 1.1.0 --> no
     1.1.0 - 2 - 2.0.1 --> yes
      */
-    public boolean hasBeenDefinedAfterFor(String after, String seenBy) {
-        return indexOfDefinition.compareTo(after) < 0 && hasAValueAt(seenBy);
+    public boolean hasBeenAssignedAfterFor(String after, String seenBy) {
+        if (indexOfDefinition.compareTo(after) >= 0) {
+            throw new UnsupportedOperationException("must be defined earlier");
+        }
+        if (assignmentIndices.length == 0) return false;
+        int pos = Arrays.binarySearch(assignmentIndices, after);
+        int start;
+        if (pos >= 0) {
+            start = pos + 1;
+        } else {
+            start = -(pos + 1);
+        }
+        for (int i = start; i < assignmentIndices.length; i++) {
+            if (seenBy(assignmentIndices[i], seenBy)) return true;
+        }
+        return false;
     }
 
     public List<String> mergeIndices() {
-        // FIXME trim :M?
-        return Arrays.stream(assignmentIndices).map(s -> s).toList();
+        return Arrays.stream(assignmentIndices).map(Util::stripStage).toList();
     }
 }
 
