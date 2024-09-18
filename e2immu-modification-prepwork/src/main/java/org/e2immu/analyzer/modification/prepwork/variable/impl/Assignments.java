@@ -25,14 +25,15 @@ public class Assignments {
         assignmentIndices = new String[0];
     }
 
-    private Assignments(String indexOfDefinition, String[] assignmentIndices) {
+    private Assignments(Assignments previous, String[] assignmentIndices) {
         this.assignmentIndices = assignmentIndices;
-        this.indexOfDefinition = indexOfDefinition;
+        this.indexOfDefinition = previous.indexOfDefinition;
     }
 
-    private Assignments(String indexOfDefinition, String[] previous, String i) {
-        this.assignmentIndices = Stream.concat(Arrays.stream(previous), Stream.of(i)).toArray(String[]::new);
-        this.indexOfDefinition = indexOfDefinition;
+    private Assignments(Assignments previous, List<String> indices) {
+        this.assignmentIndices = Stream.concat(Arrays.stream(previous.assignmentIndices),
+                indices.stream()).toArray(String[]::new);
+        this.indexOfDefinition = previous.indexOfDefinition;
     }
 
     public int size() {
@@ -44,8 +45,13 @@ public class Assignments {
         return "D:" + indexOfDefinition + ", A:" + Arrays.toString(assignmentIndices);
     }
 
+    public static Assignments newAssignment(List<String> indices, Assignments previous) {
+        return new Assignments(previous, indices);
+    }
+
+    // for testing
     public static Assignments newAssignment(String index, Assignments previous) {
-        return new Assignments(previous.indexOfDefinition, previous.assignmentIndices, index);
+        return new Assignments(previous, List.of(index));
     }
 
     public interface CompleteMerge {
@@ -140,7 +146,7 @@ public class Assignments {
             String mergeIndex = index + ":M";
             list.add(mergeIndex);
         }
-        return new Assignments(aFirst.indexOfDefinition, list.stream().distinct().sorted().toArray(String[]::new));
+        return new Assignments(aFirst, list.stream().distinct().sorted().toArray(String[]::new));
     }
 
     public static CompleteMerge assignmentsRequiredForMerge(Statement statement,

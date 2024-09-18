@@ -17,7 +17,7 @@ public class Util {
      */
     public static boolean inScopeOf(String scope, String index) {
         if ("-".equals(scope)) return true;
-        int dashScope = scope.lastIndexOf("-");
+        int dashScope = Math.max(scope.lastIndexOf("-"), scope.lastIndexOf("+"));
         if (dashScope >= 0) {
             // 0-E -> in scope means starting with 0
             String sub = scope.substring(0, dashScope);

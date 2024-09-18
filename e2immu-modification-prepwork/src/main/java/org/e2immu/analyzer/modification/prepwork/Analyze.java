@@ -62,32 +62,28 @@ public class Analyze {
 
     private record ReadWriteData(VariableData previous,
                                  String index,
-                                 Set<Variable> seenFirstTime,
-                                 Set<Variable> read,
-                                 Set<Variable> assigned) {
-        public Assignments assignmentIds(Variable v, Stage stageOfPrevious) {
+                                 Map<Variable, String> seenFirstTime,
+                                 Map<Variable, String> read,
+                                 Map<Variable, List<String>> assigned) {
+        public Assignments assignmentIds(Variable v, VariableInfo previous) {
             Assignments prev;
-            if (previous == null || !previous.isKnown(v.fullyQualifiedName())) {
-                String indexOfDefinition = v instanceof LocalVariable ? index : "-";
+            if (previous == null) {
+                assert !(v instanceof LocalVariable);
+                String indexOfDefinition = "-";
                 prev = new Assignments(indexOfDefinition);
             } else {
-                prev = previous.variableInfo(v, stageOfPrevious).assignments();
+                prev = previous.assignments();
             }
-            boolean isAssigned = assigned.contains(v);
-            if (isAssigned) {
-                return Assignments.newAssignment(index, prev);
+            List<String> assignIds = assigned.get(v);
+            if (assignIds != null) {
+                return Assignments.newAssignment(assignIds, prev);
             }
             return prev;
         }
 
-        public String isRead(Variable v, Stage stageOfPrevious) {
-            return read.contains(v) ? index : previous == null || !previous.isKnown(v.fullyQualifiedName())
-                    ? NOT_YET_READ
-                    : previous.variableInfo(v, stageOfPrevious).readId();
-        }
-
-        public Set<Variable> variablesSeenFirstTime() {
-            return seenFirstTime;
+        public String isRead(Variable v, VariableInfo previous) {
+            String i = read.get(v);
+            return i != null ? i : previous == null ? NOT_YET_READ : previous.readId();
         }
     }
 
@@ -137,28 +133,32 @@ public class Analyze {
         VariableDataImpl vdi = new VariableDataImpl();
         boolean hasMerge = statement.hasSubBlocks();
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
-        Stream<VariableInfoContainer> stream;
+        Stream<VariableInfoContainer> streamOfPrevious;
         if (previous == null) {
-            stream = Stream.of();
+            streamOfPrevious = Stream.of();
         } else {
-            stream = previous.variableInfoContainerStream();
+            streamOfPrevious = previous.variableInfoContainerStream();
         }
-        stream.forEach(vic -> {
+
+        readWriteData.seenFirstTime.forEach((v, i) -> {
+            VariableInfoContainer vic = initialVariable(i, v, readWriteData, hasMerge && !(v instanceof LocalVariable));
+            vdi.put(v, vic);
+        });
+
+        streamOfPrevious.forEach(vic -> {
             VariableInfo vi = vic.best(stageOfPrevious);
             if (Util.inScopeOf(vi.assignments().indexOfDefinition(), index)) {
                 Variable variable = vi.variable();
-                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, stageOfPrevious),
-                        readWriteData.isRead(variable, stageOfPrevious));
-                boolean specificHasMerge = hasMerge && !readWriteData.variablesSeenFirstTime().contains(variable);
+
+                VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
+                        readWriteData.isRead(variable, vi));
+                boolean specificHasMerge = hasMerge && !readWriteData.seenFirstTime.containsKey(variable);
                 VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
                         Either.left(vic), eval, specificHasMerge);
                 vdi.put(variable, newVic);
             }
         });
 
-        for (Variable v : readWriteData.variablesSeenFirstTime()) {
-            vdi.put(v, initialVariable(index, v, readWriteData, hasMerge && !(v instanceof LocalVariable)));
-        }
 
         if (statement instanceof SwitchStatementOldStyle oss) {
             doOldStyleSwitchBlock(methodInfo, oss, vdi, iv);
@@ -332,8 +332,8 @@ public class Analyze {
         String indexOfDefinition = v instanceof LocalVariable ? index : "-";
         Assignments notYetAssigned = new Assignments(indexOfDefinition);
         VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
-        VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, Stage.MERGE),
-                readWriteData.isRead(v, Stage.MERGE));
+        VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial),
+                readWriteData.isRead(v, initial));
         return new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
                 Either.right(initial), eval, hasMerge);
     }
@@ -341,34 +341,36 @@ public class Analyze {
     private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement,
                                       InternalVariables iv) {
         String index = statement.hasSubBlocks() ? indexIn + "-E" : indexIn;
-        Visitor v = new Visitor(previous == null ? Set.of() : previous.knownVariableNames());
+        Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
+        Visitor v = new Visitor(index, knownVariableNames);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
-            v.assigned.add(iv.rv);
+            v.assignedAdd(iv.rv);
             if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
-                v.seenFirstTime.add(iv.rv);
+                v.seenFirstTime.put(iv.rv, v.index);
             }
         } else {
             LocalVariable bv = iv.bv();
             if (statement instanceof BreakStatement && bv != null) {
-                v.assigned.add(bv);
+                v.assignedAdd(bv);
                 if (!v.knownVariableNames.contains(bv.fullyQualifiedName())) {
-                    v.seenFirstTime.add(bv);
+                    v.seenFirstTime.put(bv, v.index);
                 }
             } else if (statement instanceof LocalVariableCreation lvc) {
                 handleLvc(lvc, v);
             } else if (statement instanceof ForStatement fs) {
                 for (Element initializer : fs.initializers()) {
                     if (initializer instanceof LocalVariableCreation lvc) {
-                        handleLvc(lvc, v);
+                        handleLvc(lvc, v.withIndex(indexIn + "+E"));
                     } else if (initializer instanceof Expression e) {
-                        e.visit(v);
+                        e.visit(v.withIndex(indexIn + "+E"));
                     } else throw new UnsupportedOperationException();
                 }
                 for (Expression updater : fs.updaters()) {
-                    updater.visit(v);
+                    updater.visit(v.withIndex(indexIn + "=E"));
                 }
             } else if (statement instanceof ForEachStatement fe) {
-                handleLvc(fe.initializer(), v);
+                handleLvc(fe.initializer(), v.withIndex(indexIn + "+E"));
+                v.assignedAdd(fe.initializer().localVariable());
             } else if (statement instanceof AssertStatement as) {
                 if (as.message() != null) as.message().visit(v);
             } else if (statement instanceof ExplicitConstructorInvocation eci) {
@@ -378,57 +380,68 @@ public class Analyze {
             }
         }
         Expression expression = statement.expression();
-        if (expression != null && !expression.isEmpty()) expression.visit(v);
+        if (expression != null && !expression.isEmpty()) expression.visit(v.withIndex(index));
         return new ReadWriteData(previous, index, v.seenFirstTime, v.read, v.assigned);
     }
 
     private static void handleLvc(LocalVariableCreation lvc, Visitor v) {
-        v.seenFirstTime.add(lvc.localVariable());
+        v.seenFirstTime.put(lvc.localVariable(), v.index);
         Expression assignmentExpression = lvc.localVariable().assignmentExpression();
         if (!assignmentExpression.isEmpty()) {
-            v.assigned.add(lvc.localVariable());
+            v.assignedAdd(lvc.localVariable());
             assignmentExpression.visit(v);
         }
         for (LocalVariable lv : lvc.otherLocalVariables()) {
-            v.seenFirstTime.add(lv);
+            v.seenFirstTime.put(lv, v.index);
             if (!lv.assignmentExpression().isEmpty()) {
-                v.assigned.add(lv);
+                v.assignedAdd(lv);
                 lv.assignmentExpression().visit(v);
             }
         }
     }
 
     private static class Visitor implements Predicate<Element> {
-        final Set<Variable> read = new HashSet<>();
-        final Set<Variable> assigned = new HashSet<>();
-        final Set<Variable> seenFirstTime = new HashSet<>();
+        String index;
+        final Map<Variable, String> read = new HashMap<>();
+        final Map<Variable, List<String>> assigned = new HashMap<>();
+        final Map<Variable, String> seenFirstTime = new HashMap<>();
         final Set<String> knownVariableNames;
 
-        Visitor(Set<String> knownVariableNames) {
+        Visitor(String index, Set<String> knownVariableNames) {
+            this.index = index;
             this.knownVariableNames = knownVariableNames;
+        }
+
+        public void assignedAdd(Variable variable) {
+            assigned.computeIfAbsent(variable, v -> new ArrayList<>()).add(index);
         }
 
         @Override
         public boolean test(Element e) {
             if (e instanceof VariableExpression ve) {
                 ve.variable().variableStreamDescend().forEach(v -> {
-                    read.add(v);
-                    if (!knownVariableNames.contains(v.fullyQualifiedName())) {
-                        seenFirstTime.add(v);
+                    read.put(v, index);
+                    if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
+                        seenFirstTime.put(v, index);
                     }
                 });
                 return false;
             }
             if (e instanceof InstanceOf instanceOf && instanceOf.patternVariable() != null) {
-                seenFirstTime.add(instanceOf.patternVariable());
-                assigned.add(instanceOf.patternVariable());
+                seenFirstTime.put(instanceOf.patternVariable(), index);
+                assignedAdd(instanceOf.patternVariable());
             }
             if (e instanceof Assignment a) {
-                assigned.add(a.variableTarget());
+                assignedAdd(a.variableTarget());
                 a.value().visit(this);
                 return false;
             }
             return true;
+        }
+
+        public Visitor withIndex(String s) {
+            this.index = s;
+            return this;
         }
     }
 }
