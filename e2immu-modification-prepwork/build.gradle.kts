@@ -40,6 +40,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.7")
 
     testImplementation("org.jetbrains:annotations:24.1.0")
+    testImplementation("org.e2immu:e2immu-cst-print:some.version")
     testImplementation("org.e2immu:e2immu-inspection-parser:some.version")
     testImplementation("org.e2immu:e2immu-internal-util:some.version")
     testImplementation("org.e2immu:e2immu-internal-graph:some.version")
@@ -48,6 +49,7 @@ dependencies {
     testImplementation("org.e2immu:e2immu-inspection-integration:some.version")
     testImplementation("org.e2immu:e2immu-inspection-api:some.version")
     testImplementation("org.e2immu:e2immu-inspection-resource:some.version")
+    testImplementation("org.e2immu:e2immu-shallow-analyzer:some.version")
 
     testImplementation("ch.qos.logback:logback-classic:1.4.12")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")

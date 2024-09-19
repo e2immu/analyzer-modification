@@ -2,7 +2,17 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
+import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
+import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
+import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.output.Formatter;
+import org.e2immu.language.cst.api.output.OutputBuilder;
+import org.e2immu.language.cst.api.output.Qualification;
 import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.impl.analysis.DecoratorImpl;
+import org.e2immu.language.cst.print.FormatterImpl;
+import org.e2immu.language.cst.print.FormattingOptionsImpl;
 import org.e2immu.language.inspection.api.integration.JavaInspector;
 import org.e2immu.language.inspection.api.resource.InputConfiguration;
 import org.e2immu.language.inspection.integration.JavaInspectorImpl;
@@ -19,13 +29,15 @@ public class CommonTest {
     protected JavaInspector javaInspector;
     protected Runtime runtime;
     protected final String[] extraClassPath;
+    protected final boolean loadAnnotatedAPIs;
 
     protected CommonTest() {
-        this(new String[]{});
+        this(false, new String[]{});
     }
 
-    protected CommonTest(String... extraClassPath) {
+    protected CommonTest(boolean loadAnnotatedAPIs, String... extraClassPath) {
         this.extraClassPath = extraClassPath;
+        this.loadAnnotatedAPIs = loadAnnotatedAPIs;
     }
 
     @BeforeAll
@@ -53,7 +65,21 @@ public class CommonTest {
         javaInspector.initialize(inputConfiguration);
         javaInspector.preload("java.util");
 
+        if(loadAnnotatedAPIs) {
+            AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
+                    .addAnalyzedAnnotatedApiDirs("../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json")
+                    .build();
+            new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
+        }
+
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
+    }
+
+    protected String printType(TypeInfo newType) {
+        Qualification.Decorator decorator = new DecoratorImpl(runtime);
+        OutputBuilder ob = newType.print(runtime.qualificationQualifyFromPrimaryType(decorator), true);
+        Formatter formatter = new FormatterImpl(runtime, new FormattingOptionsImpl.Builder().build());
+        return formatter.write(ob);
     }
 }

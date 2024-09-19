@@ -3,13 +3,17 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.EventuallyFinal;
 
 public class VariableInfoImpl implements VariableInfo {
+    public static final Property MODIFIED_VARIABLE = new PropertyImpl("modifiedVariable");
 
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
     private final PropertyValueMap analysis = new PropertyValueMapImpl();
@@ -85,5 +89,10 @@ public class VariableInfoImpl implements VariableInfo {
             return assignments.hasAValueAt(index);
         }
         return true;
+    }
+
+    @Override
+    public boolean isModified() {
+        return analysis.getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue();
     }
 }
