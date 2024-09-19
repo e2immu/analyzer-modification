@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork.callcycle;
+package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 
