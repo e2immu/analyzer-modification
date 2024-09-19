@@ -37,25 +37,53 @@ public class Analyze {
         final ReturnVariable rv;
         final Stack<LocalVariable> breakVariables = new Stack<>();
 
+
+        final Stack<Statement> loopSwitchStack = new Stack<>();
+        final Map<String, String> labelToStatementIndex = new HashMap<>();
+        final Map<String, Integer> breakCountsInLoop = new HashMap<>();
+
         InternalVariables(ReturnVariable rv) {
             this.rv = rv;
         }
 
-        public List<Variable> currentVariables() {
+        List<Variable> currentVariables() {
             if (breakVariables.isEmpty()) return List.of(rv);
             return List.of(rv, breakVariables.peek());
         }
 
-        public void popBreakVariable(LocalVariable bv) {
+        void handleStatement(String index, Statement statement) {
+            if (statement.label() != null) {
+                labelToStatementIndex.put(statement.label(), index);
+            }
+            if (statement instanceof SwitchStatementOldStyle || statement instanceof LoopStatement) {
+                loopSwitchStack.push(statement);
+            } else if (statement instanceof BreakStatement bs) {
+                String loopIndex;
+                if (bs.label() == null) {
+                    loopIndex = loopSwitchStack.peek().source().index();
+                } else {
+                    loopIndex = labelToStatementIndex.get(bs.label());
+                }
+                breakCountsInLoop.merge(loopIndex, 1, Integer::sum);
+            }
+        }
+
+        void endHandleStatement(Statement statement) {
+            if (statement instanceof SwitchStatementOldStyle || statement instanceof LoopStatement) {
+                loopSwitchStack.pop();
+            }
+        }
+
+        void popBreakVariable(LocalVariable bv) {
             LocalVariable top = breakVariables.pop();
             assert top == bv;
         }
 
-        public void pushBreakVariable(LocalVariable bv) {
+        void pushBreakVariable(LocalVariable bv) {
             breakVariables.push(bv);
         }
 
-        public LocalVariable bv() {
+        LocalVariable bv() {
             return breakVariables.isEmpty() ? null : breakVariables.peek();
         }
     }
@@ -159,6 +187,7 @@ public class Analyze {
             }
         });
 
+        iv.handleStatement(index, statement);
 
         if (statement instanceof SwitchStatementOldStyle oss) {
             doOldStyleSwitchBlock(methodInfo, oss, vdi, iv);
@@ -166,9 +195,18 @@ public class Analyze {
             // sub-blocks
             if (statement.hasSubBlocks()) {
                 Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, iv);
-                addMerge(index, statement, vdi, lastOfEachSubBlock, iv, Map.of());
+
+                boolean noBreakStatementsInside;
+                if (statement instanceof LoopStatement) {
+                    noBreakStatementsInside = !iv.breakCountsInLoop.containsKey(index);
+                } else {
+                    noBreakStatementsInside = false;
+                }
+                addMerge(index, statement, vdi, noBreakStatementsInside, lastOfEachSubBlock, iv, Map.of());
             }
         }
+        iv.endHandleStatement(statement);
+
         statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
         return vdi;
     }
@@ -236,7 +274,8 @@ public class Analyze {
         if (indexOfFirstStatement != null) {
             lastOfEachSubBlock.put(indexOfFirstStatement, previous);
         }
-        addMerge(index, oss, vdOfParent, lastOfEachSubBlock, iv, fallThroughRecord);
+        // noBreakStatementsInside irrelevant for switch
+        addMerge(index, oss, vdOfParent, false, lastOfEachSubBlock, iv, fallThroughRecord);
         iv.popBreakVariable(bv);
     }
 
@@ -262,6 +301,7 @@ public class Analyze {
     private void addMerge(String index,
                           Statement statement,
                           VariableDataImpl vdStatement,
+                          boolean noBreakStatementsInside,
                           Map<String, VariableData> lastOfEachSubBlock,
                           InternalVariables iv,
                           Map<String, List<VariableData>> fallThroughRecord) {
@@ -275,11 +315,11 @@ public class Analyze {
                 }
             });
         }
-        if(map.isEmpty()) {
+        if (map.isEmpty()) {
             // copy best(EVAL) into merge, if a merge is present
             vdStatement.variableInfoContainerStream().forEach(vic -> {
-                if(vic.hasMerge()) {
-                    VariableInfoContainerImpl vici = (VariableInfoContainerImpl)vic;
+                if (vic.hasMerge()) {
+                    VariableInfoContainerImpl vici = (VariableInfoContainerImpl) vic;
                     vici.setMerge((VariableInfoImpl) vic.best(Stage.EVALUATION));
                 }
             });
@@ -290,7 +330,8 @@ public class Analyze {
                 // the return variable passed on for corrections is 'null' when we're computing for the return variable
                 ReturnVariable returnVariable = v.equals(iv.rv) ? null : iv.rv;
                 Assignments.CompleteMerge assignmentsRequiredForMerge = Assignments.assignmentsRequiredForMerge(statement,
-                        lastOfEachSubBlock, returnVariable); // only old-style switch needs this 'lastOfEachSubBlock'
+                        lastOfEachSubBlock, returnVariable, noBreakStatementsInside);
+                // only old-style switch needs this 'lastOfEachSubBlock; only loops need "noBreakStatementsInside
 
                 Map<String, List<Assignments>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
                 Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock,

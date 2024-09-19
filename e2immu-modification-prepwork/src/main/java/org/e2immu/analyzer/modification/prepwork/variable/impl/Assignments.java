@@ -152,7 +152,8 @@ public class Assignments {
 
     public static CompleteMerge assignmentsRequiredForMerge(Statement statement,
                                                             Map<String, VariableData> lastOfEachStatement,
-                                                            ReturnVariable returnVariable) {
+                                                            ReturnVariable returnVariable,
+                                                            boolean noBreakStatements) {
         int blocksWithReturn;
         if (returnVariable == null) {
             // when we're computing this for the return variable, no corrections allowed
@@ -188,8 +189,9 @@ public class Assignments {
                    || statement instanceof DoStatement && !statement.expression().isBoolValueTrue()) {
             n = 1;
         } else if (statement instanceof LoopStatement) {
-            if (statement.expression().isEmpty() || statement.expression().isBoolValueTrue()) {
-                n = 0; // anything goes, infinite loop, so there is no need for a value
+            if ((statement.expression().isEmpty() || statement.expression().isBoolValueTrue())
+                && noBreakStatements) {
+                n = 0; // we'll always return, or never continue
             } else {
                 n = Integer.MAX_VALUE;// there can be no merge
             }
