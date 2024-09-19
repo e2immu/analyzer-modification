@@ -425,7 +425,13 @@ public class Analyze {
             } else if (statement instanceof ExplicitConstructorInvocation eci) {
                 eci.parameterExpressions().forEach(e -> e.visit(v));
             } else if (statement instanceof TryStatement ts) {
-                ts.resources().forEach(r -> handleLvc(r, v));
+                ts.resources().forEach(r -> {
+                    if (r instanceof LocalVariableCreation lvc) {
+                        handleLvc(lvc, v);
+                    } else {
+                        r.visit(v);
+                    }
+                });
             }
         }
         Expression expression = statement.expression();
