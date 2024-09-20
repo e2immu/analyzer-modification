@@ -31,9 +31,12 @@ do all the analysis of this phase
  */
 public class AnalyzeMethod {
     private final Runtime runtime;
+    private final Map<MethodInfo, Set<MethodInfo>> copyModificationStatusFromTo = new HashMap<>();
+    private final Set<MethodInfo> copyMethods;
 
-    public AnalyzeMethod(Runtime runtime) {
+    public AnalyzeMethod(Runtime runtime, Set<MethodInfo> copyMethods) {
         this.runtime = runtime;
+        this.copyMethods = copyMethods;
     }
 
     private static class InternalVariables {
@@ -199,7 +202,7 @@ public class AnalyzeMethod {
                                      boolean first,
                                      InternalVariables iv) {
         String index = statement.source().index();
-        ReadWriteData readWriteData = analyzeEval(previous, index, statement, iv);
+        ReadWriteData readWriteData = analyzeEval(previous, index, statement, methodInfo, iv);
         VariableDataImpl vdi = new VariableDataImpl();
         boolean hasMerge = statement.hasSubBlocks();
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
@@ -444,11 +447,11 @@ public class AnalyzeMethod {
                 Either.right(initial), eval, hasMerge);
     }
 
-    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement,
+    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, MethodInfo currentMethod,
                                       InternalVariables iv) {
         String index = statement.hasSubBlocks() ? indexIn + StatementIndex.EVAL : indexIn;
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
-        Visitor v = new Visitor(index, knownVariableNames, statement);
+        Visitor v = new Visitor(index, knownVariableNames, statement, currentMethod);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assignedAdd(iv.rv);
             if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
@@ -512,7 +515,7 @@ public class AnalyzeMethod {
         }
     }
 
-    private static class Visitor implements org.e2immu.language.cst.api.element.Visitor {
+    private class Visitor implements org.e2immu.language.cst.api.element.Visitor {
         String index;
         int inNegative;
 
@@ -523,11 +526,13 @@ public class AnalyzeMethod {
         final Set<String> knownVariableNames;
         final Set<Variable> modified = new HashSet<>();
         final Statement statement;
+        final MethodInfo currentMethod;
 
-        Visitor(String index, Set<String> knownVariableNames, Statement statement) {
+        Visitor(String index, Set<String> knownVariableNames, Statement statement, MethodInfo currentMethod) {
             this.index = index;
             this.knownVariableNames = knownVariableNames;
             this.statement = statement;
+            this.currentMethod = currentMethod;
         }
 
         public void assignedAdd(Variable variable) {
@@ -585,6 +590,13 @@ public class AnalyzeMethod {
                         if (parameterModifying) recursivelyAddToModified(ve.variable(), true);
                     }
                     i++;
+                }
+
+                // HACK, will be replaced with staticValue system
+                if (copyMethods.contains(mc.methodInfo())
+                    && mc.parameterExpressions().get(0) instanceof MethodReference mr
+                    && mr.scope() instanceof VariableExpression ve && ve.variable() instanceof This) {
+                    copyModificationStatusFromTo.computeIfAbsent(mr.methodInfo(), m -> new HashSet<>()).add(currentMethod);
                 }
             }
             if (e instanceof ConstructorCall cc && cc.constructor() != null) {
@@ -645,5 +657,9 @@ public class AnalyzeMethod {
             this.index = s;
             return this;
         }
+    }
+
+    public Map<MethodInfo, Set<MethodInfo>> getCopyModificationStatusFromTo() {
+        return copyModificationStatusFromTo;
     }
 }
