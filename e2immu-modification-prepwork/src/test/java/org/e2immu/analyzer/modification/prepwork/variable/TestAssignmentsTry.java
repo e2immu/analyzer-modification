@@ -6,11 +6,15 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.ReturnStatement;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.statement.TryStatement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.io.StringWriter;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -106,7 +110,6 @@ public class TestAssignmentsTry extends CommonTest {
     }
 
 
-
     @Language("java")
     private static final String INPUT3 = """
             package a.b;
@@ -130,7 +133,7 @@ public class TestAssignmentsTry extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         MethodInfo method = X.findUniqueMethod("method", 2);
-        TryStatement ts = (TryStatement)method.methodBody().statements().get(0);
+        TryStatement ts = (TryStatement) method.methodBody().statements().get(0);
         TryStatement.CatchClause cc = ts.catchClauses().get(0);
         Statement cc0 = cc.block().statements().get(0);
         assertEquals("0.2.0", cc0.source().index());
@@ -143,6 +146,79 @@ public class TestAssignmentsTry extends CommonTest {
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
         assertEquals("D:-, A:[0.2.1]", rvVi.assignments().toString());
         assertFalse(rvVi.hasBeenDefined("1"));
+    }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import java.io.IOException;
+            import java.io.StringWriter;
+            class X {
+                static String method(String in, int i) {
+                    char c;
+                    try (StringWriter sw = new StringWriter()){
+                        c = in.charAt(i);
+                        sw.append(c);
+                    } catch (IOException e) {
+                        return "io"+e;
+                    } catch (RuntimeException e) {
+                        return "re"+e;
+                    }
+                    String sw = c+"";
+                    return sw;
+                }
+            }
+            """;
+
+    static String method(String in, int i) {
+        char c;
+        try (StringWriter sw = new StringWriter()) {
+            c = in.charAt(i);
+            sw.append(c);
+        } catch (IOException e) {
+            return "io" + e;
+        } catch (RuntimeException e) {
+            return "re" + e;
+        }
+        String sw = c + "";
+        return sw;
+    }
+
+    @DisplayName("re-use of catch and resource variables")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+
+        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertFalse(vdMethod.isKnown("e"));
+        assertTrue(vdMethod.isKnown("sw"));
+        VariableInfo swMethod = vdMethod.variableInfo("sw");
+        assertEquals("2", swMethod.assignments().indexOfDefinition());
+
+        TryStatement ts = (TryStatement) method.methodBody().statements().get(1);
+        VariableData vdTs = ts.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertFalse(vdTs.isKnown("e"));
+        testCatchClause(ts, 0);
+        testCatchClause(ts, 1);
+
+        VariableInfoContainer vicSw = vdTs.variableInfoContainerOrNull("sw");
+        assertTrue(vicSw.isInitial());
+        assertTrue(vicSw.hasEvaluation());
+        assertFalse(vicSw.hasMerge());
+    }
+
+    private static void testCatchClause(TryStatement ts, int ccIndex) {
+        TryStatement.CatchClause cc0 = ts.catchClauses().get(ccIndex);
+        ReturnStatement rs0 = (ReturnStatement) cc0.block().statements().get(0);
+        VariableData vdRs0 = rs0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfoContainer vic0 = vdRs0.variableInfoContainerOrNull("e");
+        assertTrue(vic0.isInitial());
+        assertTrue(vic0.hasEvaluation());
+        assertFalse(vic0.hasMerge());
     }
 
 }

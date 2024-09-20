@@ -9,13 +9,11 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.*;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
+import org.e2immu.util.internal.graph.V;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -46,9 +44,20 @@ public class AnalyzeMethod {
         final Stack<Statement> loopSwitchStack = new Stack<>();
         final Map<String, String> labelToStatementIndex = new HashMap<>();
         final Map<String, Integer> breakCountsInLoop = new HashMap<>();
+        final Map<Variable, String> limitedScopeOfPatternVariables = new HashMap<>();
 
         InternalVariables(ReturnVariable rv) {
             this.rv = rv;
+        }
+
+        public boolean acceptLimitedScope(Variable variable, String index) {
+            String i = limitedScopeOfPatternVariables.get(variable);
+            if (i != null) {
+                boolean accept = Util.inScopeOf(i, index);
+                if (!accept) limitedScopeOfPatternVariables.remove(variable);
+                return accept;
+            }
+            return true;
         }
 
         List<Variable> currentVariables() {
@@ -94,11 +103,11 @@ public class AnalyzeMethod {
     }
 
     private record ReadWriteData(VariableData previous,
-                                 String index,
                                  Map<Variable, String> seenFirstTime,
                                  Map<Variable, String> read,
                                  Map<Variable, List<String>> assigned,
-                                 Set<Variable> modified) {
+                                 Set<Variable> modified,
+                                 Map<Variable, String> restrictToScope) {
         public Assignments assignmentIds(Variable v, VariableInfo previous) {
             Assignments prev;
             if (previous == null) {
@@ -205,11 +214,15 @@ public class AnalyzeMethod {
             VariableInfoContainer vic = initialVariable(i, v, readWriteData,
                     hasMerge && !(v instanceof LocalVariable), readWriteData.modified.contains(v));
             vdi.put(v, vic);
+            String limitedScope = readWriteData.restrictToScope.get(v);
+            if (limitedScope != null) {
+                iv.limitedScopeOfPatternVariables.put(v, limitedScope);
+            }
         });
 
         streamOfPrevious.forEach(vic -> {
             VariableInfo vi = vic.best(stageOfPrevious);
-            if (Util.inScopeOf(vi.assignments().indexOfDefinition(), index)) {
+            if (Util.inScopeOf(vi.assignments().indexOfDefinition(), index) && iv.acceptLimitedScope(vi.variable(), index)) {
                 Variable variable = vi.variable();
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
@@ -347,7 +360,7 @@ public class AnalyzeMethod {
             String subIndex = entry.getKey();
             VariableData vd = entry.getValue();
             vd.variableInfoStream().forEach(vi -> {
-                if (copyToMerge(index, vi)) {
+                if (copyToMerge(index, vi) && iv.acceptLimitedScope(vi.variable(), index)) {
                     map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                 }
             });
@@ -435,7 +448,7 @@ public class AnalyzeMethod {
                                       InternalVariables iv) {
         String index = statement.hasSubBlocks() ? indexIn + StatementIndex.EVAL : indexIn;
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
-        Visitor v = new Visitor(index, knownVariableNames);
+        Visitor v = new Visitor(index, knownVariableNames, statement);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assignedAdd(iv.rv);
             if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
@@ -480,7 +493,7 @@ public class AnalyzeMethod {
         }
         Expression expression = statement.expression();
         if (expression != null && !expression.isEmpty()) expression.visit(v.withIndex(index));
-        return new ReadWriteData(previous, index, v.seenFirstTime, v.read, v.assigned, v.modified);
+        return new ReadWriteData(previous, v.seenFirstTime, v.read, v.assigned, v.modified, v.restrictToScope);
     }
 
     private static void handleLvc(LocalVariableCreation lvc, Visitor v) {
@@ -499,17 +512,22 @@ public class AnalyzeMethod {
         }
     }
 
-    private static class Visitor implements Predicate<Element> {
+    private static class Visitor implements org.e2immu.language.cst.api.element.Visitor {
         String index;
+        int inNegative;
+
         final Map<Variable, String> read = new HashMap<>();
         final Map<Variable, List<String>> assigned = new HashMap<>();
         final Map<Variable, String> seenFirstTime = new HashMap<>();
+        final Map<Variable, String> restrictToScope = new HashMap<>();
         final Set<String> knownVariableNames;
         final Set<Variable> modified = new HashSet<>();
+        final Statement statement;
 
-        Visitor(String index, Set<String> knownVariableNames) {
+        Visitor(String index, Set<String> knownVariableNames, Statement statement) {
             this.index = index;
             this.knownVariableNames = knownVariableNames;
+            this.statement = statement;
         }
 
         public void assignedAdd(Variable variable) {
@@ -517,7 +535,19 @@ public class AnalyzeMethod {
         }
 
         @Override
-        public boolean test(Element e) {
+        public void afterExpression(Expression e) {
+            if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
+                --inNegative;
+            }
+        }
+
+        @Override
+        public boolean beforeExpression(Expression e) {
+            if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
+                ++inNegative;
+                return true;
+            }
+
             if (e instanceof VariableExpression ve) {
                 ve.variable().variableStreamDescend().forEach(v -> {
                     read.put(v, index);
@@ -527,9 +557,12 @@ public class AnalyzeMethod {
                 });
                 return false;
             }
+
             if (e instanceof InstanceOf instanceOf && instanceOf.patternVariable() != null) {
                 seenFirstTime.put(instanceOf.patternVariable(), index);
                 assignedAdd(instanceOf.patternVariable());
+                String scope = computePatternVariableScope();
+                restrictToScope.put(instanceOf.patternVariable(), scope);
             }
             if (e instanceof Assignment a) {
                 assignedAdd(a.variableTarget());
@@ -568,6 +601,33 @@ public class AnalyzeMethod {
             }
 
             return true;
+        }
+
+        /*
+            create local variables 'YYY y = x' for every sub-expression x instanceof YYY y
+
+            the scope of the variable is determined as follows:
+            (1) if the expression is an if-statement, without else: pos = then block, neg = rest of current block
+            (2) if the expression is an if-statement with else: pos = then block, neg = else block
+            (3) otherwise, only the current expression is accepted (we set to then block)
+            ==> positive: always then block
+            ==> negative: either else or rest of block
+        */
+
+        private String computePatternVariableScope() {
+            boolean isNegative = (inNegative % 2) == 1;
+            String stmtIndex = statement.source().index();
+            if (statement instanceof IfElseStatement ie) {
+                if (isNegative) {
+                    if (ie.elseBlock().isEmpty()) {
+                        // rest of the current block
+                        return Util.beyond(stmtIndex);
+                    }
+                    return stmtIndex + ".1.0";
+                }
+            }
+            // then block, or restrict to current statement
+            return stmtIndex + ".0.0";
         }
 
         private void recursivelyAddToModified(Variable variable, boolean alsoNonScope) {

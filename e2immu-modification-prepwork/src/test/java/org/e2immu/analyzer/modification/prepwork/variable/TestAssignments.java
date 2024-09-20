@@ -12,6 +12,9 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestAssignments extends CommonTest {
@@ -644,6 +647,87 @@ public class TestAssignments extends CommonTest {
         assertEquals("D:0, A:[0, 2]", iVi2.assignments().toString());
 
 
+    }
+
+    @Language("java")
+    public static final String INPUT10 = """
+            package a.b;
+            import java.io.FileNotFoundException;import java.io.IOException;
+            public class X {
+                public static String method(Exception exception) {
+                    if (exception instanceof RuntimeException e) {
+                        return e.getMessage();
+                    } else if(exception instanceof FileNotFoundException e) {
+                        return "io" + e.getMessage();
+                    }
+                    if (exception instanceof IOException e) {
+                        return "uoe"+e;
+                    }
+                    return "?";
+                }
+            }
+            """;
+
+    public static String method10(Exception exception) {
+        if (exception instanceof RuntimeException e) {
+            return e.getMessage();
+        } else if (exception instanceof FileNotFoundException e) {
+            return "io" + e.getMessage();
+        }
+        if (exception instanceof IOException e) {
+            return "uoe" + e;
+        }
+        return "?";
+    }
+
+    @DisplayName("restriction of pattern variables")
+    @Test
+    public void test10() {
+        TypeInfo X = javaInspector.parse(INPUT10);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
+    }
+
+
+    @Language("java")
+    public static final String INPUT11 = """
+            package a.b;
+            import java.io.IOException;
+            public class X {
+                public static String method(Exception exception) {
+                    if(!(exception instanceof RuntimeException e) || e.getMessage().isEmpty()) {
+                        if(exception instanceof IOException e) return "io" + e.getMessage();
+                    } else {
+                        return e.getMessage();
+                    }
+                    if(exception instanceof UnsupportedOperationException e) {
+                        return "uoe"+e;
+                    }
+                    return "?";
+                }
+            }
+            """;
+
+    public static String method11(Exception exception) {
+        if (!(exception instanceof RuntimeException e) || e.getMessage().isEmpty()) {
+            if (exception instanceof IOException e) return "io" + e.getMessage();
+        } else {
+            return e.getMessage();
+        }
+        if (exception instanceof UnsupportedOperationException e) {
+            return "uoe" + e;
+        }
+        return "?";
+    }
+
+    @DisplayName("restriction of pattern variables, negative")
+    @Test
+    public void test11() {
+        TypeInfo X = javaInspector.parse(INPUT11);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Analyze analyze = new Analyze(runtime);
+        analyze.doMethod(method);
     }
 
 }
