@@ -265,5 +265,11 @@ public class Assignments {
     public List<String> mergeIndices() {
         return Arrays.stream(assignmentIndices).map(Util::stripStage).toList();
     }
+
+    public Stream<String> definitionAndAssignmentsBefore(String upper) {
+        if (indexOfDefinition.compareTo(upper) >= 0) return Stream.of();
+        return Stream.concat(Stream.of(indexOfDefinition),
+                Arrays.stream(assignmentIndices).takeWhile(s -> s.compareTo(upper) < 0));
+    }
 }
 

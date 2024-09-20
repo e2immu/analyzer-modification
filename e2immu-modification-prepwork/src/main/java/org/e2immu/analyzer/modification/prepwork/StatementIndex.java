@@ -27,8 +27,7 @@ public class StatementIndex {
 
     public static final String DOT_ZERO = DOT + "0";
     public static final String BEFORE_METHOD = "" + DASH;
-
-
+    public static final String END_OF_METHOD = "" + END;
 
 
     public static boolean seenBy(String s, String index) {
