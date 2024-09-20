@@ -12,6 +12,8 @@ import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.EventuallyFinal;
 
+import java.util.List;
+
 public class VariableInfoImpl implements VariableInfo {
     public static final Property MODIFIED_VARIABLE = new PropertyImpl("modifiedVariable");
 
@@ -20,12 +22,12 @@ public class VariableInfoImpl implements VariableInfo {
 
     private final Variable variable;
     private final Assignments assignments;
-    private final String readId;
+    private final Reads reads;
 
-    public VariableInfoImpl(Variable variable, Assignments assignments, String readId) {
+    public VariableInfoImpl(Variable variable, Assignments assignments, Reads reads) {
         this.variable = variable;
         this.assignments = assignments;
-        this.readId = readId;
+        this.reads = reads;
     }
 
     public boolean setLinkedVariables(LinkedVariables linkedVariables) {
@@ -79,8 +81,8 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     @Override
-    public String readId() {
-        return readId;
+    public Reads reads() {
+        return reads;
     }
 
     @Override

@@ -51,11 +51,11 @@ public class TestAssignmentsTry extends CommonTest {
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("1.0.0", inVi.readId()); // last time read in method
+        assertEquals("1.0.0", inVi.reads().toString()); 
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         VariableInfo cVi = vdMethod.variableInfo("c");
-        assertEquals("3", cVi.readId());
+        assertEquals("2, 3", cVi.reads().toString());
         Assignments cA = cVi.assignments();
         assertEquals("D:0, A:[1.0.0, 1.1.0, 1=M]", cA.toString());
     }
@@ -95,16 +95,16 @@ public class TestAssignmentsTry extends CommonTest {
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("2.0.0", inVi.readId()); // last time read in method
+        assertEquals("2.0.0", inVi.reads().toString()); 
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         VariableInfo cVi = vdMethod.variableInfo("c");
-        assertEquals("4", cVi.readId());
+        assertEquals("3, 4", cVi.reads().toString());
         Assignments cA = cVi.assignments();
         assertEquals("D:0, A:[2.0.0, 2.1.0, 2=M]", cA.toString());
 
         VariableInfo dVi = vdMethod.variableInfo("d");
-        assertEquals("3", dVi.readId());
+        assertEquals("3", dVi.reads().toString());
         Assignments dA = dVi.assignments();
         assertEquals("D:1, A:[2.2.0, 2=M]", dA.toString());
     }

@@ -43,7 +43,7 @@ public class TestAssignmentsReturn extends CommonTest {
         assertEquals("a.b.X.method(char), a.b.X.method(char):0:c, i", vdMethod.knownVariableNamesToString());
 
         VariableInfo iVi = vdMethod.variableInfo("i");
-        assertEquals("2", iVi.readId());
+        assertEquals("2", iVi.reads().toString());
         assertEquals("D:0, A:[1.1.0, 1=M]", iVi.assignments().toString());
     }
 

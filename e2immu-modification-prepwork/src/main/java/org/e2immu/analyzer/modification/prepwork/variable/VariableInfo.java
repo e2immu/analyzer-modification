@@ -1,8 +1,11 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
 import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.Reads;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.variable.Variable;
+
+import java.util.List;
 
 public interface VariableInfo {
 
@@ -16,6 +19,8 @@ public interface VariableInfo {
      */
     Assignments assignments();
 
+    Reads reads();
+
     /*
     is there a definite value for this variable at the end of this statement?
 
@@ -24,13 +29,6 @@ public interface VariableInfo {
     e.g. true when at index, there is a return or throws, or an if in which both blocks exit.
      */
     boolean hasBeenDefined(String index);
-
-    /*
-    Semantics: index of most recent statement where this variable is read, after a full re-assignment.
-    Use Assignments to find out which re-assignment this was, but, because the code compiles, it will have
-    an assignmentCount>0.
-     */
-    String readId();
 
     Variable variable();
 

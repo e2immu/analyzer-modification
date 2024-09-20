@@ -87,16 +87,16 @@ public class TestAssignmentsSwitch extends CommonTest {
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("c", inVi.variable().simpleName());
-        assertEquals("1-E", inVi.readId()); // last time read in method
+        assertEquals("1-E", inVi.reads().toString()); 
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         VariableInfo bVi = vdMethod.variableInfo(method.parameters().get(1).fullyQualifiedName());
         assertEquals("b", bVi.variable().simpleName());
-        assertEquals("1.0.0-E", bVi.readId()); // last time read in method
+        assertEquals("1.0.0-E", bVi.reads().toString()); 
         assertEquals("D:-, A:[]", bVi.assignments().toString());
 
         VariableInfo iVi = vdMethod.variableInfo("i");
-        assertEquals("2", iVi.readId());
+        assertEquals("2", iVi.reads().toString());
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.2, 1.0.4, 1=M]", iVi.assignments().toString());
 
         Statement ifElse = method.methodBody().statements().get(1).block().statements().get(0);
@@ -146,7 +146,7 @@ public class TestAssignmentsSwitch extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo iVi = vdMethod.variableInfo("i");
-        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("2", iVi.reads().toString()); 
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.2]", iVi.assignments().toString());
         assertFalse(iVi.hasBeenDefined("2"));
     }
@@ -187,7 +187,7 @@ public class TestAssignmentsSwitch extends CommonTest {
                 vdMethod.knownVariableNamesToString());
 
         VariableInfo iVi = vdMethod.variableInfo("i");
-        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("2", iVi.reads().toString()); 
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.3, 1=M]", iVi.assignments().toString());
         assertTrue(iVi.hasBeenDefined("2"));
     }
@@ -225,7 +225,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertNotNull(vdMethod);
 
         VariableInfo iVi = vdMethod.variableInfo("i");
-        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("2", iVi.reads().toString()); 
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.3, 1=M]", iVi.assignments().toString());
         assertTrue(iVi.hasBeenDefined("2"));
     }
@@ -262,7 +262,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertNotNull(vdMethod);
 
         VariableInfo iVi = vdMethod.variableInfo("i");
-        assertEquals("2", iVi.readId()); // last time read in method
+        assertEquals("2", iVi.reads().toString()); 
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.3]", iVi.assignments().toString());
         assertFalse(iVi.hasBeenDefined("2"));
     }

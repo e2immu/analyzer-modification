@@ -28,10 +28,6 @@ public interface VariableInfoContainer {
 
     boolean hasMerge();
 
-    default boolean isReadInThisStatement() {
-        return hasEvaluation() && getPreviousOrInitial().readId().compareTo(best(Stage.EVALUATION).readId()) < 0;
-    }
-
     /*
     return true on progress
      */

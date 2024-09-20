@@ -57,7 +57,7 @@ public class TestVariableData extends CommonTest {
 
         ParameterInfo pi = method1.parameters().get(0);
         VariableInfo vi0 = vd.variableInfo(pi.fullyQualifiedName());
-        assertSame("0", vi0.readId());
+        assertEquals("0", vi0.reads().toString());
         assertTrue(vi0.assignments().hasNotYetBeenAssigned());
     }
 
@@ -95,7 +95,7 @@ public class TestVariableData extends CommonTest {
 
         ParameterInfo pi = method1.parameters().get(0);
         VariableInfo vi0 = vd.variableInfo(pi.fullyQualifiedName());
-        assertEquals("1", vi0.readId());
+        assertEquals("0, 1", vi0.reads().toString());
         assertTrue(vi0.assignments().hasNotYetBeenAssigned());
         VariableInfoContainer vic0 = vd.variableInfoContainerOrNull(pi.fullyQualifiedName());
         assertSame(vi0, vic0.best());
@@ -145,16 +145,16 @@ public class TestVariableData extends CommonTest {
 
         VariableInfoContainer vicJ = vd.variableInfoContainerOrNull("a.b.C.j");
         assertNotNull(vicJ);
-        assertEquals("1-E", vicJ.best().readId());
+        assertEquals("1-E", vicJ.best().reads().toString());
         assertFalse(vd0.isKnown(vicJ.variable().fullyQualifiedName()));
 
         VariableInfoContainer vicThis = vd.variableInfoContainerOrNull("a.b.C.this");
         assertNotNull(vicThis);
         VariableInfo this1E = vicThis.best(Stage.EVALUATION);
-        assertEquals("1-E", this1E.readId());
+        assertEquals("1-E", this1E.reads().toString());
         VariableInfo this1M = vicThis.best();
         assertNotSame(this1E, this1M);
-        assertEquals("1-E", this1M.readId());
+        assertEquals("1-E", this1M.reads().toString());
         // check that This is not yet present in statement 0
         assertFalse(vd0.isKnown(vicThis.variable().fullyQualifiedName()));
 
@@ -163,8 +163,8 @@ public class TestVariableData extends CommonTest {
         VariableInfo out1E = vicOut.best(Stage.EVALUATION);
         VariableInfo out1M = vicOut.best();
         assertNotSame(out1M, out1E);
-        assertEquals("-", out1E.readId());
-        assertEquals("1.0.0", out1M.readId());
+        assertEquals("-", out1E.reads().toString());
+        assertEquals("1.0.0", out1M.reads().toString());
         assertFalse(vd0.isKnown(vicOut.variable().fullyQualifiedName()));
 
         ReturnVariable rv = new ReturnVariableImpl(method1);
@@ -208,7 +208,7 @@ public class TestVariableData extends CommonTest {
         VariableInfoContainer vicJ = vd.variableInfoContainerOrNull("a.b.C.j");
         assertNotNull(vicJ);
         VariableInfo viJ = vicJ.best();
-        assertEquals("2", viJ.readId());
+        assertEquals("1-E, 2", viJ.reads().toString());
         assertEquals("D:-, A:[1.1.1]", viJ.assignments().toString());
 
         ReturnVariable rv = new ReturnVariableImpl(method1);
@@ -219,7 +219,7 @@ public class TestVariableData extends CommonTest {
 
         assertTrue(vd.isKnown(rv.fullyQualifiedName()));
         VariableInfo viRv = vd.variableInfo(rv.fullyQualifiedName());
-        assertEquals("-", viRv.readId());
+        assertEquals("-", viRv.reads().toString());
         assertEquals("D:-, A:[2]", viRv.assignments().toString());
 
     }

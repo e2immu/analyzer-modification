@@ -126,9 +126,12 @@ public class AnalyzeMethod {
             return prev;
         }
 
-        public String isRead(Variable v, VariableInfo previous) {
+        public Reads isRead(Variable v, VariableInfo previous) {
             String i = read.get(v);
-            return i != null ? i : previous == null ? NOT_YET_READ : previous.readId();
+            if (i == null) {
+                return previous == null ? Reads.NOT_YET_READ : previous.reads();
+            }
+            return previous == null ? new Reads(i) : previous.reads().with(i);
         }
 
         public boolean isModified(Variable v, VariableInfo previous) {
@@ -281,7 +284,7 @@ public class AnalyzeMethod {
                 runtime.newEmptyExpression());
         iv.pushBreakVariable(bv);
         Assignments notYetAssigned = new Assignments(index + EVAL);
-        VariableInfoImpl vii = new VariableInfoImpl(bv, notYetAssigned, NOT_YET_READ);
+        VariableInfoImpl vii = new VariableInfoImpl(bv, notYetAssigned, Reads.NOT_YET_READ);
         vdOfParent.put(bv, new VariableInfoContainerImpl(bv, SYNTHETIC, Either.right(vii), null,
                 false));
         VariableData previous = vdOfParent;
@@ -389,15 +392,14 @@ public class AnalyzeMethod {
                 Map<String, List<Assignments>> fallThroughForV = computeFallThrough(fallThroughRecord, v);
                 Assignments assignments = Assignments.mergeBlocks(index, assignmentsRequiredForMerge, assignmentsPerBlock,
                         fallThroughForV);
-                String readId = vis.values().stream().map(VariableInfo::readId).reduce(NOT_YET_READ,
-                        (s1, s2) -> s1.compareTo(s2) <= 0 ? s2 : s1);
-                VariableInfoImpl merge = new VariableInfoImpl(v, assignments, readId);
+                List<String> readIds = vis.values().stream().flatMap(vi -> vi.reads().indices().stream()).distinct().sorted().toList();
+                VariableInfoImpl merge = new VariableInfoImpl(v, assignments, new Reads(readIds));
                 VariableInfoContainer inMap = vdStatement.variableInfoContainerOrNull(v.fullyQualifiedName());
                 VariableInfoContainerImpl vici;
                 if (inMap == null) {
                     String indexOfDefinition = v instanceof LocalVariable ? index : BEFORE_METHOD;
                     Assignments notYetAssigned = new Assignments(indexOfDefinition);
-                    VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
+                    VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, Reads.NOT_YET_READ);
                     vici = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE, Either.right(initial), initial,
                             true);
                     vdStatement.put(v, vici);
@@ -439,9 +441,9 @@ public class AnalyzeMethod {
                                                   boolean hasMerge, boolean isModified) {
         String indexOfDefinition = v instanceof LocalVariable ? index : StatementIndex.BEFORE_METHOD;
         Assignments notYetAssigned = new Assignments(indexOfDefinition);
-        VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, NOT_YET_READ);
-        VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial),
-                readWriteData.isRead(v, initial));
+        VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, Reads.NOT_YET_READ);
+        Reads reads = readWriteData.isRead(v, initial);
+        VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial), reads);
         if (isModified) eval.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.TRUE);
         return new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
                 Either.right(initial), eval, hasMerge);
