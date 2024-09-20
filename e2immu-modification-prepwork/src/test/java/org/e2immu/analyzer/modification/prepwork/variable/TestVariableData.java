@@ -81,7 +81,7 @@ public class TestVariableData extends CommonTest {
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
 
-        assertEquals("a.b.C.method1(String):0:s, java.lang.System.out",                vd.knownVariableNamesToString());
+        assertEquals("a.b.C.method1(String):0:s, java.lang.System.out", vd.knownVariableNamesToString());
 
         List<VariableInfo> vis = vd.variableInfoStream().toList();
         assertEquals(2, vis.size());
@@ -222,6 +222,55 @@ public class TestVariableData extends CommonTest {
         assertEquals("-", viRv.readId());
         assertEquals("D:-, A:[2]", viRv.assignments().toString());
 
+    }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            public class X {
+                private static final boolean WANT_PROGRESS = true;
+                public static short[] numbers;
+                private static int progressCounter;
+
+                public static void run() {
+                    int i, j, l;
+                    short NUMNUMBERS = 10;
+                    numbers = new short[NUMNUMBERS];
+                    int time = (int) System.currentTimeMillis();
+                    for (i = 0; i < NUMNUMBERS; i++) {
+                        numbers[i] = (short) (NUMNUMBERS - 1 - i);
+                    }
+                    for (i = 0; i < NUMNUMBERS; i++) {
+                        for (j = 0; j < NUMNUMBERS - i - 1; j++) {
+                            if (numbers[j] > numbers[j + 1]) {
+                                short temp = numbers[j];
+                                numbers[j] = numbers[j + 1];
+                                numbers[j + 1] = temp;
+                            }
+                        }
+                        if (WANT_PROGRESS) {
+                            System.out.println(i);
+                        }
+                    }
+                    time = (int) System.currentTimeMillis() - time;
+                    System.out.print(time);
+                    System.out.print("End\\n");
+                }
+            }
+            """;
+
+    @Test
+    public void test5() {
+        TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT5).get(0);
+        MethodInfo method1 = typeInfo.findUniqueMethod("run", 0);
+        Analyze analyze = new Analyze(javaInspector.runtime());
+        analyze.doMethod(method1);
+
+        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assert vd != null;
+
+        assertEquals("NUMNUMBERS, X.WANT_PROGRESS, X.numbers, X.numbers[iv-16-42], X.numbers[iv-18-42], X.numbers[j], i, j, java.lang.System.out, l, time",
+                vd.knownVariableNamesToString());
     }
 
 }
