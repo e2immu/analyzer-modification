@@ -107,7 +107,7 @@ public class AnalyzeMethod {
 
     private record ReadWriteData(VariableData previous,
                                  Map<Variable, String> seenFirstTime,
-                                 Map<Variable, String> read,
+                                 Map<Variable, List<String>> read,
                                  Map<Variable, List<String>> assigned,
                                  Set<Variable> modified,
                                  Map<Variable, String> restrictToScope) {
@@ -127,7 +127,7 @@ public class AnalyzeMethod {
         }
 
         public Reads isRead(Variable v, VariableInfo previous) {
-            String i = read.get(v);
+            List<String> i = read.get(v);
             if (i == null) {
                 return previous == null ? Reads.NOT_YET_READ : previous.reads();
             }
@@ -451,7 +451,13 @@ public class AnalyzeMethod {
 
     private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, MethodInfo currentMethod,
                                       InternalVariables iv) {
-        String index = statement.hasSubBlocks() ? indexIn + StatementIndex.EVAL : indexIn;
+        String index;
+        if (statement.hasSubBlocks()) {
+            String suffix = statement instanceof DoStatement ? EVAL_UPDATE : EVAL;
+            index = indexIn + suffix;
+        } else {
+            index = indexIn;
+        }
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
         Visitor v = new Visitor(index, knownVariableNames, statement, currentMethod);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
@@ -479,6 +485,8 @@ public class AnalyzeMethod {
                 for (Expression updater : fs.updaters()) {
                     updater.visit(v.withIndex(indexIn + EVAL_UPDATE));
                 }
+                // the condition is evaluated 2x
+                fs.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
             } else if (statement instanceof ForEachStatement fe) {
                 handleLvc(fe.initializer(), v.withIndex(indexIn + EVAL_INIT));
                 v.assignedAdd(fe.initializer().localVariable());
@@ -521,7 +529,7 @@ public class AnalyzeMethod {
         String index;
         int inNegative;
 
-        final Map<Variable, String> read = new HashMap<>();
+        final Map<Variable, List<String>> read = new HashMap<>();
         final Map<Variable, List<String>> assigned = new HashMap<>();
         final Map<Variable, String> seenFirstTime = new HashMap<>();
         final Map<Variable, String> restrictToScope = new HashMap<>();
@@ -557,7 +565,7 @@ public class AnalyzeMethod {
 
             if (e instanceof VariableExpression ve) {
                 ve.variable().variableStreamDescend().forEach(v -> {
-                    read.put(v, index);
+                    read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
                     if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
                         seenFirstTime.put(v, index);
                     }

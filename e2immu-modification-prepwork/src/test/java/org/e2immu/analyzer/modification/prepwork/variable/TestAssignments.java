@@ -132,7 +132,7 @@ public class TestAssignments extends CommonTest {
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("0-E, 0.0.0-E", inVi.reads().toString());
+        assertEquals("0-E, 0.0.0-E, 0;E", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         Statement s0 = method.methodBody().statements().get(0);
@@ -140,7 +140,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         assertFalse(vd0.variableInfoContainerOrNull("i").hasMerge());
-        assertEquals("0-E", iVi.reads().toString()); // is not a merge, so we cannot see the read in 'return i'
+        assertEquals("0-E, 0;E", iVi.reads().toString()); // is not a merge, so we cannot see the read in 'return i'
         Assignments iA = iVi.assignments();
         assertEquals("D:0+E, A:[0+E, 0:E]", iA.toString());
 
@@ -148,7 +148,7 @@ public class TestAssignments extends CommonTest {
         VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertTrue(vd000.variableInfoContainerOrNull("i").hasMerge());
         VariableInfo iVi000 = vd000.variableInfo("i");
-        assertEquals("0-E, 0.0.0-E, 0.0.0.0.0", iVi000.reads().toString());
+        assertEquals("0-E, 0.0.0-E, 0.0.0.0.0, 0;E", iVi000.reads().toString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
         assertEquals("return method", rvVi.variable().simpleName());
@@ -188,7 +188,7 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("0-E, 0.0.1-E, 0.0.1.0.0-E", inVi.reads().toString());
+        assertEquals("0-E, 0.0.1-E, 0.0.1.0.0-E, 0.0.1;E, 0;E", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         assertFalse(vdMethod.isKnown("i"));
@@ -207,6 +207,15 @@ public class TestAssignments extends CommonTest {
         assertEquals("j", jVi.variable().simpleName());
         Assignments jA = jVi.assignments();
         assertEquals("D:0.0.1+E, A:[0.0.1+E, 0.0.1:E]", jA.toString());
+
+        assertTrue(jA.between("0", "1"));
+        assertTrue(jA.between("0.0.1", "1"));
+        assertTrue(jA.between("0.0.1+E", "1"));
+        assertFalse(jA.between("0", "0.0.0"));
+        assertTrue(jA.between("0.0.1+E", "0.0.1:E"));
+        assertFalse(jA.between("0.0.1+E", "0.0.1+E"));
+        assertFalse(jA.between("0.0.1:E", "0.0.1:E"));
+        assertTrue(jA.between("0.0.1:E", "0.0.1~"));
     }
 
 
@@ -289,7 +298,7 @@ public class TestAssignments extends CommonTest {
                 vdMethod.knownVariableNamesToString());
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("2-E, 2.0.1-E, 2.0.1.0.0-E, 3", inVi.reads().toString());
+        assertEquals("2-E, 2.0.1-E, 2.0.1.0.0-E, 2.0.1;E, 2;E, 3", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         VariableInfo iVi = vdMethod.variableInfo("i");

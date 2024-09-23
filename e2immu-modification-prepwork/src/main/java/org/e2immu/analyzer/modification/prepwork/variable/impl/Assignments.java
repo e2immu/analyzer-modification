@@ -271,5 +271,16 @@ public class Assignments {
         return Stream.concat(Stream.of(indexOfDefinition),
                 Arrays.stream(assignmentIndices).takeWhile(s -> s.compareTo(upper) < 0));
     }
+
+    public boolean between(String fromIncl, String toExcl) {
+        if (fromIncl.compareTo(toExcl) >= 0) return false;
+
+        int pos0 = Arrays.binarySearch(assignmentIndices, fromIncl);
+        int p0 = pos0 >= 0 ? pos0 : -(pos0 + 1);
+        if (p0 >= assignmentIndices.length) return false;
+        String s0 = assignmentIndices[p0];
+        if (s0.compareTo(fromIncl) < 0) return false;
+        return s0.compareTo(toExcl) < 0;
+    }
 }
 

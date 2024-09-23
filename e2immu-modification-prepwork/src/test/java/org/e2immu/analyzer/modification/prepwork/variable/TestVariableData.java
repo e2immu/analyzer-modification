@@ -9,6 +9,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.ForStatement;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.inspection.api.integration.JavaInspector;
@@ -271,6 +272,11 @@ public class TestVariableData extends CommonTest {
 
         assertEquals("NUMNUMBERS, X.WANT_PROGRESS, X.numbers, X.numbers[iv-16-42], X.numbers[iv-18-42], X.numbers[j], i, j, java.lang.System.out, l, time",
                 vd.knownVariableNamesToString());
+
+        ForStatement fs4 =(ForStatement) method1.methodBody().statements().get(4);
+        VariableData vd4 = fs4.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfo i4 = vd4.variableInfo("i");
+        assertEquals("4-E, 4.0.0, 4;E", i4.reads().toString());
     }
 
 }

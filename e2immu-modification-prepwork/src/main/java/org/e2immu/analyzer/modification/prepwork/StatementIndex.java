@@ -11,6 +11,7 @@ public class StatementIndex {
     public static final char DASH = '-';
     public static final char DOT = '.';
     public static final char COLON = ':';
+    public static final char SEMICOLON = ';';
     public static final char EQUALS = '=';
     public static final char END = '~';
 
@@ -18,9 +19,11 @@ public class StatementIndex {
     public static final String EVAL_INIT = PLUS + "E"; // initializer in for/forEach +E
     public static final String EVAL = DASH + "E";  // normal expression; condition/iterable for loops -E
     public static final String EVAL_UPDATE = COLON + "E"; // still part of the loop, but after the statements :E
+    public static final String EVAL_AFTER_UPDATE = SEMICOLON + "E"; // repeat of condition in for
     public static final String MERGE = EQUALS + "M"; // at the end =M
 
     public static final Pattern STAGE_PATTERN = Pattern.compile("(.*)(\\+I|[+-=]E|=M)");
+
     private StatementIndex() {
     }
 
