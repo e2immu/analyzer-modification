@@ -3,7 +3,7 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
-import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.statement.Block;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
@@ -67,8 +67,12 @@ public class Analyze {
     we go via the FQN because we're in the process of translating them.
      */
     public void doMethod(MethodInfo methodInfo) {
+        doMethod(methodInfo, methodInfo.methodBody());
+    }
+
+    public void doMethod(MethodInfo methodInfo, Block methodBlock) {
         AnalyzeMethod am = new AnalyzeMethod(runtime, copyMethods);
-        am.doMethod(methodInfo);
+        am.doMethod(methodInfo, methodBlock);
         for (Map.Entry<MethodInfo, Set<MethodInfo>> e : am.getCopyModificationStatusFromTo().entrySet()) {
             graphBuilder.add(e.getKey().fullyQualifiedName(), e.getValue().stream().map(MethodInfo::fullyQualifiedName).toList());
         }

@@ -141,14 +141,20 @@ public class AnalyzeMethod {
     }
 
     public void doMethod(MethodInfo methodInfo) {
+        doMethod(methodInfo, methodInfo.methodBody());
+    }
+
+    public void doMethod(MethodInfo methodInfo, Block methodBody) {
         // even if the method does not return a value, we'll compute "assignments" to the return variable,
         // in order to know when the method exits (we'll track 'throw' and 'return' statements)
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
         InternalVariables iv = new InternalVariables(rv);
-        VariableData lastOfMainBlock = doBlock(methodInfo, methodInfo.methodBody(), null, iv);
+        VariableData lastOfMainBlock = doBlock(methodInfo, methodBody, null, iv);
         if (lastOfMainBlock != null) {
-            methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
+            if (!methodInfo.analysis().haveAnalyzedValueFor(VariableDataImpl.VARIABLE_DATA)) {
+                methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
+            }
             doModificationAnalysis(methodInfo, lastOfMainBlock);
         } // else: empty
     }
