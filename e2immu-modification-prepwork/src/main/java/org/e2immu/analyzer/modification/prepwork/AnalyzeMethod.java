@@ -502,6 +502,9 @@ public class AnalyzeMethod {
                 }
                 // the condition is evaluated 2x
                 fs.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
+                //       } else if(statement instanceof WhileStatement ws) {
+                // FIXME
+                //  ws.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
             } else if (statement instanceof ForEachStatement fe) {
                 handleLvc(fe.initializer(), v.withIndex(indexIn + EVAL_INIT));
                 v.assignedAdd(fe.initializer().localVariable());
@@ -571,12 +574,8 @@ public class AnalyzeMethod {
             }
 
             if (e instanceof VariableExpression ve) {
-                ve.variable().variableStreamDescend().forEach(v -> {
-                    read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
-                    if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
-                        seenFirstTime.put(v, index);
-                    }
-                });
+                Variable variable = ve.variable();
+                markRead(variable);
                 return false;
             }
 
@@ -588,6 +587,10 @@ public class AnalyzeMethod {
             }
             if (e instanceof Assignment a) {
                 assignedAdd(a.variableTarget());
+                if (a.assignmentOperator() != null) {
+                    // +=, ++, ...
+                    markRead(a.variableTarget());
+                }
                 a.value().visit(this);
 
                 recursivelyAddToModified(a.variableTarget(), false);
@@ -630,6 +633,15 @@ public class AnalyzeMethod {
             }
 
             return true;
+        }
+
+        private void markRead(Variable variable) {
+            variable.variableStreamDescend().forEach(v -> {
+                read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
+                if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
+                    seenFirstTime.put(v, index);
+                }
+            });
         }
 
         /*
