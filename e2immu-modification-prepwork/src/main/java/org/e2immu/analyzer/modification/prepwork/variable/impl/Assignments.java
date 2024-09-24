@@ -264,7 +264,7 @@ public class Assignments {
         return false;
     }
 
-    public List<String> mergeIndices() {
+    public List<String> allIndicesStripStage() {
         return Arrays.stream(assignmentIndices).map(Util::stripStage).toList();
     }
 

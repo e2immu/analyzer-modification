@@ -321,6 +321,6 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertTrue(iVi.hasBeenDefined("4"));
         assertTrue(iVi.hasBeenDefined("5"));
         assertEquals("[3.0.0.0.0, 3.0.0.0.1, 3.0.0, 3.0.1, 3.0.2.0.1, 4]",
-                iVi.assignments().mergeIndices().toString());
+                iVi.assignments().allIndicesStripStage().toString());
     }
 }
