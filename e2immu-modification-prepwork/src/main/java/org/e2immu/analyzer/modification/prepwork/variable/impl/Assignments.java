@@ -223,7 +223,7 @@ public class Assignments {
      */
     public boolean hasAValueAt(String index) {
         if (indexOfDefinition.compareTo(index) > 0) {
-            throw new UnsupportedOperationException("not yet defined");
+            return false;
         }
         if (assignmentIndices.length == 0) return false;
         int pos = Arrays.binarySearch(assignmentIndices, index);
@@ -248,7 +248,7 @@ public class Assignments {
      */
     public boolean hasBeenAssignedAfterFor(String after, String seenBy) {
         if (indexOfDefinition.compareTo(after) >= 0) {
-            throw new UnsupportedOperationException("must be defined earlier");
+            return true;
         }
         if (assignmentIndices.length == 0) return false;
         int pos = Arrays.binarySearch(assignmentIndices, after);
