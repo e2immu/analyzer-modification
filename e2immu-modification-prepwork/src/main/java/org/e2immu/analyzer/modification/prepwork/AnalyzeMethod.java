@@ -502,9 +502,8 @@ public class AnalyzeMethod {
                 }
                 // the condition is evaluated 2x
                 fs.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
-                //       } else if(statement instanceof WhileStatement ws) {
-                // FIXME
-                //  ws.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
+            } else if (statement instanceof WhileStatement ws) {
+                ws.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
             } else if (statement instanceof ForEachStatement fe) {
                 handleLvc(fe.initializer(), v.withIndex(indexIn + EVAL_INIT));
                 v.assignedAdd(fe.initializer().localVariable());
