@@ -120,6 +120,7 @@ public class Assignments {
                                           Map<String, List<Assignments>> assignmentsToAddFromFallThrough) {
         List<String> list = new ArrayList<>();
         Assignments aFirst = null;
+        boolean haveAtLeastOneAssignment =false;
         for (Map.Entry<String, Assignments> entry : assignmentsInBlocks.entrySet()) {
             Assignments a = entry.getValue();
             String subIndex = entry.getKey();
@@ -141,9 +142,10 @@ public class Assignments {
                 // nothing was added, so no assignment
                 completeMerge.add(subIndex);
             }
+            haveAtLeastOneAssignment |= haveAssignment;
         }
         assert aFirst != null;
-        if (completeMerge.complete()) {
+        if (completeMerge.complete() && haveAtLeastOneAssignment) {
             String mergeIndex = index + StatementIndex.MERGE;
             list.add(mergeIndex);
         }
