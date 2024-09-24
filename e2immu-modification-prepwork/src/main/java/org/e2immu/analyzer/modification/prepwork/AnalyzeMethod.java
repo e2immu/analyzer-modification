@@ -188,7 +188,7 @@ public class AnalyzeMethod {
         Stream<Block> blockStream;
         if (parentStatement instanceof TryStatement ts && !(ts.resources().isEmpty())) {
             Block.Builder bb = runtime.newBlockBuilder();
-            bb.addStatements(runtime.resourcesAsStatements(ts));
+            bb.addStatements(ts.resources());
             bb.addStatements(ts.block().statements());
             blockStream = Stream.concat(Stream.of(bb.build()), ts.otherBlocksStream());
         } else {
