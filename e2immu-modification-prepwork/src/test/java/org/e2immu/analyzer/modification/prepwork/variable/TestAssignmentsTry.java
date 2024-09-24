@@ -51,7 +51,7 @@ public class TestAssignmentsTry extends CommonTest {
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("1.0.0", inVi.reads().toString()); 
+        assertEquals("1.0.0", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         VariableInfo cVi = vdMethod.variableInfo("c");
@@ -95,7 +95,7 @@ public class TestAssignmentsTry extends CommonTest {
 
         VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
-        assertEquals("2.0.0", inVi.reads().toString()); 
+        assertEquals("2.0.0", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         VariableInfo cVi = vdMethod.variableInfo("c");
@@ -136,7 +136,7 @@ public class TestAssignmentsTry extends CommonTest {
         TryStatement ts = (TryStatement) method.methodBody().statements().get(0);
         TryStatement.CatchClause cc = ts.catchClauses().get(0);
         Statement cc0 = cc.block().statements().get(0);
-        assertEquals("0.2.0", cc0.source().index());
+        assertEquals("0.1.0", cc0.source().index());
 
         Analyze analyze = new Analyze(runtime);
         analyze.doMethod(method);
@@ -144,8 +144,8 @@ public class TestAssignmentsTry extends CommonTest {
         assertNotNull(vdMethod);
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[0.2.1]", rvVi.assignments().toString());
-        assertFalse(rvVi.hasBeenDefined("1"));
+        assertEquals("D:-, A:[0.1.1]", rvVi.assignments().toString());
+        assertFalse(rvVi.hasBeenDefined("0"));
     }
 
 
@@ -205,10 +205,18 @@ public class TestAssignmentsTry extends CommonTest {
         testCatchClause(ts, 0);
         testCatchClause(ts, 1);
 
-        VariableInfoContainer vicSw = vdTs.variableInfoContainerOrNull("sw");
-        assertTrue(vicSw.isInitial());
+        VariableInfoContainer vicSwTs = vdTs.variableInfoContainerOrNull("sw");
+        assertNull(vicSwTs);
+
+        Statement append = ts.block().lastStatement();
+        VariableData vdAppend = append.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfoContainer vicSw = vdAppend.variableInfoContainerOrNull("sw");
+        assertFalse(vicSw.isInitial());
         assertTrue(vicSw.hasEvaluation());
         assertFalse(vicSw.hasMerge());
+        VariableInfo viSw = vicSw.best();
+        assertEquals("D:1+0, A:[1+0]", viSw.assignments().toString());
+        assertEquals("1.0.1", viSw.reads().toString());
     }
 
     private static void testCatchClause(TryStatement ts, int ccIndex) {

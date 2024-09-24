@@ -185,7 +185,16 @@ public class AnalyzeMethod {
                                                Statement parentStatement,
                                                VariableData vdOfParent,
                                                InternalVariables iv) {
-        return parentStatement.subBlockStream()
+        Stream<Block> blockStream;
+        if (parentStatement instanceof TryStatement ts && !(ts.resources().isEmpty())) {
+            Block.Builder bb = runtime.newBlockBuilder();
+            bb.addStatements(runtime.resourcesAsStatements(ts));
+            bb.addStatements(ts.block().statements());
+            blockStream = Stream.concat(Stream.of(bb.build()), ts.otherBlocksStream());
+        } else {
+            blockStream = parentStatement.subBlockStream();
+        }
+        return blockStream
                 .filter(b -> !b.isEmpty())
                 .collect(Collectors.toUnmodifiableMap(
                         block -> block.statements().get(0).source().index(),
@@ -500,14 +509,6 @@ public class AnalyzeMethod {
                 if (as.message() != null) as.message().visit(v);
             } else if (statement instanceof ExplicitConstructorInvocation eci) {
                 eci.parameterExpressions().forEach(e -> e.visit(v));
-            } else if (statement instanceof TryStatement ts) {
-                ts.resources().forEach(r -> {
-                    if (r instanceof LocalVariableCreation lvc) {
-                        handleLvc(lvc, v);
-                    } else {
-                        r.visit(v);
-                    }
-                });
             }
         }
         Expression expression = statement.expression();
