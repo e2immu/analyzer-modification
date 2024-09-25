@@ -135,6 +135,9 @@ public class TestBasics extends CommonTest {
                 static List<M> copyM(List<M> list) {
                     return new ArrayList<>(list);
                 }
+                static List<String> copyS(List<String> list) {
+                    return new ArrayList<>(list);
+                }
             }
             """;
 
@@ -162,5 +165,52 @@ public class TestBasics extends CommonTest {
                 LinkedVariablesImpl.EMPTY);
         // for this to be correct, M must be modifying
         assertEquals("0M-4-0M:list", lvRvM.toString());
+
+        MethodInfo methodInfoS = X.findUniqueMethod("copyS", 1);
+        analyzer.doMethod(methodInfoS);
+        assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().get(0).typeInfo());
+        LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY);
+        assertTrue(lvRvS.isEmpty());
     }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            import java.util.List;
+            class X {
+                static <T> void listAdd(List<T> list, T t) {
+                    List<T> l = list.subList(0, 10);
+                    l.add(t);
+                }
+            }
+            """;
+
+    @DisplayName("subList, direct assignment")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        prepWork(X);
+        MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
+        analyzer.doMethod(listAdd);
+
+        Statement s0 = listAdd.methodBody().statements().get(0);
+        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vd0);
+        VariableInfo vi0 = vd0.variableInfo("l");
+        assertEquals("0-2-0:list", vi0.linkedVariables().toString());
+
+        Statement s1 = listAdd.methodBody().statements().get(1);
+        VariableData vd1 = s1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        ParameterInfo listAdd0 = listAdd.parameters().get(0);
+
+        VariableInfo vi1 = vd1.variableInfo("l");
+        assertEquals("0-2-0:list,0-4-*:t", vi1.linkedVariables().toString());
+
+        // this one can only be computed through the graph algorithm
+        VariableInfo vi1p0 = vd1.variableInfo(listAdd0);
+        assertEquals("0-4-*:t", vi1p0.linkedVariables().toString());
+    }
+
 }

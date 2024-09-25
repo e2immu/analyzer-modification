@@ -40,6 +40,8 @@ dependencies {
     implementation("org.e2immu:e2immu-modification-prepwork:some.version")
     implementation("org.e2immu:e2immu-inspection-parser:some.version")
     implementation("org.slf4j:slf4j-api:2.0.7")
+    implementation("org.jgrapht:jgrapht-core:1.5.2")
+    implementation("org.jgrapht:jgrapht-io:1.5.2")
 
     testImplementation("org.jetbrains:annotations:24.1.0")
     testImplementation("org.e2immu:e2immu-cst-impl:some.version")

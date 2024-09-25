@@ -107,33 +107,59 @@ public class Analyzer {
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         VariableData vd = statement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
+
+        if (statement instanceof LocalVariableCreation lvc) {
+            lvc.localVariableStream().forEach(lv -> {
+                if (!lv.assignmentExpression().isEmpty()) {
+                    LinkEvaluation linkEvaluation = linkEvaluation(methodInfo, lv.assignmentExpression());
+                    VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(lv);
+                    setLinkedVariables(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
+                    copyLinkEvaluationIntoVariableData(linkEvaluation, vd, previous, stageOfPrevious);
+                }
+            });
+        }
         if (statement instanceof ExpressionAsStatement || statement instanceof ReturnStatement) {
             LinkEvaluation linkEvaluation = linkEvaluation(methodInfo, statement.expression());
 
             if (statement instanceof ReturnStatement) {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
-                LinkedVariables mergedLvs;
-                if (previous != null) {
-                    throw new UnsupportedOperationException();
-                } else {
-                    mergedLvs = linkEvaluation.linkedVariables();
-                }
-                vi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-                vi.setLinkedVariables(mergedLvs);
+                setLinkedVariables(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
             }
 
-            for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
-                VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(entry.getKey());
-                vi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-                vi.setLinkedVariables(entry.getValue());
-            }
+            copyLinkEvaluationIntoVariableData(linkEvaluation, vd, previous, stageOfPrevious);
         }
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
 
         }
         return vd;
+    }
+
+    private static void copyLinkEvaluationIntoVariableData(LinkEvaluation linkEvaluation,
+                                                           VariableData destination,
+                                                           VariableData previous,
+                                                           Stage stageOfPrevious) {
+        for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
+            VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
+            setLinkedVariables(previous, stageOfPrevious, entry.getValue(), vi);
+        }
+    }
+
+    private static void setLinkedVariables(VariableData previous,
+                                           Stage stageOfPrevious,
+                                           LinkedVariables linkedVariables,
+                                           VariableInfoImpl destinationVi) {
+        destinationVi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+        LinkedVariables merge;
+        if (previous == null) {
+            merge = linkedVariables;
+        } else {
+            VariableInfo prev = previous.variableInfo(destinationVi.variable(), stageOfPrevious);
+            LinkedVariables lvPrev = prev.linkedVariables();
+            merge = lvPrev.merge(linkedVariables);
+        }
+        destinationVi.setLinkedVariables(merge);
     }
 
 
