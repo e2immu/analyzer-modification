@@ -10,6 +10,8 @@ import java.util.Map;
 
 public class LinkEvaluation {
 
+    public static final LinkEvaluation EMPTY = new Builder().build();
+
     private final LinkedVariables linkedVariables;
     private final Map<Variable, LinkedVariables> links;
 
@@ -40,6 +42,10 @@ public class LinkEvaluation {
             assert lv != null;
             this.links.merge(variable, lv, LinkedVariables::merge);
             return this;
+        }
+
+        public LinkedVariables linkedVariablesOfExpression() {
+            return linkedVariables;
         }
 
         LinkEvaluation build() {

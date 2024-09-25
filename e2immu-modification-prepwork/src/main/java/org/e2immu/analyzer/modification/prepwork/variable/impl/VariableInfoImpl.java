@@ -30,6 +30,10 @@ public class VariableInfoImpl implements VariableInfo {
         this.reads = reads;
     }
 
+    public void initializeLinkedVariables(LinkedVariables initialValue) {
+        this.linkedVariables.setVariable(initialValue);
+    }
+
     public boolean setLinkedVariables(LinkedVariables linkedVariables) {
         assert linkedVariables != null;
         assert this.linkedVariables.get() != null : "Please initialize LVs";
