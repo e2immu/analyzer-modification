@@ -2,33 +2,36 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
-import org.e2immu.analyzer.modification.prepwork.AnalyzeMethod;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
-import org.e2immu.language.cst.api.element.Visitor;
-import org.e2immu.language.cst.api.expression.Assignment;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
-import org.e2immu.language.cst.api.statement.Block;
-import org.e2immu.language.cst.api.statement.ReturnStatement;
-import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.api.statement.TryStatement;
+import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_METHOD;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
 public class Analyzer {
     private final Runtime runtime;
@@ -42,9 +45,26 @@ public class Analyzer {
     }
 
     public void doMethod(MethodInfo methodInfo) {
-        doBlock(methodInfo, methodInfo.methodBody(), null);
+        VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
+        copyFromVariablesIntoMethod(methodInfo, variableData);
     }
 
+    private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
+        for (VariableInfo vi : variableData.variableInfoStream().toList()) {
+            Variable v = vi.variable();
+            if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
+                LinkedVariables lv = vi.linkedVariables();
+                if(lv != null) {
+                    pi.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, lv);
+                }
+            } else if(v instanceof ReturnVariable) {
+                LinkedVariables lv = vi.linkedVariables();
+                if(lv != null) {
+                    methodInfo.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_METHOD, lv);
+                }
+            }
+        }
+    }
 
     // NOTE: the doBlocks, doBlock methods, and parts of doStatement, have been copied from prepwork.AnalyzeMethod
 
@@ -86,21 +106,28 @@ public class Analyzer {
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         VariableData vd = statement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
-
-        if (statement instanceof ReturnStatement) {
+        if (statement instanceof ExpressionAsStatement || statement instanceof ReturnStatement) {
             LinkEvaluation linkEvaluation = linkEvaluation(methodInfo, statement.expression());
-            ReturnVariable rv = new ReturnVariableImpl(methodInfo);
-            VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
-            LinkedVariables mergedLvs;
-            if (previous != null) {
-                throw new UnsupportedOperationException();
-            } else {
-                mergedLvs = linkEvaluation.linkedVariables();
-            }
-            vi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-            vi.setLinkedVariables(mergedLvs);
-        }
 
+            if (statement instanceof ReturnStatement) {
+                ReturnVariable rv = new ReturnVariableImpl(methodInfo);
+                VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
+                LinkedVariables mergedLvs;
+                if (previous != null) {
+                    throw new UnsupportedOperationException();
+                } else {
+                    mergedLvs = linkEvaluation.linkedVariables();
+                }
+                vi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+                vi.setLinkedVariables(mergedLvs);
+            }
+
+            for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
+                VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(entry.getKey());
+                vi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+                vi.setLinkedVariables(entry.getValue());
+            }
+        }
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
 
@@ -115,6 +142,8 @@ public class Analyzer {
             return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
         }
         if (expression instanceof MethodCall mc) {
+            LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.object().parameterizedType();
@@ -127,12 +156,20 @@ public class Analyzer {
             LinkEvaluation objectResult = mc.methodInfo().isStatic()
                     ? LinkEvaluation.EMPTY : linkEvaluation(currentMethod, mc.object());
 
+            // from parameters to object
+            LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
+                    mc.parameterExpressions(), linkEvaluations);
+            LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariablesOfExpression();
+            if (mc.object() instanceof VariableExpression ve) {
+                builder.merge(ve.variable(), linkedVariablesOfObjectFromParams);
+            }
+
             // from object to return value
             LinkedVariables lvsResult1 = objectType == null ? LinkedVariablesImpl.EMPTY
                     : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, objectResult.linkedVariables(),
                     linkedVariablesOfParameters, concreteReturnType, Map.of());
 
-            return new LinkEvaluation.Builder().setLinkedVariables(lvsResult1).build();
+            return builder.setLinkedVariables(lvsResult1).build();
         }
         return LinkEvaluation.EMPTY;
     }

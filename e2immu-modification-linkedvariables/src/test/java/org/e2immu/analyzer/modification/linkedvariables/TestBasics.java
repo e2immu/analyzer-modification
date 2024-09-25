@@ -1,7 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -17,8 +16,6 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBasics extends CommonTest {
@@ -30,7 +27,8 @@ public class TestBasics extends CommonTest {
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
-            import java.util.Set;class X {
+            import java.util.Set;
+            class X {
                 static boolean setAdd(Set<String> set, String s) {
                     return set.add(s);
                 }
@@ -55,7 +53,7 @@ public class TestBasics extends CommonTest {
         VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo viSet0 = vd0.variableInfo(set);
         assertTrue(viSet0.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
-        assertNull(viSet0.linkedVariables());
+        assertSame(LinkedVariablesImpl.EMPTY, viSet0.linkedVariables());
 
         // this should have reached the method
         assertTrue(set.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isTrue());
@@ -75,25 +73,50 @@ public class TestBasics extends CommonTest {
     @DisplayName("return list.get(index)")
     @Test
     public void test2() {
-        TypeInfo list = javaInspector.compiledTypesManager().get(List.class);
-        ComputeHiddenContent chc = new ComputeHiddenContent(runtime);
-
-        MethodInfo get = list.findUniqueMethod("get", 1);
-        assertEquals("java.util.List.get(int)", get.fullyQualifiedName());
-        HiddenContentSelector getHcs = new ComputeHCS(runtime).hcsOfMethod(get);
-        assertEquals("*", getHcs.toString());
-        get.analysis().set(HiddenContentSelector.HCS_METHOD, getHcs);
-
         TypeInfo X = javaInspector.parse(INPUT2);
         prepWork(X);
-        MethodInfo setAdd = X.findUniqueMethod("get", 2);
+        MethodInfo listGet = X.findUniqueMethod("get", 2);
         Analyzer analyzer = new Analyzer(runtime);
-        analyzer.doMethod(setAdd);
+        analyzer.doMethod(listGet);
 
-        Statement s0 = setAdd.methodBody().statements().get(0);
+        Statement s0 = listGet.methodBody().statements().get(0);
         VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd0);
-        VariableInfo viRv = vd0.variableInfo(setAdd.fullyQualifiedName());
+        VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
         assertEquals("*-4-0:list", viRv.linkedVariables().toString());
+
+        assertSame(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY));
+    }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.List;
+            class X {
+                static <T> void listAdd(List<T> list, T t) {
+                    list.add(t);
+                }
+            }
+            """;
+
+    @DisplayName("list.add(t)")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        prepWork(X);
+        MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(listAdd);
+
+        Statement s0 = listAdd.methodBody().statements().get(0);
+        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vd0);
+        ParameterInfo listAdd0 = listAdd.parameters().get(0);
+        VariableInfo vi0 = vd0.variableInfo(listAdd0);
+        assertEquals("0-4-*:t", vi0.linkedVariables().toString());
+        assertSame(vi0.linkedVariables(),
+                listAdd0.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
     }
 }

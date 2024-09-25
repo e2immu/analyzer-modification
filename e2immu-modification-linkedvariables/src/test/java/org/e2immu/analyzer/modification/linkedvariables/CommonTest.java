@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.Analyze;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -9,6 +10,7 @@ import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
 import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.output.Formatter;
 import org.e2immu.language.cst.api.output.OutputBuilder;
@@ -26,8 +28,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 
 import static org.e2immu.language.inspection.integration.JavaInspectorImpl.JAR_WITH_PATH_PREFIX;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CommonTest {
     protected JavaInspector javaInspector;
@@ -81,6 +86,36 @@ public class CommonTest {
     }
 
     protected void prepWork(TypeInfo typeInfo) {
+        TypeInfo list = javaInspector.compiledTypesManager().get(List.class);
+
+        MethodInfo get = list.findUniqueMethod("get", 1);
+        assertEquals("java.util.List.get(int)", get.fullyQualifiedName());
+        HiddenContentSelector getHcs = new ComputeHCS(runtime).hcsOfMethod(get);
+        assertEquals("*", getHcs.toString());
+        get.analysis().set(HiddenContentSelector.HCS_METHOD, getHcs);
+
+        MethodInfo add = list.findUniqueMethod("add", 1);
+        assertEquals("java.util.List.add(E)", add.fullyQualifiedName());
+        HiddenContentSelector addHcs = new ComputeHCS(runtime).hcsOfMethod(add);
+        assertEquals("X", addHcs.toString()); // returns 'true', constant
+        add.analysis().set(HiddenContentSelector.HCS_METHOD, addHcs);
+        ParameterInfo add0 = add.parameters().get(0);
+        HiddenContentSelector add0Hcs = new ComputeHCS(runtime).hcsOfParameter(add0);
+        add0.analysis().set(HiddenContentSelector.HCS_PARAMETER, add0Hcs);
+        assertEquals("*", add0Hcs.toString());
+
+        TypeInfo set = javaInspector.compiledTypesManager().get(Set.class);
+
+        MethodInfo setAdd = set.findUniqueMethod("add", 1);
+        assertEquals("java.util.Set.add(E)", setAdd.fullyQualifiedName());
+        HiddenContentSelector setAddHcs = new ComputeHCS(runtime).hcsOfMethod(setAdd);
+        assertEquals("X", setAddHcs.toString()); // returns 'true', constant
+        setAdd.analysis().set(HiddenContentSelector.HCS_METHOD, setAddHcs);
+        ParameterInfo setAdd0 = setAdd.parameters().get(0);
+        HiddenContentSelector setAdd0Hcs = new ComputeHCS(runtime).hcsOfParameter(setAdd0);
+        setAdd0.analysis().set(HiddenContentSelector.HCS_PARAMETER, setAdd0Hcs);
+        assertEquals("*", setAdd0Hcs.toString());
+
         ComputeHiddenContent chc = new ComputeHiddenContent(runtime);
         HiddenContentTypes hct = chc.compute(typeInfo);
         Analyze analyze = new Analyze(runtime);

@@ -27,6 +27,7 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
     // use .equals, not a marker
     public static final LinkedVariables EMPTY = new LinkedVariablesImpl(Map.of());
 
+    public static final Property LINKED_VARIABLES_METHOD = new PropertyImpl("linkedVariablesOfMethod", EMPTY);
     public static final Property LINKED_VARIABLES_PARAMETER = new PropertyImpl("linkedVariablesOfParameter", EMPTY);
     public static final Property PARAMETER_LINKS_TO_RETURN_VALUE_OF_METHOD = new PropertyImpl("parameterLinksToReturnValueOfMethod", EMPTY);
     public static final Property PARAMETER_CROSS_LINKS = new PropertyImpl("parameterCrossLinks", CrossLinksImpl.EMPTY);
@@ -129,6 +130,7 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
                 map.put(v, merged);
             }
         });
+        if (map.isEmpty()) return EMPTY;
         return of(map);
     }
 
