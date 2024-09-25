@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -41,7 +42,6 @@ public class TestBasics extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT1);
         prepWork(X);
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        Analyzer analyzer = new Analyzer(runtime);
         analyzer.doMethod(setAdd);
         VariableData vd = setAdd.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd);
@@ -76,7 +76,6 @@ public class TestBasics extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         prepWork(X);
         MethodInfo listGet = X.findUniqueMethod("get", 2);
-        Analyzer analyzer = new Analyzer(runtime);
         analyzer.doMethod(listGet);
 
         Statement s0 = listGet.methodBody().statements().get(0);
@@ -107,7 +106,6 @@ public class TestBasics extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT3);
         prepWork(X);
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
-        Analyzer analyzer = new Analyzer(runtime);
         analyzer.doMethod(listAdd);
 
         Statement s0 = listAdd.methodBody().statements().get(0);
@@ -118,5 +116,51 @@ public class TestBasics extends CommonTest {
         assertEquals("0-4-*:t", vi0.linkedVariables().toString());
         assertSame(vi0.linkedVariables(),
                 listAdd0.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
+    }
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import java.util.ArrayList;
+            import java.util.List;
+            class X {
+                  final static class M {
+                      private int i;
+                      public int getI() { return i; }
+                      public void setI(int i) { this.i = i; }
+                  }
+                static <T> List<T> copy(List<T> list) {
+                    return new ArrayList<>(list);
+                }
+                static List<M> copyM(List<M> list) {
+                    return new ArrayList<>(list);
+                }
+            }
+            """;
+
+    @DisplayName("return new ArrayList<>(list)")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        prepWork(X);
+
+        MethodInfo methodInfo = X.findUniqueMethod("copy", 1);
+        analyzer.doMethod(methodInfo);
+        LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY);
+        assertEquals("0-4-0:list", lvRv.toString());
+
+        TypeInfo M = X.findSubType("M");
+        assertTrue(M.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+        assertFalse(M.isExtensible());
+        assertTrue(M.isStatic());
+
+        MethodInfo methodInfoM = X.findUniqueMethod("copyM", 1);
+        analyzer.doMethod(methodInfoM);
+        assertSame(M, methodInfoM.returnType().parameters().get(0).typeInfo());
+        LinkedVariables lvRvM = methodInfoM.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY);
+        // for this to be correct, M must be modifying
+        assertEquals("0M-4-0M:list", lvRvM.toString());
     }
 }

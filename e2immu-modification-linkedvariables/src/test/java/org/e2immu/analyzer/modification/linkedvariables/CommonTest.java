@@ -28,6 +28,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -39,6 +41,7 @@ public class CommonTest {
     protected Runtime runtime;
     protected final String[] extraClassPath;
     protected final boolean loadAnnotatedAPIs;
+    protected Analyzer analyzer;
 
     protected CommonTest() {
         this(false, new String[]{});
@@ -83,40 +86,14 @@ public class CommonTest {
 
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
+        analyzer = new Analyzer(runtime);
     }
 
     protected void prepWork(TypeInfo typeInfo) {
-        TypeInfo list = javaInspector.compiledTypesManager().get(List.class);
+        ComputeHCS computeHCS = new ComputeHCS(runtime);
+        computeHCS.doType(List.class, Set.class, ArrayList.class);
 
-        MethodInfo get = list.findUniqueMethod("get", 1);
-        assertEquals("java.util.List.get(int)", get.fullyQualifiedName());
-        HiddenContentSelector getHcs = new ComputeHCS(runtime).hcsOfMethod(get);
-        assertEquals("*", getHcs.toString());
-        get.analysis().set(HiddenContentSelector.HCS_METHOD, getHcs);
-
-        MethodInfo add = list.findUniqueMethod("add", 1);
-        assertEquals("java.util.List.add(E)", add.fullyQualifiedName());
-        HiddenContentSelector addHcs = new ComputeHCS(runtime).hcsOfMethod(add);
-        assertEquals("X", addHcs.toString()); // returns 'true', constant
-        add.analysis().set(HiddenContentSelector.HCS_METHOD, addHcs);
-        ParameterInfo add0 = add.parameters().get(0);
-        HiddenContentSelector add0Hcs = new ComputeHCS(runtime).hcsOfParameter(add0);
-        add0.analysis().set(HiddenContentSelector.HCS_PARAMETER, add0Hcs);
-        assertEquals("*", add0Hcs.toString());
-
-        TypeInfo set = javaInspector.compiledTypesManager().get(Set.class);
-
-        MethodInfo setAdd = set.findUniqueMethod("add", 1);
-        assertEquals("java.util.Set.add(E)", setAdd.fullyQualifiedName());
-        HiddenContentSelector setAddHcs = new ComputeHCS(runtime).hcsOfMethod(setAdd);
-        assertEquals("X", setAddHcs.toString()); // returns 'true', constant
-        setAdd.analysis().set(HiddenContentSelector.HCS_METHOD, setAddHcs);
-        ParameterInfo setAdd0 = setAdd.parameters().get(0);
-        HiddenContentSelector setAdd0Hcs = new ComputeHCS(runtime).hcsOfParameter(setAdd0);
-        setAdd0.analysis().set(HiddenContentSelector.HCS_PARAMETER, setAdd0Hcs);
-        assertEquals("*", setAdd0Hcs.toString());
-
-        ComputeHiddenContent chc = new ComputeHiddenContent(runtime);
+        ComputeHiddenContent chc = computeHCS.getChc();
         HiddenContentTypes hct = chc.compute(typeInfo);
         Analyze analyze = new Analyze(runtime);
         typeInfo.constructorAndMethodStream().forEach(mi -> {

@@ -7,6 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImp
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.language.cst.api.expression.ConstructorCall;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
@@ -54,12 +55,12 @@ public class Analyzer {
             Variable v = vi.variable();
             if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
                 LinkedVariables lv = vi.linkedVariables();
-                if(lv != null) {
+                if (lv != null) {
                     pi.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, lv);
                 }
-            } else if(v instanceof ReturnVariable) {
+            } else if (v instanceof ReturnVariable) {
                 LinkedVariables lv = vi.linkedVariables();
-                if(lv != null) {
+                if (lv != null) {
                     methodInfo.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_METHOD, lv);
                 }
             }
@@ -170,6 +171,16 @@ public class Analyzer {
                     linkedVariablesOfParameters, concreteReturnType, Map.of());
 
             return builder.setLinkedVariables(lvsResult1).build();
+        }
+        if (expression instanceof ConstructorCall cc && cc.constructor() != null) {
+            LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+            List<LinkEvaluation> linkEvaluations = cc.parameterExpressions().stream()
+                    .map(e -> linkEvaluation(currentMethod, e)).toList();
+            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
+                    cc.constructor());
+            LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
+                    null, cc.parameterExpressions(), linkEvaluations);
+            return builder.setLinkedVariables(from.intoObject().linkedVariablesOfExpression()).build();
         }
         return LinkEvaluation.EMPTY;
     }
