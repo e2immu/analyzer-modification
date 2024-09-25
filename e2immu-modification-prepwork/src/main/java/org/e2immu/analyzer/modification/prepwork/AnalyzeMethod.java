@@ -590,6 +590,12 @@ public class AnalyzeMethod {
                     // +=, ++, ...
                     markRead(a.variableTarget());
                 }
+                if(a.variableTarget() instanceof DependentVariable dv) {
+                    dv.indexExpression().visit(this);
+                    dv.arrayExpression().visit(this);
+                } else if(a.variableTarget() instanceof FieldReference fr) {
+                    fr.scope().visit(this);
+                }
                 a.value().visit(this);
 
                 recursivelyAddToModified(a.variableTarget(), false);

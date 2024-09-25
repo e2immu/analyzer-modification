@@ -61,6 +61,6 @@ public class TestReads extends CommonTest {
         VariableData vd = ieInInner.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         ParameterInfo fromIndex = method.parameters().get(2);
         VariableInfo viFromIndex = vd.variableInfo(fromIndex);
-        assertEquals("0.1.2-E, 0.1.2.0.0-E, 0.1.2.0.0.0.1.0.0-E", viFromIndex.reads().toString());
+        assertEquals("0.1.2-E, 0.1.2.0.0-E, 0.1.2.0.0.0.1.0.0-E, 0.1.2;E", viFromIndex.reads().toString());
     }
 }

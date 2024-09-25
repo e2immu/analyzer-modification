@@ -140,7 +140,7 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         assertFalse(vd0.variableInfoContainerOrNull("i").hasMerge());
-        assertEquals("0-E, 0;E", iVi.reads().toString()); // is not a merge, so we cannot see the read in 'return i'
+        assertEquals("0-E, 0:E, 0;E", iVi.reads().toString()); // is not a merge, so we cannot see the read in 'return i'
         Assignments iA = iVi.assignments();
         assertEquals("D:0+E, A:[0+E, 0:E]", iA.toString());
 
@@ -148,7 +148,7 @@ public class TestAssignments extends CommonTest {
         VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertTrue(vd000.variableInfoContainerOrNull("i").hasMerge());
         VariableInfo iVi000 = vd000.variableInfo("i");
-        assertEquals("0-E, 0.0.0-E, 0.0.0.0.0, 0;E", iVi000.reads().toString());
+        assertEquals("0-E, 0.0.0-E, 0.0.0.0.0, 0:E, 0;E", iVi000.reads().toString());
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
         assertEquals("return method", rvVi.variable().simpleName());
@@ -417,7 +417,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("D:07, A:[14, 16.0.3.0.0, 16.0.4.1.0.0.2.0.3]", newLowIndexVi.assignments().toString());
 
         VariableInfo highToLowVi = vdMethod.variableInfo("highToLowIndex");
-        assertEquals("12, 16.0.2, 16.0.3-E, 16.0.3.0.0, 16.0.3.0.2, 16.0.4-E, 16.0.4.1.0-E, 16.0.4.1.0.0.2.0.2, 16.0.4.1.0.0.2.0.3", highToLowVi.reads().toString());
+        assertEquals("12, 16.0.2, 16.0.3-E, 16.0.3.0.0, 16.0.3.0.1, 16.0.3.0.2, 16.0.3;E, 16.0.4-E, 16.0.4.1.0-E, 16.0.4.1.0.0.2.0.2, 16.0.4.1.0.0.2.0.3, 16.0.4.1.0.0.2.0.6", highToLowVi.reads().toString());
         assertEquals("D:01, A:[11, 16.0.3.0.1, 16.0.4.1.0.0.2.0.6]", highToLowVi.assignments().toString());
     }
 

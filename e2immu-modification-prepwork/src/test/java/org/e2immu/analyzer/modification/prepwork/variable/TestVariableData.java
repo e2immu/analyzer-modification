@@ -276,7 +276,7 @@ public class TestVariableData extends CommonTest {
         ForStatement fs4 =(ForStatement) method1.methodBody().statements().get(4);
         VariableData vd4 = fs4.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo i4 = vd4.variableInfo("i");
-        assertEquals("4-E, 4.0.0, 4;E", i4.reads().toString());
+        assertEquals("4-E, 4.0.0, 4:E, 4;E", i4.reads().toString());
     }
 
 }

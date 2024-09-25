@@ -67,10 +67,14 @@ public class TestAssignmentsNoExit extends CommonTest {
         assertNotNull(vdMethod);
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());
-        assertEquals("D:-, A:[2.0.2.0.0.0.0, 2.0.2.0.0.0.1, 2.0.2.0.0=M, 2.0.2.0.1, 2.0.2.0.2.0.1, 2=M]",
+        assertEquals("D:-, A:[2.0.2.0.0.0.0, 2.0.2.0.0.0.1, 2.0.2.0.0=M, 2.0.2.0.1, 2.0.2.0.2.0.1]",
                 rvVi.assignments().toString());
-        assertTrue(rvVi.hasBeenDefined("2=M"));
-        assertTrue(rvVi.hasBeenDefined("3.0.0"));
+        // important: 2=M is absent, because there is no assignment at 2.0._ level, because there is no
+        // return statement in the 'default' branch of the outer switch
+        assertFalse(rvVi.hasBeenDefined("2=M"));
+        assertFalse(rvVi.hasBeenDefined("3.0.0"));
+        // the code still compiles because the compiler reasons "there is an exit point" rather than
+        // "there is a guaranteed exit" inside the block
     }
 
 }
