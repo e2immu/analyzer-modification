@@ -27,14 +27,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.e2immu.language.inspection.integration.JavaInspectorImpl.JAR_WITH_PATH_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommonTest {
     protected JavaInspector javaInspector;
@@ -78,8 +77,11 @@ public class CommonTest {
         javaInspector.preload("java.util");
 
         if (loadAnnotatedAPIs) {
+            String JSON = "../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json";
+            File file = new File(JSON);
+            assertTrue(file.isDirectory());
             AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
-                    .addAnalyzedAnnotatedApiDirs("../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json")
+                    .addAnalyzedAnnotatedApiDirs(JSON)
                     .build();
             new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
         }
@@ -91,7 +93,7 @@ public class CommonTest {
 
     protected void prepWork(TypeInfo typeInfo) {
         ComputeHCS computeHCS = new ComputeHCS(runtime);
-        computeHCS.doType(List.class, Set.class, ArrayList.class);
+        computeHCS.doType(List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collections.class);
 
         ComputeHiddenContent chc = computeHCS.getChc();
         HiddenContentTypes hct = chc.compute(typeInfo);

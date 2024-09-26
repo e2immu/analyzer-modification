@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -17,11 +18,15 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestBasics extends CommonTest {
+public class TestLinkBasics extends CommonTest {
 
-    public TestBasics() {
+    public TestLinkBasics() {
         super(true);
     }
 
@@ -59,38 +64,9 @@ public class TestBasics extends CommonTest {
         assertTrue(set.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isTrue());
     }
 
+
     @Language("java")
     private static final String INPUT2 = """
-            package a.b;
-            import java.util.List;
-            class X {
-                static <T> T get(List<T> list, int i) {
-                    return list.get(i);
-                }
-            }
-            """;
-
-    @DisplayName("return list.get(index)")
-    @Test
-    public void test2() {
-        TypeInfo X = javaInspector.parse(INPUT2);
-        prepWork(X);
-        MethodInfo listGet = X.findUniqueMethod("get", 2);
-        analyzer.doMethod(listGet);
-
-        Statement s0 = listGet.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
-        assertNotNull(vd0);
-        VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
-        assertEquals("*-4-0:list", viRv.linkedVariables().toString());
-
-        assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
-                LinkedVariablesImpl.EMPTY));
-    }
-
-
-    @Language("java")
-    private static final String INPUT3 = """
             package a.b;
             import java.util.List;
             class X {
@@ -102,8 +78,8 @@ public class TestBasics extends CommonTest {
 
     @DisplayName("list.add(t)")
     @Test
-    public void test3() {
-        TypeInfo X = javaInspector.parse(INPUT3);
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
         prepWork(X);
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
         analyzer.doMethod(listAdd);
@@ -119,16 +95,56 @@ public class TestBasics extends CommonTest {
     }
 
     @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.Collections;
+            import java.util.List;
+            class X {
+                static <T> void listAdd(List<T> list, T t1, T t2) {
+                    Collections.addAll(list, t1, t2);
+                }
+            }
+            """;
+
+    @DisplayName("Collections.addAll(list, t1, t2)")
+    @Test
+    public void test3() {
+        TypeInfo collections = javaInspector.compiledTypesManager().get(Collections.class);
+        MethodInfo addAll = collections.findUniqueMethod("addAll", 2);
+        ParameterInfo addAll0 = addAll.parameters().get(0);
+        assertTrue(addAll0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue());
+        Value.Independent i0 = addAll0.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
+                ValueImpl.IndependentImpl.DEPENDENT);
+        assertEquals(1, i0.linkToParametersReturnValue().size());
+
+        TypeInfo X = javaInspector.parse(INPUT3);
+        prepWork(X);
+        MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
+        analyzer.doMethod(listAdd);
+
+        Statement s0 = listAdd.methodBody().statements().get(0);
+        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        assertNotNull(vd0);
+
+        ParameterInfo list = listAdd.parameters().get(0);
+        VariableInfo vi0 = vd0.variableInfo(list);
+        assertEquals("0-4-*:t1,0-4-*:t2", vi0.linkedVariables().toString());
+
+        assertEquals(vi0.linkedVariables(),
+                list.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
+    }
+
+    @Language("java")
     private static final String INPUT4 = """
             package a.b;
             import java.util.ArrayList;
             import java.util.List;
             class X {
-                  final static class M {
-                      private int i;
-                      public int getI() { return i; }
-                      public void setI(int i) { this.i = i; }
-                  }
+                final static class M {
+                    private int i;
+                    public int getI() { return i; }
+                    public void setI(int i) { this.i = i; }
+                }
                 static <T> List<T> copy(List<T> list) {
                     return new ArrayList<>(list);
                 }
@@ -180,9 +196,25 @@ public class TestBasics extends CommonTest {
             package a.b;
             import java.util.List;
             class X {
-                static <T> void listAdd(List<T> list, T t) {
+                final static class M {
+                    private int i;
+                    public int getI() { return i; }
+                    public void setI(int i) { this.i = i; }
+                }
+                static <T> List<T> listAdd(List<T> list, T t) {
                     List<T> l = list.subList(0, 10);
                     l.add(t);
+                    return l;
+                }
+                static List<M> listAdd2(List<M> list, M t) {
+                    List<M> l = list.subList(0, 10);
+                    l.add(t);
+                    return l;
+                }
+                static List<String> listAdd3(List<String> list, String t) {
+                    List<String> l = list.subList(0, 10);
+                    l.add(t);
+                    return l;
                 }
             }
             """;
@@ -223,6 +255,27 @@ public class TestBasics extends CommonTest {
         LinkedVariables lvP1 = t1.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
                 LinkedVariablesImpl.class);
         assertEquals("*-4-0:list", lvP1.toString());
+
+        LinkedVariables lvMethod = listAdd.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.class);
+        assertEquals("0-2-0:list,0-4-*:t", lvMethod.toString());
+
+        {
+            MethodInfo listAdd2 = X.findUniqueMethod("listAdd2", 2);
+            analyzer.doMethod(listAdd2);
+
+            LinkedVariables lvMethod2 = listAdd2.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                    LinkedVariablesImpl.class);
+            assertEquals("0M-2-0M:list,0M-4-*M:t", lvMethod2.toString());
+        }
+        {
+            MethodInfo listAdd3 = X.findUniqueMethod("listAdd3", 2);
+            analyzer.doMethod(listAdd3);
+
+            LinkedVariables lvMethod3 = listAdd3.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                    LinkedVariablesImpl.class);
+            assertEquals("-2-:list", lvMethod3.toString());
+        }
     }
 
 
@@ -531,6 +584,5 @@ public class TestBasics extends CommonTest {
                 LinkedVariablesImpl.class);
         assertEquals("*-4-0:list", lvP2.toString());
     }
-
 
 }

@@ -371,8 +371,8 @@ public class LinkHelper {
             VariableInfo vi = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class)
                     .variableInfo(pi.fullyQualifiedName());
             LinkedVariables lv = vi.linkedVariables();
-                    //.remove(v -> FIXME not yet implemented
-                   // !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
+            //.remove(v -> FIXME not yet implemented
+            // !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
             result.add(lv);
         }
         if (concreteMethod.hasReturnValue()) {
@@ -418,8 +418,7 @@ public class LinkHelper {
                 LinkedVariables lvsToResult = isFactoryMethod
                         ? pi.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
                         LinkedVariablesImpl.EMPTY)
-                        : pi.analysis().getOrDefault(LinkedVariablesImpl.PARAMETER_LINKS_TO_RETURN_VALUE_OF_METHOD,
-                        LinkedVariablesImpl.EMPTY);
+                        : linkedVariablesToResult(pi);
                 boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
                 if (!formalParameterIndependent.isIndependent() || inResult) {
                     ParameterizedType parameterType = parameterExpressions.get(pi.index()).parameterizedType();
@@ -505,9 +504,7 @@ public class LinkHelper {
                                        MethodInfo methodInfo,
                                        List<Expression> parameterExpressions,
                                        List<LinkEvaluation> linkedVariables) {
-        Map<ParameterInfo, LinkedVariables> crossLinks
-                = methodInfo.analysis().getOrDefault(LinkedVariablesImpl.PARAMETER_CROSS_LINKS,
-                LinkedVariablesImpl.CrossLinksImpl.EMPTY).map();
+        Map<ParameterInfo, LinkedVariables> crossLinks = translateLinksToParameters(methodInfo);
         if (crossLinks.isEmpty()) return;
         crossLinks.forEach((pi, lv) -> {
             boolean sourceIsVarArgs = pi.isVarArgs();
@@ -546,6 +543,34 @@ public class LinkHelper {
                 } // else: no value... empty varargs
             });
         });
+    }
+
+    private LinkedVariables linkedVariablesToResult(ParameterInfo pi) {
+        return LinkedVariablesImpl.EMPTY; // FIXME
+    }
+
+    private Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
+        Map<ParameterInfo, Map<Variable, LV>> res = new HashMap<>();
+        for (ParameterInfo pi : methodInfo.parameters()) {
+            Independent independent = pi.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
+                    ValueImpl.IndependentImpl.DEPENDENT);
+            Map<Variable, LV> lvMap = new HashMap<>();
+            for (Map.Entry<Integer, Integer> e : independent.linkToParametersReturnValue().entrySet()) {
+                if (e.getKey() >= 0) {
+                    ParameterInfo target = methodInfo.parameters().get(e.getKey());
+                    LV lv;
+                    if (e.getValue() == 0) {
+                        lv = LINK_DEPENDENT;
+                    } else {
+                        lv = createHC(new LinksImpl(0, 0));
+                    }
+                    lvMap.put(target, lv);
+                }
+            }
+            if (!lvMap.isEmpty()) res.put(pi, lvMap);
+        }
+        return res.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getKey,
+                e -> LinkedVariablesImpl.of(e.getValue())));
     }
 
     /*

@@ -29,21 +29,6 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
 
     public static final Property LINKED_VARIABLES_METHOD = new PropertyImpl("linkedVariablesOfMethod", EMPTY);
     public static final Property LINKED_VARIABLES_PARAMETER = new PropertyImpl("linkedVariablesOfParameter", EMPTY);
-    public static final Property PARAMETER_LINKS_TO_RETURN_VALUE_OF_METHOD = new PropertyImpl("parameterLinksToReturnValueOfMethod", EMPTY);
-    public static final Property PARAMETER_CROSS_LINKS = new PropertyImpl("parameterCrossLinks", CrossLinksImpl.EMPTY);
-
-    public interface CrossLinks extends Value {
-        Map<ParameterInfo, LinkedVariables> map();
-    }
-
-    public record CrossLinksImpl(Map<ParameterInfo, LinkedVariables> map) implements CrossLinks {
-        public static final CrossLinks EMPTY = new CrossLinksImpl(Map.of());
-
-        @Override
-        public Codec.EncodedValue encode(Codec codec) {
-            throw new UnsupportedOperationException();
-        }
-    }
 
     public static final String NOT_YET_SET_STR = "NOT_YET_SET";
     private final Map<Variable, LV> variables;

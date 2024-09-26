@@ -25,6 +25,15 @@ public class LinkEvaluation {
         private LinkedVariables linkedVariables = LinkedVariablesImpl.EMPTY;
         private final Map<Variable, LinkedVariables> links = new HashMap<>();
 
+        public LinkedVariables getLinkedVariablesOf(Variable variable) {
+            return links.get(variable);
+        }
+
+        public void merge(Builder builder) {
+            linkedVariables = builder.linkedVariables;
+            builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
+        }
+
         public void mergeLinkedVariablesOfExpression(LinkedVariables lv) {
             linkedVariables = linkedVariables.merge(lv);
         }
