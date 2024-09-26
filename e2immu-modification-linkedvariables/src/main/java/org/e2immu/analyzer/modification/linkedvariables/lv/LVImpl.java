@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
@@ -44,6 +45,10 @@ public class LVImpl implements LV {
         this.label = Objects.requireNonNull(label);
         assert !label.isBlank();
         this.correspondingIndependent = correspondingIndependent;
+    }
+
+    public static LV delay(CausesOfDelay someDelay) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

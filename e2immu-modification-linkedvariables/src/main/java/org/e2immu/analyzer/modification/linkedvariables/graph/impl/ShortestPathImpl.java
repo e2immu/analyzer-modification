@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables.graph.impl;
 import org.e2immu.analyzer.modification.linkedvariables.graph.Cache;
 import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
+import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -10,11 +11,9 @@ import org.e2immu.util.internal.graph.op.DijkstraShortestPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
@@ -72,7 +71,7 @@ public class ShortestPathImpl implements ShortestPath {
         if (l < DELAYED) return LINK_STATICALLY_ASSIGNED;
         if (((l >> BITS) & (DELAYED - 1)) > 0) {
             assert someDelay != null && someDelay.isDelayed();
-            return LV.delay(someDelay);
+            return LVImpl.delay(someDelay);
         }
         if (l < DEPENDENT) return LINK_ASSIGNED;
         if (l < COMMON_HC) return LINK_DEPENDENT;
@@ -126,7 +125,7 @@ public class ShortestPathImpl implements ShortestPath {
         if (l < COMMON_HC_H) return LINK_DEPENDENT;
         if (l < DELAYED_H) return LINK_COMMON_HC;
         assert someDelay != null && someDelay.isDelayed();
-        return LV.delay(someDelay);
+        return LVImpl.delay(someDelay);
     }
 
     private void debug(String msg, DijkstraShortestPath.DC[] l, BiFunction<Long, CausesOfDelay, LV> transform) {
@@ -211,7 +210,7 @@ public class ShortestPathImpl implements ShortestPath {
             LV v;
             long l = shortestL[i].dist();
             if (isDelay(l)) {
-                v = LV.delay(someDelay);
+                v = LVImpl.delay(someDelay);
             } else if (l == Long.MAX_VALUE) {
                 v = null;
             } else {
@@ -220,6 +219,11 @@ public class ShortestPathImpl implements ShortestPath {
             shortest[i] = v;
         }
         return shortest;
+    }
+
+    @Override
+    public Set<Variable> variables() {
+        return variableIndex.keySet();
     }
 
     // for testing

@@ -53,7 +53,7 @@ public class TestBasics extends CommonTest {
         VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo viSet0 = vd0.variableInfo(set);
         assertTrue(viSet0.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
-        assertSame(LinkedVariablesImpl.EMPTY, viSet0.linkedVariables());
+        assertEquals(LinkedVariablesImpl.EMPTY, viSet0.linkedVariables());
 
         // this should have reached the method
         assertTrue(set.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isTrue());
@@ -84,7 +84,7 @@ public class TestBasics extends CommonTest {
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
         assertEquals("*-4-0:list", viRv.linkedVariables().toString());
 
-        assertSame(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY));
     }
 
@@ -114,7 +114,7 @@ public class TestBasics extends CommonTest {
         ParameterInfo listAdd0 = listAdd.parameters().get(0);
         VariableInfo vi0 = vd0.variableInfo(listAdd0);
         assertEquals("0-4-*:t", vi0.linkedVariables().toString());
-        assertSame(vi0.linkedVariables(),
+        assertEquals(vi0.linkedVariables(),
                 listAdd0.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
     }
 
@@ -204,13 +204,25 @@ public class TestBasics extends CommonTest {
         Statement s1 = listAdd.methodBody().statements().get(1);
         VariableData vd1 = s1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         ParameterInfo listAdd0 = listAdd.parameters().get(0);
+        ParameterInfo t1 = listAdd.parameters().get(1);
 
         VariableInfo vi1 = vd1.variableInfo("l");
         assertEquals("0-2-0:list,0-4-*:t", vi1.linkedVariables().toString());
 
         // this one can only be computed through the graph algorithm
         VariableInfo vi1p0 = vd1.variableInfo(listAdd0);
-        assertEquals("0-4-*:t", vi1p0.linkedVariables().toString());
+        assertEquals("0-2-0:l,0-4-*:t", vi1p0.linkedVariables().toString());
+
+        VariableInfo vi1p1 = vd1.variableInfo(t1);
+        assertEquals("*-4-0:l,*-4-0:list", vi1p1.linkedVariables().toString());
+
+        // in the parameter's list, the local variable has been filtered out
+        LinkedVariables lvP0 = listAdd0.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                LinkedVariablesImpl.class);
+        assertEquals("0-4-*:t", lvP0.toString());
+        LinkedVariables lvP1 = t1.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                LinkedVariablesImpl.class);
+        assertEquals("*-4-0:list", lvP1.toString());
     }
 
 }

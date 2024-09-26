@@ -16,10 +16,8 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.variable.FieldReference;
-import org.e2immu.language.cst.api.variable.This;
+import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 
@@ -28,21 +26,18 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_METHOD;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
 public class Analyzer {
     private final Runtime runtime;
     private final GenericsHelper genericsHelper;
     private final AnalysisHelper analysisHelper;
+    private final ComputeLinkCompletion computeLinkCompletion;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper(); // in shallow-analyzer
+        computeLinkCompletion = new ComputeLinkCompletion(); // has a cache, we want this to be stable
     }
 
     public void doMethod(MethodInfo methodInfo) {
@@ -54,14 +49,20 @@ public class Analyzer {
         for (VariableInfo vi : variableData.variableInfoStream().toList()) {
             Variable v = vi.variable();
             if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
-                LinkedVariables lv = vi.linkedVariables();
-                if (lv != null) {
-                    pi.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, lv);
+                LinkedVariables linkedVariables = vi.linkedVariables();
+                if (linkedVariables != null) {
+                    LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
+                    if (filteredLvs != null) {
+                        pi.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, filteredLvs);
+                    }
                 }
             } else if (v instanceof ReturnVariable) {
-                LinkedVariables lv = vi.linkedVariables();
-                if (lv != null) {
-                    methodInfo.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_METHOD, lv);
+                LinkedVariables linkedVariables = vi.linkedVariables();
+                if (linkedVariables != null) {
+                    LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
+                    if (filteredLvs != null) {
+                        methodInfo.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_METHOD, filteredLvs);
+                    }
                 }
             }
         }
@@ -107,14 +108,15 @@ public class Analyzer {
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         VariableData vd = statement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
+        ComputeLinkCompletion.Builder clcBuilder = computeLinkCompletion.new Builder();
 
         if (statement instanceof LocalVariableCreation lvc) {
             lvc.localVariableStream().forEach(lv -> {
                 if (!lv.assignmentExpression().isEmpty()) {
                     LinkEvaluation linkEvaluation = linkEvaluation(methodInfo, lv.assignmentExpression());
                     VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(lv);
-                    setLinkedVariables(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
-                    copyLinkEvaluationIntoVariableData(linkEvaluation, vd, previous, stageOfPrevious);
+                    clcBuilder.addLink(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
+                    clcBuilder.addLinkEvaluation(linkEvaluation, vd, previous, stageOfPrevious);
                 }
             });
         }
@@ -124,42 +126,18 @@ public class Analyzer {
             if (statement instanceof ReturnStatement) {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
-                setLinkedVariables(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
+                clcBuilder.addLink(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
             }
 
-            copyLinkEvaluationIntoVariableData(linkEvaluation, vd, previous, stageOfPrevious);
+            clcBuilder.addLinkEvaluation(linkEvaluation, vd, previous, stageOfPrevious);
         }
+        clcBuilder.write(vd, Stage.EVALUATION);
+
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
-
+            // TODO at some point: clcBuilder2.write(vd, Stage.MERGE);
         }
         return vd;
-    }
-
-    private static void copyLinkEvaluationIntoVariableData(LinkEvaluation linkEvaluation,
-                                                           VariableData destination,
-                                                           VariableData previous,
-                                                           Stage stageOfPrevious) {
-        for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
-            VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
-            setLinkedVariables(previous, stageOfPrevious, entry.getValue(), vi);
-        }
-    }
-
-    private static void setLinkedVariables(VariableData previous,
-                                           Stage stageOfPrevious,
-                                           LinkedVariables linkedVariables,
-                                           VariableInfoImpl destinationVi) {
-        destinationVi.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-        LinkedVariables merge;
-        if (previous == null) {
-            merge = linkedVariables;
-        } else {
-            VariableInfo prev = previous.variableInfo(destinationVi.variable(), stageOfPrevious);
-            LinkedVariables lvPrev = prev.linkedVariables();
-            merge = lvPrev.merge(linkedVariables);
-        }
-        destinationVi.setLinkedVariables(merge);
     }
 
 
