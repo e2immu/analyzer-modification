@@ -10,6 +10,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.variable.Variable;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -20,37 +21,34 @@ to be stored in the VariableInfo objects.
 public class ComputeLinkCompletion {
     Cache cache = new GraphCacheImpl(100);
 
-
     class Builder {
-
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
 
-        void addLinkEvaluation(LinkEvaluation linkEvaluation,
-                               VariableData destination,
-                               VariableData previous,
-                               Stage stageOfPrevious) {
+        void addLinkEvaluation(LinkEvaluation linkEvaluation, VariableData destination) {
             for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
                 VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
-                addLink(previous, stageOfPrevious, entry.getValue(), vi);
+                addLink(entry.getValue(), vi);
             }
         }
 
-        void addLink(VariableData previous,
-                     Stage stageOfPrevious,
-                     LinkedVariables linkedVariables,
-                     VariableInfoImpl destinationVi) {
-            LinkedVariables merge;
-            if (previous == null) {
-                merge = linkedVariables;
-            } else {
-                VariableInfo prev = previous.variableInfo(destinationVi.variable(), stageOfPrevious);
-                LinkedVariables lvPrev = prev.linkedVariables();
-                merge = lvPrev.merge(linkedVariables);
-            }
-            weightedGraph.addNode(destinationVi.variable(), merge.variables());
+        void addLink(LinkedVariables linkedVariables, VariableInfoImpl destinationVi) {
+            weightedGraph.addNode(destinationVi.variable(), linkedVariables.variables());
         }
 
-        public void write(VariableData variableData, Stage stage) {
+        public void write(VariableData variableData, Stage stage, VariableData previous, Stage stageOfPrevious) {
+            if (previous != null) {
+                // copy previous link data into the graph, but only for variables that are known to the current one
+                // (some variables disappear after a statement, e.g. pattern variables)
+                previous.variableInfoStream(stageOfPrevious)
+                        .forEach(vi -> {
+                            if (variableData.isKnown(vi.variable().fullyQualifiedName()) && vi.linkedVariables() != null) {
+                                Map<Variable, LV> map = new HashMap<>();
+                                vi.linkedVariables().stream().filter(e -> variableData.isKnown(e.getKey().fullyQualifiedName()))
+                                        .forEach(e -> map.put(e.getKey(), e.getValue()));
+                                weightedGraph.addNode(vi.variable(), map);
+                            }
+                        });
+            }
             // ensure that all variables known at this stage, are present
             variableData.variableInfoStream(stage).forEach(vi -> weightedGraph.addNode(vi.variable(), Map.of()));
 

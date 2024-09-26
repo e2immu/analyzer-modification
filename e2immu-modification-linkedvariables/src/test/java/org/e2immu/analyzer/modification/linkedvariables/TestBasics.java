@@ -187,7 +187,7 @@ public class TestBasics extends CommonTest {
             }
             """;
 
-    @DisplayName("subList, direct assignment")
+    @DisplayName("add on sublist")
     @Test
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
@@ -224,5 +224,81 @@ public class TestBasics extends CommonTest {
                 LinkedVariablesImpl.class);
         assertEquals("*-4-0:list", lvP1.toString());
     }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.util.List;
+            class X {
+                static <T> void listAdd(List<T> list, T t) {
+                    List<T> l = list.subList(0, 10);
+                    List<T> l2 = l;
+                    l2.add(t);
+                }
+            }
+            """;
+
+    @DisplayName("add on sublist, extra local variable")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        prepWork(X);
+        MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
+        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo t = listAdd.parameters().get(1);
+        analyzer.doMethod(listAdd);
+
+        // statement 0
+        {
+            Statement s0 = listAdd.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+            assertNotNull(vd0);
+            VariableInfo vi0 = vd0.variableInfo("l");
+            assertEquals("0-2-0:list", vi0.linkedVariables().toString());
+
+            VariableInfo vi0list = vd0.variableInfo(list);
+            assertEquals("0-2-0:l", vi0list.linkedVariables().toString());
+        }
+        // statement 1
+        {
+            Statement s1 = listAdd.methodBody().statements().get(1);
+            VariableData vd1 = s1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+
+            VariableInfo vi1l2 = vd1.variableInfo("l2");
+            assertEquals("-1-:l,0-2-0:list", vi1l2.linkedVariables().toString());
+
+            VariableInfo vi1l = vd1.variableInfo("l");
+            assertEquals("-1-:l2,0-2-0:list", vi1l.linkedVariables().toString());
+        }
+
+        // statement 2
+        {
+            Statement s2 = listAdd.methodBody().statements().get(2);
+            VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+
+            VariableInfo vi2l = vd2.variableInfo("l");
+            assertEquals("-1-:l2,0-2-0:list,0-4-*:t", vi2l.linkedVariables().toString());
+
+            VariableInfo vi2l2 = vd2.variableInfo("l2");
+            assertEquals("-1-:l,0-2-0:list,0-4-*:t", vi2l2.linkedVariables().toString());
+
+            // this one can only be computed through the graph algorithm
+            VariableInfo vi2list = vd2.variableInfo(list);
+            assertEquals("0-2-0:l,0-2-0:l2,0-4-*:t", vi2list.linkedVariables().toString());
+
+            VariableInfo vi2t = vd2.variableInfo(t);
+            assertEquals("*-4-0:l,*-4-0:l2,*-4-0:list", vi2t.linkedVariables().toString());
+        }
+
+        // in the parameter's list, the local variable has been filtered out
+        LinkedVariables lvP0 = list.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                LinkedVariablesImpl.class);
+        assertEquals("0-4-*:t", lvP0.toString());
+        LinkedVariables lvP1 = t.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                LinkedVariablesImpl.class);
+        assertEquals("*-4-0:list", lvP1.toString());
+    }
+
 
 }

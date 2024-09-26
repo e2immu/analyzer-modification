@@ -115,8 +115,8 @@ public class Analyzer {
                 if (!lv.assignmentExpression().isEmpty()) {
                     LinkEvaluation linkEvaluation = linkEvaluation(methodInfo, lv.assignmentExpression());
                     VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(lv);
-                    clcBuilder.addLink(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
-                    clcBuilder.addLinkEvaluation(linkEvaluation, vd, previous, stageOfPrevious);
+                    clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
+                    clcBuilder.addLinkEvaluation(linkEvaluation, vd);
                 }
             });
         }
@@ -126,12 +126,12 @@ public class Analyzer {
             if (statement instanceof ReturnStatement) {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
-                clcBuilder.addLink(previous, stageOfPrevious, linkEvaluation.linkedVariables(), vi);
+                clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
             }
 
-            clcBuilder.addLinkEvaluation(linkEvaluation, vd, previous, stageOfPrevious);
+            clcBuilder.addLinkEvaluation(linkEvaluation, vd);
         }
-        clcBuilder.write(vd, Stage.EVALUATION);
+        clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious);
 
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
