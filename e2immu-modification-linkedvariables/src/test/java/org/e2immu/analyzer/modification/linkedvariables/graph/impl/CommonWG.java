@@ -13,12 +13,12 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.runtime.RuntimeImpl;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_DEPENDENT;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_STATICALLY_ASSIGNED;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 
 public class CommonWG {
     final Runtime runtime = new RuntimeImpl();
     final LV v0 = LINK_STATICALLY_ASSIGNED;
+    final LV v1 = LINK_ASSIGNED;
     final LV v2 = LINK_DEPENDENT;
     final LV v4 = LVImpl.createHC(new LinksImpl(0, 0));
     final LV delay = LVImpl.delay(CausesOfDelay.NO_DELAY); // FIXME?
