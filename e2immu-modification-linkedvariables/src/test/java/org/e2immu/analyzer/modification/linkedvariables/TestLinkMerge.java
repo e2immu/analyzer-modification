@@ -121,17 +121,32 @@ public class TestLinkMerge extends CommonTest {
         {
             IfElseStatement s2 = (IfElseStatement) setAdd.methodBody().statements().get(2);
             {
+                Statement s200 = s2.block().statements().get(0);
+                VariableData vd200 = s200.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableInfo viI200 = vd200.variableInfo("i");
+                assertEquals("-1-:set,0-4-*:t", viI200.linkedVariables().toString());
+                assertTrue(viI200.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
+                        ValueImpl.BoolImpl.FALSE).isTrue());
+
+                VariableInfo viSet200 = vd200.variableInfo(set);
+                assertEquals("-1-:i,0-4-*:t", viSet200.linkedVariables().toString());
+
+                // test the propagation of the @Modified property via clustering
+                assertTrue(viSet200.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
+                        ValueImpl.BoolImpl.FALSE).isTrue());
+            }
+            {
                 VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
                 VariableInfo viI2 = vd2.variableInfo("i");
                 assertEquals("-1-:set,0-4-*:t", viI2.linkedVariables().toString());
                 assertTrue(viI2.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
                         ValueImpl.BoolImpl.FALSE).isTrue());
 
-                VariableInfo viSet1 = vd2.variableInfo(set);
-                assertEquals("-1-:i,0-4-*:t", viSet1.linkedVariables().toString());
+                VariableInfo viSet2 = vd2.variableInfo(set);
+                assertEquals("-1-:i,0-4-*:t", viSet2.linkedVariables().toString());
 
-                // test the propagation of the @Modified property
-                assertTrue(viSet1.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
+                // test the propagation of the @Modified property via merge
+                assertTrue(viSet2.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
                         ValueImpl.BoolImpl.FALSE).isTrue());
             }
         }

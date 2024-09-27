@@ -5,8 +5,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.annotation.Fluent;
 import org.e2immu.language.cst.api.variable.Variable;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class LinkEvaluation {
 
@@ -14,16 +13,18 @@ public class LinkEvaluation {
 
     private final LinkedVariables linkedVariables;
     private final Map<Variable, LinkedVariables> links;
+    private final Set<Variable> modified;
 
-
-    private LinkEvaluation(LinkedVariables linkedVariables, Map<Variable, LinkedVariables> links) {
+    private LinkEvaluation(LinkedVariables linkedVariables, Map<Variable, LinkedVariables> links, Set<Variable> modified) {
         this.linkedVariables = linkedVariables;
         this.links = links;
+        this.modified = modified;
     }
 
     public static class Builder {
         private LinkedVariables linkedVariables = LinkedVariablesImpl.EMPTY;
         private final Map<Variable, LinkedVariables> links = new HashMap<>();
+        private final Set<Variable> modified = new HashSet<>();
 
         public LinkedVariables getLinkedVariablesOf(Variable variable) {
             return links.get(variable);
@@ -32,6 +33,7 @@ public class LinkEvaluation {
         public void merge(Builder builder) {
             linkedVariables = builder.linkedVariables;
             builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
+            modified.addAll(builder.modified);
         }
 
         public void mergeLinkedVariablesOfExpression(LinkedVariables lv) {
@@ -53,12 +55,24 @@ public class LinkEvaluation {
             return this;
         }
 
+        @Fluent
+        Builder addModified(LinkEvaluation linkEvaluation) {
+            modified.addAll(linkEvaluation.modified);
+            return this;
+        }
+
+        @Fluent
+        Builder addModified(Collection<Variable> variables) {
+            modified.addAll(variables);
+            return this;
+        }
+
         public LinkedVariables linkedVariablesOfExpression() {
             return linkedVariables;
         }
 
         LinkEvaluation build() {
-            return new LinkEvaluation(linkedVariables, Map.copyOf(links));
+            return new LinkEvaluation(linkedVariables, Map.copyOf(links), Set.copyOf(modified));
         }
     }
 
@@ -68,5 +82,9 @@ public class LinkEvaluation {
 
     public Map<Variable, LinkedVariables> links() {
         return links;
+    }
+
+    public Set<Variable> modified() {
+        return modified;
     }
 }

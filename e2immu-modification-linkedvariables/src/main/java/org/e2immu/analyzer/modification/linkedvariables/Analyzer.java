@@ -15,13 +15,12 @@ import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -128,7 +127,6 @@ public class Analyzer {
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
                 clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
             }
-
             clcBuilder.addLinkEvaluation(linkEvaluation, vd);
         }
         clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious);
@@ -149,6 +147,15 @@ public class Analyzer {
                     VariableInfoImpl merge = (VariableInfoImpl) vic.best();
                     merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
                     merge.setLinkedVariables(reduced);
+
+                    if (!merge.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
+                        boolean modified = lastOfEachSubBlock.values().stream()
+                                .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                                .filter(Objects::nonNull)
+                                .map(VariableInfoContainer::best)
+                                .anyMatch(vi -> vi.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
+                        merge.analysis().set(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+                    }
                 }
             });
         }
@@ -251,6 +258,12 @@ public class Analyzer {
             }
         });
         LinkedVariables lvsResult = LinkedVariablesImpl.of(map);
+
+        if (mc.methodInfo().analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, ValueImpl.BoolImpl.FALSE).isTrue()
+            && mc.object() instanceof VariableExpression) {
+            Set<Variable> modified = mc.object().variableStreamDescend().collect(Collectors.toUnmodifiableSet());
+            builder.addModified(modified);
+        }
         return builder.setLinkedVariables(lvsResult).build();
     }
 }

@@ -5,12 +5,15 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.graph.impl.GraphCacheImpl;
 import org.e2immu.analyzer.modification.linkedvariables.graph.impl.WeightedGraphImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -23,19 +26,22 @@ public class ComputeLinkCompletion {
 
     class Builder {
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
+        private final Set<Variable> modifiedInEval = new HashSet<>();
 
         void addLinkEvaluation(LinkEvaluation linkEvaluation, VariableData destination) {
             for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
                 VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
                 addLink(entry.getValue(), vi);
             }
+            this.modifiedInEval.addAll(linkEvaluation.modified());
         }
 
         void addLink(LinkedVariables linkedVariables, VariableInfoImpl destinationVi) {
             weightedGraph.addNode(destinationVi.variable(), linkedVariables.variables());
         }
 
-        public void write(VariableData variableData, Stage stage, VariableData previous, Stage stageOfPrevious) {
+        public void write(VariableData variableData, Stage stage,
+                          VariableData previous, Stage stageOfPrevious) {
             if (previous != null) {
                 // copy previous link data into the graph, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)
@@ -53,6 +59,8 @@ public class ComputeLinkCompletion {
             variableData.variableInfoStream(stage).forEach(vi -> weightedGraph.addNode(vi.variable(), Map.of()));
 
             ShortestPath shortestPath = weightedGraph.shortestPath();
+            Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPath);
+
             for (Variable variable : shortestPath.variables()) {
                 Map<Variable, LV> links = shortestPath.links(variable, null);
 
@@ -69,7 +77,45 @@ public class ComputeLinkCompletion {
                 } else {
                     vii.setLinkedVariables(linkedVariables);
                 }
+                if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
+                    boolean isModified = modifying.contains(variable);
+                    vii.analysis().set(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                }
             }
+        }
+
+        private Set<Variable> computeModified(VariableData previous,
+                                              Stage stageOfPrevious,
+                                              Set<Variable> modifiedInEval,
+                                              ShortestPath shortestPath) {
+
+            // because we have no completeness of the graph at the moment, we iterate
+            Set<Variable> modified = new HashSet<>(modifiedInEval);
+            if (previous != null) {
+                for (Variable variable : shortestPath.variables()) {
+                    VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
+                    if (vicPrev != null) {
+                        VariableInfo vi = vicPrev.best(stageOfPrevious);
+                        if (vi != null && vi.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
+                            modified.add(vi.variable());
+                        }
+                    }
+                }
+            }
+            boolean change = true;
+            while (change) {
+                change = false;
+                for (Variable variable : shortestPath.variables()) {
+                    Map<Variable, LV> links = shortestPath.links(variable, null);
+                    for (Map.Entry<Variable, LV> e : links.entrySet()) {
+                        Variable to = e.getKey();
+                        if (to != variable && modified.contains(to)) {
+                            change |= modified.add(variable);
+                        }
+                    }
+                }
+            }
+            return modified;
         }
     }
 }
