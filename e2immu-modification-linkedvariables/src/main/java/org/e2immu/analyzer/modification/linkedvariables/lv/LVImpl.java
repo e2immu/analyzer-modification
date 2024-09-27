@@ -7,6 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,7 +49,7 @@ public class LVImpl implements LV {
     }
 
     public static LV delay(CausesOfDelay someDelay) {
-        throw new UnsupportedOperationException();
+       return new LVImpl(I_DELAY, NO_LINKS, "delay", NO_VALUE);
     }
 
     @Override
