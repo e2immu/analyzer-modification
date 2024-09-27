@@ -54,6 +54,10 @@ public class Analyzer {
                         pi.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, filteredLvs);
                     }
                 }
+                if (!pi.analysis().haveAnalyzedValueFor(PropertyImpl.MODIFIED_PARAMETER)) {
+                    boolean modified = vi.isModified();
+                    pi.analysis().set(PropertyImpl.MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                }
             } else if (v instanceof ReturnVariable) {
                 LinkedVariables linkedVariables = vi.linkedVariables();
                 if (linkedVariables != null) {
