@@ -55,15 +55,18 @@ public class ComputeLinkCompletion {
             ShortestPath shortestPath = weightedGraph.shortestPath();
             for (Variable variable : shortestPath.variables()) {
                 Map<Variable, LV> links = shortestPath.links(variable, null);
-                if (!links.isEmpty()) {
-                    VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
-                    assert vic != null;
-                    if (!vic.has(stage)) {
-                        throw new UnsupportedOperationException("We should make an entry at this stage?");
-                    }
-                    VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
-                    LinkedVariables linkedVariables = LinkedVariablesImpl.of(links).remove(Set.of(variable));
-                    vii.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+
+                VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
+                assert vic != null;
+                if (!vic.has(stage)) {
+                    throw new UnsupportedOperationException("We should make an entry at this stage?");
+                }
+                VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
+                LinkedVariables linkedVariables = LinkedVariablesImpl.of(links).remove(Set.of(variable));
+                vii.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+                if (links.isEmpty()) {
+                    vii.setLinkedVariables(LinkedVariablesImpl.EMPTY);
+                } else {
                     vii.setLinkedVariables(linkedVariables);
                 }
             }

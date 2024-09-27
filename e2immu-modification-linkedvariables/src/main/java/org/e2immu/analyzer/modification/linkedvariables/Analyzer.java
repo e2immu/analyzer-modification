@@ -7,10 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImp
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
-import org.e2immu.language.cst.api.expression.ConstructorCall;
-import org.e2immu.language.cst.api.expression.Expression;
-import org.e2immu.language.cst.api.expression.MethodCall;
-import org.e2immu.language.cst.api.expression.VariableExpression;
+import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
@@ -24,6 +21,7 @@ import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -120,8 +118,9 @@ public class Analyzer {
                     clcBuilder.addLinkEvaluation(linkEvaluation, vd);
                 }
             });
-        }
-        if (statement instanceof ExpressionAsStatement || statement instanceof ReturnStatement) {
+        } else if (statement instanceof ExpressionAsStatement
+                   || statement instanceof ReturnStatement
+                   || statement instanceof IfElseStatement) {
             LinkEvaluation linkEvaluation = linkEvaluation(methodInfo, statement.expression());
 
             if (statement instanceof ReturnStatement) {
@@ -136,85 +135,122 @@ public class Analyzer {
 
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
-            // TODO at some point: clcBuilder2.write(vd, Stage.MERGE);
+            vd.variableInfoContainerStream().forEach(vic -> {
+                if (vic.hasMerge()) {
+                    Variable variable = vic.variable();
+                    List<LinkedVariables> linkedVariablesList = lastOfEachSubBlock.values().stream()
+                            .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                            .filter(Objects::nonNull)
+                            .map(VariableInfoContainer::best)
+                            .map(VariableInfo::linkedVariables)
+                            .filter(Objects::nonNull)
+                            .toList();
+                    LinkedVariables reduced = linkedVariablesList.stream().reduce(LinkedVariablesImpl.EMPTY, LinkedVariables::merge);
+                    VariableInfoImpl merge = (VariableInfoImpl) vic.best();
+                    merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+                    merge.setLinkedVariables(reduced);
+                }
+            });
         }
         return vd;
     }
 
-
     private LinkEvaluation linkEvaluation(MethodInfo currentMethod, Expression expression) {
         if (expression instanceof VariableExpression ve) {
+            // TODO add scope fields, arrays
             LinkedVariables lvs = LinkedVariablesImpl.of(ve.variable(), LVImpl.LINK_ASSIGNED);
             return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
         }
+        if (expression instanceof Assignment assignment) {
+            LinkEvaluation evalValue = linkEvaluation(currentMethod, assignment.value());
+            return new LinkEvaluation.Builder()
+                    .merge(assignment.variableTarget(), evalValue.linkedVariables())
+                    .setLinkedVariables(evalValue.linkedVariables())
+                    .build();
+        }
         if (expression instanceof MethodCall mc) {
-            LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
-
-            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
-                    mc.methodInfo());
-            ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
-            ParameterizedType concreteReturnType = mc.concreteReturnType();
-
-            List<LinkEvaluation> linkEvaluations = mc.parameterExpressions().stream()
-                    .map(e -> linkEvaluation(currentMethod, e)).toList();
-            List<LinkedVariables> linkedVariablesOfParameters = linkEvaluations.stream()
-                    .map(LinkEvaluation::linkedVariables).toList();
-            LinkEvaluation objectResult = mc.methodInfo().isStatic()
-                    ? LinkEvaluation.EMPTY : linkEvaluation(currentMethod, mc.object());
-
-            // from parameters to object
-            LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
-                    mc.parameterExpressions(), linkEvaluations);
-            LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariablesOfExpression();
-            if (mc.object() instanceof VariableExpression ve) {
-                builder.merge(ve.variable(), linkedVariablesOfObjectFromParams);
-            }
-            builder.merge(fp.intoObject());
-
-            // in between parameters (A)
-            linkHelper.crossLink(objectResult.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
-
-            // from object to return value
-            LinkedVariables lvsResult1 = objectType == null ? LinkedVariablesImpl.EMPTY
-                    : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, objectResult.linkedVariables(),
-                    linkedVariablesOfParameters, concreteReturnType, Map.of());
-
-            // merge from param to object and from object to return value
-            LinkedVariables lvsResult2 = fp.intoResult() == null ? lvsResult1
-                    : lvsResult1.merge(fp.intoResult().linkedVariablesOfExpression());
-
-            // copy in the results of in between parameters
-            Map<Variable, LV> map = new HashMap<>();
-            lvsResult2.stream().forEach(e -> {
-                LinkedVariables lvs = builder.getLinkedVariablesOf(e.getKey());
-                map.put(e.getKey(), e.getValue());
-                if (lvs != null) {
-                    lvs.stream().forEach(e2 -> {
-                        boolean skipAllToAll = e2.getValue().isCommonHC() && e.getValue().isCommonHC()
-                                               && !e2.getKey().equals(e.getKey())
-                                               && e.getValue().mineIsAll() && e2.getValue().theirsIsAll();
-                        if (!skipAllToAll) {
-                            LV follow = LinkHelper.follow(e2.getValue(), e.getValue());
-                            if (follow != null) {
-                                map.put(e2.getKey(), follow);
-                            }
-                        }
-                    });
-                }
-            });
-            LinkedVariables lvsResult = LinkedVariablesImpl.of(map);
-            return builder.setLinkedVariables(lvsResult).build();
+            return linkEvaluationOfMethodCall(currentMethod, mc);
         }
         if (expression instanceof ConstructorCall cc && cc.constructor() != null) {
-            LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
-            List<LinkEvaluation> linkEvaluations = cc.parameterExpressions().stream()
-                    .map(e -> linkEvaluation(currentMethod, e)).toList();
-            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
-                    cc.constructor());
-            LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
-                    null, cc.parameterExpressions(), linkEvaluations);
-            return builder.setLinkedVariables(from.intoObject().linkedVariablesOfExpression()).build();
+            return linkEvaluationOfConstructorCall(currentMethod, cc);
+        }
+        if (expression instanceof InstanceOf io && io.patternVariable() != null) {
+            LinkEvaluation evalValue = linkEvaluation(currentMethod, io.expression());
+            return new LinkEvaluation.Builder()
+                    .merge(io.patternVariable(), evalValue.linkedVariables())
+                    .setLinkedVariables(evalValue.linkedVariables())
+                    .build();
         }
         return LinkEvaluation.EMPTY;
+    }
+
+    private LinkEvaluation linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
+        LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+        List<LinkEvaluation> linkEvaluations = cc.parameterExpressions().stream()
+                .map(e -> linkEvaluation(currentMethod, e)).toList();
+        LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
+                cc.constructor());
+        LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
+                null, cc.parameterExpressions(), linkEvaluations);
+        return builder.setLinkedVariables(from.intoObject().linkedVariablesOfExpression()).build();
+    }
+
+    private LinkEvaluation linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc) {
+        LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+
+        LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
+                mc.methodInfo());
+        ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
+        ParameterizedType concreteReturnType = mc.concreteReturnType();
+
+        List<LinkEvaluation> linkEvaluations = mc.parameterExpressions().stream()
+                .map(e -> linkEvaluation(currentMethod, e)).toList();
+        List<LinkedVariables> linkedVariablesOfParameters = linkEvaluations.stream()
+                .map(LinkEvaluation::linkedVariables).toList();
+        LinkEvaluation objectResult = mc.methodInfo().isStatic()
+                ? LinkEvaluation.EMPTY : linkEvaluation(currentMethod, mc.object());
+
+        // from parameters to object
+        LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
+                mc.parameterExpressions(), linkEvaluations);
+        LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariablesOfExpression();
+        if (mc.object() instanceof VariableExpression ve) {
+            builder.merge(ve.variable(), linkedVariablesOfObjectFromParams);
+        }
+        builder.merge(fp.intoObject());
+
+        // in between parameters (A)
+        linkHelper.crossLink(objectResult.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
+
+        // from object to return value
+        LinkedVariables lvsResult1 = objectType == null ? LinkedVariablesImpl.EMPTY
+                : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, objectResult.linkedVariables(),
+                linkedVariablesOfParameters, concreteReturnType, Map.of());
+
+        // merge from param to object and from object to return value
+        LinkedVariables lvsResult2 = fp.intoResult() == null ? lvsResult1
+                : lvsResult1.merge(fp.intoResult().linkedVariablesOfExpression());
+
+        // copy in the results of in between parameters
+        Map<Variable, LV> map = new HashMap<>();
+        lvsResult2.stream().forEach(e -> {
+            LinkedVariables lvs = builder.getLinkedVariablesOf(e.getKey());
+            map.put(e.getKey(), e.getValue());
+            if (lvs != null) {
+                lvs.stream().forEach(e2 -> {
+                    boolean skipAllToAll = e2.getValue().isCommonHC() && e.getValue().isCommonHC()
+                                           && !e2.getKey().equals(e.getKey())
+                                           && e.getValue().mineIsAll() && e2.getValue().theirsIsAll();
+                    if (!skipAllToAll) {
+                        LV follow = LinkHelper.follow(e2.getValue(), e.getValue());
+                        if (follow != null) {
+                            map.put(e2.getKey(), follow);
+                        }
+                    }
+                });
+            }
+        });
+        LinkedVariables lvsResult = LinkedVariablesImpl.of(map);
+        return builder.setLinkedVariables(lvsResult).build();
     }
 }
