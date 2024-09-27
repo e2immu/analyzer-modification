@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
+import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
@@ -11,6 +12,7 @@ import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.EventuallyFinal;
+import org.e2immu.support.SetOnce;
 
 import java.util.List;
 
@@ -18,6 +20,8 @@ public class VariableInfoImpl implements VariableInfo {
     public static final Property MODIFIED_VARIABLE = new PropertyImpl("modifiedVariable");
 
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
+    private final SetOnce<StaticValues> staticValues = new SetOnce<>();
+
     private final PropertyValueMap analysis = new PropertyValueMapImpl();
 
     private final Variable variable;
@@ -64,6 +68,14 @@ public class VariableInfoImpl implements VariableInfo {
         return true;
     }
 
+    public boolean staticValuesIsSet() {
+        return staticValues.isSet();
+    }
+
+    public void staticValuesSet(StaticValues staticValues) {
+        this.staticValues.set(staticValues);
+    }
+
     @Override
     public Variable variable() {
         return variable;
@@ -72,6 +84,11 @@ public class VariableInfoImpl implements VariableInfo {
     @Override
     public LinkedVariables linkedVariables() {
         return linkedVariables.get();
+    }
+
+    @Override
+    public StaticValues staticValues() {
+        return staticValues.get();
     }
 
     @Override

@@ -36,6 +36,8 @@ public interface VariableInfo {
 
     LinkedVariables linkedVariables();
 
+    StaticValues staticValues();
+
     PropertyValueMap analysis();
 
     // for later

@@ -34,7 +34,7 @@ public class TestWeightedGraph17 extends CommonWG {
 
     At this point, we're not implementing cluster of -1- completeness.
 
-    t1 -> *-4-0 l, list, l2 (all 3 connected by assignment)
+    t1 -> *-4-0 l, list, l2 (all 3 connected by assignment, 0 and 1)
     t2 -> *-4-0 l2.
 
     we're not expecting t2 to link to t1
@@ -56,14 +56,14 @@ public class TestWeightedGraph17 extends CommonWG {
         LV link0 = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i0, false))));
 
         wg.addNode(t1, Map.of(l, link0, list, link0, l2, link0));
-        wg.addNode(list, Map.of(l, v1, l2, v0));
+        wg.addNode(list, Map.of(l, v1, l2, v1));
         wg.addNode(l, Map.of(l2, v0));
         wg.addNode(t2, Map.of(l2, link0));
 
+        // order: t1 l2 t2 l list (reverse alphabetic)
         shortestPath = wg.shortestPath();
-        assertEquals("0(1:*-4-0;3:*-4-0;4:*-4-0)1(0:0-4-*;2:0-4-*;3:0;4:0)2(1:*-4-0)3(0:0-4-*;1:0;4:1)4(0:0-4-*;1:0;3:1)",
+        assertEquals("0(1:*-4-0;3:*-4-0;4:*-4-0)1(0:0-4-*;2:0-4-*;3:0;4:1)2(1:*-4-0)3(0:0-4-*;1:0;4:1)4(0:0-4-*;1:1;3:1)",
                 ((ShortestPathImpl) shortestPath).getCacheKey());
-
     }
 
     @Test
@@ -81,6 +81,8 @@ public class TestWeightedGraph17 extends CommonWG {
     }
 
     private String print(Map<Variable, LV> map) {
-        return map.entrySet().stream().map(e -> e.getKey().simpleName() + ":" + e.getValue()).sorted().collect(Collectors.joining(", "));
+        return map.entrySet().stream().map(e -> e.getKey().simpleName()
+                                                + ":"
+                                                + e.getValue()).sorted().collect(Collectors.joining(", "));
     }
 }
