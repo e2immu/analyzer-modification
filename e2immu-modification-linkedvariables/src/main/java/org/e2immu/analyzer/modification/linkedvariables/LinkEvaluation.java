@@ -30,14 +30,23 @@ public class LinkEvaluation {
             return links.get(variable);
         }
 
-        public void merge(Builder builder) {
+        public Builder merge(LinkEvaluation linkEvaluation) {
+            linkedVariables = linkEvaluation.linkedVariables;
+            linkEvaluation.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
+            modified.addAll(linkEvaluation.modified);
+            return this;
+        }
+
+        public Builder merge(Builder builder) {
             linkedVariables = builder.linkedVariables;
             builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
             modified.addAll(builder.modified);
+            return this;
         }
 
-        public void mergeLinkedVariablesOfExpression(LinkedVariables lv) {
+        public Builder mergeLinkedVariablesOfExpression(LinkedVariables lv) {
             linkedVariables = linkedVariables.merge(lv);
+            return this;
         }
 
         @Fluent

@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -7,12 +8,16 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImp
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
+import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -24,6 +29,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_PARAMETER;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 
 public class Analyzer {
     private final Runtime runtime;
@@ -51,19 +64,19 @@ public class Analyzer {
                 if (linkedVariables != null) {
                     LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
                     if (filteredLvs != null) {
-                        pi.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, filteredLvs);
+                        pi.analysis().set(LINKED_VARIABLES_PARAMETER, filteredLvs);
                     }
                 }
-                if (!pi.analysis().haveAnalyzedValueFor(PropertyImpl.MODIFIED_PARAMETER)) {
+                if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
                     boolean modified = vi.isModified();
-                    pi.analysis().set(PropertyImpl.MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                    pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
                 }
             } else if (v instanceof ReturnVariable) {
                 LinkedVariables linkedVariables = vi.linkedVariables();
                 if (linkedVariables != null) {
                     LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
                     if (filteredLvs != null) {
-                        methodInfo.analysis().set(LinkedVariablesImpl.LINKED_VARIABLES_METHOD, filteredLvs);
+                        methodInfo.analysis().set(LINKED_VARIABLES_METHOD, filteredLvs);
                     }
                 }
             }
@@ -108,7 +121,7 @@ public class Analyzer {
                                      VariableData previous,
                                      boolean first) {
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
-        VariableData vd = statement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = statement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
         ComputeLinkCompletion.Builder clcBuilder = computeLinkCompletion.new Builder();
 
@@ -147,18 +160,18 @@ public class Analyzer {
                             .map(VariableInfo::linkedVariables)
                             .filter(Objects::nonNull)
                             .toList();
-                    LinkedVariables reduced = linkedVariablesList.stream().reduce(LinkedVariablesImpl.EMPTY, LinkedVariables::merge);
+                    LinkedVariables reduced = linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge);
                     VariableInfoImpl merge = (VariableInfoImpl) vic.best();
                     merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
                     merge.setLinkedVariables(reduced);
 
-                    if (!merge.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
+                    if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
                         boolean modified = lastOfEachSubBlock.values().stream()
                                 .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
                                 .filter(Objects::nonNull)
                                 .map(VariableInfoContainer::best)
-                                .anyMatch(vi -> vi.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
-                        merge.analysis().set(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+                                .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
+                        merge.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
                     }
                 }
             });
@@ -182,17 +195,153 @@ public class Analyzer {
         if (expression instanceof MethodCall mc) {
             return linkEvaluationOfMethodCall(currentMethod, mc);
         }
-        if (expression instanceof ConstructorCall cc && cc.constructor() != null) {
-            return linkEvaluationOfConstructorCall(currentMethod, cc);
+        if (expression instanceof ConstructorCall cc) {
+            if (cc.constructor() != null) {
+                return linkEvaluationOfConstructorCall(currentMethod, cc);
+            }
+            if (cc.anonymousClass() != null) {
+                return linkEvaluationOfAnonymousClass(currentMethod, cc);
+            }
         }
-        if (expression instanceof InstanceOf io && io.patternVariable() != null) {
-            LinkEvaluation evalValue = linkEvaluation(currentMethod, io.expression());
-            return new LinkEvaluation.Builder()
-                    .merge(io.patternVariable(), evalValue.linkedVariables())
-                    .setLinkedVariables(evalValue.linkedVariables())
-                    .build();
+        if (expression instanceof MethodReference mr) {
+            return linkEvaluationOfMethodReference(currentMethod, mr);
+        }
+        if (expression instanceof Lambda lambda) {
+            return linkEvaluationOfLambda(lambda);
+        }
+
+        // direct assignment, if there is a pattern variable. empty otherwise
+        if (expression instanceof InstanceOf io) {
+            if (io.patternVariable() != null) {
+                LinkEvaluation evalValue = linkEvaluation(currentMethod, io.expression());
+                return new LinkEvaluation.Builder()
+                        .merge(io.patternVariable(), evalValue.linkedVariables())
+                        .setLinkedVariables(evalValue.linkedVariables())
+                        .build();
+            }
+            return LinkEvaluation.EMPTY;
+        }
+
+        // pass-through
+        if (expression instanceof Cast c) {
+            LinkEvaluation evalValue = linkEvaluation(currentMethod, c.expression());
+            return new LinkEvaluation.Builder().merge(evalValue).build();
+        }
+        if (expression instanceof EnclosedExpression c) {
+            LinkEvaluation evalValue = linkEvaluation(currentMethod, c.expression());
+            return new LinkEvaluation.Builder().merge(evalValue).build();
+        }
+
+        // trivial aggregation
+        if (expression instanceof ArrayInitializer ai) {
+            List<LinkEvaluation> list = ai.expressions().stream().map(e -> linkEvaluation(currentMethod, e)).toList();
+            LinkEvaluation.Builder b = new LinkEvaluation.Builder();
+            for (LinkEvaluation le : list) b.merge(le);
+            LinkedVariables reduced = list.stream().map(LinkEvaluation::linkedVariables)
+                    .reduce(EMPTY, LinkedVariables::merge);
+            return b.setLinkedVariables(reduced).build();
+        }
+        if (expression instanceof InlineConditional ic) {
+            LinkEvaluation leCondition = linkEvaluation(currentMethod, ic.condition());
+            LinkEvaluation leIfTrue = linkEvaluation(currentMethod, ic.ifTrue());
+            LinkEvaluation leIfFalse = linkEvaluation(currentMethod, ic.ifFalse());
+            LinkEvaluation.Builder b = new LinkEvaluation.Builder().merge(leCondition).merge(leIfTrue).merge(leIfFalse);
+            LinkedVariables merge = leIfTrue.linkedVariables().merge(leIfFalse.linkedVariables());
+            return b.setLinkedVariables(merge).build();
         }
         return LinkEvaluation.EMPTY;
+    }
+
+    private LinkEvaluation linkEvaluationOfAnonymousClass(MethodInfo currentMethod, ConstructorCall cc) {
+        TypeInfo anonymousTypeInfo = cc.anonymousClass();
+
+        MethodInfo sami = anonymousTypeImplementsFunctionalInterface(anonymousTypeInfo);
+        if (sami == null) return LinkEvaluation.EMPTY;
+
+        LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod, sami);
+        ParameterizedType cft = anonymousTypeInfo.interfacesImplemented().get(0);
+        Value.Independent indepOfMethod = sami.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
+        HiddenContentSelector hcsMethod = sami.analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
+        LinkEvaluation linkEvaluationObject = linkEvaluation(currentMethod, cc.object());
+        LinkedVariables lvsObject = linkEvaluationObject.linkedVariables();
+        ParameterizedType concreteReturnType = sami.returnType();
+        List<Value.Independent> independentOfParameters = sami.parameters().stream()
+                .map(pi -> pi.analysis().getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT))
+                .toList();
+        List<HiddenContentSelector> hcsParameters = sami.parameters().stream()
+                .map(pi -> pi.analysis().getOrNull(HCS_PARAMETER, HiddenContentSelector.class))
+                .toList();
+        List<LinkedVariables> lvsParams = sami.parameters().stream()
+                .map(pi -> pi.analysis().getOrDefault(LINKED_VARIABLES_PARAMETER, EMPTY))
+                .toList();
+        List<ParameterizedType> parameterTypes = sami.parameters().stream()
+                .map(ParameterInfo::parameterizedType)
+                .toList();
+        LinkedVariables lvs = linkHelper.functional(indepOfMethod, hcsMethod, lvsObject, concreteReturnType,
+                independentOfParameters, hcsParameters, parameterTypes, lvsParams, cft);
+        return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
+    }
+
+    private MethodInfo anonymousTypeImplementsFunctionalInterface(TypeInfo typeInfo) {
+        if (!typeInfo.parentClass().isJavaLangObject()) return null;
+        if (!typeInfo.interfacesImplemented().isEmpty()) {
+            if (typeInfo.interfacesImplemented().size() > 1) return null;
+            if (!typeInfo.interfacesImplemented().get(0).isFunctionalInterface()) return null;
+        }
+        List<MethodInfo> methods = typeInfo.methods();
+        if (methods.size() != 1) return null;
+        return methods.get(0);
+    }
+
+    private LinkEvaluation linkEvaluationOfLambda(Lambda lambda) {
+        LinkHelper.LambdaResult lr = LinkHelper.lambdaLinking(runtime, lambda.methodInfo());
+        LinkedVariables lvsBeforeRemove;
+        if (lambda.methodInfo().isModifying()) {
+            lvsBeforeRemove = lr.mergedLinkedToParameters();
+        } else {
+            lvsBeforeRemove = lr.linkedToReturnValue();
+        }
+        LinkedVariables lvs = lvsBeforeRemove.remove(v -> removeFromLinkedVariables(lambda.methodInfo(), v));
+        return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
+    }
+
+    private boolean removeFromLinkedVariables(MethodInfo lambdaMethod, Variable v) {
+        return v instanceof ParameterInfo pi && lambdaMethod.equals(pi.methodInfo())
+               || v instanceof FieldReference fr && someScopeIsParameterOf(fr, lambdaMethod);
+    }
+
+    private static boolean someScopeIsParameterOf(FieldReference fr, MethodInfo methodInfo) {
+        Variable sv = fr.scopeVariable();
+        if (sv instanceof ParameterInfo pi && methodInfo.equals(pi.methodInfo())) return true;
+        if (sv instanceof FieldReference fr2) return someScopeIsParameterOf(fr2, methodInfo);
+        return false;
+    }
+
+    private LinkEvaluation linkEvaluationOfMethodReference(MethodInfo currentMethod, MethodReference mr) {
+        LinkEvaluation scopeResult = linkEvaluation(currentMethod, mr.scope());
+        LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
+                mr.methodInfo());
+        Value.Independent independentOfMethod = mr.methodInfo().analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
+        HiddenContentSelector hcsMethod = mr.methodInfo().analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
+        assert hcsMethod != null;
+
+        Map<NamedType, ParameterizedType> map = mr.parameterizedType().initialTypeParameterMap(runtime);
+        ParameterizedType typeOfReturnValue = mr.methodInfo().returnType();
+        ParameterizedType concreteTypeOfReturnValue = typeOfReturnValue.applyTranslation(runtime, map);
+        List<ParameterizedType> concreteParameterTypes = mr.methodInfo().parameters().stream()
+                .map(pi -> pi.parameterizedType().applyTranslation(runtime, map)).toList();
+        List<Value.Independent> independentOfParameters = mr.methodInfo().parameters().stream()
+                .map(pi -> pi.analysis().getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT))
+                .toList();
+        List<HiddenContentSelector> hcsParameters = mr.methodInfo().parameters().stream()
+                .map(pi -> pi.analysis().getOrNull(HCS_PARAMETER, HiddenContentSelector.class))
+                .toList();
+
+        LinkedVariables linkedVariablesOfObject = scopeResult.linkedVariables();
+        LinkedVariables lvs = linkHelper.functional(independentOfMethod, hcsMethod, linkedVariablesOfObject,
+                concreteTypeOfReturnValue, independentOfParameters, hcsParameters, concreteParameterTypes,
+                List.of(linkedVariablesOfObject), concreteTypeOfReturnValue);
+        return new LinkEvaluation.Builder().merge(scopeResult).setLinkedVariables(lvs).build();
     }
 
     private LinkEvaluation linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
@@ -234,7 +383,7 @@ public class Analyzer {
         linkHelper.crossLink(objectResult.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
 
         // from object to return value
-        LinkedVariables lvsResult1 = objectType == null ? LinkedVariablesImpl.EMPTY
+        LinkedVariables lvsResult1 = objectType == null ? EMPTY
                 : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, objectResult.linkedVariables(),
                 linkedVariablesOfParameters, concreteReturnType, Map.of());
 
@@ -263,7 +412,7 @@ public class Analyzer {
         });
         LinkedVariables lvsResult = LinkedVariablesImpl.of(map);
 
-        if (mc.methodInfo().analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, ValueImpl.BoolImpl.FALSE).isTrue()
+        if (mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue()
             && mc.object() instanceof VariableExpression) {
             Set<Variable> modified = mc.object().variableStreamDescend().collect(Collectors.toUnmodifiableSet());
             builder.addModified(modified);
