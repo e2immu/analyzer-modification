@@ -3,8 +3,10 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
+import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
@@ -49,13 +51,19 @@ public class ExpressionAnalyzer {
         if (expression instanceof VariableExpression ve) {
             // TODO add scope fields, arrays
             LinkedVariables lvs = LinkedVariablesImpl.of(ve.variable(), LVImpl.LINK_ASSIGNED);
-            return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
+            StaticValues svs = StaticValuesImpl.of(ve);
+            return new LinkEvaluation.Builder()
+                    .setStaticValues(svs)
+                    .setLinkedVariables(lvs)
+                    .build();
         }
         if (expression instanceof Assignment assignment) {
             LinkEvaluation evalValue = linkEvaluation(currentMethod, assignment.value());
             return new LinkEvaluation.Builder()
                     .merge(assignment.variableTarget(), evalValue.linkedVariables())
                     .setLinkedVariables(evalValue.linkedVariables())
+                    .merge(assignment.variableTarget(), evalValue.staticValues())
+                    .setStaticValues(evalValue.staticValues())
                     .build();
         }
         if (expression instanceof MethodCall mc) {

@@ -6,15 +6,13 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.graph.impl.GraphCacheImpl;
 import org.e2immu.analyzer.modification.linkedvariables.graph.impl.WeightedGraphImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /*
 given a number of links, build a graph, and compute the shortest path between all combinations,
@@ -26,13 +24,22 @@ public class ComputeLinkCompletion {
     class Builder {
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
         private final Set<Variable> modifiedInEval = new HashSet<>();
+        private final Map<Variable, List<StaticValues>> staticValues = new HashMap<>();
 
         void addLinkEvaluation(LinkEvaluation linkEvaluation, VariableData destination) {
             for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
                 VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
                 addLink(entry.getValue(), vi);
             }
+            for (Map.Entry<Variable, StaticValues> entry : linkEvaluation.assignments().entrySet()) {
+                VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
+                addAssignment(vi.variable(), entry.getValue());
+            }
             this.modifiedInEval.addAll(linkEvaluation.modified());
+        }
+
+        private void addAssignment(Variable variable, StaticValues value) {
+            staticValues.computeIfAbsent(variable, l -> new ArrayList<>()).add(value);
         }
 
         void addLink(LinkedVariables linkedVariables, VariableInfoImpl destinationVi) {
@@ -41,6 +48,37 @@ public class ComputeLinkCompletion {
 
         public void write(VariableData variableData, Stage stage,
                           VariableData previous, Stage stageOfPrevious) {
+            writeLinks(variableData, stage, previous, stageOfPrevious);
+            writeAssignments(variableData, stage, previous, stageOfPrevious);
+        }
+
+        private void writeAssignments(VariableData variableData, Stage stage,
+                                      VariableData previous, Stage stageOfPrevious) {
+            if (previous != null) {
+                // copy previous assignment data into the map, but only for variables that are known to the current one
+                // (some variables disappear after a statement, e.g. pattern variables)
+                previous.variableInfoStream(stageOfPrevious)
+                        .forEach(vi -> {
+                            if (variableData.isKnown(vi.variable().fullyQualifiedName()) && vi.staticValues() != null) {
+                                addAssignment(vi.variable(), vi.staticValues());
+                            }
+                        });
+            }
+            for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
+                Variable variable = entry.getKey();
+                VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
+                assert vic != null;
+                if (!vic.has(stage)) {
+                    throw new UnsupportedOperationException("We should make an entry at this stage?");
+                }
+                VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
+                StaticValues merge = entry.getValue().stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
+                vii.staticValuesSet(merge);
+            }
+        }
+
+        private void writeLinks(VariableData variableData, Stage stage,
+                                VariableData previous, Stage stageOfPrevious) {
             if (previous != null) {
                 // copy previous link data into the graph, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)

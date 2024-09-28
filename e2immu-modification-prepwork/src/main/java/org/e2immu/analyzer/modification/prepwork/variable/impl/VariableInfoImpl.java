@@ -88,7 +88,7 @@ public class VariableInfoImpl implements VariableInfo {
 
     @Override
     public StaticValues staticValues() {
-        return staticValues.get();
+        return staticValues.getOrDefaultNull();
     }
 
     @Override

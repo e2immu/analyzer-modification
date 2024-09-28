@@ -554,6 +554,9 @@ public class MethodAnalyzer {
 
         public void assignedAdd(Variable variable) {
             assigned.computeIfAbsent(variable, v -> new ArrayList<>()).add(index);
+            if (!knownVariableNames.contains(variable.fullyQualifiedName()) && !seenFirstTime.containsKey(variable)) {
+                seenFirstTime.put(variable, index);
+            }
         }
 
         @Override

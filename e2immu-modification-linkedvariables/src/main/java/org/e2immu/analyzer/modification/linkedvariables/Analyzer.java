@@ -165,6 +165,17 @@ public class Analyzer {
         return vd;
     }
 
-    public void doType(TypeInfo x) {
+    /*
+    the information flow is fixed, because it is a single pass system:
+
+    - analyze the method's statements, and copy what is possible to the parameters and the method
+    - analyze the fields and their initializers
+    - copy from fields to parameters where relevant
+
+     */
+    public void doType(TypeInfo typeInfo) {
+        typeInfo.subTypes().forEach(this::doType);
+        typeInfo.constructorAndMethodStream().forEach(this::doMethod);
+        // TODO fields
     }
 }
