@@ -1,13 +1,12 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,8 +51,8 @@ public class TestAssignmentsReuse extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         MethodInfo method = X.findUniqueMethod("connect", 3);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         LocalVariableCreation reader = (LocalVariableCreation) method.methodBody().statements().get(4);
         Statement if300 = method.methodBody().statements().get(3).block().statements().get(0);
         VariableData vd300 = if300.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);

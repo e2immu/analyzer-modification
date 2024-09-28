@@ -1,11 +1,10 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,8 +35,8 @@ public class TestAssignmentsReturn extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals("a.b.X.method(char), a.b.X.method(char):0:c, i", vdMethod.knownVariableNamesToString());

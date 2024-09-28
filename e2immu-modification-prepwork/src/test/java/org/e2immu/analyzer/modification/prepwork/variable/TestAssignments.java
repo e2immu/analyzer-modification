@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -47,8 +47,8 @@ public class TestAssignments extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals(5, vdMethod.knownVariableNames().size());
@@ -122,8 +122,8 @@ public class TestAssignments extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         // loop variable 'i' should not be known to the method
@@ -178,8 +178,8 @@ public class TestAssignments extends CommonTest {
     public void test2b() {
         TypeInfo X = javaInspector.parse(INPUT2b);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
@@ -237,8 +237,8 @@ public class TestAssignments extends CommonTest {
     public void test2c() {
         TypeInfo X = javaInspector.parse(INPUT2c);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
 
@@ -288,8 +288,8 @@ public class TestAssignments extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals(5, vdMethod.knownVariableNames().size());
@@ -378,8 +378,8 @@ public class TestAssignments extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         MethodInfo method = X.findUniqueMethod("quickSort", 3);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals(14, vdMethod.knownVariableNames().size());
@@ -442,8 +442,8 @@ public class TestAssignments extends CommonTest {
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
@@ -483,8 +483,8 @@ public class TestAssignments extends CommonTest {
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
@@ -522,8 +522,8 @@ public class TestAssignments extends CommonTest {
     public void test7() {
         TypeInfo X = javaInspector.parse(INPUT7);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, a.b.X.o, a.b.X.this, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
@@ -560,8 +560,8 @@ public class TestAssignments extends CommonTest {
     public void test8() {
         TypeInfo X = javaInspector.parse(INPUT8);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
@@ -599,8 +599,8 @@ public class TestAssignments extends CommonTest {
     public void test8b() {
         TypeInfo X = javaInspector.parse(INPUT8b);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, i, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
@@ -637,8 +637,8 @@ public class TestAssignments extends CommonTest {
     public void test9() {
         TypeInfo X = javaInspector.parse(INPUT9);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertEquals("a.b.X.method(int), a.b.X.method(int):0:j, i, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
@@ -694,8 +694,8 @@ public class TestAssignments extends CommonTest {
     public void test10() {
         TypeInfo X = javaInspector.parse(INPUT10);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
     }
 
 
@@ -735,8 +735,8 @@ public class TestAssignments extends CommonTest {
     public void test11() {
         TypeInfo X = javaInspector.parse(INPUT11);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
     }
 
 }

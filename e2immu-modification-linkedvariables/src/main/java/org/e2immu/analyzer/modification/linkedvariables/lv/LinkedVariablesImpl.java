@@ -5,7 +5,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;

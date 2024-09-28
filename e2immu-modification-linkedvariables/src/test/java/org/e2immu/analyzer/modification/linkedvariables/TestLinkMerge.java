@@ -1,28 +1,19 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
-import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.IfElseStatement;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
-
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkMerge extends CommonTest {

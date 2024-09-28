@@ -1,8 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -11,17 +9,9 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.ForStatement;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.api.variable.This;
-import org.e2immu.language.inspection.api.integration.JavaInspector;
-import org.e2immu.language.inspection.api.resource.InputConfiguration;
-import org.e2immu.language.inspection.integration.JavaInspectorImpl;
-import org.e2immu.language.inspection.resource.InputConfigurationImpl;
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,8 +32,8 @@ public class TestVariableData extends CommonTest {
     public void test() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyze analyze = new Analyze(javaInspector.runtime());
-        analyze.doMethod(method1);
+        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        analyzer.doMethod(method1);
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
 
@@ -77,8 +67,8 @@ public class TestVariableData extends CommonTest {
     public void test2() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT2).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyze analyze = new Analyze(javaInspector.runtime());
-        analyze.doMethod(method1);
+        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        analyzer.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
 
@@ -131,8 +121,8 @@ public class TestVariableData extends CommonTest {
     public void test3() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT3).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyze analyze = new Analyze(javaInspector.runtime());
-        analyze.doMethod(method1);
+        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        analyzer.doMethod(method1);
 
         VariableData vd0 = method1.methodBody().statements().get(0).analysis().getOrNull(VariableDataImpl.VARIABLE_DATA,
                 VariableData.class);
@@ -196,8 +186,8 @@ public class TestVariableData extends CommonTest {
     public void test4() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT4).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyze analyze = new Analyze(javaInspector.runtime());
-        analyze.doMethod(method1);
+        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        analyzer.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
@@ -264,8 +254,8 @@ public class TestVariableData extends CommonTest {
     public void test5() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT5).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("run", 0);
-        Analyze analyze = new Analyze(javaInspector.runtime());
-        analyze.doMethod(method1);
+        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        analyzer.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;

@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -47,8 +47,8 @@ public class TestAssignmentsForEachIf extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         ParameterInfo array = method.parameters().get(0);
 
         Statement s0 = method.methodBody().statements().get(0);

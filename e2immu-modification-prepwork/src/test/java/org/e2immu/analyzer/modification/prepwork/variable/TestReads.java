@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -52,8 +52,8 @@ public class TestReads extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         MethodInfo method = X.findUniqueMethod("arrayIndexOf", 3);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(method);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(method);
         IfElseStatement ie0 = (IfElseStatement) method.methodBody().statements().get(0);
         Statement outerWhile = ie0.elseBlock().statements().get(2);
         WhileStatement innerWhile = (WhileStatement) outerWhile.block().statements().get(0).block().statements().get(1);

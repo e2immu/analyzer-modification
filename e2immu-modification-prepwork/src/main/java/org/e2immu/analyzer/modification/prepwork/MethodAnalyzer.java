@@ -11,14 +11,12 @@ import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
-import org.e2immu.util.internal.graph.V;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.prepwork.StatementIndex.*;
-import static org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer.NOT_YET_READ;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_METHOD;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
@@ -29,12 +27,12 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 do all the analysis of this phase
 
  */
-public class AnalyzeMethod {
+public class MethodAnalyzer {
     private final Runtime runtime;
     private final Map<MethodInfo, Set<MethodInfo>> copyModificationStatusFromTo = new HashMap<>();
     private final Set<MethodInfo> copyMethods;
 
-    public AnalyzeMethod(Runtime runtime, Set<MethodInfo> copyMethods) {
+    public MethodAnalyzer(Runtime runtime, Set<MethodInfo> copyMethods) {
         this.runtime = runtime;
         this.copyMethods = copyMethods;
     }

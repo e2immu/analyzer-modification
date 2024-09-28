@@ -25,17 +25,17 @@ at the level of the method
 - variable data, variable info, assignments
 - simple modification status
  */
-public class Analyze {
+public class Analyzer {
     private final Runtime runtime;
     private final G.Builder<String> graphBuilder = new G.Builder<>(Long::sum);
     private final Set<MethodInfo> copyMethods;
 
     // for testing
-    public Analyze(Runtime runtime) {
+    public Analyzer(Runtime runtime) {
         this(runtime, Set.of());
     }
 
-    public Analyze(Runtime runtime, Set<MethodInfo> copyMethods) {
+    public Analyzer(Runtime runtime, Set<MethodInfo> copyMethods) {
         this.runtime = runtime;
         this.copyMethods = copyMethods;
     }
@@ -71,7 +71,7 @@ public class Analyze {
     }
 
     public void doMethod(MethodInfo methodInfo, Block methodBlock) {
-        AnalyzeMethod am = new AnalyzeMethod(runtime, copyMethods);
+        MethodAnalyzer am = new MethodAnalyzer(runtime, copyMethods);
         am.doMethod(methodInfo, methodBlock);
         for (Map.Entry<MethodInfo, Set<MethodInfo>> e : am.getCopyModificationStatusFromTo().entrySet()) {
             graphBuilder.add(e.getKey().fullyQualifiedName(), e.getValue().stream().map(MethodInfo::fullyQualifiedName).toList());

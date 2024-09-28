@@ -8,7 +8,6 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,7 +15,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestWeightedGraph17 extends CommonWG {
 

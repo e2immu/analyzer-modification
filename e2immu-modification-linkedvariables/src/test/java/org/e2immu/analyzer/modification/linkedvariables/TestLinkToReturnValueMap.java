@@ -1,18 +1,13 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class TestLinkToReturnValueMap extends CommonTest {
 

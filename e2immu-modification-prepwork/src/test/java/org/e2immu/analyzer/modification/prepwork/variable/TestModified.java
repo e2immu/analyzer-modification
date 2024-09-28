@@ -1,8 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -55,8 +54,8 @@ public class TestModified extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT1);
 
         MethodInfo add = X.findUniqueMethod("add", 1);
-        Analyze analyze = new Analyze(runtime);
-        analyze.doMethod(add);
+        Analyzer analyzer = new Analyzer(runtime);
+        analyzer.doMethod(add);
         VariableData vdAdd = add.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdAdd);
         assertEquals("a.b.X.add(String):0:s, a.b.X.list, a.b.X.this", vdAdd.knownVariableNamesToString());
@@ -75,7 +74,7 @@ public class TestModified extends CommonTest {
         assertTrue(mm);
 
         MethodInfo get = X.findUniqueMethod("get", 0);
-        analyze.doMethod(get);
+        analyzer.doMethod(get);
         VariableData vdGet = get.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdGet);
         assertEquals("a.b.X.get(), a.b.X.list, a.b.X.this", vdGet.knownVariableNamesToString());

@@ -5,7 +5,6 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.graph.impl.GraphCacheImpl;
 import org.e2immu.analyzer.modification.linkedvariables.graph.impl.WeightedGraphImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;

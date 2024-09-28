@@ -2,23 +2,14 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.prepwork.Analyze;
+import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
 import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.output.Formatter;
-import org.e2immu.language.cst.api.output.OutputBuilder;
-import org.e2immu.language.cst.api.output.Qualification;
 import org.e2immu.language.cst.api.runtime.Runtime;
-import org.e2immu.language.cst.impl.analysis.DecoratorImpl;
-import org.e2immu.language.cst.print.FormatterImpl;
-import org.e2immu.language.cst.print.FormattingOptionsImpl;
 import org.e2immu.language.inspection.api.integration.JavaInspector;
 import org.e2immu.language.inspection.api.resource.InputConfiguration;
 import org.e2immu.language.inspection.integration.JavaInspectorImpl;
@@ -32,7 +23,6 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.e2immu.language.inspection.integration.JavaInspectorImpl.JAR_WITH_PATH_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommonTest {
@@ -40,7 +30,7 @@ public class CommonTest {
     protected Runtime runtime;
     protected final String[] extraClassPath;
     protected final boolean loadAnnotatedAPIs;
-    protected Analyzer analyzer;
+    protected org.e2immu.analyzer.modification.linkedvariables.Analyzer analyzer;
 
     protected CommonTest() {
         this(false, new String[]{});
@@ -88,7 +78,7 @@ public class CommonTest {
 
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
-        analyzer = new Analyzer(runtime);
+        analyzer = new org.e2immu.analyzer.modification.linkedvariables.Analyzer(runtime);
     }
 
     protected void prepWork(TypeInfo typeInfo) {
@@ -97,12 +87,12 @@ public class CommonTest {
 
         ComputeHiddenContent chc = computeHCS.getChc();
         HiddenContentTypes hct = chc.compute(typeInfo);
-        Analyze analyze = new Analyze(runtime);
+        Analyzer analyzer = new Analyzer(runtime);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
             HiddenContentTypes hctMethod = chc.compute(hct, mi);
             mi.analysis().set(HiddenContentTypes.HIDDEN_CONTENT_TYPES, hctMethod);
-            analyze.doMethod(mi);
+            analyzer.doMethod(mi);
         });
-        analyze.copyModifications(typeInfo);
+        analyzer.copyModifications(typeInfo);
     }
 }
