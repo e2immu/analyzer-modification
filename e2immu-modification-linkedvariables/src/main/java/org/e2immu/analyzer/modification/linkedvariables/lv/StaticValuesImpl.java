@@ -1,23 +1,33 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
+import org.e2immu.language.cst.api.analysis.Codec;
+import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public record StaticValuesImpl(ParameterizedType type,
                                Expression expression,
                                Map<Variable, Expression> values) implements StaticValues {
-
     public static final StaticValues NONE = new StaticValuesImpl(null, null, Map.of());
+    public static final Property STATIC_VALUES_METHOD = new PropertyImpl("staticValuesMethod", NONE);
+    public static final Property STATIC_VALUES_FIELD = new PropertyImpl("staticValuesField", NONE);
 
     public static StaticValues of(Expression e) {
         return new StaticValuesImpl(null, e, Map.of());
+    }
+
+    @Override
+    public Codec.EncodedValue encode(Codec codec) {
+        return null;
     }
 
     @Override
@@ -36,6 +46,12 @@ public record StaticValuesImpl(ParameterizedType type,
             newMap = Map.copyOf(map);
         }
         return new StaticValuesImpl(newType, newExpression, newMap);
+    }
+
+    @Override
+    public StaticValues remove(Predicate<Variable> predicate) {
+        return new StaticValuesImpl(type, expression, values.entrySet().stream().filter(e -> predicate.test(e.getKey()))
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue)));
     }
 
     @Override

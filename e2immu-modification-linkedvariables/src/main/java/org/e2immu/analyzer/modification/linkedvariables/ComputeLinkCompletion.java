@@ -38,7 +38,7 @@ public class ComputeLinkCompletion {
             this.modifiedInEval.addAll(linkEvaluation.modified());
         }
 
-        private void addAssignment(Variable variable, StaticValues value) {
+        void addAssignment(Variable variable, StaticValues value) {
             staticValues.computeIfAbsent(variable, l -> new ArrayList<>()).add(value);
         }
 

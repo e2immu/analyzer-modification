@@ -1,5 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -64,6 +66,14 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi1NField = vd1.variableInfo(nFr);
             assertEquals("-1-:n", vi1NField.linkedVariables().toString());
             assertEquals("E=n", vi1NField.staticValues().toString());
+        }
+        {
+            MethodInfo accessorSet = X.findUniqueMethod("set", 0);
+            StaticValues svAccessorSet = accessorSet.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            assertEquals("E=this.set", svAccessorSet.toString());
+        }
+        {
+            StaticValues svSetField = setField.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_FIELD, StaticValuesImpl.class);
         }
     }
 }

@@ -5,22 +5,23 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
@@ -30,7 +31,7 @@ public class Analyzer {
     private final Runtime runtime;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
-    
+
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
@@ -64,6 +65,11 @@ public class Analyzer {
                     if (filteredLvs != null) {
                         methodInfo.analysis().set(LINKED_VARIABLES_METHOD, filteredLvs);
                     }
+                }
+                StaticValues staticValues = vi.staticValues();
+                if (staticValues != null) {
+                    StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
+                    methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
             }
         }
@@ -129,6 +135,7 @@ public class Analyzer {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
                 clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
+                clcBuilder.addAssignment(rv, linkEvaluation.staticValues());
             }
             clcBuilder.addLinkEvaluation(linkEvaluation, vd);
         }
@@ -176,6 +183,27 @@ public class Analyzer {
     public void doType(TypeInfo typeInfo) {
         typeInfo.subTypes().forEach(this::doType);
         typeInfo.constructorAndMethodStream().forEach(this::doMethod);
-        // TODO fields
+        Map<FieldInfo, List<StaticValues>> svMap = collectStaticValuesOfFieldsAcrossConstructorsAndMethods(typeInfo);
+        typeInfo.fields().forEach(f -> doField(f, svMap.get(f)));
+    }
+
+    private Map<FieldInfo, List<StaticValues>> collectStaticValuesOfFieldsAcrossConstructorsAndMethods(TypeInfo typeInfo) {
+        Map<FieldInfo, List<StaticValues>> map = new HashMap<>();
+        typeInfo.constructorAndMethodStream().filter(mi -> !mi.methodBody().isEmpty()).forEach(mi -> {
+            Statement lastStatement = mi.methodBody().lastStatement();
+            VariableData vd = lastStatement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            vd.variableInfoStream()
+                    .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                    .filter(vi -> vi.staticValues() != null)
+                    .forEach(vi -> {
+                        FieldInfo fieldInfo = ((FieldReference) vi.variable()).fieldInfo();
+                        map.computeIfAbsent(fieldInfo, l -> new ArrayList<>()).add(vi.staticValues());
+                    });
+        });
+        return map;
+    }
+
+    private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList) {
+        // initial field assignments
     }
 }

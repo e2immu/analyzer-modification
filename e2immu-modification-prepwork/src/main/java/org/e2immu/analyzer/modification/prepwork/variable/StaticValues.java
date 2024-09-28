@@ -1,10 +1,12 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.Variable;
 
 import java.util.Map;
+import java.util.function.Predicate;
 
 /*
 each object, even "ephemeral" ones during evaluation (and held in LinkEvaluation), can have statically assigned values
@@ -28,11 +30,11 @@ will hold for ld a StaticValues object, returning LoopData as type(), a LoopData
 building in expression(), and values 'variables[0] -> i' and 'body -> this::someMethod' in the values() map.
  */
 
-public interface StaticValues {
+public interface StaticValues extends Value {
     /*
-    when stored in a VI object, this should be identical to vi.variable().parameterizedType()
-    relevant when ephemeral, as in the above example.
-     */
+        when stored in a VI object, this should be identical to vi.variable().parameterizedType()
+        relevant when ephemeral, as in the above example.
+         */
     ParameterizedType type();
 
     /*
@@ -51,4 +53,6 @@ public interface StaticValues {
     Map<Variable, Expression> values();
 
     StaticValues merge(StaticValues other);
+    StaticValues remove(Predicate<Variable> predicate);
+
 }
