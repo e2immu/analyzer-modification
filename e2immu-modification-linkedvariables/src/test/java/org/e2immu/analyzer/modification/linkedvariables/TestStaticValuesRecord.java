@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -15,8 +16,7 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestStaticValuesRecord extends CommonTest {
 
@@ -74,6 +74,13 @@ public class TestStaticValuesRecord extends CommonTest {
         }
         {
             StaticValues svSetField = setField.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_FIELD, StaticValuesImpl.class);
+            assertEquals("E=set", svSetField.toString());
+            assertSame(setParam, ((VariableExpression) svSetField.expression()).variable());
+        }
+        {
+            StaticValues svSetParam = setParam.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_PARAMETER, StaticValuesImpl.class);
+            assertEquals("E=this.set", svSetParam.toString());
+            assertSame(setField, ((FieldReference) ((VariableExpression) svSetParam.expression()).variable()).fieldInfo());
         }
     }
 }

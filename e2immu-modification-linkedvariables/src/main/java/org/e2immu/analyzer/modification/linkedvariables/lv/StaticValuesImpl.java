@@ -20,6 +20,7 @@ public record StaticValuesImpl(ParameterizedType type,
     public static final StaticValues NONE = new StaticValuesImpl(null, null, Map.of());
     public static final Property STATIC_VALUES_METHOD = new PropertyImpl("staticValuesMethod", NONE);
     public static final Property STATIC_VALUES_FIELD = new PropertyImpl("staticValuesField", NONE);
+    public static final Property STATIC_VALUES_PARAMETER = new PropertyImpl("staticValuesParameter", NONE);
 
     public static StaticValues of(Expression e) {
         return new StaticValuesImpl(null, e, Map.of());

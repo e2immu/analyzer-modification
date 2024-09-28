@@ -1,10 +1,12 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -21,7 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
@@ -185,6 +187,28 @@ public class Analyzer {
         typeInfo.constructorAndMethodStream().forEach(this::doMethod);
         Map<FieldInfo, List<StaticValues>> svMap = collectStaticValuesOfFieldsAcrossConstructorsAndMethods(typeInfo);
         typeInfo.fields().forEach(f -> doField(f, svMap.get(f)));
+        Map<ParameterInfo, StaticValues> svMapParameters = collectReverseFromFieldsToParameters(typeInfo);
+        svMapParameters.forEach((pi, sv) -> {
+            if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
+                pi.analysis().set(STATIC_VALUES_PARAMETER, sv);
+            }
+        });
+    }
+
+    private Map<ParameterInfo, StaticValues> collectReverseFromFieldsToParameters(TypeInfo typeInfo) {
+        Map<ParameterInfo, StaticValues> svMapParameters = new HashMap<>();
+        typeInfo.fields().forEach(fieldInfo -> {
+            StaticValues sv = fieldInfo.analysis().getOrNull(STATIC_VALUES_FIELD, StaticValuesImpl.class);
+            if (sv != null
+                && sv.expression() instanceof VariableExpression ve
+                && ve.variable() instanceof ParameterInfo pi) {
+                VariableExpression reverseVe = runtime.newVariableExpression(runtime.newFieldReference(fieldInfo));
+                StaticValues reverse = StaticValuesImpl.of(reverseVe);
+                StaticValues prev = svMapParameters.put(pi, reverse);
+                if (prev != null && !prev.equals(sv)) throw new UnsupportedOperationException("TODO");
+            }
+        });
+        return svMapParameters;
     }
 
     private Map<FieldInfo, List<StaticValues>> collectStaticValuesOfFieldsAcrossConstructorsAndMethods(TypeInfo typeInfo) {
@@ -205,5 +229,9 @@ public class Analyzer {
 
     private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList) {
         // initial field assignments
+        StaticValues reduced = staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
+        if (!fieldInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_FIELD)) {
+            fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
+        }
     }
 }
