@@ -84,15 +84,20 @@ public class CommonTest {
     protected void prepWork(TypeInfo typeInfo) {
         ComputeHCS computeHCS = new ComputeHCS(runtime);
         computeHCS.doType(List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collections.class);
-
+        Analyzer prepAnalyzer = new Analyzer(runtime);
         ComputeHiddenContent chc = computeHCS.getChc();
+        prepType(prepAnalyzer, chc, typeInfo);
+    }
+
+    private void prepType(Analyzer prepAnalyzer, ComputeHiddenContent chc, TypeInfo typeInfo) {
+        typeInfo.subTypes().forEach(st -> prepType(prepAnalyzer, chc, st));
+
         HiddenContentTypes hct = chc.compute(typeInfo);
-        Analyzer analyzer = new Analyzer(runtime);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
             HiddenContentTypes hctMethod = chc.compute(hct, mi);
             mi.analysis().set(HiddenContentTypes.HIDDEN_CONTENT_TYPES, hctMethod);
-            analyzer.doMethod(mi);
+            prepAnalyzer.doMethod(mi);
         });
-        analyzer.copyModifications(typeInfo);
+        prepAnalyzer.copyModifications(typeInfo);
     }
 }

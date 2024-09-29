@@ -42,7 +42,9 @@ public class Analyzer {
 
     public void doMethod(MethodInfo methodInfo) {
         VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
-        copyFromVariablesIntoMethod(methodInfo, variableData);
+        if(variableData != null) {
+            copyFromVariablesIntoMethod(methodInfo, variableData);
+        } // else: can be null for empty synthetic constructors, for example
     }
 
     private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
@@ -116,7 +118,7 @@ public class Analyzer {
                                      boolean first) {
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         VariableData vd = statement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
-        assert vd != null;
+        assert vd != null : "No variable data in " + statement + " source " + statement.source();
         ComputeLinkCompletion.Builder clcBuilder = computeLinkCompletion.new Builder();
 
         if (statement instanceof LocalVariableCreation lvc) {
