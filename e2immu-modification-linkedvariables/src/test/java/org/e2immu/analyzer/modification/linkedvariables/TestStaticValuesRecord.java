@@ -113,16 +113,16 @@ public class TestStaticValuesRecord extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
-        {
-            VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
-            VariableInfo rVi0 = vd0.variableInfo(r);
-            assertEquals("Type a.b.X.R E=new R(in,3) n=3, set=in", rVi0.staticValues().toString());
-        }
+
+        VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableInfo rVi0 = vd0.variableInfo(r);
+        assertEquals("Type a.b.X.R E=new R(in,3) this.n=3, this.set=in", rVi0.staticValues().toString());
+
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(1);
         {
             VariableData vd1 = rs.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
             VariableInfo rVi1 = vd1.variableInfo(r);
-            assertEquals("Type a.b.X.R E=new R(in,3) n=3, set=in", rVi1.staticValues().toString());
+            assertEquals(rVi0.staticValues(), rVi1.staticValues());
 
             VariableInfo rvVi1 = vd1.variableInfo(method.fullyQualifiedName());
             assertEquals("-1-:n", rvVi1.linkedVariables().toString());

@@ -130,7 +130,7 @@ public class ExpressionAnalyzer {
 
             // trivial aggregation
             if (expression instanceof ArrayInitializer ai) {
-                List<LinkEvaluation> list = ai.expressions().stream().map(e -> eval(e)).toList();
+                List<LinkEvaluation> list = ai.expressions().stream().map(this::eval).toList();
                 LinkEvaluation.Builder b = new LinkEvaluation.Builder();
                 for (LinkEvaluation le : list) b.merge(le);
                 LinkedVariables reduced = list.stream().map(LinkEvaluation::linkedVariables)
@@ -154,13 +154,26 @@ public class ExpressionAnalyzer {
 
         private Expression inferStaticValues(VariableExpression ve) {
             if (variableDataPrevious != null) {
-                String fqn = ve.variable().fullyQualifiedName();
-                VariableInfoContainer vicV = variableDataPrevious.variableInfoContainerOrNull(fqn);
+                Variable variable = ve.variable();
+                VariableInfoContainer vicV = variableDataPrevious.variableInfoContainerOrNull(variable.fullyQualifiedName());
                 if (vicV != null) {
                     VariableInfo viV = vicV.best();
                     StaticValues svV = viV.staticValues();
                     if (svV != null && svV.expression() != null) {
                         return svV.expression();
+                    }
+                }
+                if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    VariableInfoContainer vicSv = variableDataPrevious.variableInfoContainerOrNull(fr.scopeVariable().fullyQualifiedName());
+                    if (vicSv != null) {
+                        VariableInfo viV = vicSv.best();
+                        StaticValues svV = viV.staticValues();
+                        if (svV != null) {
+                            Expression valueForField = svV.values().get(runtime.newFieldReference(fr.fieldInfo()));
+                            if (valueForField != null) {
+                                return valueForField;
+                            }
+                        }
                     }
                 }
             }
@@ -261,8 +274,7 @@ public class ExpressionAnalyzer {
 
         private LinkEvaluation linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
             LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
-            List<LinkEvaluation> linkEvaluations = cc.parameterExpressions().stream()
-                    .map(e -> eval(e)).toList();
+            List<LinkEvaluation> linkEvaluations = cc.parameterExpressions().stream().map(this::eval).toList();
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     cc.constructor());
             LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
@@ -271,8 +283,8 @@ public class ExpressionAnalyzer {
             Map<Variable, Expression> map = new HashMap<>();
             for (ParameterInfo pi : cc.constructor().parameters()) {
                 StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
-                if (svPi != NONE) {
-                    map.put(pi, cc.parameterExpressions().get(pi.index()));
+                if (svPi.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
+                    map.put(fr, cc.parameterExpressions().get(pi.index()));
                 }
             }
             StaticValues staticValues = new StaticValuesImpl(cc.parameterizedType(), cc, Map.copyOf(map));
@@ -290,8 +302,7 @@ public class ExpressionAnalyzer {
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
             ParameterizedType concreteReturnType = mc.concreteReturnType();
 
-            List<LinkEvaluation> linkEvaluations = mc.parameterExpressions().stream()
-                    .map(e -> eval(e)).toList();
+            List<LinkEvaluation> linkEvaluations = mc.parameterExpressions().stream().map(this::eval).toList();
             List<LinkedVariables> linkedVariablesOfParameters = linkEvaluations.stream()
                     .map(LinkEvaluation::linkedVariables).toList();
             LinkEvaluation objectResult = mc.methodInfo().isStatic()
