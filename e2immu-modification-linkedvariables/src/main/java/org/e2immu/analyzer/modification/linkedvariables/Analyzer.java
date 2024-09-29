@@ -42,7 +42,7 @@ public class Analyzer {
 
     public void doMethod(MethodInfo methodInfo) {
         VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
-        if(variableData != null) {
+        if (variableData != null) {
             copyFromVariablesIntoMethod(methodInfo, variableData);
         } // else: can be null for empty synthetic constructors, for example
     }
@@ -124,16 +124,19 @@ public class Analyzer {
         if (statement instanceof LocalVariableCreation lvc) {
             lvc.localVariableStream().forEach(lv -> {
                 if (!lv.assignmentExpression().isEmpty()) {
-                    LinkEvaluation linkEvaluation = expressionAnalyzer.linkEvaluation(methodInfo, lv.assignmentExpression());
+                    LinkEvaluation linkEvaluation = expressionAnalyzer.linkEvaluation(methodInfo, previous,
+                            stageOfPrevious, lv.assignmentExpression());
                     VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(lv);
                     clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
                     clcBuilder.addLinkEvaluation(linkEvaluation, vd);
+                    clcBuilder.addAssignment(vi.variable(), linkEvaluation.staticValues());
                 }
             });
         } else if (statement instanceof ExpressionAsStatement
                    || statement instanceof ReturnStatement
                    || statement instanceof IfElseStatement) {
-            LinkEvaluation linkEvaluation = expressionAnalyzer.linkEvaluation(methodInfo, statement.expression());
+            LinkEvaluation linkEvaluation = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious,
+                    statement.expression());
 
             if (statement instanceof ReturnStatement) {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);

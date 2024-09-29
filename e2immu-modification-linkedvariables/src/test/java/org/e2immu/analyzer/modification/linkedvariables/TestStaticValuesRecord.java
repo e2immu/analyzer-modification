@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestStaticValuesRecord extends CommonTest {
 
     public TestStaticValuesRecord() {
-        super(false); // not needed for such a simple test
+        super(true);
     }
 
     @Language("java")
@@ -116,16 +116,16 @@ public class TestStaticValuesRecord extends CommonTest {
         {
             VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
             VariableInfo rVi0 = vd0.variableInfo(r);
-            assertEquals("E=new R(in, 3), set=in, n=3", rVi0.staticValues().toString());
+            assertEquals("Type a.b.X.R E=new R(in,3) n=3, set=in", rVi0.staticValues().toString());
         }
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(1);
         {
             VariableData vd1 = rs.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
             VariableInfo rVi1 = vd1.variableInfo(r);
-            assertEquals("E=new R(in, 3), set=in, n=3", rVi1.staticValues().toString());
+            assertEquals("Type a.b.X.R E=new R(in,3) n=3, set=in", rVi1.staticValues().toString());
 
             VariableInfo rvVi1 = vd1.variableInfo(method.fullyQualifiedName());
-            assertEquals("-1-:r.n", rvVi1.linkedVariables().toString());
+            assertEquals("-1-:n", rvVi1.linkedVariables().toString());
             assertEquals("E=3", rvVi1.staticValues().toString());
         }
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);

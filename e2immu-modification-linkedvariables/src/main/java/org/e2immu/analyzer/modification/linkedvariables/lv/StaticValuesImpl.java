@@ -6,6 +6,7 @@ import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 
@@ -62,10 +63,17 @@ public record StaticValuesImpl(ParameterizedType type,
         if (expression != null) sb.append("E=").append(expression).append(" ");
         if (!values.isEmpty()) {
             sb.append(values.entrySet().stream()
-                    .map(e -> e.getKey() + "=" + e.getValue())
+                    .map(e -> simpleNameWithScope(e.getKey()) + "=" + e.getValue())
                     .sorted()
                     .collect(Collectors.joining(", ")));
         }
         return sb.toString().trim();
+    }
+
+    private static String simpleNameWithScope(Variable v) {
+        if (v instanceof FieldReference fr && fr.scopeVariable() != null) {
+            return simpleNameWithScope(fr.scopeVariable()) + "." + v.simpleName();
+        }
+        return v.simpleName();
     }
 }
