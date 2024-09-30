@@ -30,8 +30,13 @@ public record LinksImpl(Map<Indices, Link> map) implements Links {
     ComputeLinkedVariables.
      */
     @Override
-    public Links next(DijkstraShortestPath.Connection current) {
-        if (current == NO_LINKS || this == NO_LINKS) {
+    public Links next(DijkstraShortestPath.Connection current, boolean keepNoLinks) {
+        if (current == NO_LINKS) {
+            return this;
+        }
+        if (this == NO_LINKS && keepNoLinks) {
+            // good for -2- and -D-, but not for -0-, -1-
+            // sadly enough, we do not have that info here
             return this;
         }
         Map<Indices, Link> res = new HashMap<>();

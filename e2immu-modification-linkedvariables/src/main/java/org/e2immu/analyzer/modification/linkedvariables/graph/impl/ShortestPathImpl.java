@@ -42,7 +42,8 @@ public class ShortestPathImpl implements ShortestPath {
         this.edgesHigh = edgesHigh;
         this.variableIndex = variableIndex;
         this.someDelay = someDelay;
-        dijkstraShortestPath = new DijkstraShortestPath(NO_LINKS, ShortestPathImpl::distancePrinter);
+        dijkstraShortestPath = new DijkstraShortestPath(NO_LINKS, ShortestPathImpl::distancePrinter,
+                ShortestPathImpl::testKeepNoLinks);
         this.linkMap = linkMap;
     }
 
@@ -62,6 +63,13 @@ public class ShortestPathImpl implements ShortestPath {
         if (LINK_ASSIGNED.equals(lv)) return ASSIGNED;
         if (lv.isDependent()) return DEPENDENT;
         return COMMON_HC;
+    }
+
+    public static boolean testKeepNoLinks(long l) {
+        if (l == Long.MAX_VALUE) return true;
+        LV lv = fromDistanceSum(l, CausesOfDelay.DELAY);
+        assert lv != null;
+        return !LVImpl.LINK_ASSIGNED.equals(lv) && !LINK_STATICALLY_ASSIGNED.equals(lv);
     }
 
     public static String distancePrinter(long l) {
