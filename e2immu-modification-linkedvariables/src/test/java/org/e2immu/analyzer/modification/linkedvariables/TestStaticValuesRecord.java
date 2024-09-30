@@ -210,7 +210,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
         VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo rVi0 = vd0.variableInfo(r);
-        assertEquals("Type a.b.X.R E=new R(in) this.t=in", rVi0.staticValues().toString());
+        assertEquals("Type a.b.X.R<java.util.Set<String>> E=new R<>(in) this.t=in", rVi0.staticValues().toString());
 
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(1);
 

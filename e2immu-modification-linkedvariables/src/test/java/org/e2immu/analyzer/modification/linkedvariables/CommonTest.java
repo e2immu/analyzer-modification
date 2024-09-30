@@ -83,7 +83,8 @@ public class CommonTest {
 
     protected void prepWork(TypeInfo typeInfo) {
         ComputeHCS computeHCS = new ComputeHCS(runtime);
-        computeHCS.doType(List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collections.class);
+        computeHCS.doType(List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collection.class,
+                Collections.class);
         Analyzer prepAnalyzer = new Analyzer(runtime);
         ComputeHiddenContent chc = computeHCS.getChc();
         prepType(prepAnalyzer, chc, typeInfo);

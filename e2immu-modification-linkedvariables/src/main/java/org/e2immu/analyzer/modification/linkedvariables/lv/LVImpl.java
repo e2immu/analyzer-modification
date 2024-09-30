@@ -48,7 +48,7 @@ public class LVImpl implements LV {
     }
 
     public static LV delay(CausesOfDelay someDelay) {
-       return new LVImpl(I_DELAY, NO_LINKS, "delay", INDEPENDENT_DELAYED);
+        return new LVImpl(I_DELAY, NO_LINKS, "delay", INDEPENDENT_DELAYED);
     }
 
     @Override
@@ -109,7 +109,7 @@ public class LVImpl implements LV {
         }
         assert countAll <= 1;
         assert from.size() == to.size();
-        assert hc != I_HC || !from.isEmpty();
+        assert hc != I_HC || !from.isEmpty() : "Result is HC, but cannot create map; links = " + links;
         return String.join(",", from) + "-" + hc + "-" + String.join(",", to);
     }
 

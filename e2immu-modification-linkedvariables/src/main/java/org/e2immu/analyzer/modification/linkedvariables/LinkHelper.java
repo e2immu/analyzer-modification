@@ -207,14 +207,14 @@ public class LinkHelper {
                         linkMap.put(iInHctSource, new LinkImpl(iInHctTarget, mutable));
                     }
                     if (linkMap.isEmpty()) {
-                        newLv = LINK_DEPENDENT;
+                        newLv = createDependent(linkAllSameType(parameterType));
                     } else {
                         Links links = new LinksImpl(Map.copyOf(linkMap));
                         boolean independentHc = lv.isCommonHC();
                         newLv = independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
                     }
                 } else {
-                    newLv = LINK_DEPENDENT;
+                    newLv = createDependent(linkAllSameType(parameterType));
                 }
                 Variable variable = e.getKey();
                 map.put(variable, newLv);
@@ -562,7 +562,7 @@ public class LinkHelper {
                     if (e.getValue() == 0) {
                         lv = LINK_DEPENDENT;
                     } else {
-                        lv = createHC(new LinksImpl(0, 0));
+                        lv = createHC(linkAllSameType(pi.parameterizedType()));
                     }
                     lvMap.put(target, lv);
                 }
@@ -571,6 +571,22 @@ public class LinkHelper {
         }
         return res.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getKey,
                 e -> LinkedVariablesImpl.of(e.getValue())));
+    }
+
+    public static Links linkAllSameType(ParameterizedType parameterizedType) {
+        TypeInfo typeInfo = parameterizedType.typeInfo();
+        HiddenContentTypes hct = typeInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+        assert hct != null : "HCT not yet computed for " + typeInfo;
+        if (hct.hasHiddenContent()) {
+            Map<Indices, Link> map = new HashMap<>();
+            for (int i = 0; i < hct.size(); i++) {
+                // not mutable, because hidden content
+                // from i to i, because we have a -1- relation, so the type must be the same
+                map.put(new IndicesImpl(i), new LinkImpl(new IndicesImpl(i), false));
+            }
+            return new LinksImpl(Map.copyOf(map));
+        }
+        return LinksImpl.NO_LINKS; // FIXME
     }
 
     /*
