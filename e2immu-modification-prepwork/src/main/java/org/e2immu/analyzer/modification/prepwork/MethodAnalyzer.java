@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -9,6 +10,7 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.*;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
 
@@ -155,6 +157,40 @@ public class MethodAnalyzer {
             }
             doModificationAnalysis(methodInfo, lastOfMainBlock);
         } // else: empty
+        doGetSetAnalysis(methodInfo, methodBody);
+    }
+
+    /*
+    a getter or accessor is a method that does nothing but return a field.
+    a setter is a method that does nothing but set the value of a field. It may return "this".
+     */
+    private void doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
+        if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.GET_SET_FIELD)) {
+            Value.FieldValue getSet;
+            if (methodBody.isEmpty()) {
+                getSet = ValueImpl.FieldValueImpl.EMPTY;
+            } else {
+                Statement s0 = methodBody.statements().get(0);
+                if (s0 instanceof ReturnStatement rs
+                    && rs.expression() instanceof VariableExpression ve
+                    && ve.variable() instanceof FieldReference fr
+                    && fr.scopeIsRecursivelyThis()) {
+                    getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                } else if (s0 instanceof ExpressionAsStatement eas && eas.expression() instanceof Assignment a
+                           && a.variableTarget() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
+                           && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
+                           && (methodBody.size() == 1 ||
+                               methodBody.size() == 2
+                               && methodBody.statements().get(1) instanceof ReturnStatement rs
+                               && rs.expression() instanceof VariableExpression veThis
+                               && veThis.variable() instanceof This)) {
+                    getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                } else {
+                    getSet = ValueImpl.FieldValueImpl.EMPTY;
+                }
+            }
+            methodInfo.analysis().set(PropertyImpl.GET_SET_FIELD, getSet);
+        }
     }
 
     private void doModificationAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock) {
@@ -591,10 +627,10 @@ public class MethodAnalyzer {
                     // +=, ++, ...
                     markRead(a.variableTarget());
                 }
-                if(a.variableTarget() instanceof DependentVariable dv) {
+                if (a.variableTarget() instanceof DependentVariable dv) {
                     dv.indexExpression().visit(this);
                     dv.arrayExpression().visit(this);
-                } else if(a.variableTarget() instanceof FieldReference fr) {
+                } else if (a.variableTarget() instanceof FieldReference fr) {
                     fr.scope().visit(this);
                 }
                 a.value().visit(this);

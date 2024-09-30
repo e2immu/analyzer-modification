@@ -6,6 +6,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.language.cst.api.analysis.Property;
+import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -15,10 +17,13 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,6 +31,7 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariable
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IDENTITY_METHOD;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 
@@ -45,7 +51,37 @@ public class Analyzer {
         if (variableData != null) {
             copyFromVariablesIntoMethod(methodInfo, variableData);
         } // else: can be null for empty synthetic constructors, for example
+        doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
+                e -> e instanceof VariableExpression ve
+                     && ve.variable() instanceof ParameterInfo pi
+                     && pi.methodInfo() == methodInfo
+                     && pi.index() == 0);
+        doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
+                e -> e instanceof VariableExpression ve
+                     && ve.variable() instanceof This thisVar
+                     && thisVar.typeInfo() == methodInfo.typeInfo());
     }
+
+    private void doFluentIdentityAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock,
+                                          Property property, Predicate<Expression> predicate) {
+        if (!methodInfo.analysis().haveAnalyzedValueFor(property)) {
+            boolean identityFluent;
+            if (lastOfMainBlock == null) {
+                identityFluent = false;
+            } else {
+                VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(methodInfo.fullyQualifiedName());
+                if(vicRv != null) {
+                    VariableInfo viRv = vicRv.best();
+                    StaticValues svRv = viRv.staticValues();
+                    identityFluent = svRv != null && predicate.test(svRv.expression());
+                } else {
+                    identityFluent = false;
+                }
+            }
+            methodInfo.analysis().set(property, ValueImpl.BoolImpl.from(identityFluent));
+        }
+    }
+
 
     private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
         for (VariableInfo vi : variableData.variableInfoStream().toList()) {
@@ -153,17 +189,14 @@ public class Analyzer {
             vd.variableInfoContainerStream().forEach(vic -> {
                 if (vic.hasMerge()) {
                     Variable variable = vic.variable();
-                    List<LinkedVariables> linkedVariablesList = lastOfEachSubBlock.values().stream()
-                            .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
-                            .filter(Objects::nonNull)
-                            .map(VariableInfoContainer::best)
-                            .map(VariableInfo::linkedVariables)
-                            .filter(Objects::nonNull)
-                            .toList();
-                    LinkedVariables reduced = linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge);
                     VariableInfoImpl merge = (VariableInfoImpl) vic.best();
+
+                    LinkedVariables reducedLv = computeLinkedVariablesMerge(lastOfEachSubBlock, variable);
                     merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-                    merge.setLinkedVariables(reduced);
+                    merge.setLinkedVariables(reducedLv);
+
+                    StaticValues reducedSv = computeStaticValuesMerge(lastOfEachSubBlock, variable);
+                    merge.staticValuesSet(reducedSv);
 
                     if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
                         boolean modified = lastOfEachSubBlock.values().stream()
@@ -177,6 +210,28 @@ public class Analyzer {
             });
         }
         return vd;
+    }
+
+    private static StaticValues computeStaticValuesMerge(Map<String, VariableData> lastOfEachSubBlock, Variable variable) {
+        List<StaticValues> staticValuesList = lastOfEachSubBlock.values().stream()
+                .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                .filter(Objects::nonNull)
+                .map(VariableInfoContainer::best)
+                .map(VariableInfo::staticValues)
+                .filter(Objects::nonNull)
+                .toList();
+        return staticValuesList.stream().reduce(NONE, StaticValues::merge);
+    }
+
+    private static LinkedVariables computeLinkedVariablesMerge(Map<String, VariableData> lastOfEachSubBlock, Variable variable) {
+        List<LinkedVariables> linkedVariablesList = lastOfEachSubBlock.values().stream()
+                .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                .filter(Objects::nonNull)
+                .map(VariableInfoContainer::best)
+                .map(VariableInfo::linkedVariables)
+                .filter(Objects::nonNull)
+                .toList();
+        return linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge);
     }
 
     /*

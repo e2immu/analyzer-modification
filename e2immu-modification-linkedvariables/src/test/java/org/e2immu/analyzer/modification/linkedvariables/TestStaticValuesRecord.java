@@ -16,6 +16,7 @@ import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -79,6 +80,8 @@ public class TestStaticValuesRecord extends CommonTest {
             MethodInfo accessorSet = X.findUniqueMethod("set", 0);
             StaticValues svAccessorSet = accessorSet.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
             assertEquals("E=this.set", svAccessorSet.toString());
+            FieldValue getSet = accessorSet.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            assertEquals(setField, getSet.field());
         }
         {
             StaticValues svSetField = setField.analysis().getOrNull(STATIC_VALUES_FIELD, StaticValuesImpl.class);
@@ -89,6 +92,13 @@ public class TestStaticValuesRecord extends CommonTest {
             StaticValues svSetParam = setParam.analysis().getOrNull(STATIC_VALUES_PARAMETER, StaticValuesImpl.class);
             assertEquals("E=this.set", svSetParam.toString());
             assertSame(setField, ((FieldReference) ((VariableExpression) svSetParam.expression()).variable()).fieldInfo());
+        }
+        {
+            MethodInfo accessorN = X.findUniqueMethod("n", 0);
+            StaticValues svAccessorN = accessorN.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            assertEquals("E=this.n", svAccessorN.toString());
+            FieldValue getSet = accessorN.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            assertEquals(nField, getSet.field());
         }
     }
 
