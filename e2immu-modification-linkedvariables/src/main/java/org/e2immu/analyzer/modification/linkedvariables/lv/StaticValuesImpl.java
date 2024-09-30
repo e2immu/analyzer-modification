@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
-import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
+import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.expression.Expression;
@@ -75,5 +75,19 @@ public record StaticValuesImpl(ParameterizedType type,
             return simpleNameWithScope(fr.scopeVariable()) + "." + v.simpleName();
         }
         return v.simpleName();
+    }
+
+    public static StaticValues from(VariableData variableDataPrevious, Stage stageOfPrevious, Variable v) {
+        if (variableDataPrevious != null) {
+            VariableInfoContainer vicVar = variableDataPrevious.variableInfoContainerOrNull(v.fullyQualifiedName());
+            if (vicVar != null) {
+                VariableInfo viVar = vicVar.best(stageOfPrevious);
+                StaticValues staticValues = viVar.staticValues();
+                if(staticValues != null) {
+                    return staticValues;
+                }
+            }
+        }
+        return NONE;
     }
 }

@@ -74,8 +74,9 @@ public class ExpressionAnalyzer {
                 // or in the previous statement
                 Expression svExpression = inferStaticValues(ve);
                 StaticValues svs = StaticValuesImpl.of(svExpression);
+                StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, v);
                 return new LinkEvaluation.Builder()
-                        .setStaticValues(svs)
+                        .setStaticValues(svs.merge(svsVar))
                         .setLinkedVariables(lvs)
                         .build();
             }
