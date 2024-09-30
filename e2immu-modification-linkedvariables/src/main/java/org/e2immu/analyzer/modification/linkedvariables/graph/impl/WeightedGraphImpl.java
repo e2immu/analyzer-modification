@@ -221,6 +221,6 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         Cache.Hash hash = cache.createHash(cacheKey);
         ShortestPathImpl.LinkMap linkMap = (ShortestPathImpl.LinkMap)
                 cache.computeIfAbsent(hash, h -> new ShortestPathImpl.LinkMap(new LinkedHashMap<>(), new AtomicInteger(), cacheKey));
-        return new ShortestPathImpl(variableIndex, variables, edges, edgesHigh, CausesOfDelay.NO_DELAY, linkMap);
+        return new ShortestPathImpl(variableIndex, variables, edges, edgesHigh, CausesOfDelay.DELAY, linkMap);
     }
 }

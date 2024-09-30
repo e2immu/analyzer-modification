@@ -129,12 +129,14 @@ public class ShortestPathImpl implements ShortestPath {
     }
 
     private void debug(String msg, DijkstraShortestPath.DC[] l, BiFunction<Long, CausesOfDelay, LV> transform) {
-        LOGGER.trace("Variables: {}", Arrays.stream(variables).map(Objects::toString)
-                .collect(Collectors.joining(", ")));
-        LOGGER.trace("{}: {}", msg, Arrays.stream(l)
-                .map(v -> transform.apply(v.dist(), someDelay))
-                .map(lv -> lv == null ? "-" : lv.toString())
-                .collect(Collectors.joining(", ")));
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("Variables: {}", Arrays.stream(variables).map(Objects::toString)
+                    .collect(Collectors.joining(", ")));
+            LOGGER.trace("{}: {}", msg, Arrays.stream(l)
+                    .map(v -> transform.apply(v.dist(), someDelay))
+                    .map(lv -> lv == null ? "-" : lv.toString())
+                    .collect(Collectors.joining(", ")));
+        }
     }
 
     public static String code(LV dv) {

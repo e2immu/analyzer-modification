@@ -70,6 +70,9 @@ public class TestWeightedGraph1 extends CommonWG {
         wg.addNode(nodeMap, Map.of(nodeMap, v0, toDo, this_4_cycle));
         wg.addNode(toDo, Map.of(toDo, v0));
         shortestPath = wg.shortestPath();
+
+        assertEquals("0(0:0;5:D)1(1:0;5:0-4-0)2(2:0;3:0-4-0;4:0-4-0;5:0-4-0)3(2:0-4-0;3:0;4:0-4-0)4(2:0-4-0;3:0-4-0;4:0)5(0:D;1:0-4-0;2:0-4-0;5:0)",
+                ((ShortestPathImpl)shortestPath).getCacheKey());
     }
 
     @Test

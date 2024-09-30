@@ -21,7 +21,7 @@ public class CommonWG {
     final LV v1 = LINK_ASSIGNED;
     final LV v2 = LINK_DEPENDENT;
     final LV v4 = LVImpl.createHC(new LinksImpl(0, 0));
-    final LV delay = LVImpl.delay(CausesOfDelay.NO_DELAY); // FIXME?
+    final LV delay = LVImpl.delay(CausesOfDelay.DELAY);
     final Indices i0 = new IndicesImpl(0);
     final Indices i1 = new IndicesImpl(1);
 
