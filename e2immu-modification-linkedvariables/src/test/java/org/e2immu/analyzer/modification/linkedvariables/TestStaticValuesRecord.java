@@ -221,6 +221,7 @@ public class TestStaticValuesRecord extends CommonTest {
         VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
         VariableInfo rVi0 = vd0.variableInfo(r);
         assertEquals("Type a.b.X.R<java.util.Set<String>> E=new R<>(in) this.t=in", rVi0.staticValues().toString());
+        assertEquals("0.0-4-0:in", rVi0.linkedVariables().toString());
 
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(1);
 
@@ -229,13 +230,15 @@ public class TestStaticValuesRecord extends CommonTest {
         assertEquals(rVi0.staticValues(), rVi1.staticValues());
 
         VariableInfo rvVi1 = vd1.variableInfo(method.fullyQualifiedName());
-        assertEquals("-1-:n", rvVi1.linkedVariables().toString());
-        assertEquals("E=3", rvVi1.staticValues().toString());
+        assertEquals("-2-:r,0.0-4-0:in", rvVi1.linkedVariables().toString());
+        // we don't want E=r.t here, that one can be substituted again because r.t=in
+        assertEquals("E=in", rvVi1.staticValues().toString());
 
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-        assertEquals("E=3", methodSv.toString());
+        assertEquals("E=in", methodSv.toString());
 
         // @Identity method, we return the first parameter
         assertSame(TRUE, method.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, FALSE));
+        assertSame(FALSE, method.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
     }
 }

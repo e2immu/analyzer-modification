@@ -4,7 +4,7 @@ import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
 
 import java.util.Map;
 
-public interface LV extends  Comparable<LV> {
+public interface LV extends Comparable<LV> {
     LV max(LV other);
 
     boolean isDone();

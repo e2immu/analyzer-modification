@@ -28,6 +28,11 @@ public record StaticValuesImpl(ParameterizedType type,
     }
 
     @Override
+    public boolean isEmpty() {
+        return type == null && expression == null && values.isEmpty();
+    }
+
+    @Override
     public Codec.EncodedValue encode(Codec codec) {
         return null;
     }
@@ -83,7 +88,7 @@ public record StaticValuesImpl(ParameterizedType type,
             if (vicVar != null) {
                 VariableInfo viVar = vicVar.best(stageOfPrevious);
                 StaticValues staticValues = viVar.staticValues();
-                if(staticValues != null) {
+                if (staticValues != null) {
                     return staticValues;
                 }
             }

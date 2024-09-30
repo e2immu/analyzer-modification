@@ -16,6 +16,8 @@ import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 
@@ -297,7 +299,35 @@ public class ExpressionAnalyzer {
 
         private LinkEvaluation linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc) {
             LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+            methodCallLinks(currentMethod, mc, builder);
+            methodCallModified(mc, builder);
+            methodCallStaticValue(mc, builder);
+            return builder.build();
+        }
 
+        private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder) {
+            if (mc.methodInfo().hasReturnValue()) {
+                Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+                if (getSet.field() != null) {
+                    FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), mc.concreteReturnType());
+                    VariableExpression ve = runtime.newVariableExpression(fr);
+                    Expression svExpression = inferStaticValues(ve);
+                    StaticValues svs = StaticValuesImpl.of(svExpression);
+                    StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
+                    builder.setStaticValues(svs).merge(fr, svsVar);
+                }
+            }
+        }
+
+        private void methodCallModified(MethodCall mc, LinkEvaluation.Builder builder) {
+            if (mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue()
+                && mc.object() instanceof VariableExpression) {
+                Set<Variable> modified = mc.object().variableStreamDescend().collect(Collectors.toUnmodifiableSet());
+                builder.addModified(modified);
+            }
+        }
+
+        private void methodCallLinks(MethodInfo currentMethod, MethodCall mc, LinkEvaluation.Builder builder) {
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
@@ -350,13 +380,7 @@ public class ExpressionAnalyzer {
                 }
             });
             LinkedVariables lvsResult = LinkedVariablesImpl.of(map);
-
-            if (mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue()
-                && mc.object() instanceof VariableExpression) {
-                Set<Variable> modified = mc.object().variableStreamDescend().collect(Collectors.toUnmodifiableSet());
-                builder.addModified(modified);
-            }
-            return builder.setLinkedVariables(lvsResult).build();
+            builder.setLinkedVariables(lvsResult);
         }
     }
 }

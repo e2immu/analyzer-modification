@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -31,9 +32,9 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariable
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IDENTITY_METHOD;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class Analyzer {
     private final Runtime runtime;
@@ -60,6 +61,7 @@ public class Analyzer {
                 e -> e instanceof VariableExpression ve
                      && ve.variable() instanceof This thisVar
                      && thisVar.typeInfo() == methodInfo.typeInfo());
+        doIndependent(methodInfo, variableData);
     }
 
     private void doFluentIdentityAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock,
@@ -70,7 +72,7 @@ public class Analyzer {
                 identityFluent = false;
             } else {
                 VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(methodInfo.fullyQualifiedName());
-                if(vicRv != null) {
+                if (vicRv != null) {
                     VariableInfo viRv = vicRv.best();
                     StaticValues svRv = viRv.staticValues();
                     identityFluent = svRv != null && predicate.test(svRv.expression());
@@ -82,6 +84,55 @@ public class Analyzer {
         }
     }
 
+    /*
+    constructors: independent
+    void methods: independent
+    fluent methods: because we return the same object that the caller already has, no more opportunity to make
+        changes is leaked than what as already there. Independent!
+    accessors: independent directly related to the immutability of the field being returned
+    normal methods: does a modification to the return value imply any modification in the method's object?
+        independent directly related to the immutability of the fields to which the return value links.
+     */
+    private void doIndependent(MethodInfo methodInfo, VariableData lastOfMainBlock) {
+        if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)) {
+            Independent independent = doIndependentMethod(methodInfo, lastOfMainBlock);
+            methodInfo.analysis().set(PropertyImpl.INDEPENDENT_METHOD, independent);
+        }
+        for (ParameterInfo pi : methodInfo.parameters()) {
+            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)) {
+                Independent independent = doIndependentParameter(pi, lastOfMainBlock);
+                methodInfo.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, independent);
+            }
+        }
+    }
+
+    private Independent doIndependentParameter(ParameterInfo pi, VariableData lastOfMainBlock) {
+        TypeInfo piTypeInfo = pi.parameterizedType().typeInfo();
+        boolean typeIsImmutable = piTypeInfo != null && piTypeInfo.analysis()
+                .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
+        if (typeIsImmutable) return INDEPENDENT;
+        return DEPENDENT; // FIXME
+    }
+
+    private Independent doIndependentMethod(MethodInfo methodInfo, VariableData lastOfMainBlock) {
+        if (methodInfo.isConstructor() || methodInfo.noReturnValue()) return INDEPENDENT;
+        boolean fluent = methodInfo.analysis().getOrDefault(FLUENT_METHOD, FALSE).isTrue();
+        if (fluent) return INDEPENDENT;
+        TypeInfo returnTypeInfo = methodInfo.returnType().typeInfo();
+        boolean typeIsImmutable = returnTypeInfo != null && returnTypeInfo.analysis()
+                .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
+        if (typeIsImmutable) return INDEPENDENT;
+        assert lastOfMainBlock != null : "We have a method with return value, so we must have a statement";
+        VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(methodInfo.fullyQualifiedName());
+        VariableInfo viRv = vicRv.best();
+        LV worstLinkToFields = viRv.linkedVariables().stream()
+                .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                .map(Map.Entry::getValue)
+                .min(LV::compareTo).orElse(LVImpl.LINK_DEPENDENT);
+        if (worstLinkToFields.equals(LVImpl.LINK_INDEPENDENT)) return INDEPENDENT;
+        if (worstLinkToFields.isCommonHC()) return INDEPENDENT_HC;
+        return DEPENDENT;
+    }
 
     private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
         for (VariableInfo vi : variableData.variableInfoStream().toList()) {

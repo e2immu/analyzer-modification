@@ -93,7 +93,9 @@ public class LinkEvaluation {
         Builder merge(Variable variable, StaticValues sv) {
             assert variable != null;
             assert sv != null;
-            this.assignments.merge(variable, sv, StaticValues::merge);
+            if(!sv.isEmpty()) {
+                this.assignments.merge(variable, sv, StaticValues::merge);
+            }
             return this;
         }
 
