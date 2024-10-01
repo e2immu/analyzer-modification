@@ -1,32 +1,22 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.language.cst.api.expression.VariableExpression;
-import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.statement.LocalVariableCreation;
-import org.e2immu.language.cst.api.statement.ReturnStatement;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.api.variable.FieldReference;
-import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 public class TestModificationFunctional extends CommonTest {
 
@@ -55,6 +45,13 @@ public class TestModificationFunctional extends CommonTest {
                 }
                 int go(String in) {
                     return run(in, this::parse);
+                }
+                int indirection(String s, Function<String, Integer> function) {
+                    Function<String, Integer> f = function;
+                    return run(s, f);
+                }
+                int goWithIndirection(String in) {
+                    return indirection(in, this::parse);
                 }
             }
             """;
@@ -97,8 +94,17 @@ public class TestModificationFunctional extends CommonTest {
             VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
             VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X));
             assertSame(TRUE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
+            // as a consequence, 'go' becomes modified
+            assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
         }
-        // as a consequence, 'go' becomes modified
-        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        {
+            MethodInfo indirection = X.findUniqueMethod("indirection", 2);
+            ParameterInfo iP1 = indirection.parameters().get(1);
+            assertSame(TRUE, iP1.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        }
+        {
+            MethodInfo goIndirection = X.findUniqueMethod("goWithIndirection", 1);
+            assertSame(TRUE, goIndirection.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        }
     }
 }
