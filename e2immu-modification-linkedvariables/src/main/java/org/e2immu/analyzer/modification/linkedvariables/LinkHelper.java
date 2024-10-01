@@ -7,7 +7,6 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
-import org.e2immu.analyzer.modification.prepwork.callgraph.PartOfCallCycle;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
@@ -628,8 +627,8 @@ public class LinkHelper {
         // RULE 1: void method cannot link
         if (methodInfo.noReturnValue()) return LinkedVariablesImpl.EMPTY;
         boolean recursiveCall = recursiveCall(methodInfo, currentMethod);
-        boolean breakCallCycleDelay = methodInfo.analysis()
-                .getOrDefault(PartOfCallCycle.IGNORE_ME_PART_OF_CALL_CYCLE, ValueImpl.BoolImpl.FALSE).isTrue();
+        boolean breakCallCycleDelay = false;// FIXME  methodInfo.analysis()
+              //  .getOrDefault(PartOfCallCycle.IGNORE_ME_PART_OF_CALL_CYCLE, ValueImpl.BoolImpl.FALSE).isTrue();
         if (recursiveCall || breakCallCycleDelay) {
             return LinkedVariablesImpl.EMPTY;
         }
