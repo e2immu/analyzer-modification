@@ -2,14 +2,17 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
 import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.inspection.api.integration.JavaInspector;
 import org.e2immu.language.inspection.api.resource.InputConfiguration;
 import org.e2immu.language.inspection.integration.JavaInspectorImpl;
@@ -21,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 
 import static org.e2immu.language.inspection.integration.JavaInspectorImpl.JAR_WITH_PATH_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -83,7 +87,8 @@ public class CommonTest {
 
     protected void prepWork(TypeInfo typeInfo) {
         ComputeHCS computeHCS = new ComputeHCS(runtime);
-        computeHCS.doType(List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collection.class,
+        computeHCS.doType(String.class, Function.class,
+                List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collection.class,
                 Collections.class);
         Analyzer prepAnalyzer = new Analyzer(runtime);
         ComputeHiddenContent chc = computeHCS.getChc();

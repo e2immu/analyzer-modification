@@ -1,8 +1,10 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -16,12 +18,15 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -37,6 +42,8 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class Analyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Analyzer.class);
+
     private final Runtime runtime;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
@@ -48,6 +55,7 @@ public class Analyzer {
     }
 
     public void doMethod(MethodInfo methodInfo) {
+        doHiddenContentSelector(methodInfo);
         VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
         if (variableData != null) {
             copyFromVariablesIntoMethod(methodInfo, variableData);
@@ -62,6 +70,44 @@ public class Analyzer {
                      && ve.variable() instanceof This thisVar
                      && thisVar.typeInfo() == methodInfo.typeInfo());
         doIndependent(methodInfo, variableData);
+    }
+
+    private void doHiddenContentSelector(MethodInfo methodInfo) {
+        MethodInfo overrideWithMostHiddenContent = overloadWithMostHiddenContent(methodInfo);
+        ParameterizedType returnType = overrideWithMostHiddenContent.returnType();
+        HiddenContentTypes hctOverride = overrideWithMostHiddenContent.analysis()
+                .getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+        assert hctOverride != null;
+        if (!methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD)) {
+            HiddenContentSelector hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
+            methodInfo.analysis().set(HiddenContentSelector.HCS_METHOD, hcs);
+        }
+        methodInfo.parameters().forEach(pi -> {
+            if (!pi.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_PARAMETER)) {
+                ParameterizedType pt = overrideWithMostHiddenContent.parameters().get(pi.index()).parameterizedType();
+                HiddenContentSelector hcsPa = HiddenContentSelector.selectAll(hctOverride, pt);
+                pi.analysis().set(HiddenContentSelector.HCS_PARAMETER, hcsPa);
+            }
+        });
+    }
+
+
+    private MethodInfo overloadWithMostHiddenContent(MethodInfo methodInfo) {
+        Set<MethodInfo> overrides = methodInfo.overrides();
+        if (overrides.isEmpty()) return methodInfo;
+        if (overrides.size() == 1) return overrides.stream().findFirst().orElseThrow();
+        Map<MethodInfo, Integer> map = overrides.stream()
+                .collect(Collectors.toUnmodifiableMap(m -> m, this::countHiddenContent));
+        return overrides.stream().min((o1, o2) -> map.get(o2) - map.get(o1)).orElseThrow();
+    }
+
+    private int countHiddenContent(MethodInfo methodInfo) {
+        HiddenContentTypes hct = methodInfo.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+                HiddenContentTypes.class);
+        assert hct != null;
+        Stream<ParameterizedType> types = Stream.concat(Stream.of(methodInfo.returnType()),
+                methodInfo.parameters().stream().map(Variable::parameterizedType));
+        return (int) types.filter(t -> hct.indexOfOrNull(t) != null).count();
     }
 
     private void doFluentIdentityAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock,
@@ -193,7 +239,12 @@ public class Analyzer {
         VariableData previous = vdOfParent;
         boolean first = true;
         for (Statement statement : block.statements()) {
-            previous = doStatement(methodInfo, statement, previous, first);
+            try {
+                previous = doStatement(methodInfo, statement, previous, first);
+            } catch (RuntimeException re) {
+                LOGGER.error("Have error analyzing statement {}, {}, in method {}",
+                        statement, statement.source(), methodInfo);
+            }
             if (first) first = false;
         }
         return previous;
@@ -340,7 +391,8 @@ public class Analyzer {
 
     private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList) {
         // initial field assignments
-        StaticValues reduced = staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
+        StaticValues reduced = staticValuesList == null ? NONE
+                : staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
         if (!fieldInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_FIELD)) {
             fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
         }

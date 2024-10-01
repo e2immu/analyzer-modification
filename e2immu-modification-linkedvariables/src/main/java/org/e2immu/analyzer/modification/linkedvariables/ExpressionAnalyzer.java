@@ -14,6 +14,7 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -254,7 +255,7 @@ public class ExpressionAnalyzer {
                     mr.methodInfo());
             Value.Independent independentOfMethod = mr.methodInfo().analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
             HiddenContentSelector hcsMethod = mr.methodInfo().analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
-            assert hcsMethod != null;
+            assert hcsMethod != null : "Have no hidden content selector computed for " + mr.methodInfo();
 
             Map<NamedType, ParameterizedType> map = mr.parameterizedType().initialTypeParameterMap(runtime);
             ParameterizedType typeOfReturnValue = mr.methodInfo().returnType();
@@ -321,9 +322,23 @@ public class ExpressionAnalyzer {
 
         private void methodCallModified(MethodCall mc, LinkEvaluation.Builder builder) {
             if (mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue()
-                && mc.object() instanceof VariableExpression) {
-                Set<Variable> modified = mc.object().variableStreamDescend().collect(Collectors.toUnmodifiableSet());
-                builder.addModified(modified);
+                && mc.object() instanceof VariableExpression ve) {
+                markModified(ve.variable(), builder);
+            }
+        }
+
+        // NOTE: there is a semi-duplicate in MethodAnalyzer (modification-prepwork)
+        private void markModified(Variable variable, LinkEvaluation.Builder builder) {
+            TypeInfo typeInfo = variable.parameterizedType().typeInfo();
+            boolean mutable = typeInfo != null && typeInfo.analysis()
+                    .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
+            if (mutable) {
+                builder.addModified(variable);
+                if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    markModified(fr.scopeVariable(), builder);
+                } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
+                    markModified(dv.arrayVariable(), builder);
+                }
             }
         }
 

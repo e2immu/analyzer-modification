@@ -7,6 +7,7 @@ import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.*;
@@ -20,8 +21,7 @@ import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.prepwork.StatementIndex.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_METHOD;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
@@ -635,13 +635,13 @@ public class MethodAnalyzer {
                 }
                 a.value().visit(this);
 
-                recursivelyAddToModified(a.variableTarget(), false);
+                markModified(a.variableTarget(), false);
                 return false;
             }
             if (e instanceof MethodCall mc) {
                 boolean isModifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
                 if (isModifying && mc.object() instanceof VariableExpression ve) {
-                    recursivelyAddToModified(ve.variable(), true);
+                    markModified(ve.variable(), true);
                 }
                 int i = 0;
                 int nMinus1 = mc.methodInfo().parameters().size() - 1;
@@ -649,7 +649,7 @@ public class MethodAnalyzer {
                     if (expression instanceof VariableExpression ve) {
                         ParameterInfo pi = mc.methodInfo().parameters().get(Math.min(i, nMinus1));
                         boolean parameterModifying = pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
-                        if (parameterModifying) recursivelyAddToModified(ve.variable(), true);
+                        if (parameterModifying) markModified(ve.variable(), true);
                     }
                     i++;
                 }
@@ -668,7 +668,7 @@ public class MethodAnalyzer {
                     if (expression instanceof VariableExpression ve) {
                         ParameterInfo pi = cc.constructor().parameters().get(Math.min(i, nMinus1));
                         boolean parameterModifying = pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
-                        if (parameterModifying) recursivelyAddToModified(ve.variable(), true);
+                        if (parameterModifying) markModified(ve.variable(), true);
                     }
                     i++;
                 }
@@ -713,14 +713,20 @@ public class MethodAnalyzer {
             return stmtIndex + ".0.0";
         }
 
-        private void recursivelyAddToModified(Variable variable, boolean alsoNonScope) {
-            if (alsoNonScope || variable instanceof FieldReference || variable instanceof DependentVariable) {
-                modified.add(variable);
-            }
-            if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
-                recursivelyAddToModified(fr.scopeVariable(), true);
-            } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
-                recursivelyAddToModified(dv.arrayVariable(), true);
+        // NOTE: there is a semi-duplicate in ExpressionAnalyzer (modification-linkedvariables)
+        private void markModified(Variable variable, boolean alsoNonScope) {
+            TypeInfo typeInfo = variable.parameterizedType().typeInfo();
+            boolean mutable = typeInfo != null && typeInfo.analysis()
+                    .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
+            if (mutable) {
+                if (alsoNonScope || variable instanceof FieldReference || variable instanceof DependentVariable) {
+                    modified.add(variable);
+                }
+                if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    markModified(fr.scopeVariable(), true);
+                } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
+                    markModified(dv.arrayVariable(), true);
+                }
             }
         }
 

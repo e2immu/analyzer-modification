@@ -47,7 +47,7 @@ public class LinkEvaluation {
         public Builder merge(LinkEvaluation linkEvaluation) {
             linkedVariables = linkEvaluation.linkedVariables;
             staticValues = linkEvaluation.staticValues;
-            ;
+
             linkEvaluation.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
             linkEvaluation.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(linkEvaluation.modified);
@@ -100,14 +100,8 @@ public class LinkEvaluation {
         }
 
         @Fluent
-        Builder addModified(LinkEvaluation linkEvaluation) {
-            modified.addAll(linkEvaluation.modified);
-            return this;
-        }
-
-        @Fluent
-        Builder addModified(Collection<Variable> variables) {
-            modified.addAll(variables);
+        Builder addModified(Variable variable) {
+            modified.add(variable);
             return this;
         }
 

@@ -230,7 +230,7 @@ public class TestStaticValuesRecord extends CommonTest {
         assertEquals(rVi0.staticValues(), rVi1.staticValues());
 
         VariableInfo rvVi1 = vd1.variableInfo(method.fullyQualifiedName());
-        assertEquals("-2-:r,0.0-4-0:in", rvVi1.linkedVariables().toString());
+        assertEquals("*M-2-0M:r", rvVi1.linkedVariables().toString());
         // we don't want E=r.t here, that one can be substituted again because r.t=in
         assertEquals("E=in", rvVi1.staticValues().toString());
 
