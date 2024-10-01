@@ -48,7 +48,7 @@ public class ComputeLinkCompletion {
 
         public void write(VariableData variableData, Stage stage,
                           VariableData previous, Stage stageOfPrevious) {
-            writeLinks(variableData, stage, previous, stageOfPrevious);
+            writeLinksAndModification(variableData, stage, previous, stageOfPrevious);
             writeAssignments(variableData, stage, previous, stageOfPrevious);
         }
 
@@ -77,8 +77,8 @@ public class ComputeLinkCompletion {
             }
         }
 
-        private void writeLinks(VariableData variableData, Stage stage,
-                                VariableData previous, Stage stageOfPrevious) {
+        private void writeLinksAndModification(VariableData variableData, Stage stage,
+                                               VariableData previous, Stage stageOfPrevious) {
             if (previous != null) {
                 // copy previous link data into the graph, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)
@@ -146,7 +146,8 @@ public class ComputeLinkCompletion {
                     Map<Variable, LV> links = shortestPath.links(variable, null);
                     for (Map.Entry<Variable, LV> e : links.entrySet()) {
                         Variable to = e.getKey();
-                        if (to != variable && modified.contains(to)) {
+                        if (to != variable && modified.contains(to) &&
+                            (e.getValue().isDependent() || e.getValue().isStaticallyAssignedOrAssigned())) {
                             change |= modified.add(variable);
                         }
                     }

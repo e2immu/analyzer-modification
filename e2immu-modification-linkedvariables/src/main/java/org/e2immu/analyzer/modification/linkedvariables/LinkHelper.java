@@ -474,23 +474,27 @@ public class LinkHelper {
                                     parameterLvs, false, formalParameterIndependent, pt, methodPt,
                                     hcsSource, false);
                         } else {
-                            if (pi.parameterizedType().isTypeParameter() && !parameterType.parameters().isEmpty()) {
-                                Value.Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
-                                if (mutable == null) {
-                                    lv = parameterLvs.changeToDelay();
-                                } else if (mutable.isMutable()) {
+                            Value.Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
+                            if (mutable == null) {
+                                lv = parameterLvs.changeToDelay();
+                            } else if (pi.parameterizedType().isTypeParameter() && !parameterType.parameters().isEmpty()) {
+                                if (mutable.isMutable()) {
                                     lv = parameterLvs;
                                 } else {
                                     lv = parameterLvs.map(LV::changeToHc);
                                 }
-                            } else {
+                            } else if (!mutable.isImmutable()) {
                                 // object -> parameter (rather than the other way around)
                                 lv = linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, false,
                                         formalParameterIndependent, parameterType, pi.parameterizedType(), hcsTarget,
                                         true);
+                            } else {
+                                lv = null;
                             }
                         }
-                        builder.mergeLinkedVariablesOfExpression(lv);
+                        if (lv != null) {
+                            builder.mergeLinkedVariablesOfExpression(lv);
+                        }
                     }
                 }
             }
@@ -848,13 +852,15 @@ public class LinkHelper {
             if (immutable == null || lv.isDelayed()) {
                 return sourceLvs.changeToDelay();
             }
-            if (!immutable.isImmutable()) {
+            if (immutable.isImmutable()) {
+                throw new UnsupportedOperationException("we should not get here");
+            }
 
-                if (hiddenContentSelectorOfTarget.isNone()) {
-                    newLinked.put(e.getKey(), LINK_DEPENDENT);
-                } else {
-                    // from mine==target to theirs==source
-                    Map<Indices, Link> linkMap = new HashMap<>();
+            if (hiddenContentSelectorOfTarget.isNone()) {
+                newLinked.put(e.getKey(), LINK_DEPENDENT);
+            } else {
+                // from mine==target to theirs==source
+                Map<Indices, Link> linkMap = new HashMap<>();
 
                         /*
                         this is the only place during computational analysis where we create common HC links.
@@ -877,79 +883,76 @@ public class LinkHelper {
                             linkMap.put(ALL_INDICES, new Link(iInHctSource, mutable));
                         }// else: no type parameters available, see e.g. Linking_0P.reverse5
                     } else {*/
-                    // both are CsSet, we'll set mutable what is mutable, in a common way
+                // both are CsSet, we'll set mutable what is mutable, in a common way
 
-                    Boolean correctForVarargsMutable = null;
+                Boolean correctForVarargsMutable = null;
 
-                    assert hctMethodToHctSource != null;
+                assert hctMethodToHctSource != null;
 
-                    // NOTE: this type of filtering occurs in 'linkedVariablesOfParameter' as well
-                    Set<Map.Entry<Integer, Indices>> entrySet;
-                    if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
-                        entrySet = hiddenContentSelectorOfTarget.getMap().entrySet();
-                    } else {
-                        entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
-                    }
-                    for (Map.Entry<Integer, Indices> entry : entrySet) {
-                        Indices indicesInTargetWrtMethod = entry.getValue();
-                        HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
-                        assert targetAndType != null;
-                        ParameterizedType type = targetAndType.type();
-                        assert type != null;
-
-                        Value.Immutable typeImmutable = analysisHelper.typeImmutable(currentPrimaryType, type);
-                        if (typeImmutable == null) {
-                            return sourceLvs.changeToDelay();
-                        }
-                        if (typeImmutable.isImmutable()) {
-                            continue;
-                        }
-                        boolean mutable = typeImmutable.isMutable();
-                        if (sourceIsVarArgs) {
-                            // we're in a varargs situation: the first element is the type itself
-                            correctForVarargsMutable = mutable;
-                        }
-
-                        Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
-                        assert indicesInSourceWrtMethod != null;
-                        HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
-                        assert indicesAndType != null;
-                        Indices indicesInSourceWrtType = indicesAndType.indices();
-                        assert indicesInSourceWrtType != null;
-
-                        // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
-                        Indices indicesInTargetWrtType = (lv.theirsIsAll()
-                                                          && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()
-                                                          && reverse) ? ALL_INDICES : targetAndType.indices();
-                        Indices correctedIndicesInTargetWrtType;
-                        if (correctForVarargsMutable != null) {
-                            correctedIndicesInTargetWrtType = ALL_INDICES;
-                        } else {
-                            correctedIndicesInTargetWrtType = indicesInTargetWrtType;
-                        }
-                        assert correctedIndicesInTargetWrtType != null;
-                        linkMap.put(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable));
-                    }
-
-
-                    boolean createDependentLink = immutable.isMutable() && isDependent(transferIndependent,
-                            correctedIndependent, immutableOfFormalSource, lv);
-                    if (createDependentLink) {
-                        if (linkMap.isEmpty()) {
-                            newLinked.put(e.getKey(), LINK_DEPENDENT);
-                        } else {
-                            Links links = new LinksImpl(Map.copyOf(linkMap));
-                            LV dependent = reverse ? LVImpl.createDependent(links.reverse()) : LVImpl.createDependent(links);
-                            newLinked.put(e.getKey(), dependent);
-                        }
-                    } else if (!linkMap.isEmpty()) {
-                        Links links = new LinksImpl(Map.copyOf(linkMap));
-                        LV commonHC = reverse ? LVImpl.createHC(links.reverse()) : LVImpl.createHC(links);
-                        newLinked.put(e.getKey(), commonHC);
-                    }
+                // NOTE: this type of filtering occurs in 'linkedVariablesOfParameter' as well
+                Set<Map.Entry<Integer, Indices>> entrySet;
+                if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
+                    entrySet = hiddenContentSelectorOfTarget.getMap().entrySet();
+                } else {
+                    entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
                 }
-            } else {
-                throw new UnsupportedOperationException("I believe we should not link");
+                for (Map.Entry<Integer, Indices> entry : entrySet) {
+                    Indices indicesInTargetWrtMethod = entry.getValue();
+                    HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
+                    assert targetAndType != null;
+                    ParameterizedType type = targetAndType.type();
+                    assert type != null;
+
+                    Value.Immutable typeImmutable = analysisHelper.typeImmutable(currentPrimaryType, type);
+                    if (typeImmutable == null) {
+                        return sourceLvs.changeToDelay();
+                    }
+                    if (typeImmutable.isImmutable()) {
+                        continue;
+                    }
+                    boolean mutable = typeImmutable.isMutable();
+                    if (sourceIsVarArgs) {
+                        // we're in a varargs situation: the first element is the type itself
+                        correctForVarargsMutable = mutable;
+                    }
+
+                    Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
+                    assert indicesInSourceWrtMethod != null;
+                    HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
+                    assert indicesAndType != null;
+                    Indices indicesInSourceWrtType = indicesAndType.indices();
+                    assert indicesInSourceWrtType != null;
+
+                    // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
+                    Indices indicesInTargetWrtType = (lv.theirsIsAll()
+                                                      && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()
+                                                      && reverse) ? ALL_INDICES : targetAndType.indices();
+                    Indices correctedIndicesInTargetWrtType;
+                    if (correctForVarargsMutable != null) {
+                        correctedIndicesInTargetWrtType = ALL_INDICES;
+                    } else {
+                        correctedIndicesInTargetWrtType = indicesInTargetWrtType;
+                    }
+                    assert correctedIndicesInTargetWrtType != null;
+                    linkMap.put(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable));
+                }
+
+
+                boolean createDependentLink = immutable.isMutable() && isDependent(transferIndependent,
+                        correctedIndependent, immutableOfFormalSource, lv);
+                if (createDependentLink) {
+                    if (linkMap.isEmpty()) {
+                        newLinked.put(e.getKey(), LINK_DEPENDENT);
+                    } else {
+                        Links links = new LinksImpl(Map.copyOf(linkMap));
+                        LV dependent = reverse ? LVImpl.createDependent(links.reverse()) : LVImpl.createDependent(links);
+                        newLinked.put(e.getKey(), dependent);
+                    }
+                } else if (!linkMap.isEmpty()) {
+                    Links links = new LinksImpl(Map.copyOf(linkMap));
+                    LV commonHC = reverse ? LVImpl.createHC(links.reverse()) : LVImpl.createHC(links);
+                    newLinked.put(e.getKey(), commonHC);
+                }
             }
         }
         return LinkedVariablesImpl.of(newLinked);

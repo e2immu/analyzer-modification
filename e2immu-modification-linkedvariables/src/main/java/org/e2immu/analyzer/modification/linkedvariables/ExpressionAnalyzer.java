@@ -325,6 +325,23 @@ public class ExpressionAnalyzer {
                 && mc.object() instanceof VariableExpression ve) {
                 markModified(ve.variable(), builder);
             }
+            for (ParameterInfo pi : mc.methodInfo().parameters()) {
+                if (pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue()) {
+                    // TODO deal with varargs
+                    Expression pe = mc.parameterExpressions().get(pi.index());
+                    if (pe instanceof VariableExpression ve) {
+                        markModified(ve.variable(), builder);
+                    } else if (pe instanceof MethodReference mr) {
+                        propagateModification(mr, builder);
+                    }
+                }
+            }
+        }
+
+        private void propagateModification(MethodReference mr, LinkEvaluation.Builder builder) {
+            if (mr.scope() instanceof VariableExpression ve) {
+                markModified(ve.variable(), builder);
+            }
         }
 
         // NOTE: there is a semi-duplicate in MethodAnalyzer (modification-prepwork)

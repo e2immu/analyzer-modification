@@ -54,7 +54,7 @@ public class TestModificationFunctional extends CommonTest {
                     return j;
                 }
                 int go(String in) {
-                    return 3;//run(in, this::parse);
+                    return run(in, this::parse);
                 }
             }
             """;
@@ -90,5 +90,15 @@ public class TestModificationFunctional extends CommonTest {
         assertSame(TRUE, function.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
         assertSame(FALSE, s.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
 
+        // finally, we copy the modification status of 'parse' onto 'this'
+        MethodInfo go = X.findUniqueMethod("go", 1);
+        {
+            Statement s0 = go.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X));
+            assertSame(TRUE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
+        }
+        // as a consequence, 'go' becomes modified
+        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
     }
 }

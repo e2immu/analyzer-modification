@@ -39,6 +39,7 @@ import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDa
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class Analyzer {
@@ -157,7 +158,7 @@ public class Analyzer {
         boolean typeIsImmutable = piTypeInfo != null && piTypeInfo.analysis()
                 .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
-        return DEPENDENT; // FIXME
+        return worstLinkToFields(lastOfMainBlock, pi.fullyQualifiedName());
     }
 
     private Independent doIndependentMethod(MethodInfo methodInfo, VariableData lastOfMainBlock) {
@@ -168,8 +169,13 @@ public class Analyzer {
         boolean typeIsImmutable = returnTypeInfo != null && returnTypeInfo.analysis()
                 .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
+        return worstLinkToFields(lastOfMainBlock, methodInfo.fullyQualifiedName());
+    }
+
+    private Independent worstLinkToFields(VariableData lastOfMainBlock, String variableFqn) {
         assert lastOfMainBlock != null : "We have a method with return value, so we must have a statement";
-        VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(methodInfo.fullyQualifiedName());
+
+        VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(variableFqn);
         VariableInfo viRv = vicRv.best();
         LV worstLinkToFields = viRv.linkedVariables().stream()
                 .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
@@ -208,6 +214,11 @@ public class Analyzer {
                     StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
+            } else if (v instanceof This || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
+                if (vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue()
+                    && !methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
+                    methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
+                }
             }
         }
     }
@@ -244,6 +255,7 @@ public class Analyzer {
             } catch (RuntimeException re) {
                 LOGGER.error("Have error analyzing statement {}, {}, in method {}",
                         statement, statement.source(), methodInfo);
+                throw re;
             }
             if (first) first = false;
         }

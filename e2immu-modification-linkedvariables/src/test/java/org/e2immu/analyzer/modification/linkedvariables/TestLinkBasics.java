@@ -119,6 +119,9 @@ public class TestLinkBasics extends CommonTest {
                 ValueImpl.IndependentImpl.DEPENDENT);
         assertEquals(1, i0.linkToParametersReturnValue().size());
 
+        ParameterInfo addAll1 = addAll.parameters().get(1);
+        assertSame(FALSE, addAll1.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+
         TypeInfo X = javaInspector.parse(INPUT3);
         prepWork(X);
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
