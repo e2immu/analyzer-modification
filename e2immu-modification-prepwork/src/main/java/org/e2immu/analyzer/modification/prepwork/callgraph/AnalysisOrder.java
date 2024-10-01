@@ -24,6 +24,15 @@ public class AnalysisOrder implements Value {
                                  boolean ignoreMePartOfCallCycle,
                                  boolean partOfConstruction,
                                  boolean recursive) {
+        @Override
+        public String toString() {
+            return info.fullyQualifiedName() + ":" + tf(ignoreMePartOfCallCycle)
+                   + tf(partOfConstruction) + tf(recursive);
+        }
+
+        private static String tf(boolean b) {
+            return b ? "T" : "F";
+        }
     }
 
     private final List<InfoAndDetails> list;
@@ -32,12 +41,17 @@ public class AnalysisOrder implements Value {
         this(List.of());
     }
 
-    private AnalysisOrder(List<InfoAndDetails> list) {
+    AnalysisOrder(List<InfoAndDetails> list) {
         this.list = list;
     }
 
     public List<InfoAndDetails> infoOrder() {
         return list;
+    }
+
+    @Override
+    public String toString() {
+        return list.toString();
     }
 
     @Override

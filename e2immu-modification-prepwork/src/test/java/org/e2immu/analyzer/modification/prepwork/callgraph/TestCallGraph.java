@@ -56,6 +56,12 @@ public class TestCallGraph extends CommonTest {
 
         MethodInfo methodInfo = X.findUniqueMethod("recursive", 1);
         assertTrue(ccg.recursiveMethods().contains(methodInfo));
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        AnalysisOrder ao = cao.go(graph, ccg.recursiveMethods());
+        assertEquals("""
+                [a.b.X.<init>():FTF, a.b.X.m2():FFF, a.b.X.recursive(int):FFT, a.b.X.square(int):FFF, a.b.X.unused:FFF, a.b.X.j:FFF, a.b.X.m1():FFF, a.b.X:FFF]\
+                """, ao.toString());
     }
 
 
@@ -90,5 +96,64 @@ public class TestCallGraph extends CommonTest {
         // NOTE: at the moment, both the lambda method and 'method' are marked recursive
         assertEquals("[a.b.X.$1.accept(String), a.b.X.method(java.util.List<String>)]",
                 ccg.recursiveMethods().stream().map(MethodInfo::fullyQualifiedName).sorted().toList().toString());
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        AnalysisOrder ao = cao.go(graph, ccg.recursiveMethods());
+        assertEquals("""
+                [a.b.X.$1.accept(String):FFT, a.b.X.<init>():FTF, a.b.X.method(java.util.List<String>):FFT, a.b.X:FFF, a.b.X.$1:FFF]\
+                """, ao.toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.ArrayList;
+            import java.util.List;
+            
+            class X {
+                private List<String> list;
+                X(int i) {
+                    initList(i);
+                    print();
+                    sleep();
+                }
+                private void initList(int i) {
+                    list = new ArrayList<>();
+                    list.add(i);
+                }
+                private void sleep() {
+                    list.clear();
+                }
+                void print() {
+                    System.out.println("print!");
+                }
+                public void rest() {
+                    sleep();
+                    System.out.println("awake");
+                }
+            }
+            """;
+
+    @DisplayName("part of construction")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        ComputeCallGraph ccg = new ComputeCallGraph(X);
+        G<Info> graph = ccg.go();
+        assertEquals("""
+                a.b.X->1->a.b.X.X(int), a.b.X->1->a.b.X.initList(int), a.b.X->1->a.b.X.list, a.b.X->1->a.b.X.print(), \
+                a.b.X->1->a.b.X.rest(), a.b.X->1->a.b.X.sleep(), \
+                a.b.X.X(int)->1->a.b.X.initList(int), a.b.X.X(int)->1->a.b.X.print(), a.b.X.X(int)->1->a.b.X.sleep(), \
+                a.b.X.rest()->1->a.b.X.sleep()\
+                """, graph.toString());
+
+        assertTrue(ccg.recursiveMethods().isEmpty());
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        AnalysisOrder ao = cao.go(graph, ccg.recursiveMethods());
+        assertEquals("""
+                [a.b.X.initList(int):FTF, a.b.X.list:FFF, a.b.X.print():FFF, a.b.X.sleep():FFF, a.b.X.X(int):FTF, a.b.X.rest():FFF, a.b.X:FFF]\
+                """, ao.toString());
     }
 }
