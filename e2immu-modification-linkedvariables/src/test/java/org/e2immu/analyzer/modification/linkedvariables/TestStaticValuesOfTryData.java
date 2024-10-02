@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -10,6 +11,7 @@ import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,7 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
+import static org.junit.jupiter.api.Assertions.*;
 
 /*
 how does 'method' become @Modified?
@@ -65,7 +69,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                 public List<Integer> getList() {
                     return list;
                 }
-
+            
                 private TryData body(TryData td) {
                     int i = (int) td.get(0);
                     if (i < 0) throw new IllegalArgumentException();
@@ -114,7 +118,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                         this.throwingFunction = throwingFunction;
                         this.variables = variables;
                     }
-
+            
                     public Object get(int i) {
                         return variables[i];
                     }
@@ -123,7 +127,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                     public TryData withException(Exception exception) {
                         return new TryDataImpl(throwingFunction, variables, exception);
                     }
-
+            
                     @Override
                     public ThrowingFunction throwingFunction() {
                         return throwingFunction;
@@ -133,7 +137,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                     public Exception exception() {
                         return exception;
                     }
-
+            
                     @Override
                     public TryData with(int pos, Object value) {
                         Object[] newVariables = variables.clone();
@@ -144,12 +148,12 @@ public class TestStaticValuesOfTryData extends CommonTest {
                     public static class Builder {
                         private final Object[] variables = new Object[10]; // static value: set:0,1
                         private ThrowingFunction bodyThrowingFunction; // static value: body:0
-
+            
                         public Builder body(ThrowingFunction throwingFunction) {
                             this.bodyThrowingFunction = throwingFunction;
                             return this;
                         }
-
+            
                         public Builder set(int pos, Object value) {
                             variables[pos] = value;
                             return this;
@@ -176,14 +180,22 @@ public class TestStaticValuesOfTryData extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
-        MethodInfo method = X.findUniqueMethod("method", 0);
+        TypeInfo tryDataImpl = X.findSubType("TryDataImpl");
+        TypeInfo builder = tryDataImpl.findSubType("Builder");
+        MethodInfo body = builder.findUniqueMethod("body", 1);
+        assertSame(TRUE, body.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
+        assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()
+                .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
         {
             Statement s0 = method.methodBody().statements().get(0);
             VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
 
-            VariableInfo vi0J = vd0.variableInfo("j");
-            assertEquals("", vi0J.linkedVariables().toString());
-            assertEquals("E=3", vi0J.staticValues().toString());
+            VariableInfo vi0B = vd0.variableInfo("b");
+            assertEquals("", vi0B.linkedVariables().toString());
+            assertEquals("E=(new Builder()).set(0,i) this.bodyThrowingFunction=this::body",
+                    vi0B.staticValues().toString());
         }
     }
 

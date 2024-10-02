@@ -57,7 +57,8 @@ public record StaticValuesImpl(ParameterizedType type,
 
     @Override
     public StaticValues remove(Predicate<Variable> predicate) {
-        return new StaticValuesImpl(type, expression, values.entrySet().stream().filter(e -> predicate.test(e.getKey()))
+        return new StaticValuesImpl(type, expression, values.entrySet().stream()
+                .filter(e -> !predicate.test(e.getKey()))
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue)));
     }
 

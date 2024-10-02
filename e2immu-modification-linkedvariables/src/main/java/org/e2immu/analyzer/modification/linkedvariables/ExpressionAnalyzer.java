@@ -16,6 +16,7 @@ import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -32,8 +33,7 @@ import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContent
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.EMPTY;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.NONE;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_PARAMETER;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
@@ -308,7 +308,23 @@ public class ExpressionAnalyzer {
 
         private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder) {
             if (mc.methodInfo().hasReturnValue()) {
-                Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+                // test for fluent setter, see TestStaticValuesAssignment,method
+                StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
+                if(svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
+                    Map<Variable, Expression> map = new HashMap<>();
+                    for(Map.Entry<Variable, Expression> entry: svm.values().entrySet()) {
+                        if(entry.getValue() instanceof VariableExpression vve
+                           && vve.variable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
+                            map.put(entry.getKey(), mc.parameterExpressions().get(pi.index()));
+                        }
+                    }
+                    StaticValues sv = new StaticValuesImpl(svm.type(), mc.object(), Map.copyOf(map));
+                    builder.setStaticValues(sv);
+                    return;
+                }
+
+                // accessor
+                 Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
                 if (getSet.field() != null) {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), mc.concreteReturnType());
                     VariableExpression ve = runtime.newVariableExpression(fr);
@@ -317,6 +333,7 @@ public class ExpressionAnalyzer {
                     StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
                     builder.setStaticValues(svs).merge(fr, svsVar);
                 }
+
             }
         }
 

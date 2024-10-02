@@ -295,7 +295,22 @@ public class Analyzer {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
                 clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
-                clcBuilder.addAssignment(rv, linkEvaluation.staticValues());
+                StaticValues sv = linkEvaluation.staticValues();
+                // see TestStaticValuesAssignment: when returning this, we add the static values of the fields
+                if(sv.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
+                    Map<Variable, Expression> map =
+                    previous.variableInfoStream(stageOfPrevious)
+                            .filter(vi2 -> vi2.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                            .filter(vi2 -> vi2.staticValues() != null && vi2.staticValues().expression() != null)
+                            .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi2 -> vi2.staticValues().expression()));
+                    if(!map.isEmpty()) {
+                        clcBuilder.addAssignment(rv, new StaticValuesImpl(null, sv.expression(), map));
+                    } else {
+                        clcBuilder.addAssignment(rv, sv);
+                    }
+                } else {
+                    clcBuilder.addAssignment(rv, sv);
+                }
             }
             clcBuilder.addLinkEvaluation(linkEvaluation, vd);
         }

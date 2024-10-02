@@ -213,10 +213,17 @@ public class LinkHelper {
                         newLv = independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
                     }
                 } else {
-                    newLv = createDependent(linkAllSameType(parameterType));
+                    Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, parameterType);
+                    if (immutable != null && immutable.isImmutable()) {
+                        newLv = null;
+                    } else {
+                        newLv = createDependent(linkAllSameType(parameterType));
+                    }
                 }
-                Variable variable = e.getKey();
-                map.put(variable, newLv);
+                if (newLv != null) {
+                    Variable variable = e.getKey();
+                    map.put(variable, newLv);
+                }
             });
         }
         LinkedVariables lvs = LinkedVariablesImpl.of(map);
@@ -628,7 +635,7 @@ public class LinkHelper {
         if (methodInfo.noReturnValue()) return LinkedVariablesImpl.EMPTY;
         boolean recursiveCall = recursiveCall(methodInfo, currentMethod);
         boolean breakCallCycleDelay = false;// FIXME  methodInfo.analysis()
-              //  .getOrDefault(PartOfCallCycle.IGNORE_ME_PART_OF_CALL_CYCLE, ValueImpl.BoolImpl.FALSE).isTrue();
+        //  .getOrDefault(PartOfCallCycle.IGNORE_ME_PART_OF_CALL_CYCLE, ValueImpl.BoolImpl.FALSE).isTrue();
         if (recursiveCall || breakCallCycleDelay) {
             return LinkedVariablesImpl.EMPTY;
         }
