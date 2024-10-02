@@ -8,11 +8,10 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.annotation.Fluent;
 import org.e2immu.annotation.Modified;
 import org.e2immu.annotation.method.GetSet;
-import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.variable.FieldReferenceImpl;
 import org.e2immu.language.cst.impl.variable.ThisImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.junit.jupiter.api.Assertions.*;
@@ -184,11 +185,40 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
         TypeInfo tryDataImpl = X.findSubType("TryDataImpl");
         TypeInfo builder = tryDataImpl.findSubType("Builder");
+
         MethodInfo body = builder.findUniqueMethod("body", 1);
-        assertSame(TRUE, body.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
-        assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()
-                .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
-        assertSame(FALSE, body.parameters().get(0).analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        {
+            ParameterInfo body0 = body.parameters().get(0);
+            FieldInfo bodyThrowingFunction = builder.getFieldByName("bodyThrowingFunction", true);
+            Statement s0 = body.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi0 = vd0.variableInfo(body0);
+            assertSame(FALSE, vi0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertEquals("-1-:bodyThrowingFunction", vi0.linkedVariables().toString()); // link to the field
+            VariableInfo viBtf0 = vd0.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
+            assertSame(FALSE, viBtf0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE)); // assignment is not a modification!
+            VariableInfo viThis0 = vd0.variableInfo(new ThisImpl(builder));
+            assertSame(TRUE, viThis0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+
+            Statement s1 = body.methodBody().statements().get(1);
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi1 = vd1.variableInfo(body0);
+            assertEquals("-1-:bodyThrowingFunction", vi1.linkedVariables().toString()); // still link to field
+
+            VariableInfo viThis = vd1.variableInfo(new ThisImpl(builder));
+            assertEquals("", viThis.linkedVariables().toString());
+            VariableInfo viBtf = vd1.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
+            assertEquals("-1-:throwingFunction", viBtf.linkedVariables().toString());
+
+            assertSame(FALSE, vi1.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertSame(FALSE, viBtf.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertSame(TRUE, viThis.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+
+            assertSame(TRUE, body.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
+            assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()
+                    .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
+            assertSame(FALSE, body0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+        }
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
@@ -202,7 +232,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X));
             assertEquals("", vi0This.linkedVariables().toString());
-            assertSame(FALSE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
+            assertSame(FALSE, vi0This.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
         }
         {
             Statement s1 = method.methodBody().statements().get(1);
@@ -219,7 +249,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X));
             assertEquals("", vi2This.linkedVariables().toString());
-            assertSame(TRUE, vi2This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
+            assertSame(TRUE, vi2This.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
         }
     }
 

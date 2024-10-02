@@ -632,13 +632,18 @@ public class MethodAnalyzer {
                 }
                 a.value().visit(this);
 
-                markModified(a.variableTarget(), false);
+                // an assignment is not a modification of the object itself, but of its scope
+                if (a.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    markModified(fr.scopeVariable());
+                } else if (a.variableTarget() instanceof DependentVariable dv && dv.arrayVariable() != null) {
+                    markModified(dv.arrayVariable());
+                }
                 return false;
             }
             if (e instanceof MethodCall mc) {
                 boolean isModifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
                 if (isModifying && mc.object() instanceof VariableExpression ve) {
-                    markModified(ve.variable(), true);
+                    markModified(ve.variable());
                 }
                 int i = 0;
                 int nMinus1 = mc.methodInfo().parameters().size() - 1;
@@ -646,7 +651,7 @@ public class MethodAnalyzer {
                     if (expression instanceof VariableExpression ve) {
                         ParameterInfo pi = mc.methodInfo().parameters().get(Math.min(i, nMinus1));
                         boolean parameterModifying = pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
-                        if (parameterModifying) markModified(ve.variable(), true);
+                        if (parameterModifying) markModified(ve.variable());
                     }
                     i++;
                 }
@@ -658,7 +663,7 @@ public class MethodAnalyzer {
                     if (expression instanceof VariableExpression ve) {
                         ParameterInfo pi = cc.constructor().parameters().get(Math.min(i, nMinus1));
                         boolean parameterModifying = pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
-                        if (parameterModifying) markModified(ve.variable(), true);
+                        if (parameterModifying) markModified(ve.variable());
                     }
                     i++;
                 }
@@ -704,18 +709,16 @@ public class MethodAnalyzer {
         }
 
         // NOTE: there is a semi-duplicate in ExpressionAnalyzer (modification-linkedvariables)
-        private void markModified(Variable variable, boolean alsoNonScope) {
+        private void markModified(Variable variable) {
             TypeInfo typeInfo = variable.parameterizedType().typeInfo();
             boolean mutable = typeInfo != null && typeInfo.analysis()
                     .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
             if (mutable) {
-                if (alsoNonScope || variable instanceof FieldReference || variable instanceof DependentVariable) {
-                    modified.add(variable);
-                }
+                modified.add(variable);
                 if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
-                    markModified(fr.scopeVariable(), true);
+                    markModified(fr.scopeVariable());
                 } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
-                    markModified(dv.arrayVariable(), true);
+                    markModified(dv.arrayVariable());
                 }
             }
         }
