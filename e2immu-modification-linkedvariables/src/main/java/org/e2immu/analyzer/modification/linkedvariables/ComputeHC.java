@@ -22,6 +22,15 @@ public class ComputeHC {
         this.runtime = runtime;
     }
 
+    public void doPredefinedObjects(Runtime runtime) {
+        for (TypeInfo typeInfo : runtime.primitives()) {
+            doTypeInternally(typeInfo);
+        }
+        for (TypeInfo typeInfo : runtime.predefinedObjects()) {
+            doTypeInternally(typeInfo);
+        }
+    }
+
     public void doType(Class... classes) {
         Arrays.stream(classes)
                 .map(c -> runtime.getFullyQualified(c, true))

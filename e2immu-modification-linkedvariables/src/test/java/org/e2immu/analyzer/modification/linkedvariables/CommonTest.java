@@ -6,8 +6,6 @@ import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
-import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
-import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
 import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
@@ -85,12 +83,12 @@ public class CommonTest {
 
     protected List<Info> prepWork(TypeInfo typeInfo) {
         ComputeHC computeHC = new ComputeHC(runtime);
-        computeHC.doType(String.class, Function.class,
-                List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collection.class,
-                Collections.class);
-        Analyzer prepAnalyzer = new Analyzer(runtime);
-        ComputeHiddenContent chc = computeHC.getChc();
-        prepType(prepAnalyzer, chc, typeInfo);
+        computeHC.doPredefinedObjects(runtime);
+        computeHC.doType(Function.class, List.class, Set.class, ArrayList.class, Map.class, HashMap.class,
+                Collection.class, Collections.class, Exception.class, RuntimeException.class);
+
+        computeHC.doType(typeInfo);
+        prepType(typeInfo);
 
         ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
         ccg.setRecursiveMethods();
@@ -101,15 +99,14 @@ public class CommonTest {
         return cao.go(cg);
     }
 
-    private void prepType(Analyzer prepAnalyzer, ComputeHiddenContent chc, TypeInfo typeInfo) {
-        typeInfo.subTypes().forEach(st -> prepType(prepAnalyzer, chc, st));
+    private void prepType(TypeInfo typeInfo) {
+        Analyzer prepAnalyzer = new Analyzer(runtime);
+        prepType(prepAnalyzer, typeInfo);
+    }
 
-        HiddenContentTypes hct = chc.compute(typeInfo);
-        typeInfo.constructorAndMethodStream().forEach(mi -> {
-            HiddenContentTypes hctMethod = chc.compute(hct, mi);
-            mi.analysis().set(HiddenContentTypes.HIDDEN_CONTENT_TYPES, hctMethod);
-            prepAnalyzer.doMethod(mi);
-        });
+    private void prepType(Analyzer prepAnalyzer, TypeInfo typeInfo) {
+        typeInfo.subTypes().forEach(st -> prepType(prepAnalyzer, st));
+        typeInfo.constructorAndMethodStream().forEach(prepAnalyzer::doMethod);
         prepAnalyzer.copyModifications(typeInfo);
     }
 }

@@ -157,11 +157,15 @@ public class Analyzer {
         boolean typeIsImmutable = piTypeInfo != null && piTypeInfo.analysis()
                 .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
+        if(pi.methodInfo().isAbstract()) return DEPENDENT;
         return worstLinkToFields(lastOfMainBlock, pi.fullyQualifiedName());
     }
 
     private Independent doIndependentMethod(MethodInfo methodInfo, VariableData lastOfMainBlock) {
         if (methodInfo.isConstructor() || methodInfo.noReturnValue()) return INDEPENDENT;
+        if (methodInfo.isAbstract()) {
+            return DEPENDENT; // must be annotated otherwise
+        }
         boolean fluent = methodInfo.analysis().getOrDefault(FLUENT_METHOD, FALSE).isTrue();
         if (fluent) return INDEPENDENT;
         TypeInfo returnTypeInfo = methodInfo.returnType().typeInfo();
