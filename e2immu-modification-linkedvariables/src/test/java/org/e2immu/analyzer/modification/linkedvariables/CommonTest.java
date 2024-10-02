@@ -3,9 +3,9 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.e2immu.analyzer.modification.prepwork.Analyzer;
-import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
+import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
@@ -37,10 +37,6 @@ public class CommonTest {
     protected final String[] extraClassPath;
     protected final boolean loadAnnotatedAPIs;
     protected org.e2immu.analyzer.modification.linkedvariables.Analyzer analyzer;
-
-    protected CommonTest() {
-        this(false, new String[]{});
-    }
 
     protected CommonTest(boolean loadAnnotatedAPIs, String... extraClassPath) {
         this.extraClassPath = extraClassPath;
@@ -87,7 +83,7 @@ public class CommonTest {
         analyzer = new org.e2immu.analyzer.modification.linkedvariables.Analyzer(runtime);
     }
 
-    protected AnalysisOrder prepWork(TypeInfo typeInfo) {
+    protected List<Info> prepWork(TypeInfo typeInfo) {
         ComputeHC computeHC = new ComputeHC(runtime);
         computeHC.doType(String.class, Function.class,
                 List.class, Set.class, ArrayList.class, Map.class, HashMap.class, Collection.class,
@@ -97,9 +93,12 @@ public class CommonTest {
         prepType(prepAnalyzer, chc, typeInfo);
 
         ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
-        G<Info> cg = ccg.go();
+        ccg.setRecursiveMethods();
+        G<Info> cg = ccg.go().graph();
+        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
+        cp.go(typeInfo, cg);
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
-        return cao.go(cg, ccg.recursiveMethods());
+        return cao.go(cg);
     }
 
     private void prepType(Analyzer prepAnalyzer, ComputeHiddenContent chc, TypeInfo typeInfo) {

@@ -1,8 +1,8 @@
 package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 
+import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.element.Element;
-import org.e2immu.language.cst.api.element.Visitor;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -10,6 +10,8 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
 
 import java.util.HashSet;
@@ -17,28 +19,46 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
+
 /*
 call & reference graphs.
 
 direction of arrow: I need you to exist first (I, from -> you, to)
  */
 public class ComputeCallGraph {
+    public static final Property RECURSIVE_METHOD = new PropertyImpl("recursiveMethod", ValueImpl.BoolImpl.FALSE);
 
     private final TypeInfo primaryType;
     private final Set<MethodInfo> recursive = new HashSet<>();
     private final G.Builder<Info> builder = new G.Builder<>(Long::sum);
 
+    private G<Info> graph;
+
     public ComputeCallGraph(TypeInfo primaryType) {
         this.primaryType = primaryType;
     }
 
-    public G<Info> go() {
+    public ComputeCallGraph go() {
         go(primaryType);
-        return builder.build();
+        graph = builder.build();
+        return this;
+    }
+
+    public G<Info> graph() {
+        return graph;
     }
 
     public Set<MethodInfo> recursiveMethods() {
         return recursive;
+    }
+
+    public void setRecursiveMethods() {
+        recursive.forEach(mi -> {
+            if (!mi.analysis().haveAnalyzedValueFor(RECURSIVE_METHOD)) {
+                mi.analysis().set(RECURSIVE_METHOD, TRUE);
+            }
+        });
     }
 
     /*
@@ -97,11 +117,11 @@ public class ComputeCallGraph {
                 // inside a type, an accessor should come before its field
                 // outside a type, we want the field to have been processed first
                 // see e.g. TestStaticValuesRecord,2
-                if (info instanceof MethodInfo mi && mi.typeInfo() == fr.fieldInfo().owner()) {
-                    builder.add(fr.fieldInfo(), List.of(info));
-                } else {
-                    builder.add(info, List.of(fr.fieldInfo()));
-                }
+                handleFieldAccess(info, fr);
+            }
+            if (e instanceof Assignment a && a.variableTarget() instanceof FieldReference fr
+                && fr.fieldInfo().owner().primaryType().equals(primaryType)) {
+                handleFieldAccess(info, fr);
             }
             if (e instanceof LocalVariableCreation lvc) {
                 addType(info, lvc.localVariable().parameterizedType());
@@ -141,6 +161,14 @@ public class ComputeCallGraph {
                 return false;
             }
             return true;
+        }
+    }
+
+    private void handleFieldAccess(Info info, FieldReference fr) {
+        if (info instanceof MethodInfo mi && mi.typeInfo() == fr.fieldInfo().owner()) {
+            builder.add(fr.fieldInfo(), List.of(info));
+        } else {
+            builder.add(info, List.of(fr.fieldInfo()));
         }
     }
 

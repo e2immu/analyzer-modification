@@ -4,7 +4,6 @@ import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelecto
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
@@ -13,10 +12,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
-import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.type.ParameterizedType;
@@ -359,17 +355,16 @@ public class Analyzer {
     - copy from fields to parameters where relevant
 
      */
-    public void doType(TypeInfo typeInfo, AnalysisOrder analysisOrder) {
+    public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
+        LOGGER.info("Start primary type {}", primaryType);
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
-        for (AnalysisOrder.InfoAndDetails iad : analysisOrder.infoOrder()) {
-            if (iad.info() instanceof MethodInfo mi) {
+        for (Info info : analysisOrder) {
+            if (info instanceof MethodInfo mi) {
                 doMethod(mi);
                 appendToFieldStaticValueMap(mi, svMap);
-            }
-            if (iad.info() instanceof FieldInfo fi) {
+            } else if (info instanceof FieldInfo fi) {
                 doField(fi, svMap.get(fi));
-            }
-            if(iad.info() instanceof TypeInfo ti) {
+            } else if (info instanceof TypeInfo ti) {
                 LOGGER.info("Do type {}", ti);
                 fromParameterToField(ti);
             }

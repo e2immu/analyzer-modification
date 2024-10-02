@@ -22,18 +22,17 @@ import java.util.*;
 given the call graph, compute the linearization, and all supporting information to deal with cycles.
  */
 public class ComputePartOfConstructionFinalField {
-    public static final Value.ListOfInfo EMPTY_PART_OF_CONSTRUCTION = new ValueImpl.ListOfInfoImpl(List.of());
+    public static final Value.SetOfInfo EMPTY_PART_OF_CONSTRUCTION = new ValueImpl.SetOfInfoImpl(Set.of());
     public static final Property PART_OF_CONSTRUCTION = new PropertyImpl("partOfConstructionType", EMPTY_PART_OF_CONSTRUCTION);
 
     public void go(TypeInfo primaryType, G<Info> callGraph) {
         assert primaryType.isPrimaryType() : "Only call on primary types, and " + primaryType + " is not one!";
-        Value.ListOfInfo list = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.ListOfInfoImpl.class);
-        if (list != null) {
+        Value.SetOfInfo setOfInfo = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
+        if (setOfInfo != null) {
             return; // we're going to assume that all FINAL_FIELDS are set as well
         }
         Set<MethodInfo> partOfConstruction = computePartOfConstruction(callGraph);
-        List<Info> sorted = partOfConstruction.stream().map(mi -> (Info) mi).sorted().toList();
-        primaryType.analysis().set(PART_OF_CONSTRUCTION, new ValueImpl.ListOfInfoImpl(sorted));
+        primaryType.analysis().set(PART_OF_CONSTRUCTION, new ValueImpl.SetOfInfoImpl(partOfConstruction));
         Map<FieldInfo, Boolean> effectivelyFinalFieldMap = computeEffectivelyFinalFields(callGraph, partOfConstruction);
         for (Map.Entry<FieldInfo, Boolean> entry : effectivelyFinalFieldMap.entrySet()) {
             FieldInfo fieldInfo = entry.getKey();

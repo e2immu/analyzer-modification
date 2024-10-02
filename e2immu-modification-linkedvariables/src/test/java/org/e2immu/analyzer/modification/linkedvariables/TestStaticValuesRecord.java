@@ -1,16 +1,12 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.expression.VariableExpression;
-import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
 import org.e2immu.language.cst.api.statement.ReturnStatement;
 import org.e2immu.language.cst.api.statement.Statement;
@@ -21,6 +17,8 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
@@ -45,8 +43,8 @@ public class TestStaticValuesRecord extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        AnalysisOrder ao = prepWork(X);
-        analyzer.doType(X, ao);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
         FieldInfo setField = X.getFieldByName("set", true);
         FieldReference setFr = runtime.newFieldReference(setField);
         FieldInfo nField = X.getFieldByName("n", true);
@@ -120,11 +118,11 @@ public class TestStaticValuesRecord extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        AnalysisOrder ao = prepWork(X);
-        analyzer.doType(X, ao);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
 
         assertEquals("""
-                [a.b.X.<init>():FTF, a.b.X.R.<init>(java.util.Set<String>,int):FFF, a.b.X.R.n():FFF, a.b.X.R.set():FFF, a.b.X.R.n:FFF, a.b.X.R.set:FFF, a.b.X.R:FFF, a.b.X.method(java.util.Set<String>):FFF, a.b.X:FFF]\
+                [a.b.X.<init>(), a.b.X.R.<init>(java.util.Set<String>,int), a.b.X.R.n(), a.b.X.R.set(), a.b.X.R.n, a.b.X.R.set, a.b.X.R, a.b.X.method(java.util.Set<String>), a.b.X]\
                 """, ao.toString());
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
@@ -167,8 +165,8 @@ public class TestStaticValuesRecord extends CommonTest {
     @Test
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
-        AnalysisOrder ao = prepWork(X);
-        analyzer.doType(X, ao);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
@@ -217,8 +215,8 @@ public class TestStaticValuesRecord extends CommonTest {
     @Test
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
-        AnalysisOrder ao = prepWork(X);
-        analyzer.doType(X, ao);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
