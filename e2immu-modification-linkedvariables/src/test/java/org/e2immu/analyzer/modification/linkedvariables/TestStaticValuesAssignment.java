@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -45,10 +46,10 @@ public class TestStaticValuesAssignment extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        prepWork(X);
-        analyzer.doType(X);
+        AnalysisOrder analysisOrder = prepWork(X);
+        analyzer.doType(X, analysisOrder);
 
-        MethodInfo method = X.findUniqueMethod("method",0);
+        MethodInfo method = X.findUniqueMethod("method", 0);
         {
             Statement s0 = method.methodBody().statements().get(0);
             VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);

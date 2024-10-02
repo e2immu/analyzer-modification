@@ -4,6 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelecto
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
@@ -56,6 +57,8 @@ public class Analyzer {
     }
 
     public void doMethod(MethodInfo methodInfo) {
+        LOGGER.info("Do method {}", methodInfo);
+
         doHiddenContentSelector(methodInfo);
         VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
         if (variableData != null) {
@@ -356,11 +359,31 @@ public class Analyzer {
     - copy from fields to parameters where relevant
 
      */
-    public void doType(TypeInfo typeInfo) {
-        typeInfo.subTypes().forEach(this::doType);
+    public void doType(TypeInfo typeInfo, AnalysisOrder analysisOrder) {
+        Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
+        for (AnalysisOrder.InfoAndDetails iad : analysisOrder.infoOrder()) {
+            if (iad.info() instanceof MethodInfo mi) {
+                doMethod(mi);
+                appendToFieldStaticValueMap(mi, svMap);
+            }
+            if (iad.info() instanceof FieldInfo fi) {
+                doField(fi, svMap.get(fi));
+            }
+            if(iad.info() instanceof TypeInfo ti) {
+                LOGGER.info("Do type {}", ti);
+                fromParameterToField(ti);
+            }
+        }
+
+/*
+        typeInfo.subTypes().forEach(st -> doType(st, analysisOrder));
         typeInfo.constructorAndMethodStream().forEach(this::doMethod);
         Map<FieldInfo, List<StaticValues>> svMap = collectStaticValuesOfFieldsAcrossConstructorsAndMethods(typeInfo);
-        typeInfo.fields().forEach(f -> doField(f, svMap.get(f)));
+        typeInfo.fields().forEach(f ->  doField(f, svMap.get(f)));
+        fromParameterToField(typeInfo);*/
+    }
+
+    private void fromParameterToField(TypeInfo typeInfo) {
         Map<ParameterInfo, StaticValues> svMapParameters = collectReverseFromFieldsToParameters(typeInfo);
         svMapParameters.forEach((pi, sv) -> {
             if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
@@ -385,18 +408,23 @@ public class Analyzer {
         return svMapParameters;
     }
 
+    private void appendToFieldStaticValueMap(MethodInfo methodInfo, Map<FieldInfo, List<StaticValues>> svMap) {
+        if (methodInfo.methodBody().isEmpty()) return;
+        Statement lastStatement = methodInfo.methodBody().lastStatement();
+        VariableData vd = lastStatement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        vd.variableInfoStream()
+                .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                .filter(vi -> vi.staticValues() != null)
+                .forEach(vi -> {
+                    FieldInfo fieldInfo = ((FieldReference) vi.variable()).fieldInfo();
+                    svMap.computeIfAbsent(fieldInfo, l -> new ArrayList<>()).add(vi.staticValues());
+                });
+    }
+
     private Map<FieldInfo, List<StaticValues>> collectStaticValuesOfFieldsAcrossConstructorsAndMethods(TypeInfo typeInfo) {
         Map<FieldInfo, List<StaticValues>> map = new HashMap<>();
         typeInfo.constructorAndMethodStream().filter(mi -> !mi.methodBody().isEmpty()).forEach(mi -> {
-            Statement lastStatement = mi.methodBody().lastStatement();
-            VariableData vd = lastStatement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
-            vd.variableInfoStream()
-                    .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                    .filter(vi -> vi.staticValues() != null)
-                    .forEach(vi -> {
-                        FieldInfo fieldInfo = ((FieldReference) vi.variable()).fieldInfo();
-                        map.computeIfAbsent(fieldInfo, l -> new ArrayList<>()).add(vi.staticValues());
-                    });
+            appendToFieldStaticValueMap(mi, map);
         });
         return map;
     }
@@ -407,6 +435,7 @@ public class Analyzer {
                 : staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
         if (!fieldInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_FIELD)) {
             fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
+            LOGGER.info("Do field {}: set {}", fieldInfo, reduced);
         }
     }
 }

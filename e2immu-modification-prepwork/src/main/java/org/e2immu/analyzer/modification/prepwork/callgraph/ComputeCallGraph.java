@@ -9,6 +9,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.util.internal.graph.G;
 
 import java.util.HashSet;
@@ -91,6 +92,17 @@ public class ComputeCallGraph {
         }
 
         public boolean test(Element e) {
+            if (e instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr
+                && fr.fieldInfo().owner().primaryType().equals(primaryType)) {
+                // inside a type, an accessor should come before its field
+                // outside a type, we want the field to have been processed first
+                // see e.g. TestStaticValuesRecord,2
+                if (info instanceof MethodInfo mi && mi.typeInfo() == fr.fieldInfo().owner()) {
+                    builder.add(fr.fieldInfo(), List.of(info));
+                } else {
+                    builder.add(info, List.of(fr.fieldInfo()));
+                }
+            }
             if (e instanceof LocalVariableCreation lvc) {
                 addType(info, lvc.localVariable().parameterizedType());
                 return true; // into assignment expression(s)
@@ -121,7 +133,9 @@ public class ComputeCallGraph {
                     handleAnonymousType(info, anonymousType); // B
                     return false;
                 }
-            } else if (e instanceof Lambda lambda) {
+                return true;
+            }
+            if (e instanceof Lambda lambda) {
                 TypeInfo anonymousType = lambda.methodInfo().typeInfo();
                 handleAnonymousType(info, anonymousType); // B
                 return false;

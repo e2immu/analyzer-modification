@@ -13,11 +13,11 @@ import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContent
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
-public class ComputeHCS {
+public class ComputeHC {
     private final ComputeHiddenContent chc;
     private final Runtime runtime;
 
-    public ComputeHCS(Runtime runtime) {
+    public ComputeHC(Runtime runtime) {
         this.chc = new ComputeHiddenContent(runtime);
         this.runtime = runtime;
     }

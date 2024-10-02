@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -53,8 +54,8 @@ public class TestFluent extends CommonTest {
     @Test
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
-        prepWork(B);
-        analyzer.doType(B);
+        AnalysisOrder ao = prepWork(B);
+        analyzer.doType(B, ao);
         FieldInfo iField = B.getFieldByName("i", true);
         {
             // @GetSet @Fluent
@@ -68,7 +69,7 @@ public class TestFluent extends CommonTest {
             // @Fluent, not @GetSet
             MethodInfo setI2 = B.findUniqueMethod("setI2", 2);
 
-            IfElseStatement ifElse = (IfElseStatement)setI2.methodBody().statements().get(0);
+            IfElseStatement ifElse = (IfElseStatement) setI2.methodBody().statements().get(0);
             {
                 Statement s001 = ifElse.block().statements().get(1);
                 VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);

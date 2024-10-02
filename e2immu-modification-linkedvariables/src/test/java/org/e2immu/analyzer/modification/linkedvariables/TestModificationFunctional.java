@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.prepwork.callgraph.AnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -27,6 +28,8 @@ public class TestModificationFunctional extends CommonTest {
     /*
     the convention is that modification on a functional interface type indicates that the SAM (single abstract method)
     has been called.
+
+    note: the methods are placed out of order, for AnalysisOrder to kick in.
      */
     @Language("java")
     private static final String INPUT1 = """
@@ -35,6 +38,9 @@ public class TestModificationFunctional extends CommonTest {
             import java.util.function.Function;
             class X {
                 int j;
+                int goWithIndirection(String in) {
+                    return indirection(in, this::parse);
+                }
                 int run(String s, Function<String, Integer> function) {
                     System.out.println("Applying function on "+s);
                     return function.apply(s);
@@ -50,9 +56,6 @@ public class TestModificationFunctional extends CommonTest {
                     Function<String, Integer> f = function;
                     return run(s, f);
                 }
-                int goWithIndirection(String in) {
-                    return indirection(in, this::parse);
-                }
             }
             """;
 
@@ -60,8 +63,8 @@ public class TestModificationFunctional extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        prepWork(X);
-        analyzer.doType(X);
+        AnalysisOrder analysisOrder = prepWork(X);
+        analyzer.doType(X, analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));

@@ -48,7 +48,7 @@ public class TestCallGraph extends CommonTest {
         G<Info> graph = ccg.go();
         assertEquals("""
                 a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.j, a.b.X->1->a.b.X.m1(), a.b.X->1->a.b.X.m2(), a.b.X->1->a.b.X.recursive(int), a.b.X->1->a.b.X.square(int), a.b.X->1->a.b.X.unused, \
-                a.b.X.j->1->a.b.X.square(int), a.b.X.m1()->1->a.b.X.m2()\
+                a.b.X.j->1->a.b.X.m2(), a.b.X.j->1->a.b.X.square(int), a.b.X.m1()->1->a.b.X.m2()\
                 """, graph.toString());
 
         FieldInfo unused = X.getFieldByName("unused", true);
@@ -143,8 +143,8 @@ public class TestCallGraph extends CommonTest {
         G<Info> graph = ccg.go();
         assertEquals("""
                 a.b.X->1->a.b.X.X(int), a.b.X->1->a.b.X.initList(int), a.b.X->1->a.b.X.list, a.b.X->1->a.b.X.print(), \
-                a.b.X->1->a.b.X.rest(), a.b.X->1->a.b.X.sleep(), \
-                a.b.X.X(int)->1->a.b.X.initList(int), a.b.X.X(int)->1->a.b.X.print(), a.b.X.X(int)->1->a.b.X.sleep(), \
+                a.b.X->1->a.b.X.rest(), a.b.X->1->a.b.X.sleep(), a.b.X.X(int)->1->a.b.X.initList(int), \
+                a.b.X.X(int)->1->a.b.X.print(), a.b.X.X(int)->1->a.b.X.sleep(), a.b.X.list->1->a.b.X.initList(int), \
                 a.b.X.rest()->1->a.b.X.sleep()\
                 """, graph.toString());
 
@@ -153,7 +153,8 @@ public class TestCallGraph extends CommonTest {
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         AnalysisOrder ao = cao.go(graph, ccg.recursiveMethods());
         assertEquals("""
-                [a.b.X.initList(int):FTF, a.b.X.list:FFF, a.b.X.print():FFF, a.b.X.sleep():FFF, a.b.X.X(int):FTF, a.b.X.rest():FFF, a.b.X:FFF]\
+                [a.b.X.initList(int):FTF, a.b.X.print():FFF, a.b.X.sleep():FFF, a.b.X.X(int):FTF, a.b.X.list:FFF, \
+                a.b.X.rest():FFF, a.b.X:FFF]\
                 """, ao.toString());
     }
 }
