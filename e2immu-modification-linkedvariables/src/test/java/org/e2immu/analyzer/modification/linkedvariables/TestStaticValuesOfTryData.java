@@ -11,6 +11,7 @@ import org.e2immu.annotation.method.GetSet;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.cst.impl.variable.FieldReferenceImpl;
 import org.e2immu.language.cst.impl.variable.ThisImpl;
 import org.intellij.lang.annotations.Language;
@@ -22,6 +23,7 @@ import java.util.List;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COMPONENTS_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
@@ -220,6 +222,12 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertSame(FALSE, body0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
         }
 
+        MethodInfo run = X.findUniqueMethod("run", 1);
+        {
+            ParameterInfo runTd = run.parameters().get(0);
+            assertEquals("a.b.X.R.function=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                    ValueImpl.FieldBooleanMapImpl.class).toString());
+        }
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
             Statement s0 = method.methodBody().statements().get(0);

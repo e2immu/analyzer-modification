@@ -8,6 +8,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -371,7 +372,29 @@ public class ExpressionAnalyzer {
                         propagateModification(mr, builder);
                     }
                 }
+                Value.FieldBooleanMap mfiComponents = pi.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER, ValueImpl.FieldBooleanMapImpl.class);
+                if (mfiComponents != null) {
+                    Expression pe = mc.parameterExpressions().get(pi.index());
+                    if (pe instanceof VariableExpression ve) {
+                        StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
+                        for (Map.Entry<FieldInfo, Boolean> entry : mfiComponents.map().entrySet()) {
+                            // do we have information about this field?
+                            Expression e = svParam.values().get(runtime.newFieldReference(entry.getKey()));
+                            if (e instanceof MethodReference mr) {
+                                if (entry.getValue()) {
+                                    propagateModification(mr, builder);
+                                } else {
+                                    ensureNotModifying(mr, builder);
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        private void ensureNotModifying(MethodReference mr, LinkEvaluation.Builder builder) {
+            // TODO
         }
 
         private void propagateModification(MethodReference mr, LinkEvaluation.Builder builder) {
