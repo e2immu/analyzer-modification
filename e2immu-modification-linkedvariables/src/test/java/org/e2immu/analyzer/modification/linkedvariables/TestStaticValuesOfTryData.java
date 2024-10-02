@@ -4,6 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.annotation.Fluent;
 import org.e2immu.annotation.Modified;
 import org.e2immu.annotation.method.GetSet;
@@ -12,6 +13,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.variable.ThisImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -186,6 +188,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         assertSame(TRUE, body.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
         assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()
                 .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
+        assertSame(FALSE, body.parameters().get(0).analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
@@ -196,6 +199,27 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertEquals("", vi0B.linkedVariables().toString());
             assertEquals("E=(new Builder()).set(0,i) this.bodyThrowingFunction=this::body",
                     vi0B.staticValues().toString());
+
+            VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X));
+            assertEquals("", vi0This.linkedVariables().toString());
+            assertSame(FALSE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
+        }
+        {
+            Statement s1 = method.methodBody().statements().get(1);
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+
+            VariableInfo vi1Td = vd1.variableInfo("td");
+            assertEquals("-2-:b", vi1Td.linkedVariables().toString()); // FIXME? how?
+            assertEquals("Type a.b.X.TryDataImpl this.bodyThrowingFunction=this::body",
+                    vi1Td.staticValues().toString());
+        }
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData vd2 = s2.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+
+            VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X));
+            assertEquals("", vi2This.linkedVariables().toString());
+            assertSame(TRUE, vi2This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
         }
     }
 

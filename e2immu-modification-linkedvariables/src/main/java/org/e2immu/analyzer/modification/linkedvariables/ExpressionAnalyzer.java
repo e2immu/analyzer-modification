@@ -310,11 +310,11 @@ public class ExpressionAnalyzer {
             if (mc.methodInfo().hasReturnValue()) {
                 // test for fluent setter, see TestStaticValuesAssignment,method
                 StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
-                if(svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
+                if (svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
                     Map<Variable, Expression> map = new HashMap<>();
-                    for(Map.Entry<Variable, Expression> entry: svm.values().entrySet()) {
-                        if(entry.getValue() instanceof VariableExpression vve
-                           && vve.variable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
+                    for (Map.Entry<Variable, Expression> entry : svm.values().entrySet()) {
+                        if (entry.getValue() instanceof VariableExpression vve
+                            && vve.variable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
                             map.put(entry.getKey(), mc.parameterExpressions().get(pi.index()));
                         }
                     }
@@ -324,7 +324,7 @@ public class ExpressionAnalyzer {
                 }
 
                 // accessor
-                 Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+                Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
                 if (getSet.field() != null) {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), mc.concreteReturnType());
                     VariableExpression ve = runtime.newVariableExpression(fr);
@@ -332,8 +332,21 @@ public class ExpressionAnalyzer {
                     StaticValues svs = StaticValuesImpl.of(svExpression);
                     StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
                     builder.setStaticValues(svs).merge(fr, svsVar);
+                    return;
                 }
 
+                // builder, build() method
+                if (mc.object() instanceof VariableExpression veObject && variableDataPrevious != null) {
+                    VariableInfoContainer vicObject = variableDataPrevious.variableInfoContainerOrNull(veObject.variable().fullyQualifiedName());
+                    if(vicObject != null) {
+                        VariableInfo viObject = vicObject.best(stageOfPrevious);
+                        StaticValues svObject = viObject.staticValues();
+                        if (svObject != null && svObject.expression() != null && svm.expression() != null) {
+                            StaticValues sv = new StaticValuesImpl(svm.type(), null, svObject.values());
+                            builder.setStaticValues(sv);
+                        }
+                    }
+                }
             }
         }
 

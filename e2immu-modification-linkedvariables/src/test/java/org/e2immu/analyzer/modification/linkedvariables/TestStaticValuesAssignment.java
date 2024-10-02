@@ -135,4 +135,77 @@ public class TestStaticValuesAssignment extends CommonTest {
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
         assertEquals("E=new X() this.j=3", methodSv.toString());
     }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.Set;
+            record X(int j, int k) {
+            
+                class Builder {
+                    int j;
+                    int k;
+                    Builder setJ(int jp) {
+                        j=jp;
+                        return this;
+                    }
+                    Builder setJK(int jp, int kp) {
+                        j=jp;
+                        k=kp;
+                        return this;
+                    }
+                    X build() {
+                        return new X(j, k);
+                    }
+                }
+                static X justJ4(int jp) {
+                    Builder b = new Builder().setJK(jp, 4);
+                    return b.build();
+                }
+                static X justJ(int jp) {
+                    Builder b = new Builder().setJ(jp);
+                    return b.build();
+                }
+            }
+            """;
+
+    @DisplayName("from builder to built class")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        TypeInfo builder = X.findSubType("Builder");
+        MethodInfo build = builder.findUniqueMethod("build", 0);
+        StaticValues svBuild = build.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
+        assertEquals("Type a.b.X E=new X(this.j,this.k)", svBuild.toString());
+
+        {
+            MethodInfo justJ = X.findUniqueMethod("justJ", 1);
+            Statement s0 = justJ.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi0B = vd0.variableInfo("b");
+            assertEquals("E=new Builder() this.j=jp", vi0B.staticValues().toString());
+
+            Statement s1 = justJ.methodBody().lastStatement();
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi1Rv = vd1.variableInfo(justJ.fullyQualifiedName());
+            assertEquals("Type a.b.X this.j=jp", vi1Rv.staticValues().toString());
+        }
+
+        {
+            MethodInfo justJ4 = X.findUniqueMethod("justJ4", 1);
+            Statement s0 = justJ4.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi0B = vd0.variableInfo("b");
+            assertEquals("E=new Builder() this.j=jp, this.k=4", vi0B.staticValues().toString());
+
+            Statement s1 = justJ4.methodBody().lastStatement();
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi1Rv = vd1.variableInfo(justJ4.fullyQualifiedName());
+            assertEquals("Type a.b.X this.j=jp, this.k=4", vi1Rv.staticValues().toString());
+        }
+    }
 }

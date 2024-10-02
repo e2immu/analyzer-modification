@@ -31,12 +31,9 @@ do all the analysis of this phase
  */
 public class MethodAnalyzer {
     private final Runtime runtime;
-    private final Map<MethodInfo, Set<MethodInfo>> copyModificationStatusFromTo = new HashMap<>();
-    private final Set<MethodInfo> copyMethods;
 
-    public MethodAnalyzer(Runtime runtime, Set<MethodInfo> copyMethods) {
+    public MethodAnalyzer(Runtime runtime) {
         this.runtime = runtime;
-        this.copyMethods = copyMethods;
     }
 
     private static class InternalVariables {
@@ -653,13 +650,6 @@ public class MethodAnalyzer {
                     }
                     i++;
                 }
-
-                // HACK, will be replaced with staticValue system
-                if (copyMethods.contains(mc.methodInfo())
-                    && mc.parameterExpressions().get(0) instanceof MethodReference mr
-                    && mr.scope() instanceof VariableExpression ve && ve.variable() instanceof This) {
-                    copyModificationStatusFromTo.computeIfAbsent(mr.methodInfo(), m -> new HashSet<>()).add(currentMethod);
-                }
             }
             if (e instanceof ConstructorCall cc && cc.constructor() != null) {
                 int i = 0;
@@ -734,9 +724,5 @@ public class MethodAnalyzer {
             this.index = s;
             return this;
         }
-    }
-
-    public Map<MethodInfo, Set<MethodInfo>> getCopyModificationStatusFromTo() {
-        return copyModificationStatusFromTo;
     }
 }

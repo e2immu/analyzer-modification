@@ -388,13 +388,6 @@ public class Analyzer {
                 fromParameterToField(ti);
             }
         }
-
-/*
-        typeInfo.subTypes().forEach(st -> doType(st, analysisOrder));
-        typeInfo.constructorAndMethodStream().forEach(this::doMethod);
-        Map<FieldInfo, List<StaticValues>> svMap = collectStaticValuesOfFieldsAcrossConstructorsAndMethods(typeInfo);
-        typeInfo.fields().forEach(f ->  doField(f, svMap.get(f)));
-        fromParameterToField(typeInfo);*/
     }
 
     private void fromParameterToField(TypeInfo typeInfo) {
@@ -433,14 +426,6 @@ public class Analyzer {
                     FieldInfo fieldInfo = ((FieldReference) vi.variable()).fieldInfo();
                     svMap.computeIfAbsent(fieldInfo, l -> new ArrayList<>()).add(vi.staticValues());
                 });
-    }
-
-    private Map<FieldInfo, List<StaticValues>> collectStaticValuesOfFieldsAcrossConstructorsAndMethods(TypeInfo typeInfo) {
-        Map<FieldInfo, List<StaticValues>> map = new HashMap<>();
-        typeInfo.constructorAndMethodStream().filter(mi -> !mi.methodBody().isEmpty()).forEach(mi -> {
-            appendToFieldStaticValueMap(mi, map);
-        });
-        return map;
     }
 
     private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList) {

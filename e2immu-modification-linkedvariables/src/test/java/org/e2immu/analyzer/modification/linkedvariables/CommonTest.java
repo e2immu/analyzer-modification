@@ -107,6 +107,5 @@ public class CommonTest {
     private void prepType(Analyzer prepAnalyzer, TypeInfo typeInfo) {
         typeInfo.subTypes().forEach(st -> prepType(prepAnalyzer, st));
         typeInfo.constructorAndMethodStream().forEach(prepAnalyzer::doMethod);
-        prepAnalyzer.copyModifications(typeInfo);
     }
 }
