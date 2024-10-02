@@ -713,7 +713,8 @@ public class MethodAnalyzer {
             TypeInfo typeInfo = variable.parameterizedType().typeInfo();
             boolean mutable = typeInfo != null && typeInfo.analysis()
                     .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
-            if (mutable) {
+            // functional interface types are handled in the advanced analyzer
+            if (mutable && !variable.parameterizedType().isFunctionalInterface()) {
                 modified.add(variable);
                 if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
                     markModified(fr.scopeVariable());

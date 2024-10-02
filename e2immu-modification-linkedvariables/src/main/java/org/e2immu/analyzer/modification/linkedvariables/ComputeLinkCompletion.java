@@ -9,10 +9,17 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.FieldInfo;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.e2immu.util.internal.util.MapUtil;
 
 import java.util.*;
+
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 
 /*
 given a number of links, build a graph, and compute the shortest path between all combinations,
@@ -24,6 +31,8 @@ public class ComputeLinkCompletion {
     class Builder {
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
         private final Set<Variable> modifiedInEval = new HashSet<>();
+        private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
+
         private final Map<Variable, List<StaticValues>> staticValues = new HashMap<>();
 
         void addLinkEvaluation(LinkEvaluation linkEvaluation, VariableData destination) {
@@ -36,6 +45,7 @@ public class ComputeLinkCompletion {
                 addAssignment(vi.variable(), entry.getValue());
             }
             this.modifiedInEval.addAll(linkEvaluation.modified());
+            this.modifiedFunctionalComponents.putAll(linkEvaluation.modifiedFunctionalComponents());
         }
 
         void addAssignment(Variable variable, StaticValues value) {
@@ -97,6 +107,8 @@ public class ComputeLinkCompletion {
 
             ShortestPath shortestPath = weightedGraph.shortestPath();
             Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPath);
+            Map<Variable, Map<FieldInfo, Boolean>> mfiComponentMaps = computeMFIComponents(previous, stageOfPrevious,
+                    modifiedFunctionalComponents, shortestPath);
 
             for (Variable variable : shortestPath.variables()) {
                 Map<Variable, LV> links = shortestPath.links(variable, null);
@@ -116,10 +128,64 @@ public class ComputeLinkCompletion {
                 }
                 if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
                     boolean isModified = modifying.contains(variable);
-                    vii.analysis().set(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                    vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                }
+                Map<FieldInfo, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
+                if (mfiComponents != null && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
+                    vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.FieldBooleanMapImpl(mfiComponents));
                 }
             }
         }
+
+        private Map<Variable, Map<FieldInfo, Boolean>> computeMFIComponents
+                (VariableData previous, Stage stageOfPrevious,
+                 Map<FieldReference, Boolean> modifiedFunctionalComponents,
+                 ShortestPath shortestPath) {
+            Map<Variable, Map<FieldInfo, Boolean>> mapForAllVariables = new HashMap<>();
+            modifiedFunctionalComponents.forEach((fr, b) -> mapForAllVariables.put(fr.scopeVariable(), Map.of(fr.fieldInfo(), b)));
+            if (previous != null) {
+                for (Variable variable : shortestPath.variables()) {
+                    VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
+                    if (vicPrev != null) {
+                        VariableInfo vi = vicPrev.best(stageOfPrevious);
+                        if (vi != null) {
+                            Value.FieldBooleanMap map = vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, ValueImpl.FieldBooleanMapImpl.EMPTY);
+                            mergeMFIMaps(mapForAllVariables, vi.variable(), map.map());
+                        }
+                    }
+                }
+            }
+            boolean change = true;
+            while (change) {
+                change = false;
+                for (Variable variable : shortestPath.variables()) {
+                    Map<Variable, LV> links = shortestPath.links(variable, null);
+                    for (Map.Entry<Variable, LV> e : links.entrySet()) {
+                        Variable to = e.getKey();
+                        if (to != variable && mapForAllVariables.containsKey(to) && e.getValue().isStaticallyAssignedOrAssigned()) {
+                            change |= mergeMFIMaps(mapForAllVariables, variable, mapForAllVariables.get(to));
+                        }
+                    }
+                }
+            }
+            return mapForAllVariables;
+        }
+
+        private static boolean mergeMFIMaps(Map<Variable, Map<FieldInfo, Boolean>> mapForAllVariables,
+                                            Variable v,
+                                            Map<FieldInfo, Boolean> map) {
+            Map<FieldInfo, Boolean> inMap = mapForAllVariables.get(v);
+            Map<FieldInfo, Boolean> newMap = mapForAllVariables.merge(v, map, (m1, m2) -> {
+                Map<FieldInfo, Boolean> res = new HashMap<>(m1);
+                for (Map.Entry<FieldInfo, Boolean> e : m2.entrySet()) {
+                    Boolean b = res.put(e.getKey(), e.getValue());
+                    if (b != null && b != e.getValue()) throw new UnsupportedOperationException();
+                }
+                return Map.copyOf(res);
+            });
+            return !Objects.equals(inMap, newMap);
+        }
+
 
         private Set<Variable> computeModified(VariableData previous,
                                               Stage stageOfPrevious,
@@ -133,7 +199,7 @@ public class ComputeLinkCompletion {
                     VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
                     if (vicPrev != null) {
                         VariableInfo vi = vicPrev.best(stageOfPrevious);
-                        if (vi != null && vi.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
+                        if (vi != null && vi.analysis().getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
                             modified.add(vi.variable());
                         }
                     }

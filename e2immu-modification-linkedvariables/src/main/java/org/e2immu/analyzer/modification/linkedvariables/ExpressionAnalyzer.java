@@ -338,7 +338,7 @@ public class ExpressionAnalyzer {
                 // builder, build() method
                 if (mc.object() instanceof VariableExpression veObject && variableDataPrevious != null) {
                     VariableInfoContainer vicObject = variableDataPrevious.variableInfoContainerOrNull(veObject.variable().fullyQualifiedName());
-                    if(vicObject != null) {
+                    if (vicObject != null) {
                         VariableInfo viObject = vicObject.best(stageOfPrevious);
                         StaticValues svObject = viObject.staticValues();
                         if (svObject != null && svObject.expression() != null && svm.expression() != null) {
@@ -351,9 +351,15 @@ public class ExpressionAnalyzer {
         }
 
         private void methodCallModified(MethodCall mc, LinkEvaluation.Builder builder) {
-            if (mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue()
-                && mc.object() instanceof VariableExpression ve) {
-                markModified(ve.variable(), builder);
+            if (mc.object() instanceof VariableExpression ve) {
+                boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
+                if (ve.variable().parameterizedType().isFunctionalInterface()
+                    && ve.variable() instanceof FieldReference fr
+                    && !fr.isStatic() && !(fr.scopeVariable() instanceof This)) {
+                    builder.addModifiedFunctionalInterfaceComponent(fr, modifying);
+                } else if (modifying) {
+                    markModified(ve.variable(), builder);
+                }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
                 if (pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue()) {

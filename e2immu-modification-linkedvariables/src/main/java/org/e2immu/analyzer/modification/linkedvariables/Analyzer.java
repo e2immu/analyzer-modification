@@ -10,6 +10,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImp
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Property;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
@@ -157,7 +158,7 @@ public class Analyzer {
         boolean typeIsImmutable = piTypeInfo != null && piTypeInfo.analysis()
                 .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
-        if(pi.methodInfo().isAbstract()) return DEPENDENT;
+        if (pi.methodInfo().isAbstract()) return DEPENDENT;
         return worstLinkToFields(lastOfMainBlock, pi.fullyQualifiedName());
     }
 
@@ -203,6 +204,12 @@ public class Analyzer {
                 if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
                     boolean modified = vi.isModified();
                     pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                }
+                Value.FieldBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
+                        ValueImpl.FieldBooleanMapImpl.class);
+                if (mfi != null && !mfi.map().isEmpty()
+                    && !pi.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_PARAMETER)) {
+                    pi.analysis().set(MODIFIED_FI_COMPONENTS_PARAMETER, mfi);
                 }
             } else if (v instanceof ReturnVariable) {
                 LinkedVariables linkedVariables = vi.linkedVariables();
@@ -297,13 +304,13 @@ public class Analyzer {
                 clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
                 StaticValues sv = linkEvaluation.staticValues();
                 // see TestStaticValuesAssignment: when returning this, we add the static values of the fields
-                if(sv.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
+                if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
                     Map<Variable, Expression> map =
-                    previous.variableInfoStream(stageOfPrevious)
-                            .filter(vi2 -> vi2.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                            .filter(vi2 -> vi2.staticValues() != null && vi2.staticValues().expression() != null)
-                            .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi2 -> vi2.staticValues().expression()));
-                    if(!map.isEmpty()) {
+                            previous.variableInfoStream(stageOfPrevious)
+                                    .filter(vi2 -> vi2.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                                    .filter(vi2 -> vi2.staticValues() != null && vi2.staticValues().expression() != null)
+                                    .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi2 -> vi2.staticValues().expression()));
+                    if (!map.isEmpty()) {
                         clcBuilder.addAssignment(rv, new StaticValuesImpl(null, sv.expression(), map));
                     } else {
                         clcBuilder.addAssignment(rv, sv);

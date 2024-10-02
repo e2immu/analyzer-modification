@@ -18,6 +18,8 @@ import java.util.List;
 
 public class VariableInfoImpl implements VariableInfo {
     public static final Property MODIFIED_VARIABLE = new PropertyImpl("modifiedVariable");
+    public static final Property MODIFIED_FI_COMPONENTS_VARIABLE = new PropertyImpl("modifiedFunctionalInterfaceComponentsVariable",
+            ValueImpl.FieldBooleanMapImpl.EMPTY);
 
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
     private final SetOnce<StaticValues> staticValues = new SetOnce<>();

@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.annotation.Fluent;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 
 import java.util.*;
@@ -22,15 +23,20 @@ public class LinkEvaluation {
     private final Map<Variable, StaticValues> assignments;
 
     private final Set<Variable> modified;
+    private final Map<FieldReference, Boolean> modifiedFunctionalComponents;
 
-    private LinkEvaluation(LinkedVariables linkedVariables, Map<Variable, LinkedVariables> links,
+    private LinkEvaluation(LinkedVariables linkedVariables,
+                           Map<Variable, LinkedVariables> links,
                            Set<Variable> modified,
-                           StaticValues staticValues, Map<Variable, StaticValues> assignments) {
+                           StaticValues staticValues,
+                           Map<Variable, StaticValues> assignments,
+                           Map<FieldReference, Boolean> modifiedFunctionalComponents) {
         this.linkedVariables = linkedVariables;
         this.links = links;
         this.modified = modified;
         this.staticValues = staticValues;
         this.assignments = assignments;
+        this.modifiedFunctionalComponents = modifiedFunctionalComponents;
     }
 
     public static class Builder {
@@ -39,11 +45,13 @@ public class LinkEvaluation {
         private final Map<Variable, LinkedVariables> links = new HashMap<>();
         private final Map<Variable, StaticValues> assignments = new HashMap<>();
         private final Set<Variable> modified = new HashSet<>();
+        private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
 
         public LinkedVariables getLinkedVariablesOf(Variable variable) {
             return links.get(variable);
         }
 
+        @Fluent
         public Builder merge(LinkEvaluation linkEvaluation) {
             linkedVariables = linkEvaluation.linkedVariables;
             staticValues = linkEvaluation.staticValues;
@@ -51,18 +59,22 @@ public class LinkEvaluation {
             linkEvaluation.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
             linkEvaluation.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(linkEvaluation.modified);
+            modifiedFunctionalComponents.putAll(linkEvaluation.modifiedFunctionalComponents);
             return this;
         }
 
+        @Fluent
         public Builder merge(Builder builder) {
             linkedVariables = builder.linkedVariables;
             staticValues = builder.staticValues;
             builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
             builder.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(builder.modified);
+            modifiedFunctionalComponents.putAll(builder.modifiedFunctionalComponents);
             return this;
         }
 
+        @Fluent
         public Builder mergeLinkedVariablesOfExpression(LinkedVariables lv) {
             linkedVariables = linkedVariables.merge(lv);
             return this;
@@ -90,10 +102,11 @@ public class LinkEvaluation {
             return this;
         }
 
+        @Fluent
         Builder merge(Variable variable, StaticValues sv) {
             assert variable != null;
             assert sv != null;
-            if(!sv.isEmpty()) {
+            if (!sv.isEmpty()) {
                 this.assignments.merge(variable, sv, StaticValues::merge);
             }
             return this;
@@ -105,13 +118,23 @@ public class LinkEvaluation {
             return this;
         }
 
+        @Fluent
+        Builder addModifiedFunctionalInterfaceComponent(FieldReference fieldReference, boolean propagateOrFailOnModified) {
+            modifiedFunctionalComponents.put(fieldReference, propagateOrFailOnModified);
+            return this;
+        }
+
         public LinkedVariables linkedVariablesOfExpression() {
             return linkedVariables;
         }
 
+        public Map<FieldReference, Boolean> modifiedFunctionalComponents() {
+            return modifiedFunctionalComponents;
+        }
+
         LinkEvaluation build() {
             return new LinkEvaluation(linkedVariables, Map.copyOf(links), Set.copyOf(modified),
-                    staticValues, Map.copyOf(assignments));
+                    staticValues, Map.copyOf(assignments), Map.copyOf(modifiedFunctionalComponents));
         }
     }
 
@@ -133,5 +156,9 @@ public class LinkEvaluation {
 
     public Set<Variable> modified() {
         return modified;
+    }
+
+    public Map<FieldReference, Boolean> modifiedFunctionalComponents() {
+        return modifiedFunctionalComponents;
     }
 }
