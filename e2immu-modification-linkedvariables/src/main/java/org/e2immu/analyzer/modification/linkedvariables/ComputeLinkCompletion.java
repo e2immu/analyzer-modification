@@ -77,7 +77,8 @@ public class ComputeLinkCompletion {
         }
 
         private void writeAssignments(VariableData variableData, Stage stage,
-                                      VariableData previous, Stage stageOfPrevious, String statementIndex) {
+                                      VariableData previous, Stage stageOfPrevious,
+                                      String statementIndex) {
             if (previous != null) {
                 // copy previous assignment data into the map, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)
@@ -88,7 +89,7 @@ public class ComputeLinkCompletion {
                             }
                         });
             }
-            recursivelyAddAssignmentsAtScopeLevel(variableData, stage, statementIndex);
+            recursivelyAddAssignmentsAtScopeLevel(variableData, statementIndex);
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 Variable variable = entry.getKey();
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
@@ -103,13 +104,17 @@ public class ComputeLinkCompletion {
 
         /*
         if we have an assignment of E=3 to a.b, we add an assignment of b=3 to a.
+
+        If we have an assignment of E=3 to a.b.c, we first add an assignment of this.c=3 to a.b,
+        then we add an assignment of this.b.c=3 to a.
          */
-        private void recursivelyAddAssignmentsAtScopeLevel(VariableData variableData, Stage stage, String statementIndex) {
+        private void recursivelyAddAssignmentsAtScopeLevel(VariableData variableData, String statementIndex) {
             Map<Variable, List<StaticValues>> append = new HashMap<>();
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 if (entry.getKey() instanceof FieldReference fr) {
                     Expression newScope = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr.scope());
-                    recursivelyAdd(append, newScope, fr, entry.getValue(), variableData, stage, statementIndex);
+                    Expression svScope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo()));
+                    recursivelyAdd(append, newScope, fr, svScope, fr.fieldInfo(), entry.getValue(), variableData, statementIndex);
                 }
             }
             append.forEach((v, list) -> staticValues.merge(v, list, ListUtil::immutableConcat));
@@ -119,22 +124,21 @@ public class ComputeLinkCompletion {
         private void recursivelyAdd(Map<Variable, List<StaticValues>> append,
                                     Expression newScope,
                                     FieldReference fr,
+                                    Expression svScope,
+                                    FieldInfo svFieldInfo,
                                     List<StaticValues> values,
-                                    VariableData variableData, Stage stage,
+                                    VariableData variableData,
                                     String statementIndex) {
             if (newScope instanceof VariableExpression ve && !(ve.variable() instanceof This)) {
                 List<StaticValues> newList = values.stream().map(sv -> {
                     Expression expression;
-                    Expression scope;
                     if (sv.expression() != null && sv.values().isEmpty()) {
                         expression = sv.expression();
-                        scope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo()));
                     } else if (!sv.values().isEmpty()) {
                         expression = sv.values().values().stream().findFirst().orElseThrow();
-                        scope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo()));
                     } else throw new UnsupportedOperationException();
-                    Map<Variable, Expression> newMap = Map.of(runtime.newFieldReference(fr.fieldInfo(), scope,
-                            fr.parameterizedType()), expression);
+                    Map<Variable, Expression> newMap = Map.of(runtime.newFieldReference(svFieldInfo, svScope,
+                            svFieldInfo.type()), expression);
                     return (StaticValues) new StaticValuesImpl(null, null, newMap);
                 }).toList();
                 Variable variable = ve.variable();
@@ -151,6 +155,12 @@ public class ComputeLinkCompletion {
                     VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vicOrig.variableNature(),
                             Either.right(initial), null, vicOrig.hasMerge());
                     ((VariableDataImpl) variableData).put(variable, newVic);
+                }
+                if (variable instanceof FieldReference fr2) {
+                    Expression newScope2 = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr2.scope());
+                    FieldReference thisR = runtime.newFieldReference(fr2.fieldInfo(), svScope, fr2.parameterizedType());
+                    Expression newSvScope = runtime.newVariableExpression(thisR);
+                    recursivelyAdd(append, newScope2, fr2, newSvScope, svFieldInfo, newList, variableData, statementIndex);
                 }
             }
         }
