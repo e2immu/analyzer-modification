@@ -50,7 +50,7 @@ public class Analyzer {
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
-        computeLinkCompletion = new ComputeLinkCompletion(); // has a cache, we want this to be stable
+        computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
     }
 
     public void doMethod(MethodInfo methodInfo) {

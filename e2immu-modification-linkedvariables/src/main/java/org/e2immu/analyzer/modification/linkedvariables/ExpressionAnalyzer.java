@@ -19,7 +19,6 @@ import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
@@ -27,8 +26,6 @@ import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_PARAMETER;
@@ -324,7 +321,6 @@ public class ExpressionAnalyzer {
                     return;
                 }
 
-                // accessor
                 Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
                 if (getSet.field() != null) {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), mc.concreteReturnType());
@@ -352,7 +348,8 @@ public class ExpressionAnalyzer {
         }
 
         private void methodCallModified(MethodCall mc, LinkEvaluation.Builder builder) {
-            if (mc.object() instanceof VariableExpression ve) {
+            Expression object = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
+            if (object instanceof VariableExpression ve) {
                 boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
                 if (ve.variable().parameterizedType().isFunctionalInterface()
                     && ve.variable() instanceof FieldReference fr
@@ -473,5 +470,23 @@ public class ExpressionAnalyzer {
             LinkedVariables lvsResult = LinkedVariablesImpl.of(map);
             builder.setLinkedVariables(lvsResult);
         }
+    }
+
+    public static Expression recursivelyReplaceAccessorByFieldReference(Runtime runtime, Expression expression) {
+        if (expression instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
+            Expression replacedScope = recursivelyReplaceAccessorByFieldReference(runtime, fr.scope());
+            return replacedScope == fr.scope() ? expression
+                    : runtime.newVariableExpression(runtime.newFieldReference(fr.fieldInfo(), replacedScope,
+                    fr.parameterizedType()));
+        }
+        if (expression instanceof MethodCall mc) {
+            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            if (getSet.field() != null) {
+                Expression replacedObject = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
+                FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, mc.concreteReturnType());
+                return runtime.newVariableExpression(fr);
+            }
+        }
+        return expression;
     }
 }

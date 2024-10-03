@@ -196,15 +196,17 @@ public class TestModificationFunctional extends CommonTest {
             import java.util.function.Function;
             class X {
                 record R(Function<String, Integer> function) {}
+                record S(R r) {}
                 int j;
             
                 int go(String in) {
                     R r = new R(this::parse);
-                    return run(in, r);
+                    S s = new S(r);
+                    return run(in, s);
                 }
-                int run(String s, R r) {
-                    System.out.println("Applying function on "+s);
-                    return r.function().apply(s);
+                int run(String string, S s) {
+                    System.out.println("Applying function on "+string);
+                    return s.r().function().apply(string);
                 }
                 int parse(String t) {
                     j = Integer.parseInt(t);

@@ -10,10 +10,15 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.e2immu.util.internal.util.ListUtil;
 import org.e2immu.util.internal.util.MapUtil;
 
 import java.util.*;
@@ -26,7 +31,12 @@ given a number of links, build a graph, and compute the shortest path between al
 to be stored in the VariableInfo objects.
  */
 public class ComputeLinkCompletion {
-    Cache cache = new GraphCacheImpl(100);
+    private final Cache cache = new GraphCacheImpl(100);
+    private final Runtime runtime;
+
+    ComputeLinkCompletion(Runtime runtime) {
+        this.runtime = runtime;
+    }
 
     class Builder {
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
@@ -74,6 +84,7 @@ public class ComputeLinkCompletion {
                             }
                         });
             }
+            recursivelyAddAssignmentsAtScopeLevel();
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 Variable variable = entry.getKey();
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
@@ -84,6 +95,35 @@ public class ComputeLinkCompletion {
                 VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
                 StaticValues merge = entry.getValue().stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
                 vii.staticValuesSet(merge);
+            }
+        }
+
+        /*
+        if we have an assignment of E=3 to a.b, we add an assignment of b=3 to a.
+         */
+        private void recursivelyAddAssignmentsAtScopeLevel() {
+            Map<Variable, List<StaticValues>> append = new HashMap<>();
+            for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
+                if (entry.getKey() instanceof FieldReference fr) {
+                    Expression newScope = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr.scope());
+                    recursivelyAdd(append, newScope, fr, entry.getValue());
+                }
+            }
+            append.forEach((v, list) -> staticValues.merge(v, list, ListUtil::immutableConcat));
+        }
+
+        // we have assignments to 'a.b'; we now find that 'a' is a variable, so we add modified assignments to 'a'
+        private void recursivelyAdd(Map<Variable, List<StaticValues>> append, Expression newScope, FieldReference fr, List<StaticValues> values) {
+            if (newScope instanceof VariableExpression ve && !(ve.variable() instanceof This)) {
+                List<StaticValues> newList = values.stream().map(sv -> {
+                    if(sv.expression() != null && sv.values().isEmpty()) {
+                        Map<Variable, Expression> newMap = Map.of(runtime.newFieldReference(fr.fieldInfo(), newScope, fr.parameterizedType()), sv.expression());
+                        return  (StaticValues)new StaticValuesImpl(null, null, newMap);
+                    } else if(!sv.values().isEmpty()) {
+                        throw new UnsupportedOperationException();
+                    } else throw new UnsupportedOperationException();
+                }).toList();
+                append.put(ve.variable(), newList);
             }
         }
 
