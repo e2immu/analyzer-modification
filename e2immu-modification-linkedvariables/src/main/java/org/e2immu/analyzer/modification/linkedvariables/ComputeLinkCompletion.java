@@ -10,7 +10,6 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.expression.Assignment;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
@@ -21,10 +20,8 @@ import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
 import org.e2immu.util.internal.util.ListUtil;
-import org.e2immu.util.internal.util.MapUtil;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
@@ -114,7 +111,7 @@ public class ComputeLinkCompletion {
                 if (entry.getKey() instanceof FieldReference fr) {
                     Expression newScope = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr.scope());
                     Expression svScope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo()));
-                    recursivelyAdd(append, newScope, fr, svScope, fr.fieldInfo(), entry.getValue(), variableData, statementIndex);
+                    recursivelyAdd(append, newScope, newScope, fr, svScope, fr.fieldInfo(), entry.getValue(), variableData, statementIndex);
                 }
             }
             append.forEach((v, list) -> staticValues.merge(v, list, ListUtil::immutableConcat));
@@ -123,6 +120,7 @@ public class ComputeLinkCompletion {
         // we have assignments to 'a.b'; we now find that 'a' is a variable, so we add modified assignments to 'a'
         private void recursivelyAdd(Map<Variable, List<StaticValues>> append,
                                     Expression newScope,
+                                    Expression fullScope,
                                     FieldReference fr,
                                     Expression svScope,
                                     FieldInfo svFieldInfo,
@@ -158,11 +156,32 @@ public class ComputeLinkCompletion {
                 }
                 if (variable instanceof FieldReference fr2) {
                     Expression newScope2 = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr2.scope());
-                    FieldReference thisR = runtime.newFieldReference(fr2.fieldInfo(), svScope, fr2.parameterizedType());
-                    Expression newSvScope = runtime.newVariableExpression(thisR);
-                    recursivelyAdd(append, newScope2, fr2, newSvScope, svFieldInfo, newList, variableData, statementIndex);
+                    Expression newSvScope = suffix(fullScope, newScope2);
+                    recursivelyAdd(append, newScope2, fullScope, fr2, newSvScope, svFieldInfo, newList, variableData, statementIndex);
                 }
             }
+        }
+
+        /*
+        if all = a.b.c.d, and
+        prefix = a.b.c, result should be d
+        prefix = a.b, result should be c.d
+         */
+        private Expression suffix(Expression all, Expression prefix) {
+            if(all instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
+                Expression scope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo()));
+                Expression move = fr.scope();
+                while(!move.equals(prefix)) {
+                    if(move instanceof VariableExpression ve2 && ve2.variable() instanceof FieldReference fr2) {
+                        FieldReference intermediaryFr = runtime.newFieldReference(fr2.fieldInfo(), scope, fr.parameterizedType());
+                        scope = runtime.newVariableExpression(intermediaryFr);
+                        move = fr2.scope();
+                    }
+                }
+                FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), scope, fr.parameterizedType());
+                return runtime.newVariableExpression(newFr);
+            }
+            throw new UnsupportedOperationException();
         }
 
         private void writeLinksAndModification(VariableData variableData, Stage stage,

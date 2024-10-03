@@ -319,13 +319,13 @@ public class TestStaticValuesAssignment extends CommonTest {
                 record R(int i, int j) {}
                 record S(R r, int k) {}
                 record T(S s, int l) {}
-    
+            
                 void method1(T t) {
                     t.s.r().i = 3;
                 }
-               // void method2(T t) {
-              //      t().s().r().i = 3;
-               // }
+                void method2(T t) {
+                    t.s().r().i = 3;
+                }
             }
             """;
 
@@ -336,36 +336,40 @@ public class TestStaticValuesAssignment extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
-        TypeInfo R = X.findSubType("R");
         TypeInfo S = X.findSubType("S");
         TypeInfo T = X.findSubType("T");
         FieldInfo rInS = S.getFieldByName("r", true);
         FieldInfo sInT = T.getFieldByName("s", true);
 
-        MethodInfo method = X.findUniqueMethod("method1", 1);
+        MethodInfo method1 = X.findUniqueMethod("method1", 1);
+        test6Method(method1, sInT, rInS);
+        MethodInfo method2 = X.findUniqueMethod("method2", 1);
+        test6Method(method2, sInT, rInS);
+    }
+
+    private void test6Method(MethodInfo method, FieldInfo sInT, FieldInfo rInS) {
         ParameterInfo t = method.parameters().get(0);
-        {
-            Statement s0 = method.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
 
-            // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
-            // s.r should have component i=3
-            // s should have r.i=3
-            FieldReference ts = runtime.newFieldReference(sInT, runtime.newVariableExpression(t), sInT.type());
-            assertEquals("t.s", ts.toString());
+        Statement s0 = method.methodBody().statements().get(0);
+        VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
 
-            FieldReference tsr = runtime.newFieldReference(rInS, runtime.newVariableExpression(ts), rInS.type());
-            assertEquals("t.s.r", tsr.toString());
+        // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
+        // s.r should have component i=3
+        // s should have r.i=3
+        FieldReference ts = runtime.newFieldReference(sInT, runtime.newVariableExpression(t), sInT.type());
+        assertEquals("t.s", ts.toString());
 
-            VariableInfo vi0Tsr = vd0.variableInfo(tsr);
-            assertEquals("this.i=3", vi0Tsr.staticValues().toString());
+        FieldReference tsr = runtime.newFieldReference(rInS, runtime.newVariableExpression(ts), rInS.type());
+        assertEquals("t.s.r", tsr.toString());
 
-            VariableInfo vi0Ts = vd0.variableInfo(ts);
-            assertEquals("this.r.i=3", vi0Ts.staticValues().toString());
+        VariableInfo vi0Tsr = vd0.variableInfo(tsr);
+        assertEquals("this.i=3", vi0Tsr.staticValues().toString());
 
-            VariableInfo vi0T = vd0.variableInfo(t);
-            assertEquals("this.s.r.i=3", vi0T.staticValues().toString());
-        }
+        VariableInfo vi0Ts = vd0.variableInfo(ts);
+        assertEquals("this.r.i=3", vi0Ts.staticValues().toString());
+
+        VariableInfo vi0T = vd0.variableInfo(t);
+        assertEquals("this.s.r.i=3", vi0T.staticValues().toString());
     }
 
 }
