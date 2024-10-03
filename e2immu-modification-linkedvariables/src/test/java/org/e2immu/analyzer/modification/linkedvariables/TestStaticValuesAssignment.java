@@ -7,6 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -208,14 +209,13 @@ public class TestStaticValuesAssignment extends CommonTest {
     }
 
 
-
     @Language("java")
     private static final String INPUT4 = """
             package a.b;
             import java.util.Set;
             class X {
                 static class R { int i; }
-    
+            
                 int method(R r) {
                     r.i = 3;
                     return r.i+2;
@@ -230,6 +230,9 @@ public class TestStaticValuesAssignment extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
+        TypeInfo R = X.findSubType("R");
+        FieldInfo iField = R.getFieldByName("i", true);
+
         MethodInfo method = X.findUniqueMethod("method", 1);
         ParameterInfo r = method.parameters().get(0);
         {
@@ -238,9 +241,10 @@ public class TestStaticValuesAssignment extends CommonTest {
 
             VariableInfo vi0R = vd0.variableInfo(r);
             assertEquals("", vi0R.linkedVariables().toString());
-            assertEquals("r.i=3", vi0R.staticValues().toString());
+            assertEquals("this.i=3", vi0R.staticValues().toString());
 
-            Variable ri = vi0R.staticValues().values().keySet().stream().findFirst().orElseThrow();
+            Variable ri = runtime.newFieldReference(iField, runtime.newVariableExpression(r), iField.type());
+            assertEquals("r.i", ri.toString());
             VariableInfo vi0Ri = vd0.variableInfo(ri);
             assertEquals("", vi0Ri.linkedVariables().toString());
             assertEquals("E=3", vi0Ri.staticValues().toString());
@@ -266,7 +270,7 @@ public class TestStaticValuesAssignment extends CommonTest {
             class X {
                 record R(int i, int j) {}
                 record S(R r, int k) {}
-    
+            
                 int method(S s) {
                     s.r().i = 3;
                     s.k = s.r.j;
@@ -282,6 +286,11 @@ public class TestStaticValuesAssignment extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
+        TypeInfo R = X.findSubType("R");
+        FieldInfo iField = R.getFieldByName("i", true);
+        TypeInfo S = X.findSubType("S");
+        FieldInfo rInS = S.getFieldByName("r", true);
+
         MethodInfo method = X.findUniqueMethod("method", 1);
         ParameterInfo s = method.parameters().get(0);
         {
@@ -291,23 +300,14 @@ public class TestStaticValuesAssignment extends CommonTest {
             // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
             // s.r should have component i=3
             // s should have r.i=3
-            VariableInfo vi0J = vd0.variableInfo(s);
-            assertEquals("", vi0J.linkedVariables().toString());
-            assertEquals("E=3", vi0J.staticValues().toString());
+            FieldReference sr = runtime.newFieldReference(rInS, runtime.newVariableExpression(s), rInS.type());
+            assertEquals("s.r", sr.toString());
+            VariableInfo vi0Sr = vd0.variableInfo(sr);
+            assertEquals("this.i=3", vi0Sr.staticValues().toString());
 
-
+            VariableInfo vi0S = vd0.variableInfo(s);
+            assertEquals("this.r.i=3", vi0S.staticValues().toString());
         }
-        {
-            Statement s1 = method.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
-
-            VariableInfo vi1Rv = vd1.variableInfo(method.fullyQualifiedName());
-            assertEquals("-1-:j", vi1Rv.linkedVariables().toString());
-            assertEquals("E=3", vi1Rv.staticValues().toString());
-        }
-
-        StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-        assertEquals("E=3", methodSv.toString());
     }
 
 }

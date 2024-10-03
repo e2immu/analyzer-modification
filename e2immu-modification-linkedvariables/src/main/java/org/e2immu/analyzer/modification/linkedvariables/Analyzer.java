@@ -321,7 +321,7 @@ public class Analyzer {
             }
             clcBuilder.addLinkEvaluation(linkEvaluation, vd);
         }
-        clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious);
+        clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index());
 
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
