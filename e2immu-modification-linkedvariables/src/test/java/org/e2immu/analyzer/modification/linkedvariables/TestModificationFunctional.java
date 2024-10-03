@@ -21,7 +21,7 @@ import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableIn
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COMPONENTS_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.FieldBooleanMapImpl.EMPTY;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.VariableBooleanMapImpl.EMPTY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -159,7 +159,6 @@ public class TestModificationFunctional extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
         TypeInfo R = X.findSubType("R");
-        FieldInfo function = R.getFieldByName("function", true);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
@@ -170,16 +169,14 @@ public class TestModificationFunctional extends CommonTest {
         {
             Statement s1 = run.methodBody().lastStatement();
             VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
-            FieldReference runRF = new FieldReferenceImpl(function, runtime.newVariableExpression(runR),
-                    null, function.type());
             VariableInfo vi1R = vd1.variableInfo(runR);
-            assertEquals("a.b.X.R.function=true", vi1R.analysis()
+            assertEquals("r.function=true", vi1R.analysis()
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
         }
         {
             assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-            assertEquals("a.b.X.R.function=true", runR.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
-                    ValueImpl.FieldBooleanMapImpl.class).toString());
+            assertEquals("r.function=true", runR.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.class).toString());
             assertSame(FALSE, runR.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
             assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
         }
@@ -190,7 +187,7 @@ public class TestModificationFunctional extends CommonTest {
     }
 
     @Language("java")
-    private static final String INPUT2b= """
+    private static final String INPUT2b = """
             package a.b;
             import java.util.Set;
             import java.util.function.Function;
@@ -222,31 +219,44 @@ public class TestModificationFunctional extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
         TypeInfo R = X.findSubType("R");
-        FieldInfo function = R.getFieldByName("function", true);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
 
         MethodInfo run = X.findUniqueMethod("run", 2);
-        ParameterInfo runS = run.parameters().get(0);
-        ParameterInfo runR = run.parameters().get(1);
+        ParameterInfo runS = run.parameters().get(1);
         {
             Statement s1 = run.methodBody().lastStatement();
             VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
-            FieldReference runRF = new FieldReferenceImpl(function, runtime.newVariableExpression(runR),
-                    null, function.type());
-            VariableInfo vi1R = vd1.variableInfo(runR);
-            assertEquals("a.b.X.R.function=true", vi1R.analysis()
+            VariableInfo vi1S = vd1.variableInfo(runS);
+            assertEquals("s.r.function=true", vi1S.analysis()
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
         }
-        {
-            assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-            assertEquals("a.b.X.R.function=true", runR.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
-                    ValueImpl.FieldBooleanMapImpl.class).toString());
-            assertSame(FALSE, runR.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-            assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
-        }
+
+        assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertEquals("s.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                ValueImpl.VariableBooleanMapImpl.class).toString());
+        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+
         MethodInfo go = X.findUniqueMethod("go", 1);
+        {
+            Statement s0 = go.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi0R = vd0.variableInfo("r");
+            assertEquals("Type a.b.X.R E=new R(this::parse) this.function=this::parse",
+                    vi0R.staticValues().toString());
+        }
+        {
+            Statement s1 = go.methodBody().statements().get(1);
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+
+            VariableInfo vi1R = vd1.variableInfo("r");
+            assertEquals("Type a.b.X.R E=new R(this::parse) this.function=this::parse",
+                    vi1R.staticValues().toString());
+            VariableInfo vi1S = vd1.variableInfo("s");
+            assertEquals("Type a.b.X.S E=new S(r) this.r=r", vi1S.staticValues().toString());
+        }
+
         assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
         ParameterInfo goIn = go.parameters().get(0);
         assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));

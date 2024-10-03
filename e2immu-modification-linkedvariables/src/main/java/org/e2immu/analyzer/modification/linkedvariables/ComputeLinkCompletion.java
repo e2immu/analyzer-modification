@@ -168,11 +168,11 @@ public class ComputeLinkCompletion {
         prefix = a.b, result should be c.d
          */
         private Expression suffix(Expression all, Expression prefix) {
-            if(all instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
+            if (all instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
                 Expression scope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo()));
                 Expression move = fr.scope();
-                while(!move.equals(prefix)) {
-                    if(move instanceof VariableExpression ve2 && ve2.variable() instanceof FieldReference fr2) {
+                while (!move.equals(prefix)) {
+                    if (move instanceof VariableExpression ve2 && ve2.variable() instanceof FieldReference fr2) {
                         FieldReference intermediaryFr = runtime.newFieldReference(fr2.fieldInfo(), scope, fr.parameterizedType());
                         scope = runtime.newVariableExpression(intermediaryFr);
                         move = fr2.scope();
@@ -204,7 +204,7 @@ public class ComputeLinkCompletion {
 
             ShortestPath shortestPath = weightedGraph.shortestPath();
             Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPath);
-            Map<Variable, Map<FieldInfo, Boolean>> mfiComponentMaps = computeMFIComponents(previous, stageOfPrevious,
+            Map<Variable, Map<Variable, Boolean>> mfiComponentMaps = computeMFIComponents(previous, stageOfPrevious,
                     modifiedFunctionalComponents, shortestPath);
 
             for (Variable variable : shortestPath.variables()) {
@@ -227,26 +227,27 @@ public class ComputeLinkCompletion {
                     boolean isModified = modifying.contains(variable);
                     vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
                 }
-                Map<FieldInfo, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
+                Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
                 if (mfiComponents != null && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
-                    vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.FieldBooleanMapImpl(mfiComponents));
+                    vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(mfiComponents));
                 }
             }
         }
 
-        private Map<Variable, Map<FieldInfo, Boolean>> computeMFIComponents
+        private Map<Variable, Map<Variable, Boolean>> computeMFIComponents
                 (VariableData previous, Stage stageOfPrevious,
                  Map<FieldReference, Boolean> modifiedFunctionalComponents,
                  ShortestPath shortestPath) {
-            Map<Variable, Map<FieldInfo, Boolean>> mapForAllVariables = new HashMap<>();
-            modifiedFunctionalComponents.forEach((fr, b) -> mapForAllVariables.put(fr.scopeVariable(), Map.of(fr.fieldInfo(), b)));
+            Map<Variable, Map<Variable, Boolean>> mapForAllVariables = new HashMap<>();
+            modifiedFunctionalComponents.forEach((fr, b) -> recursivelyAddTo(mapForAllVariables, fr, b));
             if (previous != null) {
                 for (Variable variable : shortestPath.variables()) {
                     VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
                     if (vicPrev != null) {
                         VariableInfo vi = vicPrev.best(stageOfPrevious);
                         if (vi != null) {
-                            Value.FieldBooleanMap map = vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, ValueImpl.FieldBooleanMapImpl.EMPTY);
+                            Value.VariableBooleanMap map = vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE,
+                                    ValueImpl.VariableBooleanMapImpl.EMPTY);
                             mergeMFIMaps(mapForAllVariables, vi.variable(), map.map());
                         }
                     }
@@ -268,13 +269,35 @@ public class ComputeLinkCompletion {
             return mapForAllVariables;
         }
 
-        private static boolean mergeMFIMaps(Map<Variable, Map<FieldInfo, Boolean>> mapForAllVariables,
+        /*
+        when presented with r.function->true, we'll add r.function->true in r
+
+        when presented with s.r.function->true, we'll add r.function->true in s.r and s.r.function->true in s
+
+        when presented with t.s.r.function->true, we add 3:
+            r.function->true in t.s.r
+            s.r.function->true in t.s
+            t.s.r.function->true in t
+
+         this mechanism is very similar to the one in recursivelyAdd() for static values.
+         FOR NOW, we'll only add when the variable already exists. There is, I believe, no point to have the
+         intermediaries.
+         */
+        private void recursivelyAddTo(Map<Variable, Map<Variable, Boolean>> mapForAllVariables, FieldReference fr, Boolean b) {
+            Variable base = fr;
+            while(base instanceof FieldReference fr2 && fr2.scope() instanceof VariableExpression ve) {
+                base = ve.variable();
+            }
+            mapForAllVariables.put(base, Map.of(fr, b));
+        }
+
+        private static boolean mergeMFIMaps(Map<Variable, Map<Variable, Boolean>> mapForAllVariables,
                                             Variable v,
-                                            Map<FieldInfo, Boolean> map) {
-            Map<FieldInfo, Boolean> inMap = mapForAllVariables.get(v);
-            Map<FieldInfo, Boolean> newMap = mapForAllVariables.merge(v, map, (m1, m2) -> {
-                Map<FieldInfo, Boolean> res = new HashMap<>(m1);
-                for (Map.Entry<FieldInfo, Boolean> e : m2.entrySet()) {
+                                            Map<Variable, Boolean> map) {
+            Map<Variable, Boolean> inMap = mapForAllVariables.get(v);
+            Map<Variable, Boolean> newMap = mapForAllVariables.merge(v, map, (m1, m2) -> {
+                Map<Variable, Boolean> res = new HashMap<>(m1);
+                for (Map.Entry<Variable, Boolean> e : m2.entrySet()) {
                     Boolean b = res.put(e.getKey(), e.getValue());
                     if (b != null && b != e.getValue()) throw new UnsupportedOperationException();
                 }

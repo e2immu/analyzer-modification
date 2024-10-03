@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COMPONENTS_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
@@ -53,6 +54,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             package a.b;
             import java.util.ArrayList;
             import java.util.List;
+            import org.e2immu.annotation.method.GetSet;
             class X {
                 private final List<Integer> list = new ArrayList<>();
             
@@ -100,10 +102,12 @@ public class TestStaticValuesOfTryData extends CommonTest {
                 }
             
                 public interface TryData {
+                    @GetSet
                     ThrowingFunction throwingFunction();
             
                     TryData withException(Exception t);
             
+                    @GetSet
                     Exception exception();
             
                     TryData with(int pos, Object value);
@@ -225,8 +229,15 @@ public class TestStaticValuesOfTryData extends CommonTest {
         MethodInfo run = X.findUniqueMethod("run", 1);
         {
             ParameterInfo runTd = run.parameters().get(0);
+            Statement s0 = run.methodBody().statements().get(0);
+            Statement s000 = s0.block().statements().get(0);
+            VariableData vd000 = s000.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo viTd = vd000.variableInfo(runTd);
+            assertEquals("?", viTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
+                    ValueImpl.VariableBooleanMapImpl.class).toString());
+
             assertEquals("a.b.X.R.function=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
-                    ValueImpl.FieldBooleanMapImpl.class).toString());
+                    ValueImpl.VariableBooleanMapImpl.class).toString());
         }
         MethodInfo method = X.findUniqueMethod("method", 1);
         {

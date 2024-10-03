@@ -8,11 +8,11 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
-import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.DependentVariable;
@@ -26,6 +26,7 @@ import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_PARAMETER;
@@ -369,14 +370,18 @@ public class ExpressionAnalyzer {
                         propagateModification(mr, builder);
                     }
                 }
-                Value.FieldBooleanMap mfiComponents = pi.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER, ValueImpl.FieldBooleanMapImpl.class);
+                Value.VariableBooleanMap mfiComponents = pi.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class);
                 if (mfiComponents != null) {
                     Expression pe = mc.parameterExpressions().get(pi.index());
                     if (pe instanceof VariableExpression ve) {
                         StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
-                        for (Map.Entry<FieldInfo, Boolean> entry : mfiComponents.map().entrySet()) {
-                            // do we have information about this field?
-                            Expression e = svParam.values().get(runtime.newFieldReference(entry.getKey()));
+                        for (Map.Entry<Variable, Boolean> entry : mfiComponents.map().entrySet()) {
+                            This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo());
+                            // go from r.function to this.function, which is what we have in the StaticValues.values() map
+                            TranslationMap tm = runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
+                            Variable key = tm.translateVariable(entry.getKey());
+                            Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
+                            Expression e = completedMap.get(key);
                             if (e instanceof MethodReference mr) {
                                 if (entry.getValue()) {
                                     propagateModification(mr, builder);
@@ -388,6 +393,44 @@ public class ExpressionAnalyzer {
                     }
                 }
             }
+        }
+
+        /*
+        this.r=r in the svParam.values() map.
+        the static values of r are: this.function=someMethodReference.
+        We want to add: this.r.function=someMethodReference.
+         */
+
+        private Map<Variable, Expression> completeMap(StaticValues svParam,
+                                                      VariableData variableDataPrevious,
+                                                      Stage stageOfPrevious) {
+            Map<Variable, Expression> result = new HashMap<>(svParam.values());
+            while (true) {
+                Map<Variable, Expression> extra = new HashMap<>();
+                for (Map.Entry<Variable, Expression> entry : result.entrySet()) {
+                    if (entry.getValue() instanceof VariableExpression ve && !result.containsKey(ve.variable())) {
+                        VariableInfoContainer vic = variableDataPrevious.variableInfoContainerOrNull(ve.variable().fullyQualifiedName());
+                        if (vic != null) {
+                            VariableInfo vi = vic.best(stageOfPrevious);
+                            if (vi.staticValues() != null) {
+                                vi.staticValues().values()
+                                        .entrySet().stream().filter(e -> e.getKey() instanceof FieldReference)
+                                        .forEach(e -> {
+                                            FieldReference fr = (FieldReference) e.getKey();
+                                            Variable newV = runtime.newFieldReference(fr.fieldInfo(),
+                                                    runtime.newVariableExpression(entry.getKey()), fr.parameterizedType());
+                                            if(!result.containsKey(newV)) {
+                                                extra.put(newV, e.getValue());
+                                            }
+                                        });
+                            }
+                        }
+                    }
+                }
+                if(extra.isEmpty()) break;
+                result.putAll(extra);
+            }
+            return result;
         }
 
         private void ensureNotModifying(MethodReference mr, LinkEvaluation.Builder builder) {

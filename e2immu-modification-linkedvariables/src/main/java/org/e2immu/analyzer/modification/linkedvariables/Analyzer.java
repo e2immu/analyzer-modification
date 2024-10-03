@@ -205,8 +205,8 @@ public class Analyzer {
                     boolean modified = vi.isModified();
                     pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
                 }
-                Value.FieldBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
-                        ValueImpl.FieldBooleanMapImpl.class);
+                Value.VariableBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
+                        ValueImpl.VariableBooleanMapImpl.class);
                 if (mfi != null && !mfi.map().isEmpty()
                     && !pi.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_PARAMETER)) {
                     pi.analysis().set(MODIFIED_FI_COMPONENTS_PARAMETER, mfi);
