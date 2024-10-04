@@ -8,6 +8,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -381,7 +382,22 @@ public class ExpressionAnalyzer {
                             TranslationMap tm = runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
                             Variable key = tm.translateVariable(entry.getKey());
                             Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
-                            Expression e = completedMap.get(key);
+                            Map<Variable, Expression> completedAndAugmentedWithImplementation;
+                            if(svParam.type() != null && !svParam.type().equals(pi.parameterizedType())) {
+                                assert pi.parameterizedType().isAssignableFrom(runtime, svParam.type());
+                                TranslationMap tm2 = makeTranslationMapCommonFields(pi.parameterizedType().typeInfo(), svParam.type().typeInfo());
+                                completedAndAugmentedWithImplementation = new HashMap<>(completedMap);
+                                completedMap.forEach((v,e)-> {
+                                    Variable tv = tm2.translateVariable(v);
+                                    if(tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
+                                        completedAndAugmentedWithImplementation.put(tv, e);
+                                    }
+                                });
+                            } else {
+                                completedAndAugmentedWithImplementation = completedMap;
+                            }
+
+                            Expression e = completedAndAugmentedWithImplementation.get(key);
                             if (e instanceof MethodReference mr) {
                                 if (entry.getValue()) {
                                     propagateModification(mr, builder);
@@ -393,6 +409,19 @@ public class ExpressionAnalyzer {
                     }
                 }
             }
+        }
+
+        private TranslationMap makeTranslationMapCommonFields(TypeInfo superType, TypeInfo subType) {
+            TranslationMap.Builder tmb = runtime.newTranslationMapBuilder();
+            for(FieldInfo fieldInfo: superType.fields()) {
+                FieldInfo inSubType = subType.getFieldByName(fieldInfo.name(), false);
+                if(inSubType != null) {
+                    FieldReference frSuper = runtime.newFieldReference(fieldInfo);
+                    FieldReference frSub = runtime.newFieldReference(inSubType);
+                    tmb.put(frSub, frSuper);
+                }
+            }
+            return tmb.build();
         }
 
         /*

@@ -22,8 +22,7 @@ import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COM
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.VariableBooleanMapImpl.EMPTY;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestModificationFunctional extends CommonTest {
 
@@ -256,6 +255,96 @@ public class TestModificationFunctional extends CommonTest {
             VariableInfo vi1S = vd1.variableInfo("s");
             assertEquals("Type a.b.X.S E=new S(r) this.r=r", vi1S.staticValues().toString());
         }
+
+        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        ParameterInfo goIn = go.parameters().get(0);
+        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+    }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.Set;
+            import java.util.function.Function;
+            class X {
+                interface R {
+                    @GetSet Function<String, Integer> function();
+                }
+                record RImpl(Function<String, Integer> function) implements R {}
+    
+                interface S {
+                    @GetSet R r();
+                }
+                record SImpl(R r) implements S {}
+    
+                int j;
+            
+                int go(String in) {
+                    R r = new RImpl(this::parse);
+                    S s = new SImpl(r);
+                    return run(in, s);
+                }
+                int run(String string, S s) {
+                    System.out.println("Applying function on "+string);
+                    return s.r().function().apply(string);
+                }
+                int parse(String t) {
+                    j = Integer.parseInt(t);
+                    return j;
+                }
+            }
+            """;
+
+    @DisplayName("propagate modification via functional interface component, abstract")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo R = X.findSubType("R");
+        FieldInfo functionInR = R.getFieldByName("function", true);
+        assertTrue(functionInR.isSynthetic());
+
+        MethodInfo parse = X.findUniqueMethod("parse", 1);
+        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+
+        MethodInfo go = X.findUniqueMethod("go", 1);
+        {
+            Statement s0 = go.methodBody().statements().get(0);
+            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi0R = vd0.variableInfo("r");
+            assertEquals("Type a.b.X.RImpl E=new RImpl(this::parse) this.function=this::parse",
+                    vi0R.staticValues().toString());
+        }
+        {
+            Statement s1 = go.methodBody().statements().get(1);
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+
+            VariableInfo vi1R = vd1.variableInfo("r");
+            assertEquals("Type a.b.X.RImpl E=new RImpl(this::parse) this.function=this::parse",
+                    vi1R.staticValues().toString());
+            VariableInfo vi1S = vd1.variableInfo("s");
+            assertEquals("Type a.b.X.SImpl E=new SImpl(r) this.r=r", vi1S.staticValues().toString());
+        }
+
+        MethodInfo run = X.findUniqueMethod("run", 2);
+        ParameterInfo runS = run.parameters().get(1);
+        {
+            Statement s1 = run.methodBody().lastStatement();
+            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableInfo vi1S = vd1.variableInfo(runS);
+            assertEquals("s.r.function=true", vi1S.analysis()
+                    .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
+        }
+
+        assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertEquals("s.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                ValueImpl.VariableBooleanMapImpl.class).toString());
+        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+
+
 
         assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
         ParameterInfo goIn = go.parameters().get(0);

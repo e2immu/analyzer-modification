@@ -164,9 +164,7 @@ public class MethodAnalyzer {
     private void doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
         if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.GET_SET_FIELD)) {
             Value.FieldValue getSet;
-            if (methodBody.isEmpty()) {
-                getSet = ValueImpl.FieldValueImpl.EMPTY;
-            } else {
+            if (!methodBody.isEmpty()) {
                 Statement s0 = methodBody.statements().get(0);
                 if (s0 instanceof ReturnStatement rs
                     && rs.expression() instanceof VariableExpression ve
@@ -183,10 +181,12 @@ public class MethodAnalyzer {
                                && veThis.variable() instanceof This)) {
                     getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
                 } else {
-                    getSet = ValueImpl.FieldValueImpl.EMPTY;
+                    getSet = null;
+                }
+                if (getSet != null) {
+                    methodInfo.analysis().set(PropertyImpl.GET_SET_FIELD, getSet);
                 }
             }
-            methodInfo.analysis().set(PropertyImpl.GET_SET_FIELD, getSet);
         }
     }
 

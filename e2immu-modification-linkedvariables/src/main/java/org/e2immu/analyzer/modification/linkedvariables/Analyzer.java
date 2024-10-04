@@ -9,8 +9,10 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.analyzer.shallow.analyzer.ShallowMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
@@ -46,31 +48,38 @@ public class Analyzer {
     private final Runtime runtime;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
+    private final ShallowMethodAnalyzer shallowMethodAnalyzer;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
         computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
+        shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
     }
 
     public void doMethod(MethodInfo methodInfo) {
         LOGGER.info("Do method {}", methodInfo);
 
         doHiddenContentSelector(methodInfo);
-        VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
-        if (variableData != null) {
-            copyFromVariablesIntoMethod(methodInfo, variableData);
-        } // else: can be null for empty synthetic constructors, for example
-        doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
-                e -> e instanceof VariableExpression ve
-                     && ve.variable() instanceof ParameterInfo pi
-                     && pi.methodInfo() == methodInfo
-                     && pi.index() == 0);
-        doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
-                e -> e instanceof VariableExpression ve
-                     && ve.variable() instanceof This thisVar
-                     && thisVar.typeInfo() == methodInfo.typeInfo());
-        doIndependent(methodInfo, variableData);
+        if (methodInfo.isAbstract()) {
+            shallowMethodAnalyzer.analyze(methodInfo);
+        } else {
+            VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
+            if (variableData != null) {
+                copyFromVariablesIntoMethod(methodInfo, variableData);
+            } // else: can be null for empty synthetic constructors, for example
+
+            doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
+                    e -> e instanceof VariableExpression ve
+                         && ve.variable() instanceof ParameterInfo pi
+                         && pi.methodInfo() == methodInfo
+                         && pi.index() == 0);
+            doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
+                    e -> e instanceof VariableExpression ve
+                         && ve.variable() instanceof This thisVar
+                         && thisVar.typeInfo() == methodInfo.typeInfo());
+            doIndependent(methodInfo, variableData);
+        }
     }
 
     private void doHiddenContentSelector(MethodInfo methodInfo) {
