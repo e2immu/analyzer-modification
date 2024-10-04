@@ -46,14 +46,12 @@ public class Analyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Analyzer.class);
 
     private final Runtime runtime;
-    private final ComputeHC computeHC;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
-        computeHC = new ComputeHC(runtime);
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
         computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
@@ -89,7 +87,7 @@ public class Analyzer {
         ParameterizedType returnType = overrideWithMostHiddenContent.returnType();
         HiddenContentTypes hctOverride = overrideWithMostHiddenContent.analysis()
                 .getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-        assert hctOverride != null:"No HCT for "+overrideWithMostHiddenContent;
+        assert hctOverride != null : "No HCT for " + overrideWithMostHiddenContent;
         if (!methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD)) {
             HiddenContentSelector hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
             methodInfo.analysis().set(HiddenContentSelector.HCS_METHOD, hcs);
@@ -169,7 +167,7 @@ public class Analyzer {
         boolean typeIsImmutable = piTypeInfo != null && piTypeInfo.analysis()
                 .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
-        if (pi.methodInfo().isAbstract()) return DEPENDENT;
+        if (pi.methodInfo().isAbstract() || pi.methodInfo().methodBody().isEmpty()) return DEPENDENT;
         return worstLinkToFields(lastOfMainBlock, pi.fullyQualifiedName());
     }
 
@@ -188,10 +186,10 @@ public class Analyzer {
     }
 
     private Independent worstLinkToFields(VariableData lastOfMainBlock, String variableFqn) {
-        assert lastOfMainBlock != null : "We have a method with return value, so we must have a statement";
-
-        VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(variableFqn);
-        VariableInfo viRv = vicRv.best();
+        assert lastOfMainBlock != null;
+        VariableInfoContainer vic = lastOfMainBlock.variableInfoContainerOrNull(variableFqn);
+        if (vic == null) return INDEPENDENT; // variable does not occur.
+        VariableInfo viRv = vic.best();
         LV worstLinkToFields = viRv.linkedVariables().stream()
                 .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
                 .map(Map.Entry::getValue)
@@ -394,7 +392,6 @@ public class Analyzer {
      */
     public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
         LOGGER.info("Start primary type {}", primaryType);
-        computeHC.doType(primaryType);
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
         for (Info info : analysisOrder) {
             if (info instanceof MethodInfo mi) {

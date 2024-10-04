@@ -2,10 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.e2immu.analyzer.modification.prepwork.Analyzer;
-import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
-import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
-import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
 import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
@@ -16,7 +13,6 @@ import org.e2immu.language.inspection.api.integration.JavaInspector;
 import org.e2immu.language.inspection.api.resource.InputConfiguration;
 import org.e2immu.language.inspection.integration.JavaInspectorImpl;
 import org.e2immu.language.inspection.resource.InputConfigurationImpl;
-import org.e2immu.util.internal.graph.G;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
@@ -34,7 +30,8 @@ public class CommonTest {
     protected Runtime runtime;
     protected final String[] extraClassPath;
     protected final boolean loadAnnotatedAPIs;
-    protected org.e2immu.analyzer.modification.linkedvariables.Analyzer analyzer;
+    protected Analyzer analyzer;
+    protected PrepAnalyzer prepAnalyzer;
 
     protected CommonTest(boolean loadAnnotatedAPIs, String... extraClassPath) {
         this.extraClassPath = extraClassPath;
@@ -78,7 +75,8 @@ public class CommonTest {
 
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
-        analyzer = new org.e2immu.analyzer.modification.linkedvariables.Analyzer(runtime);
+        analyzer = new Analyzer(runtime);
+        prepAnalyzer = new PrepAnalyzer(runtime);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {
@@ -87,23 +85,15 @@ public class CommonTest {
         computeHC.doType(Function.class, List.class, Set.class, ArrayList.class, Map.class, HashMap.class,
                 Collection.class, Collections.class, Exception.class, RuntimeException.class);
 
-        prepType(typeInfo);
-
-        ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
-        ccg.setRecursiveMethods();
-        G<Info> cg = ccg.go().graph();
-        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-        cp.go(typeInfo, cg);
-        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
-        return cao.go(cg);
+        return prepAnalyzer.doPrimaryType(typeInfo);
     }
 
     private void prepType(TypeInfo typeInfo) {
-        Analyzer prepAnalyzer = new Analyzer(runtime);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepType(prepAnalyzer, typeInfo);
     }
 
-    private void prepType(Analyzer prepAnalyzer, TypeInfo typeInfo) {
+    private void prepType(PrepAnalyzer prepAnalyzer, TypeInfo typeInfo) {
         typeInfo.subTypes().forEach(st -> prepType(prepAnalyzer, st));
         typeInfo.constructorAndMethodStream().forEach(prepAnalyzer::doMethod);
     }

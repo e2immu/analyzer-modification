@@ -47,7 +47,7 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
 
     @Override
     public Codec.EncodedValue encode(Codec codec) {
-        throw new UnsupportedOperationException("NYI");
+        return null;// not yet streamed
     }
 
     @Override

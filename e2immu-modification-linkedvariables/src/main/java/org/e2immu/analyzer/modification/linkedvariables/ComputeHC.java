@@ -13,6 +13,9 @@ import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContent
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
+/*
+Used by tests (here and downstream), for types that have been byte-code loaded, preloaded types.
+ */
 public class ComputeHC {
     private final ComputeHiddenContent chc;
     private final Runtime runtime;
@@ -42,7 +45,7 @@ public class ComputeHC {
     }
 
     private void doTypeInternally(TypeInfo typeInfo) {
-        if(typeInfo.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) return;
+        if (typeInfo.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) return;
         HiddenContentTypes hctType = chc.compute(typeInfo);
         typeInfo.analysis().set(HIDDEN_CONTENT_TYPES, hctType);
         typeInfo.subTypes().forEach(this::doTypeInternally);

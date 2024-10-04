@@ -22,8 +22,7 @@ import java.util.List;
 
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestFluent extends CommonTest {
 
@@ -63,6 +62,7 @@ public class TestFluent extends CommonTest {
             MethodInfo setI = B.findUniqueMethod("setI", 1);
             assertSame(FALSE, setI.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, FALSE));
             assertSame(TRUE, setI.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
+            assertTrue(setI.isFluent());
             Value.FieldValue fvI = setI.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
             assertSame(iField, fvI.field());
         }
@@ -97,6 +97,7 @@ public class TestFluent extends CommonTest {
             assertEquals("E=this", sv.toString());
 
             assertSame(TRUE, setI2.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
+            assertTrue(setI2.isFluent());
         }
     }
 }
