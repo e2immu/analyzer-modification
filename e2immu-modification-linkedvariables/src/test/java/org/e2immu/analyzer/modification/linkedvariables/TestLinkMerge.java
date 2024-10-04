@@ -4,6 +4,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -13,6 +14,8 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,9 +43,10 @@ public class TestLinkMerge extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        analyzer.doMethod(setAdd);
         VariableData vd = setAdd.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd);
         ParameterInfo set = setAdd.parameters().get(0);
@@ -85,9 +89,10 @@ public class TestLinkMerge extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        analyzer.doMethod(setAdd);
         VariableData vd = setAdd.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd);
         ParameterInfo set = setAdd.parameters().get(0);

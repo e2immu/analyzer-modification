@@ -89,7 +89,7 @@ public class Analyzer {
         ParameterizedType returnType = overrideWithMostHiddenContent.returnType();
         HiddenContentTypes hctOverride = overrideWithMostHiddenContent.analysis()
                 .getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-        assert hctOverride != null;
+        assert hctOverride != null:"No HCT for "+overrideWithMostHiddenContent;
         if (!methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD)) {
             HiddenContentSelector hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
             methodInfo.analysis().set(HiddenContentSelector.HCS_METHOD, hcs);

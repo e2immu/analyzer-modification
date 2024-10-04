@@ -7,6 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.MethodCall;
+import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
@@ -47,9 +49,10 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        analyzer.doMethod(setAdd);
         VariableData vd = setAdd.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd);
         ParameterInfo set = setAdd.parameters().get(0);
@@ -82,10 +85,10 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        prepWork(X);
-        MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
-        analyzer.doMethod(listAdd);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
 
+        MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
         Statement s0 = listAdd.methodBody().statements().get(0);
         VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd0);
@@ -123,10 +126,10 @@ public class TestLinkBasics extends CommonTest {
         assertSame(FALSE, addAll1.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
 
         TypeInfo X = javaInspector.parse(INPUT3);
-        prepWork(X);
-        MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
-        analyzer.doMethod(listAdd);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
 
+        MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         Statement s0 = listAdd.methodBody().statements().get(0);
         VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vd0);
@@ -182,10 +185,10 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo methodInfo = X.findUniqueMethod("copy", 1);
-        analyzer.doMethod(methodInfo);
         LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         assertEquals("0-4-0:list", lvRv.toString());
@@ -196,7 +199,6 @@ public class TestLinkBasics extends CommonTest {
         assertTrue(M.isStatic());
 
         MethodInfo methodInfoM = X.findUniqueMethod("copyM", 1);
-        analyzer.doMethod(methodInfoM);
         assertSame(M, methodInfoM.returnType().parameters().get(0).typeInfo());
         LinkedVariables lvRvM = methodInfoM.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
@@ -204,7 +206,6 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0M-4-0M:list", lvRvM.toString());
 
         MethodInfo methodInfoS = X.findUniqueMethod("copyS", 1);
-        analyzer.doMethod(methodInfoS);
         assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().get(0).typeInfo());
         LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
@@ -244,9 +245,10 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
-        analyzer.doMethod(listAdd);
 
         Statement s0 = listAdd.methodBody().statements().get(0);
         VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
@@ -296,16 +298,12 @@ public class TestLinkBasics extends CommonTest {
 
         {
             MethodInfo listAdd2 = X.findUniqueMethod("listAdd2", 2);
-            analyzer.doMethod(listAdd2);
-
             LinkedVariables lvMethod2 = listAdd2.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                     LinkedVariablesImpl.class);
             assertEquals("0M-2-0M:list,0M-4-*M:t", lvMethod2.toString());
         }
         {
             MethodInfo listAdd3 = X.findUniqueMethod("listAdd3", 2);
-            analyzer.doMethod(listAdd3);
-
             LinkedVariables lvMethod3 = listAdd3.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                     LinkedVariablesImpl.class);
             assertEquals("-2-:list", lvMethod3.toString());
@@ -330,11 +328,12 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
         ParameterInfo list = listAdd.parameters().get(0);
         ParameterInfo t = listAdd.parameters().get(1);
-        analyzer.doMethod(listAdd);
 
         // statement 0
         {
@@ -406,12 +405,13 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test7() {
         TypeInfo X = javaInspector.parse(INPUT7);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
-        analyzer.doMethod(listAdd);
 
         // statement 1
         {
@@ -458,12 +458,13 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test8() {
         TypeInfo X = javaInspector.parse(INPUT8);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
-        analyzer.doMethod(listAdd);
 
         // statement 2
         {
@@ -514,12 +515,13 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test9() {
         TypeInfo X = javaInspector.parse(INPUT9);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
-        analyzer.doMethod(listAdd);
 
         // statement 3
         {
@@ -575,12 +577,13 @@ public class TestLinkBasics extends CommonTest {
     @Test
     public void test10() {
         TypeInfo X = javaInspector.parse(INPUT10);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
-        analyzer.doMethod(listAdd);
 
         // statement 4
         {

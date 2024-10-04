@@ -4,12 +4,15 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -46,13 +49,14 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         testLinks(X);
     }
 
     private void testLinks(TypeInfo X) {
         MethodInfo listGet = X.findUniqueMethod("get", 2);
-        analyzer.doMethod(listGet);
 
         Statement s0 = listGet.methodBody().statements().get(0);
         VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -64,12 +68,10 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 LinkedVariablesImpl.EMPTY));
 
         MethodInfo listGet2 = X.findUniqueMethod("get2", 2);
-        analyzer.doMethod(listGet2);
         assertEquals("*M-4-0M:list", listGet2.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
 
         MethodInfo listGet3 = X.findUniqueMethod("get3", 2);
-        analyzer.doMethod(listGet3);
         assertEquals("", listGet3.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
     }
@@ -102,7 +104,9 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
         testLinks(X);
     }
 
@@ -133,7 +137,8 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     @Test
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
         testLinks(X);
     }
 
@@ -164,7 +169,8 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     @Test
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
-        prepWork(X);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
         testLinks(X);
     }
 
