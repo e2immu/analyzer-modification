@@ -31,7 +31,7 @@ public class ComputeHC {
         }
     }
 
-    public void doType(Class... classes) {
+    public void doType(Class<?>... classes) {
         Arrays.stream(classes)
                 .map(c -> runtime.getFullyQualified(c, true))
                 .forEach(this::doType);
@@ -57,9 +57,5 @@ public class ComputeHC {
                 pi.analysis().set(HCS_PARAMETER, hcsPi);
             }
         });
-    }
-
-    public ComputeHiddenContent getChc() {
-        return chc;
     }
 }

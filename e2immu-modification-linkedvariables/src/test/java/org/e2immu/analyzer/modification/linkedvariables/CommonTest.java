@@ -87,7 +87,6 @@ public class CommonTest {
         computeHC.doType(Function.class, List.class, Set.class, ArrayList.class, Map.class, HashMap.class,
                 Collection.class, Collections.class, Exception.class, RuntimeException.class);
 
-        computeHC.doType(typeInfo);
         prepType(typeInfo);
 
         ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);

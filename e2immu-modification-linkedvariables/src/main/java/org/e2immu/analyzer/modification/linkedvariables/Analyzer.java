@@ -46,12 +46,14 @@ public class Analyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Analyzer.class);
 
     private final Runtime runtime;
+    private final ComputeHC computeHC;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
+        computeHC = new ComputeHC(runtime);
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
         computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
@@ -392,6 +394,7 @@ public class Analyzer {
      */
     public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
         LOGGER.info("Start primary type {}", primaryType);
+        computeHC.doType(primaryType);
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
         for (Info info : analysisOrder) {
             if (info instanceof MethodInfo mi) {
