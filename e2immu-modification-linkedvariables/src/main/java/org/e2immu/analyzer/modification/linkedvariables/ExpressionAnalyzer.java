@@ -20,6 +20,7 @@ import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
@@ -371,7 +372,8 @@ public class ExpressionAnalyzer {
                         propagateModification(mr, builder);
                     }
                 }
-                Value.VariableBooleanMap mfiComponents = pi.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class);
+                Value.VariableBooleanMap mfiComponents = pi.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                        ValueImpl.VariableBooleanMapImpl.class);
                 if (mfiComponents != null) {
                     Expression pe = mc.parameterExpressions().get(pi.index());
                     if (pe instanceof VariableExpression ve) {
@@ -383,13 +385,12 @@ public class ExpressionAnalyzer {
                             Variable key = tm.translateVariable(entry.getKey());
                             Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
                             Map<Variable, Expression> completedAndAugmentedWithImplementation;
-                            if(svParam.type() != null && !svParam.type().equals(pi.parameterizedType())) {
+                            if (svParam.type() != null && !svParam.type().equals(pi.parameterizedType())) {
                                 assert pi.parameterizedType().isAssignableFrom(runtime, svParam.type());
-                                TranslationMap tm2 = makeTranslationMapCommonFields(pi.parameterizedType().typeInfo(), svParam.type().typeInfo());
                                 completedAndAugmentedWithImplementation = new HashMap<>(completedMap);
-                                completedMap.forEach((v,e)-> {
-                                    Variable tv = tm2.translateVariable(v);
-                                    if(tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
+                                completedMap.forEach((v, e) -> {
+                                    Variable tv = liftVariable(v);
+                                    if (tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
                                         completedAndAugmentedWithImplementation.put(tv, e);
                                     }
                                 });
@@ -411,17 +412,62 @@ public class ExpressionAnalyzer {
             }
         }
 
-        private TranslationMap makeTranslationMapCommonFields(TypeInfo superType, TypeInfo subType) {
-            TranslationMap.Builder tmb = runtime.newTranslationMapBuilder();
-            for(FieldInfo fieldInfo: superType.fields()) {
-                FieldInfo inSubType = subType.getFieldByName(fieldInfo.name(), false);
-                if(inSubType != null) {
-                    FieldReference frSuper = runtime.newFieldReference(fieldInfo);
-                    FieldReference frSub = runtime.newFieldReference(inSubType);
-                    tmb.put(frSub, frSuper);
+        /*
+        See TestModificationFunctional,3. We want to replace ti.si.ri.i by t.s.r.i,
+        where 'ti,si,ri,i' are variables/fields in the implementation types TImpl,SImpl,RImpl, and
+        't.s.r.i' are synthetic fields corresponding to accessors in the interface types T, S, R.
+
+        TODO: there could be multiple results. We'll first do the situation with one result.
+         */
+        private Variable liftVariable(Variable v) {
+            if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve) {
+                FieldInfo liftField = liftField(fr.fieldInfo());
+                if (liftField != fr.fieldInfo()) {
+                    // we can go up: there is (synthetic) field higher up.
+                    Variable liftedScope = liftScope(ve.variable(), liftField.owner().asSimpleParameterizedType());
+                    if (liftedScope != ve.variable()) {
+                        // the scope can join us
+                        return runtime.newFieldReference(liftField, runtime.newVariableExpression(liftedScope),
+                                liftField.type());
+                    }
                 }
             }
-            return tmb.build();
+            return v;
+        }
+
+        /*
+        given a field 'i' in RImpl, with accessor RImpl.i(), is there a (synthetic?) field higher up in the hierarchy?
+        We go via the accessor.
+         */
+        private FieldInfo liftField(FieldInfo fieldInfo) {
+            MethodInfo accessor = fieldInfo.typeInfo().methodStream().filter(mi -> accessorOf(mi) == fieldInfo).findFirst().orElse(null);
+            if (accessor != null && !accessor.overrides().isEmpty()) {
+                MethodInfo override = accessor.overrides().stream().findFirst().orElseThrow();
+                FieldInfo fieldOfOverride = accessorOf(override);
+                if (fieldOfOverride != null) return fieldOfOverride;
+            }
+            return fieldInfo; // no change
+        }
+
+        private static FieldInfo accessorOf(MethodInfo methodInfo) {
+            Value.FieldValue fv = methodInfo.analysis().getOrNull(GET_SET_FIELD, ValueImpl.FieldValueImpl.class);
+            return fv == null ? null : fv.field();
+        }
+
+        private Variable liftScope(Variable variable, ParameterizedType requiredType) {
+            if (variable instanceof FieldReference) {
+                Variable lifted = liftVariable(variable);
+                if (lifted.parameterizedType().equals(requiredType)) {
+                    // success!
+                    return lifted;
+                }
+            } else if (requiredType.isAssignableFrom(runtime, variable.parameterizedType())) {
+                if(variable instanceof This) {
+                    return runtime.newThis(requiredType.typeInfo());
+                }
+                throw new RuntimeException(); // FIXME what to do?
+            }
+            return variable; // failure to lift
         }
 
         /*
@@ -448,7 +494,7 @@ public class ExpressionAnalyzer {
                                             FieldReference fr = (FieldReference) e.getKey();
                                             Variable newV = runtime.newFieldReference(fr.fieldInfo(),
                                                     runtime.newVariableExpression(entry.getKey()), fr.parameterizedType());
-                                            if(!result.containsKey(newV)) {
+                                            if (!result.containsKey(newV)) {
                                                 extra.put(newV, e.getValue());
                                             }
                                         });
@@ -456,7 +502,7 @@ public class ExpressionAnalyzer {
                         }
                     }
                 }
-                if(extra.isEmpty()) break;
+                if (extra.isEmpty()) break;
                 result.putAll(extra);
             }
             return result;

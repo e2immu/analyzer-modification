@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -306,6 +307,13 @@ public class TestModificationFunctional extends CommonTest {
         TypeInfo R = X.findSubType("R");
         FieldInfo functionInR = R.getFieldByName("function", true);
         assertTrue(functionInR.isSynthetic());
+
+        TypeInfo SImpl = X.findSubType("SImpl");
+        TypeInfo S = X.findSubType("S");
+        assertTrue(SImpl.interfacesImplemented().stream().map(ParameterizedType::typeInfo).anyMatch(ti -> ti == S));
+        MethodInfo rInSImpl = SImpl.findUniqueMethod("r", 0);
+        MethodInfo rInS = S.findUniqueMethod("r", 0);
+        assertTrue(rInSImpl.overrides().contains(rInS));
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
