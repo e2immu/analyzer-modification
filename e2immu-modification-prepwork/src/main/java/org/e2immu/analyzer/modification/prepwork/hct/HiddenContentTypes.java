@@ -9,6 +9,7 @@ import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.type.TypeParameter;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.io.CodecImpl;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -75,6 +76,29 @@ public class HiddenContentTypes implements Value {
         typeToIndex = Map.copyOf(t2i);
     }
 
+    public static HiddenContentTypes decode(Codec codec, Codec.EncodedValue encodedValue) {
+        Map<Codec.EncodedValue, Codec.EncodedValue> map = codec.decodeMap(encodedValue);
+        boolean isExtensible = false;
+        int startOfMethodParameters = -1;
+        for (Map.Entry<Codec.EncodedValue, Codec.EncodedValue> entry : map.entrySet()) {
+            String key = codec.decodeString(entry.getKey());
+            if ("E".equals(key)) {
+                isExtensible = codec.decodeBoolean(entry.getValue());
+            } else if ("M".equals(key)) {
+                startOfMethodParameters = codec.decodeInt(entry.getValue());
+            } else {
+                int index = Integer.parseInt(key);
+                if (entry.getValue() instanceof CodecImpl.D) {
+
+                } else {
+                    //    TypeInfo t = codec.decodeTypeInfo(entry.getValue());
+
+                }
+            }
+        }
+        return HiddenContentTypes.OF_PRIMITIVE;
+    }
+
     @Override
     public Codec.EncodedValue encode(Codec codec) {
         Map<Codec.EncodedValue, Codec.EncodedValue> map = new HashMap<>();
@@ -89,7 +113,7 @@ public class HiddenContentTypes implements Value {
         indexToType.forEach((key, value) -> {
             Codec.EncodedValue v;
             if (value instanceof TypeInfo ti) {
-                v = codec.encodeInfo(ti);
+                v = codec.encodeInfo(ti, -1);
             } else if (value instanceof TypeParameter tp) {
                 v = codec.encodeString(tp.simpleName());
             } else throw new UnsupportedOperationException();
