@@ -16,7 +16,10 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
 import org.e2immu.util.internal.graph.V;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /*
 given the call graph, compute the linearization, and all supporting information to deal with cycles.

@@ -1,12 +1,11 @@
 package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.util.internal.graph.G;
-import org.e2immu.util.internal.graph.V;
 import org.e2immu.util.internal.graph.op.Linearize;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
 
 /*
 given the call graph, compute the linearization, and all supporting information to deal with cycles.

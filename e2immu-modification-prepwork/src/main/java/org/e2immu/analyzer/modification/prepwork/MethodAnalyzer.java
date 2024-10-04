@@ -14,6 +14,8 @@ import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,6 +32,8 @@ do all the analysis of this phase
 
  */
 public class MethodAnalyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MethodAnalyzer.class);
+
     private final Runtime runtime;
 
     public MethodAnalyzer(Runtime runtime) {
@@ -142,6 +146,7 @@ public class MethodAnalyzer {
     }
 
     public void doMethod(MethodInfo methodInfo, Block methodBody) {
+        LOGGER.debug("Do method {}", methodInfo);
         // even if the method does not return a value, we'll compute "assignments" to the return variable,
         // in order to know when the method exits (we'll track 'throw' and 'return' statements)
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);

@@ -42,6 +42,7 @@ public class ComputeHC {
     }
 
     private void doTypeInternally(TypeInfo typeInfo) {
+        if(typeInfo.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) return;
         HiddenContentTypes hctType = chc.compute(typeInfo);
         typeInfo.analysis().set(HIDDEN_CONTENT_TYPES, hctType);
         typeInfo.subTypes().forEach(this::doTypeInternally);

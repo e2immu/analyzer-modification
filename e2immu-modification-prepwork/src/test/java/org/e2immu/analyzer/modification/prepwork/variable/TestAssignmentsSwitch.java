@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -78,7 +78,7 @@ public class TestAssignmentsSwitch extends CommonTest {
 
     private void test1Code(TypeInfo X) {
         MethodInfo method = X.findUniqueMethod("method", 2);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
@@ -138,7 +138,7 @@ public class TestAssignmentsSwitch extends CommonTest {
     public void test1c() {
         TypeInfo X = javaInspector.parse(INPUT1c);
         MethodInfo method = X.findUniqueMethod("method", 2);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
@@ -179,7 +179,7 @@ public class TestAssignmentsSwitch extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         MethodInfo method = X.findUniqueMethod("method", 2);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
@@ -219,7 +219,7 @@ public class TestAssignmentsSwitch extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         MethodInfo method = X.findUniqueMethod("method", 2);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
@@ -256,7 +256,7 @@ public class TestAssignmentsSwitch extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         MethodInfo method = X.findUniqueMethod("method", 2);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);
@@ -310,7 +310,7 @@ public class TestAssignmentsSwitch extends CommonTest {
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
         MethodInfo method = X.findUniqueMethod("parse", 2);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
         VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdMethod);

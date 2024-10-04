@@ -1,6 +1,9 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
-import org.e2immu.analyzer.modification.prepwork.variable.*;
+import org.e2immu.analyzer.modification.prepwork.variable.Stage;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -17,7 +20,7 @@ public class VariableDataImpl implements VariableData {
 
     @Override
     public Codec.EncodedValue encode(Codec codec) {
-        throw new UnsupportedOperationException();
+        return null;// not yet streamed
     }
 
     public void putIfAbsent(Variable v, VariableInfoContainer vic) {

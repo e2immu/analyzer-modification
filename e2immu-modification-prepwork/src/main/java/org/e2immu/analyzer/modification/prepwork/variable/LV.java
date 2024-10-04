@@ -1,7 +1,5 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
-
 import java.util.Map;
 
 public interface LV extends Comparable<LV> {

@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -54,7 +54,7 @@ public class TestModified extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT1);
 
         MethodInfo add = X.findUniqueMethod("add", 1);
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(add);
         VariableData vdAdd = add.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assertNotNull(vdAdd);

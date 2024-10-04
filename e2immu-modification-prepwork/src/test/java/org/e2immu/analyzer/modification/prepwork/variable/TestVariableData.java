@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -32,7 +32,7 @@ public class TestVariableData extends CommonTest {
     public void test() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
         assert vd != null;
@@ -67,7 +67,7 @@ public class TestVariableData extends CommonTest {
     public void test2() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT2).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -121,7 +121,7 @@ public class TestVariableData extends CommonTest {
     public void test3() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT3).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
         VariableData vd0 = method1.methodBody().statements().get(0).analysis().getOrNull(VariableDataImpl.VARIABLE_DATA,
@@ -186,7 +186,7 @@ public class TestVariableData extends CommonTest {
     public void test4() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT4).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
-        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
@@ -254,7 +254,7 @@ public class TestVariableData extends CommonTest {
     public void test5() {
         TypeInfo typeInfo = javaInspector.parseReturnAll(INPUT5).get(0);
         MethodInfo method1 = typeInfo.findUniqueMethod("run", 0);
-        Analyzer analyzer = new Analyzer(javaInspector.runtime());
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
         VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);

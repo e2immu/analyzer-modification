@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
-import org.e2immu.analyzer.modification.prepwork.Analyzer;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -27,7 +27,7 @@ public class TestRecord extends CommonTest {
         TypeInfo R = javaInspector.parse(INPUT1);
         MethodInfo syntheticConstructor = R.findConstructor(2);
         assertTrue(syntheticConstructor.isSyntheticConstructor());
-        Analyzer analyzer = new Analyzer(runtime);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(syntheticConstructor);
         Statement s0 = syntheticConstructor.methodBody().statements().get(0);
         assertEquals("this.a=a;", s0.toString());

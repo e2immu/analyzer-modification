@@ -5,8 +5,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.Reads;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.variable.Variable;
 
-import java.util.List;
-
 public interface VariableInfo {
 
     // FIRST PASS DATA, assigned in the prep-work stage during construction

@@ -1,9 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Reads {

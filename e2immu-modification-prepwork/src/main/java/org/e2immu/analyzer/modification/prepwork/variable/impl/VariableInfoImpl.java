@@ -14,8 +14,6 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.EventuallyFinal;
 import org.e2immu.support.SetOnce;
 
-import java.util.List;
-
 public class VariableInfoImpl implements VariableInfo {
     public static final Property MODIFIED_VARIABLE = new PropertyImpl("modifiedVariable");
     public static final Property MODIFIED_FI_COMPONENTS_VARIABLE = new PropertyImpl("modifiedFunctionalInterfaceComponentsVariable",
