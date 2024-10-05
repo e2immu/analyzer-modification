@@ -33,7 +33,7 @@ public record StaticValuesImpl(ParameterizedType type,
     }
 
     @Override
-    public Codec.EncodedValue encode(Codec codec) {
+    public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
         return null;
     }
 

@@ -46,7 +46,7 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
     }
 
     @Override
-    public Codec.EncodedValue encode(Codec codec) {
+    public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
         return null;// not yet streamed
     }
 

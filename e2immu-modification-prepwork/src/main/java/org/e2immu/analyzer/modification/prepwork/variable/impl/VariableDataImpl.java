@@ -19,7 +19,7 @@ public class VariableDataImpl implements VariableData {
     private final SetOnceMap<String, VariableInfoContainer> vicByFqn = new SetOnceMap<>();
 
     @Override
-    public Codec.EncodedValue encode(Codec codec) {
+    public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
         return null;// not yet streamed
     }
 

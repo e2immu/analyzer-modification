@@ -53,9 +53,9 @@ public class LinkedVariablesCodec {
     class D implements Codec.DecoderProvider {
 
         @Override
-        public BiFunction<Codec, Codec.EncodedValue, Value> decoder(Class<? extends Value> clazz) {
+        public BiFunction<Codec.DI, Codec.EncodedValue, Value> decoder(Class<? extends Value> clazz) {
             if (HiddenContentTypes.class.equals(clazz)) {
-                return HiddenContentTypes::decode;
+                return (di, ev) -> HiddenContentTypes.decode(di.codec(), di.context(), ev);
             }
             return ValueImpl.decoder(clazz);
         }

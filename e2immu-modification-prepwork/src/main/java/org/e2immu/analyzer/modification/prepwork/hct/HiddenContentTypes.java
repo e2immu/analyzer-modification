@@ -76,16 +76,16 @@ public class HiddenContentTypes implements Value {
         typeToIndex = Map.copyOf(t2i);
     }
 
-    public static HiddenContentTypes decode(Codec codec, Codec.EncodedValue encodedValue) {
-        Map<Codec.EncodedValue, Codec.EncodedValue> map = codec.decodeMap(encodedValue);
+    public static HiddenContentTypes decode(Codec codec, Codec.Context context, Codec.EncodedValue encodedValue) {
+        Map<Codec.EncodedValue, Codec.EncodedValue> map = codec.decodeMap(context, encodedValue);
         boolean isExtensible = false;
         int startOfMethodParameters = -1;
         for (Map.Entry<Codec.EncodedValue, Codec.EncodedValue> entry : map.entrySet()) {
-            String key = codec.decodeString(entry.getKey());
+            String key = codec.decodeString(context, entry.getKey());
             if ("E".equals(key)) {
-                isExtensible = codec.decodeBoolean(entry.getValue());
+                isExtensible = codec.decodeBoolean(context, entry.getValue());
             } else if ("M".equals(key)) {
-                startOfMethodParameters = codec.decodeInt(entry.getValue());
+                startOfMethodParameters = codec.decodeInt(context, entry.getValue());
             } else {
                 int index = Integer.parseInt(key);
                 if (entry.getValue() instanceof CodecImpl.D) {
@@ -100,27 +100,27 @@ public class HiddenContentTypes implements Value {
     }
 
     @Override
-    public Codec.EncodedValue encode(Codec codec) {
+    public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
         Map<Codec.EncodedValue, Codec.EncodedValue> map = new HashMap<>();
         if (methodInfo == null) {
             if (typeIsExtensible) {
-                map.put(codec.encodeString("E"), codec.encodeBoolean(typeIsExtensible));
+                map.put(codec.encodeString(context, "E"), codec.encodeBoolean(context, typeIsExtensible));
             }
             if (startOfMethodParameters != 0) {
-                map.put(codec.encodeString("M"), codec.encodeInt(startOfMethodParameters));
+                map.put(codec.encodeString(context, "M"), codec.encodeInt(context, startOfMethodParameters));
             }
         }
         indexToType.forEach((key, value) -> {
             Codec.EncodedValue v;
             if (value instanceof TypeInfo ti) {
-                v = codec.encodeInfo(ti, -1);
+                v = codec.encodeInfo(context, ti, "");
             } else if (value instanceof TypeParameter tp) {
-                v = codec.encodeString(tp.simpleName());
+                v = codec.encodeString(context, tp.simpleName());
             } else throw new UnsupportedOperationException();
-            map.put(codec.encodeInt(key), v);
+            map.put(codec.encodeInt(context, key), v);
         });
         if (map.isEmpty()) return null;
-        return codec.encodeMap(map);
+        return codec.encodeMap(context, map);
     }
 
     public boolean forMethod() {
