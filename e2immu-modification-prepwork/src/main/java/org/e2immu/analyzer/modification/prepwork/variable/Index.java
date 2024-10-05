@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
+import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 
@@ -10,6 +11,8 @@ public interface Index extends Comparable<Index> {
     int countSequentialZeros();
 
     Index dropFirst();
+
+    Codec.EncodedValue encode(Codec codec, Codec.Context context);
 
     ParameterizedType find(Runtime ru, ParameterizedType type);
 

@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.UNSPECIFIED;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 /*
 Numeric encoding of the Indices:
@@ -56,7 +57,28 @@ public class HiddenContentSelector implements Value {
 
     @Override
     public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
-        return null;
+        Map<Codec.EncodedValue, Codec.EncodedValue> mapOfEncoded = map.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(e -> codec.encodeInt(context, e.getKey()),
+                        e -> e.getValue().encode(codec, context)));
+        return codec.encodeMap(context, mapOfEncoded);
+    }
+
+    public static HiddenContentSelector decode(Codec codec, Codec.Context context, Codec.EncodedValue encodedValue) {
+        Map<Codec.EncodedValue, Codec.EncodedValue> map = codec.decodeMap(context, encodedValue);
+        Map<Integer, Indices> intIndices = new HashMap<>();
+        for (Map.Entry<Codec.EncodedValue, Codec.EncodedValue> entry : map.entrySet()) {
+            int i = codec.decodeInt(context, entry.getKey());
+            Indices indices = IndicesImpl.decode(codec, context, entry.getValue());
+            intIndices.put(i, indices);
+        }
+        HiddenContentTypes hct;
+        if (context.methodBeforeType()) {
+            hct = context.currentMethod().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+        } else {
+            hct = context.currentType().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+        }
+        assert hct != null;
+        return new HiddenContentSelector(hct, Map.copyOf(intIndices));
     }
 
     public HiddenContentTypes hiddenContentTypes() {
@@ -325,7 +347,7 @@ public class HiddenContentSelector implements Value {
             assert map1 != null;
             ParameterizedType ptTo = map1.get(ptFrom.namedType());
             assert ptTo != null;
-            HiddenContentTypes hct = to.typeInfo().analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+            HiddenContentTypes hct = to.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
             int iTo = hct.indexOf(ptTo);
             Index indexTo = index.replaceLast(iTo);
             Indices indicesTo = new IndicesImpl(Set.of(indexTo));

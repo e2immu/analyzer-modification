@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.variable.Index;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
+import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 
@@ -23,6 +24,23 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
     public IndicesImpl(int i) {
         this(Set.of(new IndexImpl(List.of(i))));
     }
+
+    @Override
+    public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
+        List<Codec.EncodedValue> encodedValues = set.stream().map(i -> i.encode(codec, context)).toList();
+        return codec.encodeList(context, encodedValues);
+    }
+
+    public static Indices decode(Codec codec, Codec.Context context, Codec.EncodedValue encodedValue) {
+        List<Codec.EncodedValue> list = codec.decodeList(context, encodedValue);
+        Set<Index> set = new HashSet<>();
+        for (Codec.EncodedValue ev : list) {
+            Index index = IndexImpl.decode(codec, context, ev);
+            set.add(index);
+        }
+        return new IndicesImpl(Set.copyOf(set));
+    }
+
 
     @Override
     public String toString() {

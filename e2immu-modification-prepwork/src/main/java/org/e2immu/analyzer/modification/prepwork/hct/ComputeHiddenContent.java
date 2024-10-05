@@ -68,7 +68,7 @@ public class ComputeHiddenContent {
             Stream<Map.Entry<Integer, NamedType>> indexToTypeStream;
             if (enclosingMethod != null) {
                 hct = getOrCompute(enclosingMethod, shallow, cycleProtection);
-                indexToTypeStream = Stream.concat(hct.getHcsTypeInfo().getIndexToType().entrySet().stream(),
+                indexToTypeStream = Stream.concat(hct.getHctTypeInfo().getIndexToType().entrySet().stream(),
                         hct.getIndexToType().entrySet().stream());
             } else {
                 TypeInfo enclosing = typeInfo.compilationUnitOrEnclosingType().getRight();
@@ -113,8 +113,7 @@ public class ComputeHiddenContent {
                 addExtensible(f.type(), fromThis, shallow, cycleProtection);
             }
         }
-        return new HiddenContentTypes(typeInfo, typeInfo.isExtensible(), Map.copyOf(fromThis),
-                Map.copyOf(superTypeToIndex));
+        return HiddenContentTypes.of(typeInfo, typeInfo.isExtensible(), fromThis, superTypeToIndex);
     }
 
     /*

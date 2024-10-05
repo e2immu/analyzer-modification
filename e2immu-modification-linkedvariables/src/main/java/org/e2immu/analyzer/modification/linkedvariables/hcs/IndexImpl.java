@@ -2,13 +2,17 @@ package org.e2immu.analyzer.modification.linkedvariables.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.Index;
+import org.e2immu.analyzer.modification.prepwork.variable.Indices;
+import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.util.internal.util.ListUtil;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,6 +25,22 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
         List<Integer> list = new ArrayList<>(arrays);
         for (int i = 0; i < arrays; i++) list.add(0);
         return new IndexImpl(List.copyOf(list));
+    }
+
+    @Override
+    public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
+        List<Codec.EncodedValue> encodedList = list.stream().map(i -> codec.encodeInt(context, i)).toList();
+        return codec.encodeList(context, encodedList);
+    }
+
+    public static Index decode(Codec codec, Codec.Context context, Codec.EncodedValue encodedValue) {
+        List<Codec.EncodedValue> list = codec.decodeList(context, encodedValue);
+        List<Integer> indices = new ArrayList<>();
+        for (Codec.EncodedValue ev : list) {
+            int i = codec.decodeInt(context, ev);
+            indices.add(i);
+        }
+        return new IndexImpl(List.copyOf(indices));
     }
 
     @Override
