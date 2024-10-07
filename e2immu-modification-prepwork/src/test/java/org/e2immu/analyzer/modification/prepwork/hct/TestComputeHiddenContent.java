@@ -22,16 +22,18 @@ public class TestComputeHiddenContent extends CommonTest {
         HiddenContentTypes hctList = chc.compute(list);
         assertEquals("0=E", hctList.detailedSortedTypes());
 
-        Codec codec = new CodecImpl(PropertyProviderImpl::get,null, null); // we don't have to decode
+        Codec codec = new CodecImpl(PropertyProviderImpl::get, null, null); // we don't have to decode
         Codec.Context context = new CodecImpl.ContextImpl();
         Codec.EncodedValue ev = hctList.encode(codec, context);
-        assertEquals("{\"0\":\"E\",\"E\":true,\"M\":1}", ev.toString());
+        assertEquals("{\"0\":\"PE:0\",\"E\":true,\"M\":1}", ev.toString());
 
         TypeInfo mapEntry = javaInspector.compiledTypesManager().get(Map.Entry.class);
         HiddenContentTypes hctMapEntry = chc.compute(mapEntry);
         assertEquals("0=K, 1=V", hctMapEntry.detailedSortedTypes());
 
         Codec.EncodedValue ev2 = hctMapEntry.encode(codec, context);
-        assertEquals("{\"0\":\"K\",\"1\":\"V\",\"E\":true,\"M\":2}", ev2.toString());
+        assertEquals("{\"0\":\"PK:0\",\"1\":\"PV:1\",\"E\":true,\"M\":2}", ev2.toString());
     }
+
+    // FIXME we should write a proper test that generates a JSON for some types (one with method type parameters)
 }

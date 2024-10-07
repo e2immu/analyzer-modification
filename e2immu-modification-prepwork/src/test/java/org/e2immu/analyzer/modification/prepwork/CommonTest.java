@@ -2,9 +2,6 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
-import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
-import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.output.Formatter;
 import org.e2immu.language.cst.api.output.OutputBuilder;
@@ -64,14 +61,6 @@ public class CommonTest {
         InputConfiguration inputConfiguration = builder.build();
         javaInspector.initialize(inputConfiguration);
         javaInspector.preload("java.util");
-
-        if(loadAnnotatedAPIs) {
-            AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
-                    .addAnalyzedAnnotatedApiDirs("../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json")
-                    .build();
-            new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
-        }
-
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
     }

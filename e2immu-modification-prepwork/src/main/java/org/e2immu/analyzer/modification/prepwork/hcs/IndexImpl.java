@@ -1,8 +1,7 @@
-package org.e2immu.analyzer.modification.linkedvariables.hcs;
+package org.e2immu.analyzer.modification.prepwork.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.Index;
-import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
@@ -10,9 +9,7 @@ import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.util.internal.util.ListUtil;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

@@ -3,12 +3,14 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.expression.ConstructorCall;
 import org.e2immu.language.cst.api.expression.Lambda;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Block;
@@ -18,6 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 /*
@@ -53,14 +57,16 @@ public class PrepAnalyzer {
         methodAnalyzer.doMethod(methodInfo, methodBlock);
     }
 
-    public List<Info> doPrimaryType(TypeInfo typeInfo) {
+    public List<Info> doPrimaryType(TypeInfo typeInfo, boolean isShallow) {
         doType(typeInfo);
 
         ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
         ccg.setRecursiveMethods();
         G<Info> cg = ccg.go().graph();
-        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-        cp.go(typeInfo, cg);
+        if (!isShallow) {
+            ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
+            cp.go(typeInfo, cg);
+        }
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         return cao.go(cg);
     }
@@ -86,6 +92,16 @@ public class PrepAnalyzer {
             });
             HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, mi);
             mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
+
+            if (!mi.isConstructor()) {
+                HiddenContentSelector hcsMethod = HiddenContentSelector.selectAll(hctMethod, mi.returnType());
+                mi.analysis().set(HCS_METHOD, hcsMethod);
+            }
+            for (ParameterInfo pi : mi.parameters()) {
+                HiddenContentSelector hcsPi = HiddenContentSelector.selectAll(hctMethod, pi.parameterizedType());
+                pi.analysis().set(HCS_PARAMETER, hcsPi);
+            }
+
             doMethod(mi);
         });
     }

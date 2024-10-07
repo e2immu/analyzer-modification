@@ -32,6 +32,7 @@ java {
 dependencies {
     implementation("org.e2immu:e2immu-external-support:some.version")
     implementation("org.e2immu:e2immu-internal-graph:some.version")
+    implementation("org.e2immu:e2immu-internal-util:some.version")
     implementation("org.e2immu:e2immu-cst-api:some.version")
     implementation("org.e2immu:e2immu-cst-analysis:some.version")
     implementation("org.e2immu:e2immu-cst-io:some.version")
@@ -49,9 +50,8 @@ dependencies {
     testImplementation("org.e2immu:e2immu-inspection-integration:some.version")
     testImplementation("org.e2immu:e2immu-inspection-api:some.version")
     testImplementation("org.e2immu:e2immu-inspection-resource:some.version")
-    testImplementation("org.e2immu:e2immu-shallow-analyzer:some.version")
 
-    testImplementation("ch.qos.logback:logback-classic:1.4.12")
+    testImplementation("ch.qos.logback:logback-classic:1.5.8")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
 }

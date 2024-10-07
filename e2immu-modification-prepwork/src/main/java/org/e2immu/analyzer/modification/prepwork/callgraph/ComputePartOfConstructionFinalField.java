@@ -21,9 +21,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/*
-given the call graph, compute the linearization, and all supporting information to deal with cycles.
- */
 public class ComputePartOfConstructionFinalField {
     public static final Value.SetOfInfo EMPTY_PART_OF_CONSTRUCTION = new ValueImpl.SetOfInfoImpl(Set.of());
     public static final Property PART_OF_CONSTRUCTION = new PropertyImpl("partOfConstructionType", EMPTY_PART_OF_CONSTRUCTION);

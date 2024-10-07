@@ -1,10 +1,11 @@
-package org.e2immu.analyzer.modification.linkedvariables.hcs;
+package org.e2immu.analyzer.modification.prepwork.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.Index;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
@@ -15,8 +16,8 @@ import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.UNSPECIFIED;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.UNSPECIFIED;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 /*
@@ -33,8 +34,8 @@ end with extensible fields and  method parameters
  */
 public class HiddenContentSelector implements Value {
     public static final HiddenContentSelector NONE = new HiddenContentSelector();
-    public static final PropertyImpl HCS_METHOD = new PropertyImpl("hiddenContentSelectorMethod", NONE);
-    public static final PropertyImpl HCS_PARAMETER = new PropertyImpl("hiddenContentSelectorParameter", NONE);
+    public static final PropertyImpl HCS_METHOD = new PropertyImpl("hcsMethod", NONE);
+    public static final PropertyImpl HCS_PARAMETER = new PropertyImpl("hcsParameter", NONE);
 
     private final HiddenContentTypes hiddenContentTypes;
     /*
@@ -60,6 +61,7 @@ public class HiddenContentSelector implements Value {
         Map<Codec.EncodedValue, Codec.EncodedValue> mapOfEncoded = map.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(e -> codec.encodeInt(context, e.getKey()),
                         e -> e.getValue().encode(codec, context)));
+        if (mapOfEncoded.isEmpty()) return null;
         return codec.encodeMap(context, mapOfEncoded);
     }
 
@@ -73,9 +75,11 @@ public class HiddenContentSelector implements Value {
         }
         HiddenContentTypes hct;
         if (context.methodBeforeType()) {
-            hct = context.currentMethod().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+            MethodInfo methodInfo = context.currentMethod();
+            hct = methodInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                    () -> HiddenContentTypes.of(methodInfo, Map.of()));
         } else {
-            hct = context.currentType().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+            hct = context.currentType().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         }
         assert hct != null;
         return new HiddenContentSelector(hct, Map.copyOf(intIndices));

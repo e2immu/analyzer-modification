@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.linkedvariables.hcs;
+package org.e2immu.analyzer.modification.prepwork.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.variable.Index;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;

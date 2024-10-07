@@ -12,16 +12,13 @@ import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.io.CodecImpl;
 import org.parsers.json.ast.StringLiteral;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class HiddenContentTypes implements Value {
-    public static HiddenContentTypes OF_PRIMITIVE = new HiddenContentTypes(null, false, Map.of());
-    public static HiddenContentTypes NO_VALUE = new HiddenContentTypes(null, false, Map.of());
+    public static HiddenContentTypes OF_PRIMITIVE = new HiddenContentTypes(null, false, Map.of(), Map.of());
+    public static HiddenContentTypes NO_VALUE = new HiddenContentTypes(null, false, Map.of(), Map.of());
 
     public static PropertyImpl HIDDEN_CONTENT_TYPES = new PropertyImpl("hct", NO_VALUE);
 
@@ -43,16 +40,28 @@ public class HiddenContentTypes implements Value {
                                  Map<NamedType, Integer> superTypeToIndex) {
         Map<NamedType, Integer> combined = new HashMap<>(myTypeToIndex);
         combined.putAll(superTypeToIndex);
-        return new HiddenContentTypes(typeInfo, typeIsExtensible, Map.copyOf(combined));
+        Map<Integer, NamedType> indexToType = new HashMap<>();
+        superTypeToIndex.forEach((nt, i) -> indexToType.put(i, nt));
+        // it is important here that the ones in myType have priority over the superTypes
+        myTypeToIndex.forEach((nt, i) -> indexToType.put(i, nt));
+        return new HiddenContentTypes(typeInfo, typeIsExtensible, Map.copyOf(combined), Map.copyOf(indexToType));
     }
 
-    private HiddenContentTypes(TypeInfo typeInfo, boolean typeIsExtensible, Map<NamedType, Integer> typeToIndex) {
+    public static HiddenContentTypes of(MethodInfo methodInfo, Map<NamedType, Integer> typeToIndex) {
+        HiddenContentTypes hctType = methodInfo.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
+                HiddenContentTypes.NO_VALUE);
+        assert hctType.typeInfo == methodInfo.typeInfo() : "Problem with HCT of " + methodInfo;
+        return new HiddenContentTypes(hctType, methodInfo, typeToIndex);
+    }
+
+    private HiddenContentTypes(TypeInfo typeInfo, boolean typeIsExtensible,
+                               Map<NamedType, Integer> typeToIndex,
+                               Map<Integer, NamedType> indexToType) {
         this.typeInfo = typeInfo;
         this.typeIsExtensible = typeIsExtensible;
         this.typeToIndex = typeToIndex;
-        this.indexToType = typeToIndex.entrySet().stream()
-                .collect(Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
-        this.startOfMethodParameters = typeToIndex.size();
+        this.indexToType = indexToType;
+        this.startOfMethodParameters = indexToType.size();
         hctTypeInfo = null;
         methodInfo = null;
     }
@@ -86,11 +95,23 @@ public class HiddenContentTypes implements Value {
         Map<Codec.EncodedValue, Codec.EncodedValue> map = codec.decodeMap(context, encodedValue);
         boolean isExtensible = false;
         Map<NamedType, Integer> typeToIndex = new HashMap<>();
+        TypeInfo currentType = context.currentType();
+        MethodInfo currentMethod = context.currentMethod();
+
+        // it is a little inefficient, but we need to know 'startOfMethodParameters' before
+        // parsing the rest of the map.
+        int startOfMethodParameters = 0;
+        for (Map.Entry<Codec.EncodedValue, Codec.EncodedValue> entry : map.entrySet()) {
+            String key = codec.decodeString(context, entry.getKey());
+            if ("M".equals(key)) {
+                startOfMethodParameters = codec.decodeInt(context, entry.getValue());
+            }
+        }
         for (Map.Entry<Codec.EncodedValue, Codec.EncodedValue> entry : map.entrySet()) {
             String key = codec.decodeString(context, entry.getKey());
             if ("E".equals(key)) {
                 isExtensible = codec.decodeBoolean(context, entry.getValue());
-            } else {
+            } else if (!"M".equals(key)) {
                 int index = Integer.parseInt(key);
                 NamedType namedType;
                 if (entry.getValue() instanceof CodecImpl.D d && d.s() instanceof StringLiteral sl) {
@@ -102,7 +123,14 @@ public class HiddenContentTypes implements Value {
                     } else if ('P' == first) {
                         int colon = rest.lastIndexOf(':');
                         int tpIndex = Integer.parseInt(rest.substring(colon + 1));
-                        namedType = context.currentType().typeParameters().get(tpIndex);
+                        if (tpIndex >= startOfMethodParameters) {
+                            int mIndex = tpIndex - startOfMethodParameters;
+                            assert mIndex < currentMethod.typeParameters().size();
+                            namedType = currentMethod.typeParameters().get(mIndex);
+                        } else {
+                            assert tpIndex < currentType.typeParameters().size();
+                            namedType = currentType.typeParameters().get(tpIndex);
+                        }
                     } else throw new UnsupportedOperationException();
                 } else {
                     throw new UnsupportedOperationException();
@@ -111,11 +139,13 @@ public class HiddenContentTypes implements Value {
             }
         }
         if (context.methodBeforeType()) {
-            HiddenContentTypes hctType = context.currentType().typeInfo().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+            HiddenContentTypes hctType = currentType.typeInfo().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
             assert hctType != null;
             return new HiddenContentTypes(hctType, context.currentMethod(), typeToIndex);
         }
-        return new HiddenContentTypes(context.currentType(), isExtensible, typeToIndex);
+        Map<Integer, NamedType> indexToType = typeToIndex.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
+        return new HiddenContentTypes(currentType, isExtensible, typeToIndex, indexToType);
     }
 
     @Override
@@ -134,6 +164,9 @@ public class HiddenContentTypes implements Value {
             map.put(codec.encodeInt(context, key), v);
         });
         if (map.isEmpty()) return null;
+        if (startOfMethodParameters != 0) {
+            map.put(codec.encodeString(context, "M"), codec.encodeInt(context, startOfMethodParameters));
+        }
         return codec.encodeMap(context, map);
     }
 
@@ -162,6 +195,26 @@ public class HiddenContentTypes implements Value {
         String l = hctTypeInfo == null ? typeInfo.simpleName() : methodInfo.name();
         return s + l + ":" + indexToType.values().stream()
                 .map(NamedType::simpleName).sorted().collect(Collectors.joining(", "));
+    }
+
+    // for testing codec
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof HiddenContentTypes that)) return false;
+        return isTypeIsExtensible() == that.isTypeIsExtensible()
+               && startOfMethodParameters == that.startOfMethodParameters
+               && Objects.equals(getTypeInfo(), that.getTypeInfo())
+               && Objects.equals(getHctTypeInfo(), that.getHctTypeInfo())
+               && Objects.equals(getMethodInfo(), that.getMethodInfo())
+               && Objects.equals(getTypeToIndex(), that.getTypeToIndex())
+               && Objects.equals(getIndexToType(), that.getIndexToType());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getTypeInfo(), isTypeIsExtensible(), startOfMethodParameters, getHctTypeInfo(),
+                getMethodInfo(), getTypeToIndex(), getIndexToType());
     }
 
     public int size() {

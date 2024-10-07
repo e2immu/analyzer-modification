@@ -22,10 +22,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.prepwork.StatementIndex.*;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
 /*
 do all the analysis of this phase
@@ -110,7 +108,6 @@ public class MethodAnalyzer {
                                  Map<Variable, String> seenFirstTime,
                                  Map<Variable, List<String>> read,
                                  Map<Variable, List<String>> assigned,
-                                 Set<Variable> modified,
                                  Map<Variable, String> restrictToScope) {
         public Assignments assignmentIds(Variable v, VariableInfo previous) {
             Assignments prev;
@@ -134,11 +131,6 @@ public class MethodAnalyzer {
             }
             return previous == null ? new Reads(i) : previous.reads().with(i);
         }
-
-        public boolean isModified(Variable v, VariableInfo previous) {
-            if (modified.contains(v)) return true;
-            return previous != null && previous.isModified();
-        }
     }
 
     public void doMethod(MethodInfo methodInfo) {
@@ -157,7 +149,6 @@ public class MethodAnalyzer {
             if (!methodInfo.analysis().haveAnalyzedValueFor(VariableDataImpl.VARIABLE_DATA)) {
                 methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
             }
-            doModificationAnalysis(methodInfo, lastOfMainBlock);
         } // else: empty
         doGetSetAnalysis(methodInfo, methodBody);
     }
@@ -191,28 +182,6 @@ public class MethodAnalyzer {
                 if (getSet != null) {
                     methodInfo.analysis().set(PropertyImpl.GET_SET_FIELD, getSet);
                 }
-            }
-        }
-    }
-
-    private void doModificationAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock) {
-        boolean mm = false;
-        boolean[] mp = new boolean[methodInfo.parameters().size()];
-        for (VariableInfo vi : lastOfMainBlock.variableInfoStream().toList()) {
-            Variable v = vi.variable();
-            if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
-                boolean mv = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
-                if (mv) mp[pi.index()] = true;
-            } else if (v instanceof This || v instanceof FieldReference fr && fr.scopeIsThis()) {
-                mm |= vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
-            }
-        }
-        if (mm && !methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
-            methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
-        }
-        for (ParameterInfo pi : methodInfo.parameters()) {
-            if (mp[pi.index()] && !pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
-                pi.analysis().set(MODIFIED_PARAMETER, TRUE);
             }
         }
     }
@@ -269,7 +238,7 @@ public class MethodAnalyzer {
 
         readWriteData.seenFirstTime.forEach((v, i) -> {
             VariableInfoContainer vic = initialVariable(i, v, readWriteData,
-                    hasMerge && !(v instanceof LocalVariable), readWriteData.modified.contains(v));
+                    hasMerge && !(v instanceof LocalVariable));
             vdi.put(v, vic);
             String limitedScope = readWriteData.restrictToScope.get(v);
             if (limitedScope != null) {
@@ -284,9 +253,6 @@ public class MethodAnalyzer {
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
                         readWriteData.isRead(variable, vi));
-                if (readWriteData.isModified(variable, vi)) {
-                    eval.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.TRUE);
-                }
                 boolean specificHasMerge = hasMerge && !readWriteData.seenFirstTime.containsKey(variable);
                 VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vic.variableNature(),
                         Either.left(vic), eval, specificHasMerge);
@@ -457,11 +423,6 @@ public class MethodAnalyzer {
                 } else {
                     vici = (VariableInfoContainerImpl) inMap;
                 }
-                boolean isModified = lastOfEachSubBlock.values().stream()
-                        .map(vd -> vd.variableInfoContainerOrNull(v.fullyQualifiedName()))
-                        .filter(Objects::nonNull).map(VariableInfoContainer::best)
-                        .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
-                if (isModified) merge.analysis().set(MODIFIED_VARIABLE, TRUE);
                 vici.setMerge(merge);
             });
         }
@@ -489,13 +450,12 @@ public class MethodAnalyzer {
     }
 
     private VariableInfoContainer initialVariable(String index, Variable v, ReadWriteData readWriteData,
-                                                  boolean hasMerge, boolean isModified) {
+                                                  boolean hasMerge) {
         String indexOfDefinition = v instanceof LocalVariable ? index : StatementIndex.BEFORE_METHOD;
         Assignments notYetAssigned = new Assignments(indexOfDefinition);
         VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, Reads.NOT_YET_READ);
         Reads reads = readWriteData.isRead(v, initial);
         VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial), reads);
-        if (isModified) eval.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.TRUE);
         return new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
                 Either.right(initial), eval, hasMerge);
     }
@@ -551,7 +511,7 @@ public class MethodAnalyzer {
         }
         Expression expression = statement.expression();
         if (expression != null && !expression.isEmpty()) expression.visit(v.withIndex(index));
-        return new ReadWriteData(previous, v.seenFirstTime, v.read, v.assigned, v.modified, v.restrictToScope);
+        return new ReadWriteData(previous, v.seenFirstTime, v.read, v.assigned, v.restrictToScope);
     }
 
     private static void handleLvc(LocalVariableCreation lvc, Visitor v) {
@@ -570,7 +530,7 @@ public class MethodAnalyzer {
         }
     }
 
-    private class Visitor implements org.e2immu.language.cst.api.element.Visitor {
+    private static class Visitor implements org.e2immu.language.cst.api.element.Visitor {
         String index;
         int inNegative;
 
@@ -579,7 +539,6 @@ public class MethodAnalyzer {
         final Map<Variable, String> seenFirstTime = new HashMap<>();
         final Map<Variable, String> restrictToScope = new HashMap<>();
         final Set<String> knownVariableNames;
-        final Set<Variable> modified = new HashSet<>();
         final Statement statement;
         final MethodInfo currentMethod;
 
@@ -646,10 +605,6 @@ public class MethodAnalyzer {
                 return false;
             }
             if (e instanceof MethodCall mc) {
-                boolean isModifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
-                if (isModifying && mc.object() instanceof VariableExpression ve) {
-                    markModified(ve.variable());
-                }
                 int i = 0;
                 int nMinus1 = mc.methodInfo().parameters().size() - 1;
                 for (Expression expression : mc.parameterExpressions()) {
@@ -720,7 +675,6 @@ public class MethodAnalyzer {
                     .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
             // functional interface types are handled in the advanced analyzer
             if (mutable && !variable.parameterizedType().isFunctionalInterface()) {
-                modified.add(variable);
                 if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
                     markModified(fr.scopeVariable());
                 } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
