@@ -4,10 +4,6 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.annotation.Fluent;
-import org.e2immu.annotation.Modified;
-import org.e2immu.annotation.method.GetSet;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -18,7 +14,6 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
@@ -44,10 +39,6 @@ The current quick-fix is to make a map 'method is modified if body is modified',
 calls to TDI.Builder.body(),.resources() and LDI.Builder.body().
  */
 public class TestStaticValuesOfTryData extends CommonTest {
-
-    public TestStaticValuesOfTryData() {
-        super(true);
-    }
 
     @Language("java")
     public static final String INPUT = """
@@ -197,7 +188,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             ParameterInfo body0 = body.parameters().get(0);
             FieldInfo bodyThrowingFunction = builder.getFieldByName("bodyThrowingFunction", true);
             Statement s0 = body.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0 = vd0.variableInfo(body0);
             assertSame(FALSE, vi0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
             assertEquals("-1-:bodyThrowingFunction", vi0.linkedVariables().toString()); // link to the field
@@ -207,7 +198,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertSame(TRUE, viThis0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
 
             Statement s1 = body.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1 = vd1.variableInfo(body0);
             assertEquals("-1-:bodyThrowingFunction", vi1.linkedVariables().toString()); // still link to field
 
@@ -231,7 +222,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             ParameterInfo runTd = run.parameters().get(0);
             Statement s0 = run.methodBody().statements().get(0);
             Statement s000 = s0.block().statements().get(0);
-            VariableData vd000 = s000.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd000 = VariableDataImpl.of(s000);
             VariableInfo viTd = vd000.variableInfo(runTd);
             assertEquals("?", viTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
@@ -242,7 +233,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
             Statement s0 = method.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0B = vd0.variableInfo("b");
             assertEquals("", vi0B.linkedVariables().toString());
@@ -255,7 +246,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         }
         {
             Statement s1 = method.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1Td = vd1.variableInfo("td");
             assertEquals("-2-:b", vi1Td.linkedVariables().toString()); // FIXME? how?
@@ -264,7 +255,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         }
         {
             Statement s2 = method.methodBody().statements().get(2);
-            VariableData vd2 = s2.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd2 = VariableDataImpl.of(s2);
 
             VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X));
             assertEquals("", vi2This.linkedVariables().toString());

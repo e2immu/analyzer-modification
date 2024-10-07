@@ -30,10 +30,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkBasics extends CommonTest {
 
-    public TestLinkBasics() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
@@ -53,14 +49,14 @@ public class TestLinkBasics extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        VariableData vd = setAdd.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(setAdd);
         assertNotNull(vd);
         ParameterInfo set = setAdd.parameters().get(0);
         Statement s0 = setAdd.methodBody().statements().get(0);
         MethodCall mc = (MethodCall) s0.expression();
         assertTrue(mc.methodInfo().analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, ValueImpl.BoolImpl.FALSE).isTrue());
 
-        VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo viSet0 = vd0.variableInfo(set);
         assertTrue(viSet0.analysis().getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
         assertEquals(LinkedVariablesImpl.EMPTY, viSet0.linkedVariables());
@@ -90,7 +86,7 @@ public class TestLinkBasics extends CommonTest {
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
         Statement s0 = listAdd.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         ParameterInfo listAdd0 = listAdd.parameters().get(0);
         VariableInfo vi0 = vd0.variableInfo(listAdd0);
@@ -131,7 +127,7 @@ public class TestLinkBasics extends CommonTest {
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         Statement s0 = listAdd.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
 
         ParameterInfo list = listAdd.parameters().get(0);
@@ -251,13 +247,13 @@ public class TestLinkBasics extends CommonTest {
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
 
         Statement s0 = listAdd.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo vi0 = vd0.variableInfo("l");
         assertEquals("0-2-0:list", vi0.linkedVariables().toString());
 
         Statement s1 = listAdd.methodBody().statements().get(1);
-        VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd1 = VariableDataImpl.of(s1);
         ParameterInfo listAdd0 = listAdd.parameters().get(0);
         ParameterInfo t1 = listAdd.parameters().get(1);
 
@@ -287,7 +283,7 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0-2-0:list,0-4-*:t", lvMethod.toString());
 
         Statement s2 = listAdd.methodBody().statements().get(2);
-        VariableData vd2 = s2.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd2 = VariableDataImpl.of(s2);
 
         VariableInfo vi2l = vd2.variableInfo("l");
         assertSame(TRUE, vi2l.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
@@ -338,7 +334,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 0
         {
             Statement s0 = listAdd.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             assertNotNull(vd0);
             VariableInfo vi0 = vd0.variableInfo("l");
             assertEquals("0-2-0:list", vi0.linkedVariables().toString());
@@ -349,7 +345,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 1
         {
             Statement s1 = listAdd.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1l2 = vd1.variableInfo("l2");
             assertEquals("-1-:l,0-2-0:list", vi1l2.linkedVariables().toString());
@@ -361,7 +357,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 2
         {
             Statement s2 = listAdd.methodBody().statements().get(2);
-            VariableData vd2 = s2.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd2 = VariableDataImpl.of(s2);
 
             VariableInfo vi1l = vd2.variableInfo("l");
             assertEquals("-1-:l2,0-2-0:list,0-4-*:t", vi1l.linkedVariables().toString());
@@ -416,7 +412,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 1
         {
             Statement s1 = listAdd.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1list = vd1.variableInfo(list);
             assertEquals("0-4-*:t,0-4-*:t2", vi1list.linkedVariables().toString());
@@ -469,7 +465,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 2
         {
             Statement s4 = listAdd.methodBody().statements().get(2);
-            VariableData vd4 = s4.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd4 = VariableDataImpl.of(s4);
 
             VariableInfo vi4l = vd4.variableInfo("l");
             assertEquals("0-2-0:list,0-4-*:t,0-4-*:t2", vi4l.linkedVariables().toString());
@@ -526,7 +522,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 3
         {
             Statement s3 = listAdd.methodBody().statements().get(3);
-            VariableData vd3 = s3.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd3 = VariableDataImpl.of(s3);
 
             VariableInfo vi3l = vd3.variableInfo("l");
             assertEquals("-1-:l2,0-2-0:list,0-4-*:t,0-4-*:t2", vi3l.linkedVariables().toString());
@@ -588,7 +584,7 @@ public class TestLinkBasics extends CommonTest {
         // statement 4
         {
             Statement s4 = listAdd.methodBody().statements().get(4);
-            VariableData vd4 = s4.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd4 = VariableDataImpl.of(s4);
 
             VariableInfo vi4l = vd4.variableInfo("l");
             assertEquals("-1-:l2,-1-:l3,0-2-0:list,0-4-*:t,0-4-*:t2", vi4l.linkedVariables().toString());

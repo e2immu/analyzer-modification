@@ -1,8 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndexImpl;
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector.*;
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.*;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
@@ -374,8 +374,7 @@ public class LinkHelper {
         List<LinkedVariables> result = new ArrayList<>(concreteMethod.parameters().size() + 1);
 
         for (ParameterInfo pi : concreteMethod.parameters()) {
-            VariableInfo vi = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class)
-                    .variableInfo(pi.fullyQualifiedName());
+            VariableInfo vi = VariableDataImpl.of(lastStatement).variableInfo(pi.fullyQualifiedName());
             LinkedVariables lv = vi.linkedVariables();
             //.remove(v -> FIXME not yet implemented
             // !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
@@ -383,8 +382,7 @@ public class LinkHelper {
         }
         if (concreteMethod.hasReturnValue()) {
             ReturnVariable returnVariable = new ReturnVariableImpl(concreteMethod);
-            VariableInfo vi = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class)
-                    .variableInfo(returnVariable.fullyQualifiedName());
+            VariableInfo vi = VariableDataImpl.of(lastStatement).variableInfo(returnVariable.fullyQualifiedName());
             if (concreteMethod.parameters().isEmpty()) {
                 return new LambdaResult(result, vi.linkedVariables());
             }
@@ -641,28 +639,19 @@ public class LinkHelper {
         }
 
         // RULE 2: @Identity links to the 1st parameter
-        Value.Bool identity = methodInfo.analysis().getOrNull(PropertyImpl.IDENTITY_METHOD, ValueImpl.BoolImpl.class);
-        if (identity != null && identity.isTrue()) {
+        boolean identity = methodInfo.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, ValueImpl.BoolImpl.FALSE).isTrue();
+        if (identity) {
             return linkedVariables.get(0).maximum(LINK_ASSIGNED);
         }
         LinkedVariables linkedVariablesOfObject = linkedVariablesOfObjectIn.maximum(LINK_ASSIGNED); // should be delay-able!
 
-        if (identity == null && !linkedVariables.isEmpty()) {
-            // temporarily link to both the object and the parameter, in a delayed way
-            LinkedVariables allParams = linkedVariables.stream().reduce(LinkedVariablesImpl.EMPTY, LinkedVariables::merge);
-            return linkedVariablesOfObject.merge(allParams).changeToDelay();
-        }
-
         // RULE 3: @Fluent simply returns the same object, hence, the same linked variables
-        Value.Bool fluent = methodInfo.analysis().getOrNull(PropertyImpl.FLUENT_METHOD, ValueImpl.BoolImpl.class);
-        if (fluent == null) {
-            return linkedVariablesOfObject.changeNonStaticallyAssignedToDelay();
-        }
+        Value.Bool fluent = methodInfo.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, ValueImpl.BoolImpl.FALSE);
         if (fluent.isTrue()) {
             return linkedVariablesOfObject;
         }
-        Value.Independent independent = methodInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_METHOD,
-                ValueImpl.IndependentImpl.class);
+        Value.Independent independent = methodInfo.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
+                ValueImpl.IndependentImpl.DEPENDENT);
         ParameterizedType methodType = methodInfo.typeInfo().asParameterizedType(runtime);
         ParameterizedType methodReturnType = methodInfo.returnType();
 

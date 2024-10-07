@@ -80,7 +80,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
                 vdMethod.knownVariableNamesToString());
@@ -100,7 +100,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M, 1.0.2, 1.0.4, 1=M]", iVi.assignments().toString());
 
         Statement ifElse = method.methodBody().statements().get(1).block().statements().get(0);
-        VariableData vdIfElse = ifElse.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdIfElse = VariableDataImpl.of(ifElse);
         VariableInfo iViIfElse = vdIfElse.variableInfo("i");
         assertEquals("D:0, A:[1.0.0.0.0, 1.0.0.1.0, 1.0.0=M]", iViIfElse.assignments().toString());
     }
@@ -140,7 +140,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
                 vdMethod.knownVariableNamesToString());
@@ -181,7 +181,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals("a.b.X.method(char,boolean), a.b.X.method(char,boolean):0:c, a.b.X.method(char,boolean):1:b, i",
                 vdMethod.knownVariableNamesToString());
@@ -221,7 +221,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         VariableInfo iVi = vdMethod.variableInfo("i");
@@ -258,7 +258,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         VariableInfo iVi = vdMethod.variableInfo("i");
@@ -312,7 +312,7 @@ public class TestAssignmentsSwitch extends CommonTest {
         MethodInfo method = X.findUniqueMethod("parse", 2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         VariableInfo iVi = vdMethod.variableInfo(method.fullyQualifiedName());

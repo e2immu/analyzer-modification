@@ -11,16 +11,21 @@ import org.e2immu.language.cst.api.type.TypeParameter;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.io.CodecImpl;
 import org.parsers.json.ast.StringLiteral;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class HiddenContentTypes implements Value {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HiddenContentTypes.class);
+
     public static HiddenContentTypes OF_PRIMITIVE = new HiddenContentTypes(null, false, Map.of(), Map.of());
     public static HiddenContentTypes NO_VALUE = new HiddenContentTypes(null, false, Map.of(), Map.of());
 
-    public static PropertyImpl HIDDEN_CONTENT_TYPES = new PropertyImpl("hct", NO_VALUE);
+    // IMPORTANT: hc is lexicographically less that hcsMethod, hcsParameter, it has to be parsed earlier!
+    public static PropertyImpl HIDDEN_CONTENT_TYPES = new PropertyImpl("hc", NO_VALUE);
 
     public static final int UNSPECIFIED_EXTENSION = -2; // extension of the type itself, only if typeIsExtensible == true
 
@@ -33,6 +38,10 @@ public class HiddenContentTypes implements Value {
 
     private final Map<NamedType, Integer> typeToIndex;
     private final Map<Integer, NamedType> indexToType;
+
+    static HiddenContentTypes of(TypeInfo typeInfo) {
+        return new HiddenContentTypes(typeInfo, false, Map.of(), Map.of());
+    }
 
     static HiddenContentTypes of(TypeInfo typeInfo,
                                  boolean typeIsExtensible,
@@ -48,9 +57,9 @@ public class HiddenContentTypes implements Value {
     }
 
     public static HiddenContentTypes of(MethodInfo methodInfo, Map<NamedType, Integer> typeToIndex) {
-        HiddenContentTypes hctType = methodInfo.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
-                HiddenContentTypes.NO_VALUE);
-        assert hctType.typeInfo == methodInfo.typeInfo() : "Problem with HCT of " + methodInfo;
+        TypeInfo methodType = methodInfo.typeInfo();
+        HiddenContentTypes hctType = methodType.analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () -> of(methodType));
+        assert hctType.typeInfo == methodType : "Problem with HCT of " + methodInfo;
         return new HiddenContentTypes(hctType, methodInfo, typeToIndex);
     }
 
@@ -97,7 +106,7 @@ public class HiddenContentTypes implements Value {
         Map<NamedType, Integer> typeToIndex = new HashMap<>();
         TypeInfo currentType = context.currentType();
         MethodInfo currentMethod = context.currentMethod();
-
+        LOGGER.debug("Decoding hct {} {}", currentType, currentMethod);
         // it is a little inefficient, but we need to know 'startOfMethodParameters' before
         // parsing the rest of the map.
         int startOfMethodParameters = 0;
@@ -122,14 +131,22 @@ public class HiddenContentTypes implements Value {
                         namedType = context.findType(rest);
                     } else if ('P' == first) {
                         int colon = rest.lastIndexOf(':');
-                        int tpIndex = Integer.parseInt(rest.substring(colon + 1));
+                        String indexWithStars = rest.substring(colon + 1);
+                        TypeInfo ti = currentType;
+                        while (indexWithStars.charAt(0) == '*') {
+                            indexWithStars = indexWithStars.substring(1);
+                            ti = ti.compilationUnitOrEnclosingType().getRight();
+                        }
+                        int tpIndex = Integer.parseInt(indexWithStars);
                         if (tpIndex >= startOfMethodParameters) {
                             int mIndex = tpIndex - startOfMethodParameters;
                             assert mIndex < currentMethod.typeParameters().size();
                             namedType = currentMethod.typeParameters().get(mIndex);
                         } else {
-                            assert tpIndex < currentType.typeParameters().size();
-                            namedType = currentType.typeParameters().get(tpIndex);
+
+
+                            assert tpIndex < ti.typeParameters().size();
+                            namedType = ti.typeParameters().get(tpIndex);
                         }
                     } else throw new UnsupportedOperationException();
                 } else {
@@ -139,8 +156,8 @@ public class HiddenContentTypes implements Value {
             }
         }
         if (context.methodBeforeType()) {
-            HiddenContentTypes hctType = currentType.typeInfo().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-            assert hctType != null;
+            HiddenContentTypes hctType = currentType.typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                    () -> of(currentType.typeInfo()));
             return new HiddenContentTypes(hctType, context.currentMethod(), typeToIndex);
         }
         Map<Integer, NamedType> indexToType = typeToIndex.entrySet().stream()
@@ -159,7 +176,8 @@ public class HiddenContentTypes implements Value {
             if (value instanceof TypeInfo ti) {
                 v = codec.encodeString(context, "T" + ti.fullyQualifiedName());
             } else if (value instanceof TypeParameter tp) {
-                v = codec.encodeString(context, "P" + tp.simpleName() + ":" + tp.getIndex());
+                String tpIndex = encodeIndex(typeInfo, startOfMethodParameters, tp);
+                v = codec.encodeString(context, "P" + tp.simpleName() + ":" + tpIndex);
             } else throw new UnsupportedOperationException();
             map.put(codec.encodeInt(context, key), v);
         });
@@ -168,6 +186,20 @@ public class HiddenContentTypes implements Value {
             map.put(codec.encodeString(context, "M"), codec.encodeInt(context, startOfMethodParameters));
         }
         return codec.encodeMap(context, map);
+    }
+
+    /*
+    the star means: go up in the hierarchy!
+     */
+    private static String encodeIndex(TypeInfo typeInfo, int startOfMethodParameters, TypeParameter tp) {
+        if (tp.getOwner().isLeft()) {
+            TypeInfo owner = tp.getOwner().getLeft();
+            if (owner == typeInfo) return "" + tp.getIndex();
+            assert !typeInfo.isStatic() && typeInfo.compilationUnitOrEnclosingType().isRight();
+            return "*" + encodeIndex(typeInfo.compilationUnitOrEnclosingType().getRight(), -1, tp);
+        }
+        // we have a method parameter
+        return "" + (startOfMethodParameters + tp.getIndex());
     }
 
     public boolean forMethod() {

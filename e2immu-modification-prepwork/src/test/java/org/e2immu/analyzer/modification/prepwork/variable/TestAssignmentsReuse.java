@@ -55,16 +55,16 @@ public class TestAssignmentsReuse extends CommonTest {
         analyzer.doMethod(method);
         LocalVariableCreation reader = (LocalVariableCreation) method.methodBody().statements().get(4);
         Statement if300 = method.methodBody().statements().get(3).block().statements().get(0);
-        VariableData vd300 = if300.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd300 = VariableDataImpl.of(if300);
         assertFalse(vd300.isKnown("out"));
         Statement mc30003 = if300.block().statements().get(3);
-        VariableData vd30003 = mc30003.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd30003 = VariableDataImpl.of(mc30003);
         VariableInfo vi1 = vd30003.variableInfo("out");
         assertEquals("Type java.io.DataOutputStream", vi1.variable().parameterizedType().toString());
 
-        VariableData vd4 = reader.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd4 = VariableDataImpl.of(reader);
         assertFalse(vd4.isKnown("out"));
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         VariableInfo vi = vdMethod.variableInfo("out");
         assertEquals("Type String", vi.variable().parameterizedType().toString());
     }

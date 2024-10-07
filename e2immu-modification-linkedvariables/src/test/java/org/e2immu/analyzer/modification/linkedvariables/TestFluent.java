@@ -26,10 +26,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestFluent extends CommonTest {
 
-    public TestFluent() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
@@ -73,18 +69,18 @@ public class TestFluent extends CommonTest {
             IfElseStatement ifElse = (IfElseStatement) setI2.methodBody().statements().get(0);
             {
                 Statement s001 = ifElse.block().statements().get(1);
-                VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd001 = VariableDataImpl.of(s001);
                 VariableInfo viRv001 = vd001.variableInfo(setI2.fullyQualifiedName());
                 assertEquals("E=this", viRv001.staticValues().toString());
             }
             {
                 Statement s012 = ifElse.elseBlock().statements().get(2);
-                VariableData vd012 = s012.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd012 = VariableDataImpl.of(s012);
                 VariableInfo viRv012 = vd012.variableInfo(setI2.fullyQualifiedName());
                 assertEquals("E=this", viRv012.staticValues().toString());
             }
             {
-                VariableData vd0 = ifElse.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd0 = VariableDataImpl.of(ifElse);
                 VariableInfo viRv0 = vd0.variableInfo(setI2.fullyQualifiedName());
                 assertEquals("E=this", viRv0.staticValues().toString());
             }

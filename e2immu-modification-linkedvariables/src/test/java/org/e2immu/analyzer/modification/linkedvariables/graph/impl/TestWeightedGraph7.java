@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Set;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndexImpl.ALL;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl.ALL;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestWeightedGraph7 extends CommonWG {

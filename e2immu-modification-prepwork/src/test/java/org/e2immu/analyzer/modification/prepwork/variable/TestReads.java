@@ -58,7 +58,7 @@ public class TestReads extends CommonTest {
         Statement outerWhile = ie0.elseBlock().statements().get(2);
         WhileStatement innerWhile = (WhileStatement) outerWhile.block().statements().get(0).block().statements().get(1);
         IfElseStatement ieInInner = (IfElseStatement) innerWhile.block().statements().get(0);
-        VariableData vd = ieInInner.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(ieInInner);
         ParameterInfo fromIndex = method.parameters().get(2);
         VariableInfo viFromIndex = vd.variableInfo(fromIndex);
         assertEquals("0.1.2-E, 0.1.2.0.0-E, 0.1.2.0.0.0.1.0.0-E, 0.1.2;E", viFromIndex.reads().toString());

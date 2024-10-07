@@ -21,10 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkMerge extends CommonTest {
 
-    public TestLinkMerge() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
@@ -47,18 +43,18 @@ public class TestLinkMerge extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        VariableData vd = setAdd.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(setAdd);
         assertNotNull(vd);
         ParameterInfo set = setAdd.parameters().get(0);
         Statement s0 = setAdd.methodBody().statements().get(0);
         Statement s000 = s0.block().statements().get(0);
 
-        VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd000 = VariableDataImpl.of(s000);
         VariableInfo viSet000 = vd000.variableInfo(set);
         assertTrue(viSet000.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
         assertEquals("0-4-*:s", viSet000.linkedVariables().toString());
 
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo viSet0 = vd0.variableInfo(set);
         assertEquals("0-4-*:s", viSet0.linkedVariables().toString());
         assertTrue(viSet0.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
@@ -93,21 +89,21 @@ public class TestLinkMerge extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
-        VariableData vd = setAdd.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(setAdd);
         assertNotNull(vd);
         ParameterInfo set = setAdd.parameters().get(0);
         {
             IfElseStatement s1 = (IfElseStatement) setAdd.methodBody().statements().get(1);
             {
                 Statement s110 = s1.elseBlock().statements().get(0);
-                VariableData vd110 = s110.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd110 = VariableDataImpl.of(s110);
                 VariableInfo viI100 = vd110.variableInfo("i");
                 assertEquals("-1-:set", viI100.linkedVariables().toString());
                 VariableInfo viSet100 = vd110.variableInfo(set);
                 assertEquals("-1-:i", viSet100.linkedVariables().toString());
             }
             {
-                VariableData vd1 = s1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo viI1 = vd1.variableInfo("i");
                 assertEquals("-1-:set", viI1.linkedVariables().toString());
                 VariableInfo viSet1 = vd1.variableInfo(set);
@@ -118,7 +114,7 @@ public class TestLinkMerge extends CommonTest {
             IfElseStatement s2 = (IfElseStatement) setAdd.methodBody().statements().get(2);
             {
                 Statement s200 = s2.block().statements().get(0);
-                VariableData vd200 = s200.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd200 = VariableDataImpl.of(s200);
                 VariableInfo viI200 = vd200.variableInfo("i");
                 assertEquals("-1-:set,0-4-*:t", viI200.linkedVariables().toString());
                 assertTrue(viI200.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
@@ -132,7 +128,7 @@ public class TestLinkMerge extends CommonTest {
                         ValueImpl.BoolImpl.FALSE).isTrue());
             }
             {
-                VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+                VariableData vd2 = VariableDataImpl.of(s2);
                 VariableInfo viI2 = vd2.variableInfo("i");
                 assertEquals("-1-:set,0-4-*:t", viI2.linkedVariables().toString());
                 assertTrue(viI2.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,

@@ -51,7 +51,7 @@ public class TestAssignmentsForEachIf extends CommonTest {
         ParameterInfo array = method.parameters().get(0);
 
         Statement s0 = method.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo sbVi0 = vd0.variableInfo("sb");
         assertEquals("D:0, A:[0]", sbVi0.assignments().toString());
         assertFalse(vd0.isKnown(array.fullyQualifiedName()));
@@ -60,7 +60,7 @@ public class TestAssignmentsForEachIf extends CommonTest {
         IfElseStatement s100 = (IfElseStatement) s1.block().statements().get(0);
         Statement s10000 = s100.block().statements().get(0);
 
-        VariableData vd10000 = s10000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd10000 = VariableDataImpl.of(s10000);
         VariableInfo sbVi10000 = vd10000.variableInfo("sb");
         assertEquals("D:0, A:[0]", sbVi10000.assignments().toString());
         assertEquals("1.0.0.0.0", sbVi10000.reads().toString());
@@ -71,7 +71,7 @@ public class TestAssignmentsForEachIf extends CommonTest {
         IfElseStatement s10010 = (IfElseStatement) s100.elseBlock().statements().get(0);
         Statement s1001010 = s10010.elseBlock().statements().get(0);
 
-        VariableData vd1001010 = s1001010.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd1001010 = VariableDataImpl.of(s1001010);
         VariableInfo sbVi1001010 = vd1001010.variableInfo("sb");
         assertEquals("D:0, A:[0]", sbVi1001010.assignments().toString());
         assertEquals("1.0.0.1.0.1.0", sbVi1001010.reads().toString());
@@ -80,7 +80,7 @@ public class TestAssignmentsForEachIf extends CommonTest {
         assertEquals("1-E", arrayVi1001010.reads().toString());
 
         // first merge
-        VariableData vd10010 = s10010.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd10010 = VariableDataImpl.of(s10010);
         VariableInfo sbVi10010 = vd10010.variableInfo("sb");
         assertEquals("1.0.0.1.0.1.0", sbVi10010.reads().toString());
         assertEquals("D:0, A:[0]", sbVi10010.assignments().toString());
@@ -89,7 +89,7 @@ public class TestAssignmentsForEachIf extends CommonTest {
         assertEquals("1-E", arrayVi10010.reads().toString());
 
         // second merge
-        VariableData vd100 = s100.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd100 = VariableDataImpl.of(s100);
         VariableInfo sbVi100 = vd100.variableInfo("sb");
         assertEquals("1.0.0.0.0, 1.0.0.1.0.1.0", sbVi100.reads().toString());
         assertEquals("D:0, A:[0]", sbVi100.assignments().toString());
@@ -98,7 +98,7 @@ public class TestAssignmentsForEachIf extends CommonTest {
         assertEquals("1-E", arrayVi100.reads().toString());
 
         // third merge
-        VariableData vd1 = s1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd1 = VariableDataImpl.of(s1);
         VariableInfo sbVi1 = vd1.variableInfo("sb");
         assertEquals("D:0, A:[0]", sbVi1.assignments().toString());
         VariableInfo arrayVi1 = vd1.variableInfo(array.fullyQualifiedName());
@@ -106,13 +106,13 @@ public class TestAssignmentsForEachIf extends CommonTest {
 
         // last statement
         Statement s2 = method.methodBody().statements().get(1);
-        VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd2 = VariableDataImpl.of(s2);
         VariableInfo sbVi2 = vd2.variableInfo("sb");
         assertEquals("D:0, A:[0]", sbVi2.assignments().toString());
         VariableInfo arrayVi2 = vd2.variableInfo(array.fullyQualifiedName());
         assertEquals("D:-, A:[]", arrayVi2.assignments().toString());
 
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());

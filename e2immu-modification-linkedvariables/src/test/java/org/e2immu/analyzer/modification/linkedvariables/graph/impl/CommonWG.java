@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.graph.impl;
 
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;

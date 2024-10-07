@@ -14,10 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestLinkToReturnValueMap extends CommonTest {
 
-    public TestLinkToReturnValueMap() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;

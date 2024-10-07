@@ -49,7 +49,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals(5, vdMethod.knownVariableNames().size());
 
@@ -68,18 +68,18 @@ public class TestAssignments extends CommonTest {
 
         IfElseStatement ifElseStatement = (IfElseStatement) method.methodBody().statements().get(3);
         Statement j1 = ifElseStatement.block().statements().get(0);
-        VariableData vdJ1 = j1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdJ1 = VariableDataImpl.of(j1);
         VariableInfo jViJ1 = vdJ1.variableInfo("j");
         assertEquals("-", jViJ1.reads().toString());
         assertEquals("D:1, A:[3.0.0]", jViJ1.assignments().toString());
 
         Statement j3 = ifElseStatement.elseBlock().statements().get(0);
-        VariableData vdJ3 = j3.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdJ3 = VariableDataImpl.of(j3);
         VariableInfo jViJ3 = vdJ3.variableInfo("j");
         assertEquals("-", jViJ3.reads().toString());
         assertEquals("D:1, A:[3.1.0]", jViJ3.assignments().toString());
 
-        VariableData vdJIf = ifElseStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdJIf = VariableDataImpl.of(ifElseStatement);
         VariableInfo jViJIf = vdJIf.variableInfo("j");
         assertEquals("-", jViJIf.reads().toString());
         assertEquals("D:1, A:[3.0.0, 3.1.0, 3=M]", jViJIf.assignments().toString());
@@ -124,7 +124,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         // loop variable 'i' should not be known to the method
         assertEquals(2, vdMethod.knownVariableNames().size());
@@ -136,7 +136,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("D:-, A:[]", inVi.assignments().toString());
 
         Statement s0 = method.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         assertFalse(vd0.variableInfoContainerOrNull("i").hasMerge());
@@ -145,7 +145,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("D:0+E, A:[0+E, 0:E]", iA.toString());
 
         Statement s000 = s0.block().statements().get(0);
-        VariableData vd000 = s000.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd000 = VariableDataImpl.of(s000);
         assertTrue(vd000.variableInfoContainerOrNull("i").hasMerge());
         VariableInfo iVi000 = vd000.variableInfo("i");
         assertEquals("0-E, 0.0.0-E, 0.0.0.0.0, 0:E, 0;E", iVi000.reads().toString());
@@ -180,7 +180,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
 
@@ -194,14 +194,14 @@ public class TestAssignments extends CommonTest {
         assertFalse(vdMethod.isKnown("i"));
 
         Statement s0 = method.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
         assertEquals("D:0+E, A:[0+E, 0:E]", iA.toString());
 
         Statement s001 = s0.block().statements().get(1);
-        VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd001 = VariableDataImpl.of(s001);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, i, j, java.lang.System.out", vd001.knownVariableNamesToString());
         VariableInfo jVi = vd001.variableInfo("j");
         assertEquals("j", jVi.variable().simpleName());
@@ -239,7 +239,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         // i is not visible at the method level
@@ -254,7 +254,7 @@ public class TestAssignments extends CommonTest {
         assertEquals("D:-, A:[]", intsVi.assignments().toString());
 
         Statement s0 = method.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo iVi = vd0.variableInfo("i");
         assertEquals("i", iVi.variable().simpleName());
         Assignments iA = iVi.assignments();
@@ -290,7 +290,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals(5, vdMethod.knownVariableNames().size());
 
@@ -380,7 +380,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("quickSort", 3);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals(14, vdMethod.knownVariableNames().size());
 
@@ -444,7 +444,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
 
@@ -485,7 +485,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
         assertEquals(3, vdMethod.knownVariableNames().size());
 
@@ -524,7 +524,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, a.b.X.o, a.b.X.this, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
 
@@ -562,7 +562,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
 
@@ -601,7 +601,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertEquals("a.b.X.method(String), a.b.X.method(String):0:in, i, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
 
@@ -639,7 +639,7 @@ public class TestAssignments extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertEquals("a.b.X.method(int), a.b.X.method(int):0:j, i, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
 
@@ -650,7 +650,7 @@ public class TestAssignments extends CommonTest {
         assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3.0.1"));
 
         Statement s2 = method.methodBody().statements().get(2);
-        VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd2 = VariableDataImpl.of(s2);
         VariableInfo iVi2 = vd2.variableInfo("i");
         assertEquals("1.0.0", iVi2.reads().toString());
         assertEquals("D:0, A:[0, 2]", iVi2.assignments().toString());

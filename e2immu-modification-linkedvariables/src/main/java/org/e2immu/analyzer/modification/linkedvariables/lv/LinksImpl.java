@@ -1,8 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndexImpl;
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndexImpl.ALL;
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl.ALL;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 
 
 public record LinksImpl(Map<Indices, Link> map) implements Links {

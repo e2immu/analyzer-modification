@@ -60,7 +60,7 @@ public class TestAssignmentsNoExit extends CommonTest {
         MethodInfo method = X.findUniqueMethod("readLine", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         VariableInfo rvVi = vdMethod.variableInfo(method.fullyQualifiedName());

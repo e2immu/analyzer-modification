@@ -5,6 +5,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.analysis.Codec;
+import org.e2immu.language.cst.api.element.Element;
+import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.support.SetOnceMap;
@@ -71,5 +73,9 @@ public class VariableDataImpl implements VariableData {
     @Override
     public VariableInfo variableInfo(Variable variable, Stage stage) {
         return vicByFqn.get(variable.fullyQualifiedName()).best(stage);
+    }
+
+    public static VariableData of(Element info) {
+        return info.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
     }
 }

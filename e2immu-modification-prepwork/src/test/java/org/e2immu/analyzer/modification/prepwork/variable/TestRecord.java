@@ -32,7 +32,7 @@ public class TestRecord extends CommonTest {
         Statement s0 = syntheticConstructor.methodBody().statements().get(0);
         assertEquals("this.a=a;", s0.toString());
 
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertEquals("a.b.R.<init>(int,String):0:a, a.b.R.a, a.b.R.this", vd0.knownVariableNamesToString());
 
         VariableInfo vi0FieldA = vd0.variableInfo("a.b.R.a");

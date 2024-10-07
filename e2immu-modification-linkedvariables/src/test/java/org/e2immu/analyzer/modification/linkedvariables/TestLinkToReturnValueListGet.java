@@ -19,10 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class TestLinkToReturnValueListGet extends CommonTest {
 
-    public TestLinkToReturnValueListGet() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
@@ -59,7 +55,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         MethodInfo listGet = X.findUniqueMethod("get", 2);
 
         Statement s0 = listGet.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
         assertEquals("*-4-0:list", viRv.linkedVariables().toString());

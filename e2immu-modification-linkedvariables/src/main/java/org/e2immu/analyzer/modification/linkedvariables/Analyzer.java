@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
@@ -35,7 +36,10 @@ import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
+import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.EMPTY_PART_OF_CONSTRUCTION;
+import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
@@ -60,7 +64,9 @@ public class Analyzer {
     public void doMethod(MethodInfo methodInfo) {
         LOGGER.info("Do method {}", methodInfo);
 
-        doHiddenContentSelector(methodInfo);
+        assert methodInfo.isConstructor() || methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD);
+        assert methodInfo.parameters().stream().allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER));
+
         if (methodInfo.isAbstract()) {
             shallowMethodAnalyzer.analyze(methodInfo);
         } else {
@@ -80,44 +86,6 @@ public class Analyzer {
                          && thisVar.typeInfo() == methodInfo.typeInfo());
             doIndependent(methodInfo, variableData);
         }
-    }
-
-    private void doHiddenContentSelector(MethodInfo methodInfo) {
-        MethodInfo overrideWithMostHiddenContent = overloadWithMostHiddenContent(methodInfo);
-        ParameterizedType returnType = overrideWithMostHiddenContent.returnType();
-        HiddenContentTypes hctOverride = overrideWithMostHiddenContent.analysis()
-                .getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-        assert hctOverride != null : "No HCT for " + overrideWithMostHiddenContent;
-        if (!methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD)) {
-            HiddenContentSelector hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
-            methodInfo.analysis().set(HiddenContentSelector.HCS_METHOD, hcs);
-        }
-        methodInfo.parameters().forEach(pi -> {
-            if (!pi.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_PARAMETER)) {
-                ParameterizedType pt = overrideWithMostHiddenContent.parameters().get(pi.index()).parameterizedType();
-                HiddenContentSelector hcsPa = HiddenContentSelector.selectAll(hctOverride, pt);
-                pi.analysis().set(HiddenContentSelector.HCS_PARAMETER, hcsPa);
-            }
-        });
-    }
-
-
-    private MethodInfo overloadWithMostHiddenContent(MethodInfo methodInfo) {
-        Set<MethodInfo> overrides = methodInfo.overrides();
-        if (overrides.isEmpty()) return methodInfo;
-        if (overrides.size() == 1) return overrides.stream().findFirst().orElseThrow();
-        Map<MethodInfo, Integer> map = overrides.stream()
-                .collect(Collectors.toUnmodifiableMap(m -> m, this::countHiddenContent));
-        return overrides.stream().min((o1, o2) -> map.get(o2) - map.get(o1)).orElseThrow();
-    }
-
-    private int countHiddenContent(MethodInfo methodInfo) {
-        HiddenContentTypes hct = methodInfo.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
-                HiddenContentTypes.class);
-        assert hct != null;
-        Stream<ParameterizedType> types = Stream.concat(Stream.of(methodInfo.returnType()),
-                methodInfo.parameters().stream().map(Variable::parameterizedType));
-        return (int) types.filter(t -> hct.indexOfOrNull(t) != null).count();
     }
 
     private void doFluentIdentityAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock,
@@ -234,8 +202,13 @@ public class Analyzer {
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
             } else if (v instanceof This || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
-                if (vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue()
-                    && !methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
+                Value.SetOfInfo set = methodInfo.typeInfo().analysis().getOrDefault(PART_OF_CONSTRUCTION,
+                        EMPTY_PART_OF_CONSTRUCTION);
+                boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
+                boolean assignment = vi.assignments().size() > 0;
+                if ((modification || assignment)
+                    && !methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)
+                    && !set.infoSet().contains(methodInfo)) {
                     methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
                 }
             }
@@ -286,7 +259,7 @@ public class Analyzer {
                                      VariableData previous,
                                      boolean first) {
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
-        VariableData vd = statement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(statement);
         assert vd != null : "No variable data in " + statement + " source " + statement.source();
         ComputeLinkCompletion.Builder clcBuilder = computeLinkCompletion.new Builder();
 
@@ -434,7 +407,7 @@ public class Analyzer {
     private void appendToFieldStaticValueMap(MethodInfo methodInfo, Map<FieldInfo, List<StaticValues>> svMap) {
         if (methodInfo.methodBody().isEmpty()) return;
         Statement lastStatement = methodInfo.methodBody().lastStatement();
-        VariableData vd = lastStatement.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(lastStatement);
         vd.variableInfoStream()
                 .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
                 .filter(vi -> vi.staticValues() != null)

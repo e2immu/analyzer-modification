@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
-import org.e2immu.analyzer.modification.linkedvariables.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
@@ -11,7 +11,7 @@ import org.e2immu.language.cst.api.analysis.Value;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 

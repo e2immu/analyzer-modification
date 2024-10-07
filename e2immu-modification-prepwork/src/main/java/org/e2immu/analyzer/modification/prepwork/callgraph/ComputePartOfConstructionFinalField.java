@@ -86,7 +86,7 @@ public class ComputePartOfConstructionFinalField {
 
     private boolean isAssigned(MethodInfo methodInfo, FieldInfo fieldInfo) {
         Statement lastStatement = methodInfo.methodBody().lastStatement();
-        VariableData vd = lastStatement.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(lastStatement);
         assert vd != null;
         return vd.variableInfoContainerStream()
                 .filter(vic -> vic.variable() instanceof FieldReference fr && fr.fieldInfo() == fieldInfo)

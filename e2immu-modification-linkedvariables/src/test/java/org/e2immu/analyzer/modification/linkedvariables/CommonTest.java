@@ -29,13 +29,11 @@ public class CommonTest {
     protected JavaInspector javaInspector;
     protected Runtime runtime;
     protected final String[] extraClassPath;
-    protected final boolean loadAnnotatedAPIs;
     protected Analyzer analyzer;
     protected PrepAnalyzer prepAnalyzer;
 
-    protected CommonTest(boolean loadAnnotatedAPIs, String... extraClassPath) {
+    protected CommonTest(String... extraClassPath) {
         this.extraClassPath = extraClassPath;
-        this.loadAnnotatedAPIs = loadAnnotatedAPIs;
     }
 
     @BeforeAll
@@ -63,38 +61,24 @@ public class CommonTest {
         javaInspector.initialize(inputConfiguration);
         javaInspector.preload("java.util");
 
-        if (loadAnnotatedAPIs) {
-            String JSON = "../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json";
-            File file = new File(JSON);
-            assertTrue(file.isDirectory());
-            AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
-                    .addAnalyzedAnnotatedApiDirs(JSON)
-                    .build();
-            new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
-        }
+        String JSON = "../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json";
+        File file = new File(JSON);
+        assertTrue(file.isDirectory());
+        AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
+                .addAnalyzedAnnotatedApiDirs(JSON)
+                .build();
+        new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
 
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
-        analyzer = new Analyzer(runtime);
         prepAnalyzer = new PrepAnalyzer(runtime);
+        List<TypeInfo> typesLoaded = javaInspector.compiledTypesManager().typesLoaded();
+        assertTrue(typesLoaded.stream().anyMatch(ti -> "java.lang.Exception".equals(ti.fullyQualifiedName())));
+        prepAnalyzer.initialize(typesLoaded);
+        analyzer = new Analyzer(runtime);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {
-        ComputeHC computeHC = new ComputeHC(runtime);
-        computeHC.doPredefinedObjects(runtime);
-        computeHC.doType(Function.class, List.class, Set.class, ArrayList.class, Map.class, HashMap.class,
-                Collection.class, Collections.class, Exception.class, RuntimeException.class);
-
         return prepAnalyzer.doPrimaryType(typeInfo);
-    }
-
-    private void prepType(TypeInfo typeInfo) {
-        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
-        prepType(prepAnalyzer, typeInfo);
-    }
-
-    private void prepType(PrepAnalyzer prepAnalyzer, TypeInfo typeInfo) {
-        typeInfo.subTypes().forEach(st -> prepType(prepAnalyzer, st));
-        typeInfo.constructorAndMethodStream().forEach(prepAnalyzer::doMethod);
     }
 }

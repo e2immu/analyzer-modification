@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
+import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -40,10 +41,12 @@ public class PrepAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(PrepAnalyzer.class);
     private final MethodAnalyzer methodAnalyzer;
     private final ComputeHiddenContent computeHiddenContent;
+    private final ComputeHCS computeHCS;
 
     public PrepAnalyzer(Runtime runtime) {
         methodAnalyzer = new MethodAnalyzer(runtime);
         computeHiddenContent = new ComputeHiddenContent(runtime);
+        computeHCS = new ComputeHCS(runtime);
     }
 
     /*
@@ -57,16 +60,14 @@ public class PrepAnalyzer {
         methodAnalyzer.doMethod(methodInfo, methodBlock);
     }
 
-    public List<Info> doPrimaryType(TypeInfo typeInfo, boolean isShallow) {
+    public List<Info> doPrimaryType(TypeInfo typeInfo) {
         doType(typeInfo);
 
         ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
         ccg.setRecursiveMethods();
         G<Info> cg = ccg.go().graph();
-        if (!isShallow) {
-            ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-            cp.go(typeInfo, cg);
-        }
+        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
+        cp.go(typeInfo, cg);
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         return cao.go(cg);
     }
@@ -93,16 +94,14 @@ public class PrepAnalyzer {
             HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, mi);
             mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
 
-            if (!mi.isConstructor()) {
-                HiddenContentSelector hcsMethod = HiddenContentSelector.selectAll(hctMethod, mi.returnType());
-                mi.analysis().set(HCS_METHOD, hcsMethod);
-            }
-            for (ParameterInfo pi : mi.parameters()) {
-                HiddenContentSelector hcsPi = HiddenContentSelector.selectAll(hctMethod, pi.parameterizedType());
-                pi.analysis().set(HCS_PARAMETER, hcsPi);
-            }
-
+            computeHCS.doHiddenContentSelector(mi);
             doMethod(mi);
         });
+    }
+
+    public void initialize(List<TypeInfo> typesLoaded) {
+        computeHCS.doPrimitives();
+        // while the annotated APIs have HCT/HCS values for a number of types, this line takes care of the rest
+        typesLoaded.stream().filter(TypeInfo::isPrimaryType).forEach(computeHCS::doType);
     }
 }

@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
@@ -13,6 +13,8 @@ import org.e2immu.language.cst.io.CodecImpl;
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
@@ -38,13 +40,16 @@ public class LinkedVariablesCodec {
         }
     }
 
-    private static final Map<String, Property> MAP = Map.of(HIDDEN_CONTENT_TYPES.key(), HIDDEN_CONTENT_TYPES,
+    private static final Map<String, Property> PROPERTY_MAP = Map.of(
+            HIDDEN_CONTENT_TYPES.key(), HIDDEN_CONTENT_TYPES,
+            HCS_METHOD.key(), HCS_METHOD,
+            HCS_PARAMETER.key(), HCS_PARAMETER,
             PART_OF_CONSTRUCTION.key(), PART_OF_CONSTRUCTION);
 
     class P implements Codec.PropertyProvider {
         @Override
         public Property get(String propertyName) {
-            Property inMap = MAP.get(propertyName);
+            Property inMap = PROPERTY_MAP.get(propertyName);
             if (inMap != null) return inMap;
             return PropertyProviderImpl.get(propertyName);
         }
@@ -57,6 +62,10 @@ public class LinkedVariablesCodec {
             if (HiddenContentTypes.class.equals(clazz)) {
                 return (di, ev) -> HiddenContentTypes.decode(di.codec(), di.context(), ev);
             }
+            if (HiddenContentSelector.class.equals(clazz)) {
+                return (di, ev) -> HiddenContentSelector.decode(di.codec(), di.context(), ev);
+            }
+            // part of construction uses "set of info", which is in ValueImpl.
             return ValueImpl.decoder(clazz);
         }
     }

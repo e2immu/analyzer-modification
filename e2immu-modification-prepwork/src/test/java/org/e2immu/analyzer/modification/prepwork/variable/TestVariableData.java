@@ -34,7 +34,7 @@ public class TestVariableData extends CommonTest {
         MethodInfo method1 = typeInfo.findUniqueMethod("method1", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
-        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(method1);
         assert vd != null;
 
         // there is no This present
@@ -70,7 +70,7 @@ public class TestVariableData extends CommonTest {
         PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
-        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(method1);
 
         assertEquals("a.b.C.method1(String):0:s, java.lang.System.out", vd.knownVariableNamesToString());
 
@@ -78,7 +78,7 @@ public class TestVariableData extends CommonTest {
         assertEquals(2, vis.size());
 
         Statement s0 = method1.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableData.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         Statement s1 = method1.methodBody().statements().get(1);
         VariableData vd1 = s1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableData.class);
@@ -127,7 +127,7 @@ public class TestVariableData extends CommonTest {
         VariableData vd0 = method1.methodBody().statements().get(0).analysis().getOrNull(VariableDataImpl.VARIABLE_DATA,
                 VariableData.class);
 
-        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(method1);
         assert vd != null;
         assertEquals("a.b.C.j, a.b.C.method1(String):0:s, a.b.C.this, java.lang.System.out", vd.knownVariableNamesToString());
 
@@ -189,7 +189,7 @@ public class TestVariableData extends CommonTest {
         PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
-        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(method1);
         assert vd != null;
 
         Statement s111 = method1.methodBody().statements().get(1)
@@ -205,7 +205,7 @@ public class TestVariableData extends CommonTest {
         ReturnVariable rv = new ReturnVariableImpl(method1);
 
         Statement s2 = method1.methodBody().statements().get(2);
-        VariableData vd2 = s2.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd2 = VariableDataImpl.of(s2);
         VariableInfo rvVi2 = vd2.variableInfo(rv.fullyQualifiedName());
 
         assertTrue(vd.isKnown(rv.fullyQualifiedName()));
@@ -257,11 +257,11 @@ public class TestVariableData extends CommonTest {
         PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
         analyzer.doMethod(method1);
 
-        VariableData vd = method1.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd = VariableDataImpl.of(method1);
         assert vd != null;
 
         ForStatement fs4 =(ForStatement) method1.methodBody().statements().get(4);
-        VariableData vd4 = fs4.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd4 = VariableDataImpl.of(fs4);
         VariableInfo i4 = vd4.variableInfo("i");
         assertEquals("4-E, 4.0.0, 4:E, 4;E", i4.reads().toString());
     }

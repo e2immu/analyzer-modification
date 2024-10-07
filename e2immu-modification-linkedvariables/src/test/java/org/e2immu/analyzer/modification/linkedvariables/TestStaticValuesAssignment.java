@@ -21,10 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestStaticValuesAssignment extends CommonTest {
 
-    public TestStaticValuesAssignment() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
@@ -47,7 +43,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 0);
         {
             Statement s0 = method.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0J = vd0.variableInfo("j");
             assertEquals("", vi0J.linkedVariables().toString());
@@ -55,7 +51,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         }
         {
             Statement s1 = method.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1Rv = vd1.variableInfo(method.fullyQualifiedName());
             assertEquals("-1-:j", vi1Rv.linkedVariables().toString());
@@ -101,7 +97,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         MethodInfo setJ = X.findUniqueMethod("setJ", 1);
         {
             Statement s0 = setJ.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0J = vd0.variableInfo(runtime.newFieldReference(fieldJ));
             assertEquals("-1-:jp", vi0J.linkedVariables().toString());
@@ -109,7 +105,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         }
         {
             Statement s1 = setJ.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1Rv = vd1.variableInfo(setJ.fullyQualifiedName());
             assertEquals("-1-:this", vi1Rv.linkedVariables().toString());
@@ -126,7 +122,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 0);
         {
             Statement s0 = method.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0X = vd0.variableInfo("x");
             assertEquals("E=new X() this.j=3", vi0X.staticValues().toString());
@@ -184,12 +180,12 @@ public class TestStaticValuesAssignment extends CommonTest {
         {
             MethodInfo justJ = X.findUniqueMethod("justJ", 1);
             Statement s0 = justJ.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0B = vd0.variableInfo("b");
             assertEquals("E=new Builder() this.j=jp", vi0B.staticValues().toString());
 
             Statement s1 = justJ.methodBody().lastStatement();
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Rv = vd1.variableInfo(justJ.fullyQualifiedName());
             assertEquals("Type a.b.X this.j=jp", vi1Rv.staticValues().toString());
         }
@@ -197,12 +193,12 @@ public class TestStaticValuesAssignment extends CommonTest {
         {
             MethodInfo justJ4 = X.findUniqueMethod("justJ4", 1);
             Statement s0 = justJ4.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0B = vd0.variableInfo("b");
             assertEquals("E=new Builder() this.j=jp, this.k=4", vi0B.staticValues().toString());
 
             Statement s1 = justJ4.methodBody().lastStatement();
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Rv = vd1.variableInfo(justJ4.fullyQualifiedName());
             assertEquals("Type a.b.X this.j=jp, this.k=4", vi1Rv.staticValues().toString());
         }
@@ -237,7 +233,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         ParameterInfo r = method.parameters().get(0);
         {
             Statement s0 = method.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0R = vd0.variableInfo(r);
             assertEquals("", vi0R.linkedVariables().toString());
@@ -251,7 +247,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         }
         {
             Statement s1 = method.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1Rv = vd1.variableInfo(method.fullyQualifiedName());
             assertEquals("", vi1Rv.linkedVariables().toString());
@@ -295,7 +291,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         ParameterInfo s = method.parameters().get(0);
         {
             Statement s0 = method.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
             // s.r should have component i=3
@@ -351,7 +347,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         ParameterInfo t = method.parameters().get(0);
 
         Statement s0 = method.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
 
         // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
         // s.r should have component i=3

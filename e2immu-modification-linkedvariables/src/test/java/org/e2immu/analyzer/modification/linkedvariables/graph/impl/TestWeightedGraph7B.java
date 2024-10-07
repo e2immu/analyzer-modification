@@ -2,8 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables.graph.impl;
 
 import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndexImpl;
-import org.e2immu.analyzer.modification.linkedvariables.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.e2immu.analyzer.modification.linkedvariables.hcs.IndexImpl.ALL;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl.ALL;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestWeightedGraph7B extends CommonWG {

@@ -28,10 +28,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestStaticValuesRecord extends CommonTest {
 
-    public TestStaticValuesRecord() {
-        super(true);
-    }
-
     @Language("java")
     private static final String INPUT1 = """
             package a.b;
@@ -54,7 +50,7 @@ public class TestStaticValuesRecord extends CommonTest {
         ParameterInfo setParam = constructor.parameters().get(0);
         {
             Statement s0 = constructor.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0SetField = vd0.variableInfo(setFr);
             assertEquals("-1-:set", vi0SetField.linkedVariables().toString());
@@ -66,7 +62,7 @@ public class TestStaticValuesRecord extends CommonTest {
         }
         {
             Statement s1 = constructor.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1SetField = vd1.variableInfo(setFr);
             assertEquals("-1-:set", vi1SetField.linkedVariables().toString());
@@ -128,13 +124,13 @@ public class TestStaticValuesRecord extends CommonTest {
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
 
-        VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(rLvc);
         VariableInfo rVi0 = vd0.variableInfo(r);
         assertEquals("Type a.b.X.R E=new R(in,3) this.n=3, this.set=in", rVi0.staticValues().toString());
 
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(1);
         {
-            VariableData vd1 = rs.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(rs);
             VariableInfo rVi1 = vd1.variableInfo(r);
             assertEquals(rVi0.staticValues(), rVi1.staticValues());
 
@@ -171,13 +167,13 @@ public class TestStaticValuesRecord extends CommonTest {
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
 
-        VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(rLvc);
         VariableInfo rVi0 = vd0.variableInfo(r);
         assertEquals("Type a.b.X.R E=new R(in,3) this.n=3, this.set=in", rVi0.staticValues().toString());
 
         {
             LocalVariableCreation sLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
-            VariableData vd1 = sLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(sLvc);
             VariableInfo sVi1 = vd1.variableInfo("s");
             assertEquals("-1-:r,-2-:in", sVi1.linkedVariables().toString());
             assertEquals(rVi0.staticValues(), sVi1.staticValues());
@@ -185,7 +181,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(2);
         {
-            VariableData vd2 = rs.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd2 = VariableDataImpl.of(rs);
             VariableInfo rVi2 = vd2.variableInfo(r);
             assertEquals(rVi0.staticValues(), rVi2.staticValues());
 
@@ -221,14 +217,14 @@ public class TestStaticValuesRecord extends CommonTest {
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
 
-        VariableData vd0 = rLvc.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(rLvc);
         VariableInfo rVi0 = vd0.variableInfo(r);
         assertEquals("Type a.b.X.R<java.util.Set<String>> E=new R<>(in) this.t=in", rVi0.staticValues().toString());
         assertEquals("0.0-4-0:in", rVi0.linkedVariables().toString());
 
         ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(1);
 
-        VariableData vd1 = rs.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd1 = VariableDataImpl.of(rs);
         VariableInfo rVi1 = vd1.variableInfo(r);
         assertEquals(rVi0.staticValues(), rVi1.staticValues());
 

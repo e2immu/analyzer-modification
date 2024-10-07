@@ -33,12 +33,12 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
 
     public static Indices decode(Codec codec, Codec.Context context, Codec.EncodedValue encodedValue) {
         List<Codec.EncodedValue> list = codec.decodeList(context, encodedValue);
-        Set<Index> set = new HashSet<>();
+        Set<Index> set = new TreeSet<>();
         for (Codec.EncodedValue ev : list) {
             Index index = IndexImpl.decode(codec, context, ev);
             set.add(index);
         }
-        return new IndicesImpl(Set.copyOf(set));
+        return new IndicesImpl(set);
     }
 
 

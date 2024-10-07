@@ -7,10 +7,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
-import org.e2immu.language.cst.impl.variable.FieldReferenceImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,10 +24,6 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.VariableBooleanMap
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestModificationFunctional extends CommonTest {
-
-    public TestModificationFunctional() {
-        super(true);
-    }
 
     /*
     the convention is that modification on a functional interface type indicates that the SAM (single abstract method)
@@ -80,13 +74,13 @@ public class TestModificationFunctional extends CommonTest {
         ParameterInfo function = run.parameters().get(1);
         {
             Statement s0 = run.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0S = vd0.variableInfo(s);
             assertSame(FALSE, vi0S.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
         }
         {
             Statement s1 = run.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1S = vd1.variableInfo(s);
             assertSame(FALSE, vi1S.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
             VariableInfo vi1Function = vd1.variableInfo(function);
@@ -100,7 +94,7 @@ public class TestModificationFunctional extends CommonTest {
         MethodInfo go = X.findUniqueMethod("go", 1);
         {
             Statement s0 = go.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X));
             assertSame(TRUE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
             // as a consequence, 'go' becomes modified
@@ -168,7 +162,7 @@ public class TestModificationFunctional extends CommonTest {
         ParameterInfo runR = run.parameters().get(1);
         {
             Statement s1 = run.methodBody().lastStatement();
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1R = vd1.variableInfo(runR);
             assertEquals("r.function=true", vi1R.analysis()
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
@@ -227,7 +221,7 @@ public class TestModificationFunctional extends CommonTest {
         ParameterInfo runS = run.parameters().get(1);
         {
             Statement s1 = run.methodBody().lastStatement();
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1S = vd1.variableInfo(runS);
             assertEquals("s.r.function=true", vi1S.analysis()
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
@@ -241,14 +235,14 @@ public class TestModificationFunctional extends CommonTest {
         MethodInfo go = X.findUniqueMethod("go", 1);
         {
             Statement s0 = go.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0R = vd0.variableInfo("r");
             assertEquals("Type a.b.X.R E=new R(this::parse) this.function=this::parse",
                     vi0R.staticValues().toString());
         }
         {
             Statement s1 = go.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1R = vd1.variableInfo("r");
             assertEquals("Type a.b.X.R E=new R(this::parse) this.function=this::parse",
@@ -321,14 +315,14 @@ public class TestModificationFunctional extends CommonTest {
         MethodInfo go = X.findUniqueMethod("go", 1);
         {
             Statement s0 = go.methodBody().statements().get(0);
-            VariableData vd0 = s0.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0R = vd0.variableInfo("r");
             assertEquals("Type a.b.X.RImpl E=new RImpl(this::parse) this.function=this::parse",
                     vi0R.staticValues().toString());
         }
         {
             Statement s1 = go.methodBody().statements().get(1);
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1R = vd1.variableInfo("r");
             assertEquals("Type a.b.X.RImpl E=new RImpl(this::parse) this.function=this::parse",
@@ -341,7 +335,7 @@ public class TestModificationFunctional extends CommonTest {
         ParameterInfo runS = run.parameters().get(1);
         {
             Statement s1 = run.methodBody().lastStatement();
-            VariableData vd1 = s1.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+            VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1S = vd1.variableInfo(runS);
             assertEquals("s.r.function=true", vi1S.analysis()
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());

@@ -36,17 +36,17 @@ public class TestAssignmentsEmpty extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 1);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doMethod(method);
-        VariableData vdMethod = method.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vdMethod = VariableDataImpl.of(method);
         assertNotNull(vdMethod);
 
         assertEquals("a.b.X.method(String[]):0:strings, s", vdMethod.knownVariableNamesToString());
 
         Statement s0 = method.methodBody().statements().get(0);
-        VariableData vd0 = s0.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd0 = VariableDataImpl.of(s0);
         assertEquals("a.b.X.method(String[]):0:strings, s", vd0.knownVariableNamesToString());
 
         Statement s001 = s0.block().statements().get(1);
-        VariableData vd001 = s001.analysis().getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+        VariableData vd001 = VariableDataImpl.of(s001);
         assertEquals("a.b.X.method(String[]):0:strings, n, s", vd001.knownVariableNamesToString());
         VariableInfoContainer vicN = vd001.variableInfoContainerOrNull("n");
         assertTrue(vicN.hasMerge());
