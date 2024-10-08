@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.hct;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyProviderImpl;
 import org.e2immu.language.cst.io.CodecImpl;
 import org.intellij.lang.annotations.Language;
@@ -155,6 +156,10 @@ public class TestComputeHiddenContent extends CommonTest {
         assertEquals("T=0, T=0, T=0, T=0, T_CONS=2, T_CONS=2, T_SPLITR=1, T_SPLITR=1, T_SPLITR=1",
                 hctSliceSpliteratorOfPrimitive.detailedSortedTypeToIndex());
         SliceSpliteratorOfPrimitive.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliteratorOfPrimitive);
+
+        assertEquals(3, SliceSpliteratorOfPrimitive.typeParameters().size());
+        ParameterizedType pt = SliceSpliteratorOfPrimitive.asParameterizedType(runtime);
+        assertEquals(3, pt.parameters().size());
 
         TypeInfo SliceSpliteratorOfDouble = SliceSpliterator.findSubType("OfDouble");
         HiddenContentTypes hctSliceSpliteratorOfDouble = chc.compute(SliceSpliteratorOfDouble);
