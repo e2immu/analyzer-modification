@@ -201,8 +201,7 @@ public class HiddenContentSelector implements Value {
             } else {
                 map.put(index, ALL_INDICES);
             }
-        }
-        if (type.typeParameter() == null) {
+        } else if (type.typeParameter() == null) {
             // not a type parameter
             if (type.typeInfo() == null) {
                 // ?, equivalent to ? extends Object

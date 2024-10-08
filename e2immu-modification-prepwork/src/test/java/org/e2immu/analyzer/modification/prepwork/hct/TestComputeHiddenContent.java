@@ -136,6 +136,8 @@ public class TestComputeHiddenContent extends CommonTest {
             import java.util.function.DoubleConsumer;
             class StreamSpliterators {
                 abstract static class SliceSpliterator<T, T_SPLITR extends Spliterator<T>> {
+                    T t;
+                    T_SPLITR tSplitr;
                     static final class OfDouble extends OfPrimitive<Double, Spliterator.OfDouble, DoubleConsumer>
                                     implements Spliterator.OfDouble {
             
@@ -146,7 +148,9 @@ public class TestComputeHiddenContent extends CommonTest {
                             T_CONS>
                         extends SliceSpliterator<T, T_SPLITR>
                         implements Spliterator.OfPrimitive<T, T_CONS, T_SPLITR> {
-            
+                        T t;
+                        T_SPLITR tSplitr;
+                        T_CONS tCons;
                     }
                 }
             }

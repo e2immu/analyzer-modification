@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.info.FieldInfo;
@@ -10,9 +11,9 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.*;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -232,14 +233,14 @@ public class TestComputeHCS extends CommonTest {
     @Test
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
-        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
-        ComputeHCS computeHCS = new ComputeHCS(runtime);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
 
         TypeInfo string = runtime.stringTypeInfo();
         assertFalse(string.isExtensible());
-        HiddenContentTypes hctString = chc.compute(string);
+        HiddenContentTypes hctString = string.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("", hctString.detailedSortedTypes());
-        string.analysis().set(HIDDEN_CONTENT_TYPES, hctString);
 
         /*
         in the interface C, setO and getO do not have the @GetSet annotation.
@@ -260,42 +261,34 @@ public class TestComputeHCS extends CommonTest {
         MethodInfo CgetO = C.findUniqueMethod("getO", 0);
         assertSame(synthetic, CgetO.getSetField().field());
 
-        HiddenContentTypes hctC = chc.compute(C);
+        HiddenContentTypes hctC = C.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=Object", hctC.detailedSortedTypes());
-        C.analysis().set(HIDDEN_CONTENT_TYPES, hctC);
 
-        HiddenContentTypes hctCgetO = chc.compute(hctC, CgetO);
+        HiddenContentTypes hctCgetO = CgetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("C:Object - getO:", hctCgetO.toString());
-        CgetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCgetO);
 
-        HiddenContentTypes hctCsetO = chc.compute(hctC, CsetO);
+        HiddenContentTypes hctCsetO =  CsetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("C:Object - setO:", hctCsetO.toString());
-        CsetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCgetO);
 
-        HiddenContentSelector hcsCgetO = computeHCS.doHiddenContentSelector(CgetO);
+        HiddenContentSelector hcsCgetO = CgetO.analysis().getOrDefault(HCS_METHOD, NONE);
         assertEquals("0=*", hcsCgetO.detailed());
-        computeHCS.doHiddenContentSelector(CsetO);
         HiddenContentSelector hcsCSetO0 = CsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("0=*", hcsCSetO0.detailed());
 
         TypeInfo CO = X.findSubType("CO");
-        HiddenContentTypes hctCO = chc.compute(CO);
+        HiddenContentTypes hctCO = CO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=Object", hctCO.detailedSortedTypes());
-        CO.analysis().set(HIDDEN_CONTENT_TYPES, hctCO);
 
         MethodInfo COgetO = CO.findUniqueMethod("getO", 0);
-        HiddenContentTypes hctCOgetO = chc.compute(hctCO, COgetO);
+        HiddenContentTypes hctCOgetO = COgetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("CO:Object - getO:", hctCOgetO.toString());
-        COgetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCOgetO);
 
         MethodInfo COsetO = CO.findUniqueMethod("setO", 1);
-        HiddenContentTypes hctCOsetO = chc.compute(hctCO, COsetO);
+        HiddenContentTypes hctCOsetO = COsetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("CO:Object - setO:", hctCOsetO.toString());
-        COsetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCOgetO);
 
-        HiddenContentSelector hcsCOgetO = computeHCS.doHiddenContentSelector(COgetO);
+        HiddenContentSelector hcsCOgetO = COgetO.analysis().getOrDefault(HCS_METHOD, NONE);
         assertEquals("0=*", hcsCOgetO.detailed());
-        computeHCS.doHiddenContentSelector(COsetO);
         HiddenContentSelector hcsCOSetO0 = COsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("0=*", hcsCOSetO0.detailed());
     }

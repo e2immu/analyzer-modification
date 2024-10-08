@@ -115,11 +115,19 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+
+        TypeInfo R = X.findSubType("R");
+        FieldInfo RsetField = R.getFieldByName("set", true);
+        MethodInfo Rset = R.findUniqueMethod("set", 0);
+        assertSame(RsetField, Rset.getSetField().field());
+        assertFalse(R.isExtensible());
 
         assertEquals("""
                 [a.b.X.<init>(), a.b.X.R.<init>(java.util.Set<String>,int), a.b.X.R.n(), a.b.X.R.set(), a.b.X.R.n, a.b.X.R.set, a.b.X.R, a.b.X.method(java.util.Set<String>), a.b.X]\
                 """, ao.toString());
+
+        analyzer.doPrimaryType(X, ao);
+
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
@@ -175,7 +183,7 @@ public class TestStaticValuesRecord extends CommonTest {
             LocalVariableCreation sLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(sLvc);
             VariableInfo sVi1 = vd1.variableInfo("s");
-            assertEquals("-1-:r,-2-:in", sVi1.linkedVariables().toString());
+            assertEquals("-1-:r,0M-2-*M:in", sVi1.linkedVariables().toString());
             assertEquals(rVi0.staticValues(), sVi1.staticValues());
         }
 

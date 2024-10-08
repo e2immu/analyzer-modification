@@ -363,7 +363,9 @@ public class HiddenContentTypes implements Value {
     }
 
     public Stream<Map.Entry<NamedType, Integer>> typesOfExtensibleFields() {
-        return typeToIndex.entrySet().stream().filter(e -> e.getKey() instanceof TypeInfo);
+        Stream<Map.Entry<NamedType, Integer>> fromType = hctTypeInfo != null
+                ? hctTypeInfo.typesOfExtensibleFields() : Stream.of();
+        return Stream.concat(fromType, typeToIndex.entrySet().stream().filter(e -> e.getKey() instanceof TypeInfo));
     }
 
     public boolean isTypeIsExtensible() {
