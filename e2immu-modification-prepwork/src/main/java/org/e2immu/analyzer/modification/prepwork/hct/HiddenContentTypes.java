@@ -312,10 +312,11 @@ public class HiddenContentTypes implements Value {
         return indexToType.values();
     }
 
-    public String sortedTypes() {
-        String s = forMethod() ? hctTypeInfo.sortedTypes() + " - " : "";
-        return s + indexToType.values().stream()
-                .map(NamedType::simpleName).sorted().collect(Collectors.joining(", "));
+    public String detailedSortedTypeToIndex() {
+        String s = forMethod() ? hctTypeInfo.detailedSortedTypeToIndex() + " - " : "";
+        return s + typeToIndex.entrySet().stream()
+                .map(e -> e.getKey().simpleName() + "=" + e.getValue())
+                .sorted().collect(Collectors.joining(", "));
     }
 
     public String detailedSortedTypes() {

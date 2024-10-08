@@ -5,11 +5,15 @@ import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.impl.analysis.PropertyProviderImpl;
 import org.e2immu.language.cst.io.CodecImpl;
+import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Spliterator;
 
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestComputeHiddenContent extends CommonTest {
@@ -35,5 +39,127 @@ public class TestComputeHiddenContent extends CommonTest {
         assertEquals("{\"0\":\"PK:0\",\"1\":\"PV:1\",\"E\":true,\"M\":2}", ev2.toString());
     }
 
-    // FIXME we should write a proper test that generates a JSON for some types (one with method type parameters)
+    @Language("java")
+    private static final String INPUT1 = """
+            package a.b;
+            class X {
+                interface I<T> {
+                    String m(T t);
+                }
+                static class C1<S> implements I<S> {
+                    public String m(S s) {
+                        return s.toString();
+                    }
+                }
+                static class CI implements I<Integer> {
+                    public String m(Integer i) {
+                        return (i+1) + "";
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("basics")
+    @Test
+    public void test1() {
+        TypeInfo X = javaInspector.parse(INPUT1);
+        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
+
+        TypeInfo I = X.findSubType("I");
+        HiddenContentTypes hctI = chc.compute(I);
+        assertEquals("0=T", hctI.detailedSortedTypes());
+        I.analysis().set(HIDDEN_CONTENT_TYPES, hctI);
+
+        TypeInfo C1 = X.findSubType("C1");
+        HiddenContentTypes hctC1 = chc.compute(C1);
+        assertEquals("0=S", hctC1.detailedSortedTypes());
+        assertEquals("S=0, T=0", hctC1.detailedSortedTypeToIndex());
+        C1.analysis().set(HIDDEN_CONTENT_TYPES, hctC1);
+
+        TypeInfo CI = X.findSubType("CI");
+        HiddenContentTypes hctCI = chc.compute(CI);
+        assertEquals("", hctCI.detailedSortedTypes());
+        assertEquals("", hctCI.detailedSortedTypeToIndex());
+        CI.analysis().set(HIDDEN_CONTENT_TYPES, hctCI);
+    }
+
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            import java.util.Spliterator;
+            import java.util.function.DoubleConsumer;
+            class StreamSpliterators {
+                abstract static class SliceSpliterator<T, T_SPLITR extends Spliterator<T>> {
+                    static final class OfDouble extends OfPrimitive<Double, Spliterator.OfDouble, DoubleConsumer>
+                                    implements Spliterator.OfDouble {
+            
+                    }
+                    abstract static class OfPrimitive<
+                            T,
+                            T_SPLITR extends Spliterator.OfPrimitive<T, T_CONS, T_SPLITR>,
+                            T_CONS>
+                        extends SliceSpliterator<T, T_SPLITR>
+                        implements Spliterator.OfPrimitive<T, T_CONS, T_SPLITR> {
+            
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("spliterator, from source")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        TypeInfo SliceSpliterator = X.findSubType("SliceSpliterator");
+        test(SliceSpliterator);
+    }
+
+    @DisplayName("spliterator, from bytecode")
+    @Test
+    public void test2b() {
+        TypeInfo StreamSpliterators = javaInspector.compiledTypesManager()
+                .getOrLoad("java.util.stream.StreamSpliterators");
+        TypeInfo SliceSpliterator = StreamSpliterators.findSubType("SliceSpliterator");
+        test(SliceSpliterator);
+    }
+
+    private void test(TypeInfo SliceSpliterator) {
+        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
+
+        TypeInfo spliterator = javaInspector.compiledTypesManager().get(Spliterator.class);
+        HiddenContentTypes hctSpliterator = chc.compute(spliterator);
+        assertEquals("0=T", hctSpliterator.detailedSortedTypes());
+        assertEquals("T=0", hctSpliterator.detailedSortedTypeToIndex());
+        spliterator.analysis().set(HIDDEN_CONTENT_TYPES, hctSpliterator);
+
+        TypeInfo spliteratorOfPrimitive = spliterator.findSubType("OfPrimitive");
+        HiddenContentTypes hctSpliteratorOfPrimitive = chc.compute(spliteratorOfPrimitive);
+        assertEquals("0=T, 1=T_CONS, 2=T_SPLITR", hctSpliteratorOfPrimitive.detailedSortedTypes());
+        assertEquals("T=0, T=0, T_CONS=1, T_SPLITR=2", hctSpliteratorOfPrimitive.detailedSortedTypeToIndex());
+        spliteratorOfPrimitive.analysis().set(HIDDEN_CONTENT_TYPES, hctSpliteratorOfPrimitive);
+
+        TypeInfo spliteratorOfDouble = spliterator.findSubType("OfDouble");
+        HiddenContentTypes hctSpliteratorOfDouble = chc.compute(spliteratorOfDouble);
+        assertEquals("", hctSpliteratorOfDouble.detailedSortedTypes());
+        assertEquals("", hctSpliteratorOfDouble.detailedSortedTypeToIndex());
+        spliteratorOfDouble.analysis().set(HIDDEN_CONTENT_TYPES, hctSpliteratorOfDouble);
+
+        HiddenContentTypes hctSliceSpliterator = chc.compute(SliceSpliterator);
+        assertEquals("0=T, 1=T_SPLITR", hctSliceSpliterator.detailedSortedTypes());
+        assertEquals("T=0, T_SPLITR=1", hctSliceSpliterator.detailedSortedTypeToIndex());
+        SliceSpliterator.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliterator);
+
+        TypeInfo SliceSpliteratorOfPrimitive = SliceSpliterator.findSubType("OfPrimitive");
+        HiddenContentTypes hctSliceSpliteratorOfPrimitive = chc.compute(SliceSpliteratorOfPrimitive);
+        assertEquals("0=T, 1=T_SPLITR, 2=T_CONS", hctSliceSpliteratorOfPrimitive.detailedSortedTypes());
+        assertEquals("T=0, T=0, T=0, T=0, T_CONS=2, T_CONS=2, T_SPLITR=1, T_SPLITR=1, T_SPLITR=1",
+                hctSliceSpliteratorOfPrimitive.detailedSortedTypeToIndex());
+        SliceSpliteratorOfPrimitive.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliteratorOfPrimitive);
+
+        TypeInfo SliceSpliteratorOfDouble = SliceSpliterator.findSubType("OfDouble");
+        HiddenContentTypes hctSliceSpliteratorOfDouble = chc.compute(SliceSpliteratorOfDouble);
+        assertEquals("", hctSliceSpliteratorOfDouble.detailedSortedTypes());
+        assertEquals("", hctSliceSpliteratorOfDouble.detailedSortedTypeToIndex());
+        SliceSpliteratorOfDouble.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliteratorOfDouble);
+    }
 }
