@@ -1,6 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -16,6 +18,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
@@ -103,6 +109,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             
                     TryData with(int pos, Object value);
             
+                    @GetSet("variables")
                     Object get(int i);
                 }
             
@@ -119,6 +126,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                         this.variables = variables;
                     }
             
+                    @Override
                     public Object get(int i) {
                         return variables[i];
                     }
@@ -178,10 +186,36 @@ public class TestStaticValuesOfTryData extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT);
         List<Info> analysisOrder = prepWork(X);
+
+        TypeInfo exception = javaInspector.compiledTypesManager().get(Exception.class);
+        assertTrue(exception.isExtensible());
+        TypeInfo throwingFunction = X.findSubType("ThrowingFunction");
+        assertTrue(throwingFunction.isExtensible());
+
+        // why not Object? ThrowingFunction and Exception have "synthetic fields", @GetSet
+        // the get(i) from the array is not (yet) seen as accessor
+        TypeInfo tryData = X.findSubType("TryData");
+        HiddenContentTypes hctTryData = tryData.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object", hctTryData.detailedSortedTypes());
+        MethodInfo tryDataGet = tryData.findUniqueMethod("get", 1);
+        HiddenContentTypes hctTryDataGet = tryDataGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object - ", hctTryDataGet.detailedSortedTypes());
+
+        // the implementation does see Object
+        TypeInfo tryDataImpl = X.findSubType("TryDataImpl");
+        HiddenContentTypes hctTryDataImpl = tryDataImpl.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception", hctTryDataImpl.detailedSortedTypes());
+
+        MethodInfo tryDataImplGet = tryDataImpl.findUniqueMethod("get", 1);
+        HiddenContentTypes hctTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception - ", hctTryDataImplGet.detailedSortedTypes());
+        HiddenContentSelector hcsTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HCS_METHOD, NONE);
+        assertEquals("2=*", hcsTryDataImplGet.detailed());
+
+        TypeInfo builder = tryDataImpl.findSubType("Builder");
+
         analyzer.doPrimaryType(X, analysisOrder);
 
-        TypeInfo tryDataImpl = X.findSubType("TryDataImpl");
-        TypeInfo builder = tryDataImpl.findSubType("Builder");
 
         MethodInfo body = builder.findUniqueMethod("body", 1);
         {

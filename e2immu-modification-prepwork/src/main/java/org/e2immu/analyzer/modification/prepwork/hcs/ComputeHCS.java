@@ -49,15 +49,18 @@ public class ComputeHCS {
         });
     }
 
-    public void doHiddenContentSelector(MethodInfo methodInfo) {
+    public HiddenContentSelector doHiddenContentSelector(MethodInfo methodInfo) {
         MethodInfo overrideWithMostHiddenContent = overloadWithMostHiddenContent(methodInfo);
         ParameterizedType returnType = overrideWithMostHiddenContent.returnType();
         HiddenContentTypes hctOverride = overrideWithMostHiddenContent.analysis()
                 .getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
         assert hctOverride != null : "No HCT for " + overrideWithMostHiddenContent;
+        HiddenContentSelector hcs;
         if (!methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD) && !methodInfo.isConstructor()) {
-            HiddenContentSelector hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
+            hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
             methodInfo.analysis().set(HCS_METHOD, hcs);
+        } else {
+            hcs = null;
         }
         methodInfo.parameters().forEach(pi -> {
             if (!pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER)) {
@@ -66,6 +69,7 @@ public class ComputeHCS {
                 pi.analysis().set(HCS_PARAMETER, hcsPa);
             }
         });
+        return hcs;
     }
 
 

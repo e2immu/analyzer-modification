@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.hct;
 
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -23,12 +24,6 @@ public class ComputeHiddenContent {
         this.runtime = runtime;
     }
 
-    // accessible, not accessible
-
-    public HiddenContentTypes compute(TypeInfo typeInfo) {
-        return compute(typeInfo, true, null);
-    }
-
     public HiddenContentTypes compute(HiddenContentTypes hcsTypeInfo, MethodInfo methodInfo) {
         assert hcsTypeInfo != null : "For method " + methodInfo;
 
@@ -48,17 +43,12 @@ public class ComputeHiddenContent {
         return new HiddenContentTypes(hcsTypeInfo, methodInfo, typeToIndex);
     }
 
-    // private static Stream<ParameterizedType> expand(ParameterizedType pt) {
-
-    //  }
-
-    public HiddenContentTypes compute(TypeInfo typeInfo, boolean shallow) {
-        return compute(typeInfo, shallow, null);
+    public HiddenContentTypes compute(TypeInfo typeInfo) {
+        return compute(typeInfo, null);
     }
 
-    private HiddenContentTypes compute(TypeInfo typeInfo,
-                                       boolean shallow,
-                                       Set<TypeInfo> cycleProtection) {
+    private HiddenContentTypes compute(TypeInfo typeInfo, Set<TypeInfo> cycleProtection) {
+        boolean compiledCode = typeInfo.source().isCompiledClass();
 
         int offset;
         Map<NamedType, Integer> fromEnclosing;
@@ -67,12 +57,12 @@ public class ComputeHiddenContent {
             MethodInfo enclosingMethod = typeInfo.enclosingMethod();
             Stream<Map.Entry<Integer, NamedType>> indexToTypeStream;
             if (enclosingMethod != null) {
-                hct = getOrCompute(enclosingMethod, shallow, cycleProtection);
+                hct = getOrCompute(enclosingMethod, cycleProtection);
                 indexToTypeStream = Stream.concat(hct.getHctTypeInfo().getIndexToType().entrySet().stream(),
                         hct.getIndexToType().entrySet().stream());
             } else {
                 TypeInfo enclosing = typeInfo.compilationUnitOrEnclosingType().getRight();
-                hct = getOrCompute(enclosing, shallow, cycleProtection);
+                hct = getOrCompute(enclosing, cycleProtection);
                 indexToTypeStream = hct == null ? Stream.of() : hct.getIndexToType().entrySet().stream();
             }
             offset = hct == null ? 0 : hct.size();
@@ -83,7 +73,7 @@ public class ComputeHiddenContent {
         }
 
         Set<TypeParameter> typeParametersInFields;
-        if (shallow) {
+        if (compiledCode || typeInfo.isInterface()) {
             typeParametersInFields = typeInfo.typeParameters().stream().collect(Collectors.toUnmodifiableSet());
         } else {
             typeParametersInFields = typeInfo.fields().stream()
@@ -96,11 +86,12 @@ public class ComputeHiddenContent {
 
         Map<NamedType, Integer> superTypeToIndex = new HashMap<>();
         if (typeInfo.parentClass() != null && !typeInfo.parentClass().isJavaLangObject()) {
-            addFromSuperType(typeInfo.parentClass(), shallow, fromThis,
-                    superTypeToIndex, cycleProtection);
+            addFromSuperType(typeInfo.parentClass(), fromThis, superTypeToIndex, cycleProtection);
         }
-        for (ParameterizedType interfaceType : typeInfo.interfacesImplemented()) {
-            addFromSuperType(interfaceType, shallow, fromThis, superTypeToIndex, cycleProtection);
+        if (typeInfo.isInterface()) {
+            for (ParameterizedType interfaceType : typeInfo.interfacesImplemented()) {
+                addFromSuperType(interfaceType, fromThis, superTypeToIndex, cycleProtection);
+            }
         }
         /*
          Finally, we add hidden content types from extensible fields without type parameters.
@@ -108,9 +99,18 @@ public class ComputeHiddenContent {
          NOTE: Linking to extensible fields with type parameters is done at the level of those type parameters ONLY
          in the current implementation, which does not allow for the combination of ALL and CsSet.
          */
-        if (!shallow) {
+        typeInfo.methods().stream().filter(MethodInfo::isAbstract).forEach(mi -> {
+            Value.FieldValue fv = mi.getSetField();
+            if (fv.field() != null) {
+                // record->accessors, all @GetSet marked methods cause a synthetic field
+                addExtensible(fv.field().type(), fromThis, cycleProtection);
+            }
+        });
+        if (!compiledCode) {
             for (FieldInfo f : typeInfo.fields()) {
-                addExtensible(f.type(), fromThis, shallow, cycleProtection);
+                if (!f.isSynthetic()) {
+                    addExtensible(f.type(), fromThis, cycleProtection);
+                }
             }
         }
         return HiddenContentTypes.of(typeInfo, typeInfo.isExtensible(), fromThis, superTypeToIndex);
@@ -121,19 +121,16 @@ public class ComputeHiddenContent {
     Problem is that "hasHiddenContent" is a computation that requires HCT, which can lead to cycles in the computation.
     If we encounter a cycle, we must stop and assume that there is no hidden content.
 
-    FIXME we must not add types whose sole hidden content is already present!
+    IMPROVE:  we should not add types whose sole hidden content is already present?
      */
-    private void addExtensible(ParameterizedType type,
-                               Map<NamedType, Integer> fromThis,
-                               boolean shallow,
-                               Set<TypeInfo> cycleProtection) {
+    private void addExtensible(ParameterizedType type, Map<NamedType, Integer> fromThis, Set<TypeInfo> cycleProtection) {
         if (!type.isTypeParameter()) {
             TypeInfo bestType = Objects.requireNonNullElse(type.bestTypeInfo(), runtime.objectTypeInfo());
             boolean hasHiddenContent;
             if (bestType.isExtensible()) {
                 hasHiddenContent = true;
             } else {
-                HiddenContentTypes hct = getOrCompute(bestType, shallow, cycleProtection);
+                HiddenContentTypes hct = getOrCompute(bestType, cycleProtection);
                 hasHiddenContent = hct != null && hct.hasHiddenContent();
             }
             if (hasHiddenContent) {
@@ -141,46 +138,44 @@ public class ComputeHiddenContent {
                 fromThis.putIfAbsent(bestType, index);
             }
             for (ParameterizedType pt : type.parameters()) {
-                addExtensible(pt, fromThis, shallow, cycleProtection);
+                addExtensible(pt, fromThis, cycleProtection);
             }
         }
     }
 
     private void addFromSuperType(ParameterizedType superType,
-                                  boolean shallow,
                                   Map<NamedType, Integer> fromThis,
                                   Map<NamedType, Integer> superTypeToIndex,
                                   Set<TypeInfo> cycleProtection) {
-        HiddenContentTypes hctParent = getOrCompute(superType.typeInfo(), shallow, cycleProtection);
+        HiddenContentTypes hctParent = getOrCompute(superType.typeInfo(), cycleProtection);
         if (hctParent != null) {
             if (!hctParent.isEmpty()) {
                 Map<NamedType, ParameterizedType> fromMeToParent = superType.initialTypeParameterMap(runtime);
                 assert fromMeToParent != null;
                 // the following include all recursively computed
-                for (Map.Entry<NamedType, Integer> e : hctParent.getTypeToIndex().entrySet()) {
-                    NamedType typeInParent = hctParent.getIndexToType().get(e.getValue()); // this step is necessary for recursively computed...
-                    ParameterizedType typeHere = fromMeToParent.get(typeInParent);
-                    if (typeHere != null) {
-                        NamedType namedTypeHere = typeHere.namedType();
-                        Integer indexHere = fromThis.get(namedTypeHere);
-                        if (indexHere == null && !shallow) {
-                            // no field with this type, but we must still add it, as it exists in the parent
-                            // if shallow, it has already been added, there is no check on fields
-                            indexHere = fromThis.size();
-                            fromThis.put(namedTypeHere, indexHere);
-                        }
-                        if (indexHere != null) {
-                            superTypeToIndex.put(e.getKey(), indexHere);
-                        }
-                    } // see e.g. resolve.Constructor_2
-                }
+                hctParent.getTypeToIndex().entrySet().stream()
+                        .sorted(Comparator.comparing(e -> e.getKey().asSimpleParameterizedType().fullyQualifiedName()))
+                        .forEach(e -> {
+                            NamedType typeInParent = hctParent.getIndexToType().get(e.getValue()); // this step is necessary for recursively computed...
+                            ParameterizedType typeHere = fromMeToParent.get(typeInParent);
+                            if (typeHere != null) {
+                                NamedType namedTypeHere = typeHere.namedType();
+                                Integer indexHere = fromThis.get(namedTypeHere);
+                                if (indexHere == null && (namedTypeHere instanceof TypeParameter
+                                                          || namedTypeHere instanceof TypeInfo ti && ti.isExtensible())) {
+                                    // no field with this type, but we must still add it, as it exists in the parent
+                                    // if shallow, it has already been added, there is no check on fields
+                                    int ih = fromThis.size();
+                                    fromThis.put(namedTypeHere, ih);
+                                    superTypeToIndex.put(e.getKey(), ih);
+                                }
+                            } // see e.g. resolve.Constructor_2
+                        });
             }
         } //running against the cycle protection... bail out
     }
 
-    private HiddenContentTypes getOrCompute(TypeInfo enclosing,
-                                            boolean shallow,
-                                            Set<TypeInfo> cycleProtection) {
+    private HiddenContentTypes getOrCompute(TypeInfo enclosing, Set<TypeInfo> cycleProtection) {
         HiddenContentTypes hct = enclosing.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         if (hct != NO_VALUE) {
             return hct;
@@ -189,17 +184,15 @@ public class ComputeHiddenContent {
             return null; // cannot compute anymore!!
         }
         Set<TypeInfo> cp = cycleProtection == null ? new HashSet<>() : cycleProtection;
-        return compute(enclosing, shallow, cp);
+        return compute(enclosing, cp);
     }
 
-    private HiddenContentTypes getOrCompute(MethodInfo enclosing,
-                                            boolean shallow,
-                                            Set<TypeInfo> cycleProtection) {
+    private HiddenContentTypes getOrCompute(MethodInfo enclosing, Set<TypeInfo> cycleProtection) {
         HiddenContentTypes hct = enclosing.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         if (hct != NO_VALUE) {
             return hct;
         }
-        HiddenContentTypes hctTypeInfo = getOrCompute(enclosing.typeInfo(), shallow, cycleProtection);
+        HiddenContentTypes hctTypeInfo = getOrCompute(enclosing.typeInfo(), cycleProtection);
         return compute(hctTypeInfo, enclosing);
     }
 
