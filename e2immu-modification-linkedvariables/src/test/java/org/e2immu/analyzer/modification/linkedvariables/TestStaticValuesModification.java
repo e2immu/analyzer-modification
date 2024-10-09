@@ -103,13 +103,13 @@ public class TestStaticValuesModification extends CommonTest {
             assertEquals("FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
             assertTrue(vi3R.isModified());
 
-            VariableInfo vd3S = vd3.variableInfo("s");
-            assertEquals("*M-2-FM:r", vd3S.linkedVariables().toString());
-            assertTrue(vd3S.isModified()); // FIXME: we want to achieve that eventually, but don't have the code yet
-
             VariableInfo vd3L = vd3.variableInfo("l");
             assertEquals("*M-2-FM:r", vd3L.linkedVariables().toString());
-            assertTrue(vd3L.isModified()); // FIXME
+            assertFalse(vd3L.isModified());
+
+            VariableInfo vd3S = vd3.variableInfo("s");
+            assertEquals("*M-2-FM:r", vd3S.linkedVariables().toString());
+            assertTrue(vd3S.isModified()); // FIXME don't have the code yet
         }
     }
 

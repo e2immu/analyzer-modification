@@ -285,7 +285,7 @@ public class ComputeLinkCompletion {
          */
         private void recursivelyAddTo(Map<Variable, Map<Variable, Boolean>> mapForAllVariables, FieldReference fr, Boolean b) {
             Variable base = fr;
-            while(base instanceof FieldReference fr2 && fr2.scope() instanceof VariableExpression ve) {
+            while (base instanceof FieldReference fr2 && fr2.scope() instanceof VariableExpression ve) {
                 base = ve.variable();
             }
             mapForAllVariables.put(base, Map.of(fr, b));
@@ -333,7 +333,7 @@ public class ComputeLinkCompletion {
                     for (Map.Entry<Variable, LV> e : links.entrySet()) {
                         Variable to = e.getKey();
                         if (to != variable && modified.contains(to) &&
-                            (e.getValue().isDependent() || e.getValue().isStaticallyAssignedOrAssigned())) {
+                            (e.getValue().isDependent() && !e.getValue().intoField() || e.getValue().isStaticallyAssignedOrAssigned())) {
                             change |= modified.add(variable);
                         }
                     }

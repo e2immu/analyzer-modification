@@ -491,6 +491,6 @@ public class TestComputeHCS extends CommonTest {
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
 
         Map<Indices, IndicesAndType> t = translateHcs(runtime, genericsHelper, hcsFormalViaConstructor, formalR, formalR);
-        assertEquals("", t.toString());
+        assertEquals("{0=IndicesAndType[indices=0, type=Type a.b.X.R<T>]}", t.toString());
     }
 }

@@ -55,6 +55,11 @@ public class LVImpl implements LV {
     }
 
     @Override
+    public boolean intoField() {
+        return links.map().values().stream().allMatch(l -> l.to().equals(FIELD_INDICES));
+    }
+
+    @Override
     public boolean haveLinks() {
         return !links.map().isEmpty();
     }
