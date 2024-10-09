@@ -125,7 +125,7 @@ public class Analyzer {
         for (ParameterInfo pi : methodInfo.parameters()) {
             if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)) {
                 Independent independent = doIndependentParameter(pi, lastOfMainBlock);
-                methodInfo.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, independent);
+                pi.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, independent);
             }
         }
     }
@@ -161,7 +161,7 @@ public class Analyzer {
         LV worstLinkToFields = viRv.linkedVariables().stream()
                 .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
                 .map(Map.Entry::getValue)
-                .min(LV::compareTo).orElse(LVImpl.LINK_DEPENDENT);
+                .min(LV::compareTo).orElse(LVImpl.LINK_INDEPENDENT);
         if (worstLinkToFields.equals(LVImpl.LINK_INDEPENDENT)) return INDEPENDENT;
         if (worstLinkToFields.isCommonHC()) return INDEPENDENT_HC;
         return DEPENDENT;

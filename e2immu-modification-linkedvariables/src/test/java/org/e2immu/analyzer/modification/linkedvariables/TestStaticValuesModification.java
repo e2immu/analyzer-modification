@@ -5,6 +5,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,18 +46,36 @@ public class TestStaticValuesModification extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+        {
+            MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
+            ParameterInfo setAdd0 = setAdd.parameters().get(0);
+            assertTrue(setAdd0.isModified());
+            {
+                Statement s0 = setAdd.methodBody().statements().get(0);
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo vi0r = vd0.variableInfo(setAdd0);
+                assertTrue(vi0r.isModified());
+                assertEquals("", vi0r.linkedVariables().toString());
+                assertEquals("a.b.X.R.i#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
+                        vd0.knownVariableNamesToString());
+                VariableInfo vi0Set = vd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
+                assertEquals("", vi0Set.linkedVariables().toString());
+                VariableInfo vi0i = vd0.variableInfo("a.b.X.R.i#a.b.X.setAdd(a.b.X.R):0:r");
+                assertEquals("", vi0i.linkedVariables().toString());
+            }
+            assertTrue(setAdd0.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER));
+            // there is no link between R and "this"
+            assertTrue(setAdd0.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
+                    ValueImpl.IndependentImpl.DEPENDENT).isAtLeastIndependentHc());
 
-        MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
-        ParameterInfo setAdd0 = setAdd.parameters().get(0);
-        assertTrue(setAdd0.isModified());
-        VariableData vdSetAdd0 = VariableDataImpl.of(setAdd.methodBody().lastStatement());
-        VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
-        assertTrue(viSetAdd0R.isModified());
-        assertEquals("a.b.X.R.i#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
-                vdSetAdd0.knownVariableNamesToString());
-        VariableInfo viRSet = vdSetAdd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
-        assertTrue(viRSet.isModified());
-
+            VariableData vdSetAdd0 = VariableDataImpl.of(setAdd.methodBody().lastStatement());
+            VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
+            assertTrue(viSetAdd0R.isModified());
+            assertEquals("a.b.X.R.i#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
+                    vdSetAdd0.knownVariableNamesToString());
+            VariableInfo viRSet = vdSetAdd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
+            assertTrue(viRSet.isModified());
+        }
         MethodInfo method = X.findUniqueMethod("method", 0);
         {
             Statement s2 = method.methodBody().statements().get(2);
