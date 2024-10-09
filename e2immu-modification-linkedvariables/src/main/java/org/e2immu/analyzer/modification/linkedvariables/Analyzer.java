@@ -1,11 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
-import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -19,7 +16,7 @@ import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
-import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.This;
@@ -181,6 +178,13 @@ public class Analyzer {
                 if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
                     boolean modified = vi.isModified();
                     pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                    if (modified && !pi.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_PARAMETER)) {
+                        Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
+                        if (!modifiedComponents.isEmpty()) {
+                            Value.VariableBooleanMap vbm = new ValueImpl.VariableBooleanMapImpl(modifiedComponents);
+                            pi.analysis().set(MODIFIED_COMPONENTS_PARAMETER, vbm);
+                        }
+                    }
                 }
                 Value.VariableBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
                         ValueImpl.VariableBooleanMapImpl.class);
@@ -213,6 +217,14 @@ public class Analyzer {
                 }
             }
         }
+    }
+
+    private Map<Variable, Boolean> computeModifiedComponents(VariableData variableData, ParameterInfo pi) {
+        if (pi.parameterizedType().isTypeParameter()) return Map.of();
+        return variableData.variableInfoStream()
+                .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursively(pi))
+                .filter(VariableInfo::isModified)
+                .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi -> true));
     }
 
     // NOTE: the doBlocks, doBlock methods, and parts of doStatement, have been copied from prepwork.MethodAnalyzer

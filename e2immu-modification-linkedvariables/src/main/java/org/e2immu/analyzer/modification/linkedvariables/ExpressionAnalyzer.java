@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.FieldInfo;
@@ -27,6 +28,8 @@ import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
@@ -381,41 +384,53 @@ public class ExpressionAnalyzer {
                         propagateModification(mr, builder);
                     }
                 }
-                Value.VariableBooleanMap mfiComponents = pi.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
-                        ValueImpl.VariableBooleanMapImpl.class);
-                if (mfiComponents != null) {
-                    Expression pe = mc.parameterExpressions().get(pi.index());
-                    if (pe instanceof VariableExpression ve) {
-                        StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
-                        for (Map.Entry<Variable, Boolean> entry : mfiComponents.map().entrySet()) {
-                            This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo());
-                            // go from r.function to this.function, which is what we have in the StaticValues.values() map
-                            TranslationMap tm = runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
-                            Variable key = tm.translateVariable(entry.getKey());
-                            Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
-                            Map<Variable, Expression> completedAndAugmentedWithImplementation;
-                            if (svParam.type() != null && !svParam.type().equals(pi.parameterizedType())) {
-                                assert pi.parameterizedType().isAssignableFrom(runtime, svParam.type());
-                                completedAndAugmentedWithImplementation = new HashMap<>(completedMap);
-                                completedMap.forEach((v, e) -> {
-                                    Variable tv = liftVariable(v);
-                                    if (tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
-                                        completedAndAugmentedWithImplementation.put(tv, e);
-                                    }
-                                });
-                            } else {
-                                completedAndAugmentedWithImplementation = completedMap;
-                            }
-
-                            Expression e = completedAndAugmentedWithImplementation.get(key);
-                            if (e instanceof MethodReference mr) {
-                                if (entry.getValue()) {
-                                    propagateModification(mr, builder);
-                                } else {
-                                    ensureNotModifying(mr, builder);
-                                }
-                            }
+                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, builder, pi, (e, mapValue) -> {
+                    if (e instanceof MethodReference mr) {
+                        if (mapValue) {
+                            propagateModification(mr, builder);
+                        } else {
+                            ensureNotModifying(mr, builder);
                         }
+                    }
+                });
+                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, builder, pi, (e, mapValue) -> {
+                    if (e instanceof VariableExpression ve2 && mapValue) {
+                        markModified(ve2.variable(), builder);
+                    }
+                });
+            }
+        }
+
+        private void propagateComponents(Property property, MethodCall mc, LinkEvaluation.Builder builder, ParameterInfo pi,
+                                         BiConsumer<Expression, Boolean> consumer) {
+            VariableBooleanMap modifiedComponents = pi.analysis().getOrNull(property,
+                    ValueImpl.VariableBooleanMapImpl.class);
+            if (modifiedComponents != null) {
+                Expression pe = mc.parameterExpressions().get(pi.index());
+                if (pe instanceof VariableExpression ve) {
+                    StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
+                    for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
+                        This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo());
+                        // go from r.function to this.function, which is what we have in the StaticValues.values() map
+                        TranslationMap tm = runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
+                        Variable key = tm.translateVariable(entry.getKey());
+                        Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
+                        Map<Variable, Expression> completedAndAugmentedWithImplementation;
+                        if (svParam.type() != null && !svParam.type().equals(pi.parameterizedType())) {
+                            assert pi.parameterizedType().isAssignableFrom(runtime, svParam.type());
+                            completedAndAugmentedWithImplementation = new HashMap<>(completedMap);
+                            completedMap.forEach((v, e) -> {
+                                Variable tv = liftVariable(v);
+                                if (tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
+                                    completedAndAugmentedWithImplementation.put(tv, e);
+                                }
+                            });
+                        } else {
+                            completedAndAugmentedWithImplementation = completedMap;
+                        }
+
+                        Expression e = completedAndAugmentedWithImplementation.get(key);
+                        consumer.accept(e, entry.getValue());
                     }
                 }
             }

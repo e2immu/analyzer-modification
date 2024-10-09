@@ -22,7 +22,6 @@ import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelecto
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COMPONENTS_PARAMETER;

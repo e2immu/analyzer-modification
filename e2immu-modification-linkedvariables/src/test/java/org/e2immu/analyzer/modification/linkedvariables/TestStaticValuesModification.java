@@ -3,8 +3,10 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_COMPONENTS_PARAMETER;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestStaticValuesModification extends CommonTest {
@@ -46,6 +49,10 @@ public class TestStaticValuesModification extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+
+        TypeInfo R = X.findSubType("R");
+        FieldInfo rSet = R.getFieldByName("set", true);
+
         {
             MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
             ParameterInfo setAdd0 = setAdd.parameters().get(0);
@@ -75,6 +82,15 @@ public class TestStaticValuesModification extends CommonTest {
                     vdSetAdd0.knownVariableNamesToString());
             VariableInfo viRSet = vdSetAdd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
             assertTrue(viRSet.isModified());
+
+            Value.VariableBooleanMap modificationMap = setAdd0.analysis().getOrNull(MODIFIED_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.class);
+            FieldReference frSet = runtime.newFieldReference(rSet, runtime.newVariableExpression(setAdd0), rSet.type());
+            assertNotNull(modificationMap);
+            assertNotNull(modificationMap.map());
+            assertEquals(1, modificationMap.map().size());
+            boolean fieldSetHasBeenModified = modificationMap.map().get(frSet);
+            assertTrue(fieldSetHasBeenModified);
         }
         MethodInfo method = X.findUniqueMethod("method", 0);
         {
@@ -109,7 +125,7 @@ public class TestStaticValuesModification extends CommonTest {
 
             VariableInfo vd3S = vd3.variableInfo("s");
             assertEquals("*M-2-FM:r", vd3S.linkedVariables().toString());
-            assertTrue(vd3S.isModified()); // FIXME don't have the code yet
+            assertTrue(vd3S.isModified());
         }
     }
 
