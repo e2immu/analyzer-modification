@@ -267,7 +267,7 @@ public class TestComputeHCS extends CommonTest {
         HiddenContentTypes hctCgetO = CgetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("C:Object - getO:", hctCgetO.toString());
 
-        HiddenContentTypes hctCsetO =  CsetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        HiddenContentTypes hctCsetO = CsetO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("C:Object - setO:", hctCsetO.toString());
 
         HiddenContentSelector hcsCgetO = CgetO.analysis().getOrDefault(HCS_METHOD, NONE);
@@ -291,5 +291,134 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=*", hcsCOgetO.detailed());
         HiddenContentSelector hcsCOSetO0 = COsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("0=*", hcsCOSetO0.detailed());
+    }
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import java.util.List;
+            class X {
+                List<Object> objects;
+                Comparable<X> comparable; // a different type
+                Object get(int i) {
+                    return objects.get(i);
+                }
+                List<Object> objects() {
+                    return objects;
+                }
+            }
+            """;
+
+    @DisplayName("hcs of list types")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+
+        assertEquals("0=List, 1=Object, 2=Comparable, 3=X",
+                X.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class).detailedSortedTypes());
+
+        // 0=* means: all of type 0
+        MethodInfo objects = X.findUniqueMethod("objects", 0);
+        HiddenContentTypes hctObjects = objects.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=List, 1=Object, 2=Comparable, 3=X - ", hctObjects.detailedSortedTypes());
+        HiddenContentSelector hcsObjects = objects.analysis().getOrDefault(HCS_METHOD, NONE);
+        // 0=* means: return an object of type List (0), access is direct '*'
+        // 1=0 means: objects of type Object (1) can be found at index '0'
+        assertEquals("0=*,1=0", hcsObjects.detailed());
+
+        MethodInfo get = X.findUniqueMethod("get", 1);
+        HiddenContentTypes hctGet = get.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=List, 1=Object, 2=Comparable, 3=X - ", hctGet.detailedSortedTypes());
+        HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
+        // 1=* means: return an object of type Object (1), direct access
+        assertEquals("1=*", hcsGet.detailed());
+    }
+
+
+    @Language("java")
+    private static final String INPUT4b = """
+            package a.b;
+            import java.util.List;
+            class X<T> {
+                List<T> objects;
+                Comparable<T> comparable; // a different type
+                T get(int i) {
+                    return objects.get(i);
+                }
+                List<T> objects() {
+                    return objects;
+                }
+            }
+            """;
+
+    @DisplayName("hcs of list types, type parameter")
+    @Test
+    public void test4b() {
+        TypeInfo X = javaInspector.parse(INPUT4b);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+
+        assertEquals("0=T, 1=List, 2=Comparable",
+                X.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class).detailedSortedTypes());
+
+        MethodInfo objects = X.findUniqueMethod("objects", 0);
+        HiddenContentTypes hctObjects = objects.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=List, 2=Comparable - ", hctObjects.detailedSortedTypes());
+        HiddenContentSelector hcsObjects = objects.analysis().getOrDefault(HCS_METHOD, NONE);
+        // 1=* objects of type List, direct access; 0=0: access to T via index 0 in List
+        assertEquals("0=0,1=*", hcsObjects.detailed());
+
+        // the outcome "0=*" means: a single Object
+        MethodInfo get = X.findUniqueMethod("get", 1);
+        HiddenContentTypes hctGet = get.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=List, 2=Comparable - ", hctGet.detailedSortedTypes());
+        HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
+        assertEquals("0=*", hcsGet.detailed());
+    }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            class X {
+                Object[] objects;
+                Comparable<X> comparable; // a different type
+                Object get(int i) {
+                    return objects[i];
+                }
+                Object[] objects() {
+                    return objects;
+                }
+            }
+            """;
+
+    @DisplayName("hcs of array types")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+
+        assertEquals("0=Object, 1=Comparable, 2=X",
+                X.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class).detailedSortedTypes());
+
+        MethodInfo objects = X.findUniqueMethod("objects", 0);
+        HiddenContentTypes hctObjects = objects.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=Object, 1=Comparable, 2=X - ", hctObjects.detailedSortedTypes());
+        HiddenContentSelector hcsObjects = objects.analysis().getOrDefault(HCS_METHOD, NONE);
+        // 0=0 means: objects of type "Object" can be found at index 0
+        assertEquals("0=0", hcsObjects.detailed());
+
+        // the outcome "0=*" means: objects of type Object, direct access
+        MethodInfo get = X.findUniqueMethod("get", 1);
+        HiddenContentTypes hctGet = get.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=Object, 1=Comparable, 2=X - ", hctGet.detailedSortedTypes());
+        HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
+        assertEquals("0=*", hcsGet.detailed());
     }
 }

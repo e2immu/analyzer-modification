@@ -112,6 +112,9 @@ public class HiddenContentSelector implements Value {
                 .collect(Collectors.joining(","));
     }
 
+    /*
+    '*' means: the whole object; otherwise, we're digging deeper
+     */
     private static String print(int i, Indices indices, boolean detailed) {
         if (ALL_INDICES.equals(indices)) return detailed ? i + "=*" : "*";
         String is = indices.toString();
@@ -160,7 +163,7 @@ public class HiddenContentSelector implements Value {
 
     public boolean selectArrayElement(int arrays) {
         if (map.size() == 1) {
-            Indices indices = map.get(0);
+            Indices indices = map.values().stream().findFirst().orElseThrow();
             return indices.set().size() == 1
                    && indices.set().stream().findFirst().orElseThrow().countSequentialZeros() == arrays;
         }
@@ -189,7 +192,13 @@ public class HiddenContentSelector implements Value {
      */
     public static HiddenContentSelector selectAll(HiddenContentTypes hiddenContentTypes,
                                                   ParameterizedType typeIn) {
-        assert hiddenContentTypes != null;
+        assert hiddenContentTypes != null && typeIn != null;
+        if (typeIn.typeInfo() == null && typeIn.typeParameter() == null) {
+            // type is "?", or "?" extends Object
+            return new HiddenContentSelector(hiddenContentTypes,
+                    Map.of(HiddenContentTypes.UNSPECIFIED_EXTENSION, new IndicesImpl(UNSPECIFIED)));
+        }
+
         boolean haveArrays = typeIn.arrays() > 0;
         ParameterizedType type = typeIn.copyWithoutArrays();
         Integer index = hiddenContentTypes.indexOfOrNull(type);
@@ -201,17 +210,9 @@ public class HiddenContentSelector implements Value {
             } else {
                 map.put(index, ALL_INDICES);
             }
-        } else if (type.typeParameter() == null) {
-            // not a type parameter
-            if (type.typeInfo() == null) {
-                // ?, equivalent to ? extends Object
-                return new HiddenContentSelector(hiddenContentTypes,
-                        Map.of(HiddenContentTypes.UNSPECIFIED_EXTENSION, new IndicesImpl(UNSPECIFIED)));
-            } else if (type.arrays() == 0) {
-                recursivelyCollectHiddenContentParameters(hiddenContentTypes, type, new Stack<>(), map);
-                hiddenContentTypes.typesOfExtensibleFields()
-                        .forEach(e -> map.put(e.getValue(), new IndicesImpl(e.getValue())));
-            } // else: we don't combine type parameters and arrays for now
+        }
+        if (type.typeInfo() != null && !haveArrays) {
+            recursivelyCollectHiddenContentParameters(hiddenContentTypes, type, new Stack<>(), map);
         }
         return new HiddenContentSelector(hiddenContentTypes, Map.copyOf(map));
     }
