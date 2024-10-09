@@ -219,7 +219,7 @@ public class TestStaticValuesModification extends CommonTest {
         Statement s3 = method.methodBody().statements().get(3);
         VariableData vd3 = VariableDataImpl.of(s3);
         VariableInfo vi3R = vd3.variableInfo("r");
-        assertEquals("Type a.b.X.RI E=new RI(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
+        assertEquals("Type a.b.X.RI this.intSet=s, this.stringList=l", vi3R.staticValues().toString());
 
         // FIXME at the same time, the method 'setAdd(R r)' should have a modification to the component 'set'
         //  this comes about because of the @Modified("set") on the R.add() method

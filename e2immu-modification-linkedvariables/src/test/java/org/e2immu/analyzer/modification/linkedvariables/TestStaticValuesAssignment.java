@@ -145,6 +145,10 @@ public class TestStaticValuesAssignment extends CommonTest {
                         j=jp;
                         return this;
                     }
+                    Builder setK(int kp) {
+                        k=kp;
+                        return this;
+                    }
                     Builder setJK(int jp, int kp) {
                         j=jp;
                         k=kp;
@@ -162,6 +166,10 @@ public class TestStaticValuesAssignment extends CommonTest {
                     Builder b = new Builder().setJ(jp);
                     return b.build();
                 }
+                static X setJK(int jp, int kp) {
+                    Builder b = new Builder().setJ(jp).setK(kp);
+                    return b.build();
+                }
             }
             """;
 
@@ -176,6 +184,17 @@ public class TestStaticValuesAssignment extends CommonTest {
         MethodInfo build = builder.findUniqueMethod("build", 0);
         StaticValues svBuild = build.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
         assertEquals("Type a.b.X E=new X(this.j,this.k)", svBuild.toString());
+
+        MethodInfo builderSetJK = builder.findUniqueMethod("setJK", 2);
+        assertTrue(builderSetJK.isFluent());
+
+        MethodInfo builderSetJ = builder.findUniqueMethod("setJ", 1);
+        assertTrue(builderSetJ.isFluent());
+        assertSame(builder.getFieldByName("j", true), builderSetJ.getSetField().field());
+
+        MethodInfo builderSetK = builder.findUniqueMethod("setK", 1);
+        assertTrue(builderSetK.isFluent());
+        assertSame(builder.getFieldByName("k", true), builderSetK.getSetField().field());
 
         {
             MethodInfo justJ = X.findUniqueMethod("justJ", 1);
@@ -201,6 +220,21 @@ public class TestStaticValuesAssignment extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Rv = vd1.variableInfo(justJ4.fullyQualifiedName());
             assertEquals("Type a.b.X this.j=jp, this.k=4", vi1Rv.staticValues().toString());
+        }
+
+        {
+            MethodInfo setJK = X.findUniqueMethod("setJK", 2);
+            assertFalse(setJK.isFluent());
+
+            Statement s0 = setJK.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0B = vd0.variableInfo("b");
+            assertEquals("E=new Builder() this.j=jp, this.k=kp", vi0B.staticValues().toString());
+
+            Statement s1 = setJK.methodBody().lastStatement();
+            VariableData vd1 = VariableDataImpl.of(s1);
+            VariableInfo vi1Rv = vd1.variableInfo(setJK.fullyQualifiedName());
+            assertEquals("Type a.b.X this.j=jp, this.k=kp", vi1Rv.staticValues().toString());
         }
     }
 

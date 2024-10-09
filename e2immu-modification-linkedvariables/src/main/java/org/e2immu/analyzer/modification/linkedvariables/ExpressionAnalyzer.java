@@ -298,14 +298,18 @@ public class ExpressionAnalyzer {
         }
 
         private LinkEvaluation linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc) {
+            LinkEvaluation leObject = eval(mc.object());
+            List<LinkEvaluation> leParams = mc.parameterExpressions().stream().map(this::eval).toList();
             LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
-            methodCallLinks(currentMethod, mc, builder);
+
+            methodCallLinks(currentMethod, mc, builder, leObject, leParams);
             methodCallModified(mc, builder);
-            methodCallStaticValue(mc, builder);
+            methodCallStaticValue(mc, builder, leObject);
+
             return builder.build();
         }
 
-        private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder) {
+        private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject) {
             if (mc.methodInfo().hasReturnValue()) {
                 // test for fluent setter, see TestStaticValuesAssignment,method
                 StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
@@ -317,7 +321,14 @@ public class ExpressionAnalyzer {
                             map.put(entry.getKey(), mc.parameterExpressions().get(pi.index()));
                         }
                     }
-                    StaticValues sv = new StaticValuesImpl(svm.type(), mc.object(), Map.copyOf(map));
+                    Expression expression;
+                    if (mc.object() instanceof MethodCall mco && mco.methodInfo().isFluent()) {
+                        expression = leObject.staticValues().expression();
+                        map.putAll(leObject.staticValues().values());
+                    } else {
+                        expression = mc.object();
+                    }
+                    StaticValues sv = new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
                     builder.setStaticValues(sv);
                     return;
                 }
@@ -460,7 +471,7 @@ public class ExpressionAnalyzer {
                     return lifted;
                 }
             } else if (requiredType.isAssignableFrom(runtime, variable.parameterizedType())) {
-                if(variable instanceof This) {
+                if (variable instanceof This) {
                     return runtime.newThis(requiredType.typeInfo());
                 }
                 throw new RuntimeException(); // FIXME what to do?
@@ -531,21 +542,22 @@ public class ExpressionAnalyzer {
             }
         }
 
-        private void methodCallLinks(MethodInfo currentMethod, MethodCall mc, LinkEvaluation.Builder builder) {
+        private void methodCallLinks(MethodInfo currentMethod,
+                                     MethodCall mc,
+                                     LinkEvaluation.Builder builder,
+                                     LinkEvaluation leObject,
+                                     List<LinkEvaluation> leParams) {
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
             ParameterizedType concreteReturnType = mc.concreteReturnType();
 
-            List<LinkEvaluation> linkEvaluations = mc.parameterExpressions().stream().map(this::eval).toList();
-            List<LinkedVariables> linkedVariablesOfParameters = linkEvaluations.stream()
+            List<LinkedVariables> linkedVariablesOfParameters = leParams.stream()
                     .map(LinkEvaluation::linkedVariables).toList();
-            LinkEvaluation objectResult = mc.methodInfo().isStatic()
-                    ? LinkEvaluation.EMPTY : eval(mc.object());
 
             // from parameters to object
             LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
-                    mc.parameterExpressions(), linkEvaluations);
+                    mc.parameterExpressions(), leParams);
             LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariablesOfExpression();
             if (mc.object() instanceof VariableExpression ve) {
                 builder.merge(ve.variable(), linkedVariablesOfObjectFromParams);
@@ -553,11 +565,11 @@ public class ExpressionAnalyzer {
             builder.merge(fp.intoObject());
 
             // in between parameters (A)
-            linkHelper.crossLink(objectResult.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
+            linkHelper.crossLink(leObject.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
 
             // from object to return value
             LinkedVariables lvsResult1 = objectType == null ? EMPTY
-                    : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, objectResult.linkedVariables(),
+                    : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, leObject.linkedVariables(),
                     linkedVariablesOfParameters, concreteReturnType, Map.of());
 
             // merge from param to object and from object to return value
