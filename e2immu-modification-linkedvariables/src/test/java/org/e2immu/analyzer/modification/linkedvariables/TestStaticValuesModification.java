@@ -57,33 +57,40 @@ public class TestStaticValuesModification extends CommonTest {
         assertTrue(viRSet.isModified());
 
         MethodInfo method = X.findUniqueMethod("method", 0);
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
+            VariableInfo vd2S = vd2.variableInfo("s");
+            assertFalse(vd2S.isModified());
+            assertEquals("*M-2-FM:r", vd2S.linkedVariables().toString());
+            assertEquals("Type java.util.HashSet<Integer> E=new HashSet<>()", vd2S.staticValues().toString());
 
-        Statement s2 = method.methodBody().statements().get(2);
-        VariableData vd2 = VariableDataImpl.of(s2);
-        VariableInfo vd2S = vd2.variableInfo("s");
-        assertFalse(vd2S.isModified());
+            VariableInfo vd2L = vd2.variableInfo("l");
+            assertEquals("*M-2-FM:r", vd2L.linkedVariables().toString());
+            assertEquals("Type java.util.ArrayList<String> E=new ArrayList<>()", vd2L.staticValues().toString());
 
-        Statement s3 = method.methodBody().statements().get(3);
-        VariableData vd3 = VariableDataImpl.of(s3);
-        VariableInfo vi3R = vd3.variableInfo("r");
-        assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
-        assertEquals("-2-:this,FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
-        assertTrue(vi3R.isModified());
+            assertFalse(vd2L.isModified());
+            VariableInfo vd2R = vd2.variableInfo("r");
+            assertFalse(vd2R.isModified());
+            assertEquals("FM-2-*M:l,FM-2-*M:s", vd2R.linkedVariables().toString());
+            assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vd2R.staticValues().toString());
+        }
+        {
+            Statement s3 = method.methodBody().statements().get(3);
+            VariableData vd3 = VariableDataImpl.of(s3);
+            VariableInfo vi3R = vd3.variableInfo("r");
+            assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
+            assertEquals("FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
+            assertTrue(vi3R.isModified());
 
-        VariableInfo vd3S = vd3.variableInfo("s");
-        assertEquals("*M-2-FM:r,-2-:l,-2-:this", vd3S.linkedVariables().toString());
-        assertTrue(vd3S.isModified());
+            VariableInfo vd3S = vd3.variableInfo("s");
+            assertEquals("*M-2-FM:r", vd3S.linkedVariables().toString());
+            assertTrue(vd3S.isModified()); // FIXME: we want to achieve that eventually, but don't have the code yet
 
-        VariableInfo vd3L = vd3.variableInfo("l");
-        assertEquals("*M-2-FM:r,-2-:s,-2-:this", vd3L.linkedVariables().toString());
-        assertTrue(vd3L.isModified());
-
-        // FIXME
-        //  -- where does the the link to 'this' come from? it is the actual "this" of X
-        //  -- should a modification propagate via *-2-0 ??? there is no code for that at the moment
-        //  -- the -2- link between l and s is plainly wrong
-        //  rule should be? if we can mark the modifying component, we should; otherwise, we will indeed
-        //  have to mark all components that are modifiable.
+            VariableInfo vd3L = vd3.variableInfo("l");
+            assertEquals("*M-2-FM:r", vd3L.linkedVariables().toString());
+            assertTrue(vd3L.isModified()); // FIXME
+        }
     }
 
 

@@ -9,7 +9,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.support.Freezable;
 import org.e2immu.util.internal.graph.op.DijkstraShortestPath;
-import org.jgrapht.alg.util.UnionFind;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,7 +16,6 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_INDEPENDENT;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_STATICALLY_ASSIGNED;
 
 public class WeightedGraphImpl extends Freezable implements WeightedGraph {
 
@@ -41,64 +39,6 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         private Node(Variable v) {
             variable = v;
         }
-    }
-
-    /*
-    https://en.wikipedia.org/wiki/Disjoint-set_data_structure
-    loop over all vertices and edges, and use a disjoint-set data structure to efficiently group or cluster all
-    nodes linked by STATICALLY_ASSIGNED edges.
-
-    The return-value cluster is a special case, it overlaps with the other ones.
-     */
-    @Override
-    public WeightedGraph.ClusterResult staticClusters() {
-        super.freeze();
-        UnionFind<Variable> unionFind = new UnionFind<>(nodeMap.keySet());
-        Variable rv = null;
-        Set<Variable> dependsOnRv = null;
-        for (Map.Entry<Variable, Node> entry : nodeMap.entrySet()) {
-            Variable variable = entry.getKey();
-            boolean isRv = variable instanceof ReturnVariable;
-            if (isRv) {
-                rv = variable;
-                dependsOnRv = new HashSet<>();
-            }
-            Map<Variable, LV> dependsOn = entry.getValue().dependsOn;
-            if (dependsOn != null) {
-                for (Map.Entry<Variable, LV> e2 : dependsOn.entrySet()) {
-                    if (LINK_STATICALLY_ASSIGNED.equals(e2.getValue())) {
-                        if (isRv) {
-                            dependsOnRv.add(e2.getKey());
-                        } else {
-                            unionFind.union(variable, e2.getKey());
-                        }
-                    }
-                }
-            }
-        }
-        Map<Variable, Cluster> representativeToCluster = new LinkedHashMap<>();
-        for (Variable variable : nodeMap.keySet()) {
-            if (!(variable instanceof ReturnVariable)) {
-                Variable representative = unionFind.find(variable);
-                Cluster cluster = representativeToCluster.computeIfAbsent(representative,
-                        v -> new Cluster(new LinkedHashSet<>()));
-                cluster.variables().add(variable);
-            }
-        }
-        List<Cluster> clusters = representativeToCluster.values().stream().toList();
-        Cluster rvCluster;
-        if (rv != null) {
-            rvCluster = new Cluster(new LinkedHashSet<>());
-            rvCluster.variables().add(rv);
-            for (Variable v : dependsOnRv) {
-                Variable r = unionFind.find(v);
-                Cluster c = representativeToCluster.get(r);
-                rvCluster.variables().addAll(c.variables());
-            }
-        } else {
-            rvCluster = null;
-        }
-        return new WeightedGraph.ClusterResult(rvCluster, rv, clusters);
     }
 
     public int size() {

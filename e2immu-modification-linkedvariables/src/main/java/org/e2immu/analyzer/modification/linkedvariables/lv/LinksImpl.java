@@ -15,6 +15,7 @@ import java.util.Set;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl.ALL;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.FIELD_INDICES;
 
 
 public record LinksImpl(Map<Indices, Link> map) implements Links {
@@ -26,19 +27,16 @@ public record LinksImpl(Map<Indices, Link> map) implements Links {
     }
 
     /*
-    this method, together with allowModified(), is key to the whole linking + modification process of
-    ComputeLinkedVariables.
-     */
+      this method, together with allowModified(), is key to the whole linking + modification process
+      */
     @Override
-    public Links next(DijkstraShortestPath.Connection current, boolean keepNoLinks) {
-        if (current == NO_LINKS) {
-            return this;
-        }
-        if (this == NO_LINKS && keepNoLinks) {
+    public DijkstraShortestPath.Accept next(DijkstraShortestPath.Connection current, boolean allowNoConnection, boolean keepNoLinks) {
+        if (current == NO_LINKS || this == NO_LINKS && keepNoLinks) {
             // good for -2- and -D-, but not for -0-, -1-
             // sadly enough, we do not have that info here
-            return this;
+            return new DijkstraShortestPath.Accept(true, this);
         }
+        boolean returnNull = true;
         Map<Indices, Link> res = new HashMap<>();
         for (Map.Entry<Indices, Link> entry : ((LinksImpl) current).map.entrySet()) {
             Indices middle = entry.getValue().to();
@@ -50,6 +48,9 @@ public record LinksImpl(Map<Indices, Link> map) implements Links {
                     boolean mutable = !middleIsAll && entry.getValue().mutable() && link.mutable();
                     Link newLink = mutable == link.mutable() ? link : new LinkImpl(link.to(), false);
                     res.merge(entry.getKey(), newLink, Link::merge);
+                } else if (middle.equals(FIELD_INDICES)) {
+                    // *->F (entry) -> M->* (current)
+                    returnNull = false;
                 }
             } else {
                 Link allLink = this.map.get(ALL_INDICES);
@@ -61,8 +62,11 @@ public record LinksImpl(Map<Indices, Link> map) implements Links {
                 }
             }
         }
-        if (res.isEmpty()) return null;
-        return new LinksImpl(res);
+        if (res.isEmpty()) {
+            if (allowNoConnection) return new DijkstraShortestPath.Accept(returnNull, null);
+            return new DijkstraShortestPath.Accept(false, null);
+        }
+        return new DijkstraShortestPath.Accept(true, new LinksImpl(res));
     }
 
     @Override
