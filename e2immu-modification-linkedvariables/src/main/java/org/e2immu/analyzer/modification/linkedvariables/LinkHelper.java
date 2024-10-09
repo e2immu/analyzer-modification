@@ -911,13 +911,21 @@ public class LinkHelper {
                         correctForVarargsMutable = mutable;
                     }
 
+                    /*
+                    example: HCT of List (0=E). HCS source = 0(HC type E)->0(index in List's parameters)
+                    entry:0->0
+                     */
                     Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
                     assert indicesInSourceWrtMethod != null;
-                    HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
-                    assert indicesAndType != null;
-                    Indices indicesInSourceWrtType = indicesAndType.indices();
-                    assert indicesInSourceWrtType != null;
-
+                    Indices indicesInSourceWrtType;
+                    if (IndicesImpl.FIELD_INDICES.equals(indicesInSourceWrtMethod)) {
+                        indicesInSourceWrtType = IndicesImpl.FIELD_INDICES;
+                    } else {
+                        HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
+                        assert indicesAndType != null;
+                        indicesInSourceWrtType = indicesAndType.indices();
+                        assert indicesInSourceWrtType != null;
+                    }
                     // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
                     Indices indicesInTargetWrtType = (lv.theirsIsAll()
                                                       && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()

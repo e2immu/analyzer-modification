@@ -16,8 +16,7 @@ import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
-import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.UNSPECIFIED;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 /*
@@ -117,6 +116,7 @@ public class HiddenContentSelector implements Value {
      */
     private static String print(int i, Indices indices, boolean detailed) {
         if (ALL_INDICES.equals(indices)) return detailed ? i + "=*" : "*";
+        if (FIELD_INDICES.equals(indices)) return detailed ? i + "=F" : "F";
         String is = indices.toString();
         String iToString = "" + i;
         if (!detailed && is.equals(iToString)) return iToString;
@@ -146,19 +146,21 @@ public class HiddenContentSelector implements Value {
 
     public Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
         assert this != NONE;
-        return map.values().stream().collect(Collectors.toUnmodifiableMap(i -> i,
-                i -> {
-                    Integer single = i.single();
-                    TypeInfo fieldType = hiddenContentTypes.isExtensible(single);
-                    if (fieldType != null) {
-                        return fieldType.asSimpleParameterizedType();
-                    }
-                    Integer index = hiddenContentTypes.indexOfOrNull(type);
-                    if (index != null) {
-                        return type;
-                    }
-                    return i.findInFormal(runtime, type);
-                }));
+        return map.values().stream()
+                .filter(i -> !FIELD_INDICES.equals(i))
+                .collect(Collectors.toUnmodifiableMap(i -> i,
+                        i -> {
+                            Integer single = i.single();
+                            TypeInfo fieldType = hiddenContentTypes.isExtensible(single);
+                            if (fieldType != null) {
+                                return fieldType.asSimpleParameterizedType();
+                            }
+                            Integer index = hiddenContentTypes.indexOfOrNull(type);
+                            if (index != null) {
+                                return type;
+                            }
+                            return i.findInFormal(runtime, type);
+                        }));
     }
 
     public boolean selectArrayElement(int arrays) {
@@ -210,6 +212,10 @@ public class HiddenContentSelector implements Value {
             } else {
                 map.put(index, ALL_INDICES);
             }
+        }
+        if (type.typeInfo() != null && type.typeInfo().equals(hiddenContentTypes.getTypeInfo())) {
+            // we're on our own type, add indices for types -> FIELD
+            hiddenContentTypes.typesOfExtensibleFields().forEach(e -> map.put(e.getValue(), IndicesImpl.FIELD_INDICES));
         }
         if (type.typeInfo() != null && !haveArrays) {
             recursivelyCollectHiddenContentParameters(hiddenContentTypes, type, new Stack<>(), map);

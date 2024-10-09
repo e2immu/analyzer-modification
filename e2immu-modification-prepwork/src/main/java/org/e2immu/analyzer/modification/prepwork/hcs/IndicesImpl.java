@@ -14,6 +14,8 @@ import java.util.stream.Stream;
 // important: as soon as there are multiple elements, use a TreeSet!!
 public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices> {
     public static final Indices ALL_INDICES = new IndicesImpl(Set.of(IndexImpl.ALL_INDEX));
+    public static final Indices FIELD_INDICES = new IndicesImpl(Set.of(IndexImpl.FIELD_INDEX));
+
     public static final int UNSPECIFIED = -2;
 
     public IndicesImpl {

@@ -67,15 +67,15 @@ public class TestStaticValuesModification extends CommonTest {
         VariableData vd3 = VariableDataImpl.of(s3);
         VariableInfo vi3R = vd3.variableInfo("r");
         assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
-        assertEquals("-2-:this,0M-2-*M:s,1M-2-*M:l", vi3R.linkedVariables().toString());
+        assertEquals("-2-:this,FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
         assertTrue(vi3R.isModified());
 
         VariableInfo vd3S = vd3.variableInfo("s");
-        assertEquals("*M-2-0M:r,-2-:l,-2-:this", vd3S.linkedVariables().toString());
+        assertEquals("*M-2-FM:r,-2-:l,-2-:this", vd3S.linkedVariables().toString());
         assertTrue(vd3S.isModified());
 
         VariableInfo vd3L = vd3.variableInfo("l");
-        assertEquals("*M-2-1M:r,-2-:s,-2-:this", vd3L.linkedVariables().toString());
+        assertEquals("*M-2-FM:r,-2-:s,-2-:this", vd3L.linkedVariables().toString());
         assertTrue(vd3L.isModified());
 
         // FIXME
@@ -121,19 +121,7 @@ public class TestStaticValuesModification extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
-
-        // check that @GetSet works at the level R
-        TypeInfo R = X.findSubType("R");
-        MethodInfo Rset = R.findUniqueMethod("set", 0);
-        FieldInfo RsetField = R.getFieldByName("set", true);
-        assertSame(RsetField, Rset.getSetField().field());
-
-        // check that @GetSet works at the level RI
-        TypeInfo RI = X.findSubType("R");
-        MethodInfo RIset = RI.findUniqueMethod("set", 0);
-        FieldInfo RIsetField = RI.getFieldByName("set", true);
-        assertSame(RIsetField, RIset.getSetField().field());
-        assertTrue(RIset.overrides().contains(Rset)); // FIXME do this first!!
+        // see e2immu-inspection-integration.TestRecord for a check of the @GetSet and override properties of R, RI
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
         ParameterInfo setAdd0 = setAdd.parameters().get(0);
@@ -153,11 +141,11 @@ public class TestStaticValuesModification extends CommonTest {
         VariableData vd3 = VariableDataImpl.of(s3);
         VariableInfo vi3R = vd3.variableInfo("r");
         assertEquals("Type a.b.X.RI E=new RI(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
-        assertEquals("-2-:this,0M-2-*M:s,1M-2-*M:l", vi3R.linkedVariables().toString());
+        assertEquals("-2-:this,FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
         assertTrue(vi3R.isModified());
 
         VariableInfo vd3S = vd3.variableInfo("s");
-        assertEquals("*M-2-0M:r,-2-:l,-2-:this", vd3S.linkedVariables().toString());
+        assertEquals("*M-2-FM:r,-2-:l,-2-:this", vd3S.linkedVariables().toString());
         assertTrue(vd3S.isModified());
         // FIXME all link related issues remain the same
     }

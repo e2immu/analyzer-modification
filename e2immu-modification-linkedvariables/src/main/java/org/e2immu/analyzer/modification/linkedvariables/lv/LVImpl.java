@@ -2,6 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
@@ -13,6 +15,7 @@ import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.FIELD_INDICES;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 /*
@@ -97,11 +100,11 @@ public class LVImpl implements LV {
         for (Map.Entry<Indices, Link> e : links.map().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             boolean mutable = e.getValue().mutable();
             boolean fromIsAll = e.getKey().equals(ALL_INDICES);
-            String f = (fromIsAll ? "*" : "" + e.getKey()) + (mutable ? "M" : "");
+            String f = indexToString(e.getKey()) + (mutable ? "M" : "");
             Indices i = e.getValue().to();
             assert i != null;
             boolean toIsAll = i.equals(ALL_INDICES);
-            String t = (toIsAll ? "*" : "" + i) + (mutable ? "M" : "");
+            String t = indexToString(i) + (mutable ? "M" : "");
             assert !(fromIsAll && toIsAll);
             from.add(f);
             to.add(t);
@@ -113,6 +116,11 @@ public class LVImpl implements LV {
         return String.join(",", from) + "-" + hc + "-" + String.join(",", to);
     }
 
+    private static String indexToString(Indices i) {
+        if (ALL_INDICES.equals(i)) return "*";
+        if (FIELD_INDICES.equals(i)) return "F";
+        return i.toString();
+    }
 
     public static LV createHC(Links links) {
         return new LVImpl(I_HC, links, createLabel(links, I_HC), INDEPENDENT);

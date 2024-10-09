@@ -4,12 +4,17 @@ import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
-import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.Indices;
+import org.e2immu.language.cst.api.info.*;
+import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.inspection.api.parser.GenericsHelper;
+import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.*;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
@@ -420,5 +425,72 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=Object, 1=Comparable, 2=X - ", hctGet.detailedSortedTypes());
         HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
         assertEquals("0=*", hcsGet.detailed());
+    }
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.util.ArrayList;
+            import java.util.HashSet;
+            import java.util.Set;
+            import java.util.List;
+            class X {
+                record R<T>(Set<Integer> set, int i, List<String> list, T t, List<T> ts) {}
+                R<Integer> r;
+                X(Set<Integer> set) {
+                    r = new R<>(set, 0, List.of(), 3, List.of(4));
+                }
+            }
+            """;
+
+    @DisplayName("type parameters and other HC")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+        TypeInfo R = X.findSubType("R");
+        HiddenContentTypes hctR = R.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=Set, 2=List", hctR.detailedSortedTypes());
+
+        MethodInfo constructorR = R.findConstructor(5);
+        HiddenContentTypes hctRConstructor = constructorR.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+
+        ParameterInfo Rc0 = constructorR.parameters().get(0);
+        HiddenContentSelector hcsRc0 = Rc0.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        assertEquals("1=*", hcsRc0.detailed());
+        ParameterInfo Rc1 = constructorR.parameters().get(1);
+        HiddenContentSelector hcsRc1 = Rc1.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        assertEquals("X", hcsRc1.detailed());
+        ParameterInfo Rc2 = constructorR.parameters().get(2);
+        HiddenContentSelector hcsRc2 = Rc2.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        assertEquals("2=*", hcsRc2.detailed());
+
+        ParameterInfo Rc3 = constructorR.parameters().get(3);
+        HiddenContentSelector hcsRc3 = Rc3.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        assertEquals("0=*", hcsRc3.detailed());
+        ParameterInfo Rc4 = constructorR.parameters().get(4);
+        HiddenContentSelector hcsRc4 = Rc4.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        assertEquals("0=0,2=*", hcsRc4.detailed());
+
+        ParameterizedType formalR = R.asParameterizedType(runtime);
+        assertEquals("Type a.b.X.R<T>", formalR.toString());
+        HiddenContentSelector hcsFormal = HiddenContentSelector.selectAll(hctR, formalR);
+        assertEquals("0=0,1=F,2=F", hcsFormal.detailed());
+
+        HiddenContentTypes hctX = X.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=R", hctX.detailedSortedTypes());
+        ParameterizedType formalX = X.asParameterizedType(runtime);
+        HiddenContentSelector hcsXFormal = HiddenContentSelector.selectAll(hctX, formalX);
+        assertEquals("0=F", hcsXFormal.detailed());
+
+        HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctRConstructor, formalR);
+        assertEquals("0=0,1=F,2=F", hcsFormalViaConstructor.detailed());
+
+        GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
+
+        Map<Indices, IndicesAndType> t = translateHcs(runtime, genericsHelper, hcsFormalViaConstructor, formalR, formalR);
+        assertEquals("", t.toString());
     }
 }
