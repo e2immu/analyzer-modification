@@ -268,4 +268,82 @@ public class TestStaticValuesModification extends CommonTest {
         //  this comes about because of the @Modified("set") on the R.add() method
         // and then we're fine.
     }
+
+
+    // this test mimics the "get/set" and "variables" system in Loop and Try
+    // we pack a variable in an array, clearly marked with @GetSet, and expect that modifications are propagated
+    // through this packing.
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.Set;
+            class X {
+                interface R {
+                    @GetSet("objects") Object get(int i);
+                    @GetSet("objects") void set(int i, Object o);
+                }
+                record RI(Object[] objects) {
+                    Object get(int i) { return objects[i]; }
+                    void set(int i, Object o) { objects[i] = o; }
+                }
+            
+                void modify(R r, int index) {
+                    Set<Integer> set = (Set<Integer>) r.get(index);
+                    set.add(3);
+                }
+            
+                void method(Set<Integer> set) {
+                    Object[] objects = new Object[2];
+                    R r = new RI(objects);
+                    r.set(0, set);
+                    modify(r, 0); // this action should see 'set' modified
+                }
+            }
+            """;
+
+    @DisplayName("modification of an array component element")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo R = X.findSubType("R");
+        FieldInfo objectsR = R.getFieldByName("objects", true);
+        {
+            assertTrue(objectsR.isSynthetic());
+            MethodInfo get = R.findUniqueMethod("get", 1);
+            assertSame(objectsR, get.getSetField().field());
+            MethodInfo set = R.findUniqueMethod("set", 2);
+            assertSame(objectsR, set.getSetField().field());
+        }
+        {
+            TypeInfo RI = X.findSubType("RI");
+            FieldInfo objectsRI = RI.getFieldByName("objects", true);
+            assertFalse(objectsRI.isSynthetic());
+            MethodInfo get = RI.findUniqueMethod("get", 1);
+            // test the inheritance of @GetSet
+            assertSame(objectsRI, get.getSetField().field());
+            MethodInfo set = RI.findUniqueMethod("set", 2);
+            assertSame(objectsRI, set.getSetField().field());
+        }
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        ParameterInfo method0 = method.parameters().get(0);
+        {
+            Statement s1 = method.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+            VariableInfo vi1R = vd1.variableInfo("r");
+            assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects", vi1R.staticValues().toString());
+        }
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
+            VariableInfo vi2R = vd2.variableInfo("r");
+            assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects, this.objects[0]=set",
+                    vi2R.staticValues().toString());
+        }
+        assertTrue(method0.isModified());
+    }
+
 }
