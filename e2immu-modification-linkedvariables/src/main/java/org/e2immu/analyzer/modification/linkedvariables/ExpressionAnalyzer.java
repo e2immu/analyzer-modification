@@ -390,8 +390,15 @@ public class ExpressionAnalyzer {
                 // getter: return value becomes the field reference
                 Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
                 if (getSet.field() != null) {
-                    FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), mc.concreteReturnType());
-                    VariableExpression ve = runtime.newVariableExpression(fr);
+                    FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), getSet.field().type());
+                    Variable variable;
+                    if (mc.parameterExpressions().isEmpty()) {
+                        variable = fr;
+                    } else {
+                        // indexing
+                        variable = runtime.newDependentVariable(runtime.newVariableExpression(fr), mc.parameterExpressions().get(0));
+                    }
+                    VariableExpression ve = runtime.newVariableExpression(variable);
                     Expression svExpression = inferStaticValues(ve);
                     StaticValues svs = StaticValuesImpl.of(svExpression);
                     StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
@@ -473,7 +480,7 @@ public class ExpressionAnalyzer {
                         propagateModification(mr, builder);
                     }
                 }
-                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, builder, pi, (e, mapValue) -> {
+                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi, (e, mapValue) -> {
                     if (e instanceof MethodReference mr) {
                         if (mapValue) {
                             propagateModification(mr, builder);
@@ -482,7 +489,7 @@ public class ExpressionAnalyzer {
                         }
                     }
                 });
-                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, builder, pi, (e, mapValue) -> {
+                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, pi, (e, mapValue) -> {
                     if (e instanceof VariableExpression ve2 && mapValue) {
                         markModified(ve2.variable(), builder);
                     }
@@ -490,7 +497,17 @@ public class ExpressionAnalyzer {
             }
         }
 
-        private void propagateComponents(Property property, MethodCall mc, LinkEvaluation.Builder builder, ParameterInfo pi,
+        /*
+        what if entry.getKey() == ri.objects[index]
+        ri == pi, the parameter
+        index is the second parameter
+
+        we need to reach this.objects[0]
+        for that reason, we add all the parameters to the translation map. See TestStaticValuesModification,4.
+         */
+        private void propagateComponents(Property property,
+                                         MethodCall mc,
+                                         ParameterInfo pi,
                                          BiConsumer<Expression, Boolean> consumer) {
             VariableBooleanMap modifiedComponents = pi.analysis().getOrNull(property,
                     ValueImpl.VariableBooleanMapImpl.class);
@@ -501,7 +518,13 @@ public class ExpressionAnalyzer {
                     for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                         This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo());
                         // go from r.function to this.function, which is what we have in the StaticValues.values() map
-                        TranslationMap tm = runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
+                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder().put(pi, thisInSv);
+                        for(ParameterInfo pi2: mc.methodInfo().parameters()) {
+                            if(pi != pi2) {
+                                tmb.put(runtime.newVariableExpression(pi2), mc.parameterExpressions().get(pi2.index()));
+                            }
+                        }
+                        TranslationMap tm = tmb.build(); runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
                         Variable key = tm.translateVariable(entry.getKey());
                         Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
                         Map<Variable, Expression> completedAndAugmentedWithImplementation;

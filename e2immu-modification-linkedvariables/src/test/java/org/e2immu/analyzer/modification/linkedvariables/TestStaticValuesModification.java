@@ -284,8 +284,8 @@ public class TestStaticValuesModification extends CommonTest {
                     R set(int i, Object o) { objects[i] = o; return this; }
                 }
             
-                void modify(R r, int index) {
-                    Set<Integer> set = (Set<Integer>) r.get(index);
+                void modify(RI ri, int index) {
+                    Set<Integer> set = (Set<Integer>) ri.get(index);
                     set.add(3);
                 }
             
@@ -295,11 +295,16 @@ public class TestStaticValuesModification extends CommonTest {
                     modify(r, 0); // this action should see 'set' modified
                 }
             
+                void modify2(R r, int index) {
+                    Set<Integer> set = (Set<Integer>) r.get(index);
+                    set.add(3);
+                }
+            
                 void method2(Set<Integer> set) {
                     Object[] objects = new Object[2];
                     R r = new RI(objects);
                     r.set(0, set); // via interface
-                    modify(r, 0); // this action should see 'set' modified
+                    modify2(r, 0); // this action should see 'set' modified
                 }
             }
             """;
@@ -343,35 +348,74 @@ public class TestStaticValuesModification extends CommonTest {
             assertEquals("E=this objects[i]=o", setSv.toString());
         }
 
-        MethodInfo method = X.findUniqueMethod("method", 1);
-        ParameterInfo method0 = method.parameters().get(0);
+        // first, we do the 'modify', 'method' combination, which requires fewer mechanics than 'modify2', 'method2'
+        // which goes via the interfaces.
         {
+            MethodInfo modify = X.findUniqueMethod("modify", 2);
+            ParameterInfo modify0 = modify.parameters().get(0);
+            {
+                Statement s0 = modify.methodBody().statements().get(0);
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo vi0Set = vd0.variableInfo("set");
+                assertEquals("*-4-F:ri", vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
+                assertEquals("E=ri.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
+            }
+            {
+                Statement s1 = modify.methodBody().statements().get(1);
+                VariableData vd1 = VariableDataImpl.of(s1);
+                VariableInfo vi1Set = vd1.variableInfo("set");
+                assertTrue(vi1Set.isModified());
+                assertEquals("*-4-F:ri", vi1Set.linkedVariables().toString());
+                assertEquals("E=ri.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
+            }
+            assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
+            assertEquals("{ri.objects[index]=true}", modify0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.EMPTY).map().toString());
+        }
+        {
+            MethodInfo method = X.findUniqueMethod("method", 1);
+            ParameterInfo method0 = method.parameters().get(0);
+
             Statement s1 = method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Ri = vd1.variableInfo("r");
             assertEquals("E=new RI(objects) objects[0]=set", vi1Ri.staticValues().toString());
+            assertTrue(method0.isModified());
         }
 
-        MethodInfo modify = X.findUniqueMethod("modify", 2);
-        ParameterInfo modify0 = modify.parameters().get(0);
+        // so now modify2
         {
-            Statement s0 = modify.methodBody().statements().get(0);
-            VariableData vd0 = VariableDataImpl.of(s0);
-            VariableInfo vi0Set = vd0.variableInfo("set");
-            assertEquals("*-4-F:r", vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
-            assertEquals("E=r.objects", vi0Set.staticValues().toString()); // this is the result of @GetSet
+            MethodInfo modify = X.findUniqueMethod("modify2", 2);
+            ParameterInfo modify0 = modify.parameters().get(0);
+            {
+                Statement s0 = modify.methodBody().statements().get(0);
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo vi0Set = vd0.variableInfo("set");
+                assertEquals("*-4-F:r", vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
+                assertEquals("E=r.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
+            }
+            {
+                Statement s1 = modify.methodBody().statements().get(1);
+                VariableData vd1 = VariableDataImpl.of(s1);
+                VariableInfo vi1Set = vd1.variableInfo("set");
+                assertTrue(vi1Set.isModified());
+                assertEquals("*-4-F:r", vi1Set.linkedVariables().toString());
+                assertEquals("E=r.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
+            }
+            assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
+            assertEquals("{r.objects[index]=true}", modify0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.EMPTY).map().toString());
         }
         {
-            Statement s1 = modify.methodBody().statements().get(1);
+            MethodInfo method = X.findUniqueMethod("method2", 1);
+            ParameterInfo method0 = method.parameters().get(0);
+
+            Statement s1 = method.methodBody().statements().get(2);
             VariableData vd1 = VariableDataImpl.of(s1);
-            VariableInfo vi1Set = vd1.variableInfo("set");
-            assertTrue(vi1Set.isModified());
-            assertEquals("*-4-F:r", vi1Set.linkedVariables().toString());
-            assertEquals("E=r.objects", vi1Set.staticValues().toString()); // this is the result of @GetSet
+            VariableInfo vi1Ri = vd1.variableInfo("r");
+            assertEquals("Type a.b.X.RI E=new RI(objects) objects[0]=set", vi1Ri.staticValues().toString());
+            assertTrue(method0.isModified());
         }
-        assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
-        assertEquals("", method0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.EMPTY).map().toString());
-        assertTrue(method0.isModified());
     }
 
 }

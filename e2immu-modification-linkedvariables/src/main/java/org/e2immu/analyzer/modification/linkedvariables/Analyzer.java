@@ -249,7 +249,8 @@ public class Analyzer {
                 .filter(VariableInfo::isModified)
                 .map(vi -> {
                     StaticValues sv = vi.staticValues();
-                    if (sv != null && sv.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsRecursively(pi)) {
+                    if (sv != null && sv.expression() instanceof VariableExpression ve && ve.variable().scopeIsRecursively(pi)) {
+                        // this catches fields of a parameter, and array indexing in that parameter
                         return ve.variable();
                     }
                     return null;
