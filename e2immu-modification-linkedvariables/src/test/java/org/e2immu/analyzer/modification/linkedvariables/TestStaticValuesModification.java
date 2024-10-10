@@ -336,11 +336,11 @@ public class TestStaticValuesModification extends CommonTest {
                 assertEquals("E=o", viObjectsI.staticValues().toString());
                 VariableInfo viObjects = vd0.variableInfo("a.b.X.RI.objects");
                 assertEquals("this[i]=o", viObjects.staticValues().toString()); // seems a bit weird
-                VariableInfo viThis = vd0.variableInfo(runtime.newThis(X));
-                assertEquals("this.objects[i]=o", viThis.staticValues().toString());
+                VariableInfo viThis = vd0.variableInfo(runtime.newThis(RI));
+                assertEquals("objects[i]=o", viThis.staticValues().toString());
             }
             StaticValues setSv = set.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
-            assertEquals("E=this this.objects[i]=o", setSv.toString());
+            assertEquals("E=this objects[i]=o", setSv.toString());
         }
 
         MethodInfo method = X.findUniqueMethod("method", 1);

@@ -87,12 +87,13 @@ public class ExpressionAnalyzer {
             }
             if (expression instanceof Assignment assignment) {
                 LinkEvaluation evalValue = eval(assignment.value());
-                return new LinkEvaluation.Builder()
+                LinkEvaluation.Builder builder = new LinkEvaluation.Builder()
                         .merge(assignment.variableTarget(), evalValue.linkedVariables())
                         .setLinkedVariables(evalValue.linkedVariables())
                         .merge(assignment.variableTarget(), evalValue.staticValues())
-                        .setStaticValues(evalValue.staticValues())
-                        .build();
+                        .setStaticValues(evalValue.staticValues());
+                setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
+                return builder.build();
             }
             if (expression instanceof MethodCall mc) {
                 return linkEvaluationOfMethodCall(currentMethod, mc);
@@ -156,6 +157,35 @@ public class ExpressionAnalyzer {
                 return new LinkEvaluation.Builder().setLinkedVariables(EMPTY).setStaticValues(sv).build();
             }
             return LinkEvaluation.EMPTY;
+        }
+
+        private void setStaticValuesForVariableHierarchy(Assignment assignment, LinkEvaluation evalValue, LinkEvaluation.Builder builder) {
+            // push values up in the variable hierarchy
+            Variable v = assignment.variableTarget();
+            Expression value = evalValue.staticValues().expression();
+            if (value != null) {
+                Expression indexExpression = null;
+                while (true) {
+                    if (v instanceof DependentVariable dv) {
+                        This thisVar = runtime.newThis(currentMethod.typeInfo()); // irrelevant which type
+                        Variable indexed = runtime.newDependentVariable(thisVar, value.parameterizedType(), dv.indexVariable());
+                        StaticValues newSv = new StaticValuesImpl(null, null, Map.of(indexed, value));
+                        builder.merge(dv.arrayVariable(), newSv);
+                        v = dv.arrayVariable();
+                        indexExpression = dv.indexExpression();
+                    } else if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression) {
+                        Variable variable;
+                        if (indexExpression != null) {
+                            variable = runtime.newDependentVariable(runtime.newVariableExpression(fr), indexExpression);
+                        } else {
+                            variable = fr;
+                        }
+                        StaticValues newSv = new StaticValuesImpl(null, null, Map.of(variable, value));
+                        builder.merge(fr.scopeVariable(), newSv);
+                        v = fr.scopeVariable();
+                    } else break;
+                }
+            }
         }
 
         private Expression inferStaticValues(VariableExpression ve) {
