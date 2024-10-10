@@ -164,6 +164,12 @@ public class MethodAnalyzer {
     - overriding a method which has a @GetSet marker (e.g. interface method)
     - array access or direct list indexing. we will always determine from the context whether we're dealing with
       indexing or not, and store the whole field in one go
+
+    TODO overrides! compatibility, direct override, etc.
+
+    Obvious limitations
+    - we're using a field to store the information, we should use field reference (see TestGetSet)
+    - alternative packing systems: a map with string constants, getting values at fixed positions (see TestGetSet)
      */
     private void doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
         if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.GET_SET_FIELD)) {
@@ -229,7 +235,7 @@ public class MethodAnalyzer {
     }
 
     private static boolean overrideOf(MethodInfo methodInfo, String fqn) {
-        if(fqn.equals(methodInfo.fullyQualifiedName())) return true;
+        if (fqn.equals(methodInfo.fullyQualifiedName())) return true;
         return methodInfo.overrides().stream().anyMatch(mi -> fqn.equals(mi.fullyQualifiedName()));
     }
 

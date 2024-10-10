@@ -893,11 +893,20 @@ public class LinkHelper {
                 }
                 for (Map.Entry<Integer, Indices> entry : entrySet) {
                     Indices indicesInTargetWrtMethod = entry.getValue();
-                    HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
-                    assert targetAndType != null;
-                    ParameterizedType type = targetAndType.type();
-                    assert type != null;
-
+                    ParameterizedType type;
+                    Indices targetIndices;
+                    if(IndicesImpl.FIELD_INDICES.equals(indicesInTargetWrtMethod)) {
+                        // 2 questions: do we know the type? we must know if it is -2- or -4-
+                        // it cannot be recursively immutable, but it can be immutable HC
+                        type =((TypeInfo) hiddenContentTypes.typeByIndex(entry.getKey())).asParameterizedType(runtime) ;//null; // FIXME
+                        targetIndices  = IndicesImpl.FIELD_INDICES;
+                    } else {
+                        HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
+                        assert targetAndType != null;
+                        type = targetAndType.type();
+                        assert type != null;
+                        targetIndices = targetAndType.indices();
+                    }
                     Value.Immutable typeImmutable = analysisHelper.typeImmutable(currentPrimaryType, type);
                     if (typeImmutable == null) {
                         return sourceLvs.changeToDelay();
@@ -929,7 +938,7 @@ public class LinkHelper {
                     // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
                     Indices indicesInTargetWrtType = (lv.theirsIsAll()
                                                       && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()
-                                                      && reverse) ? ALL_INDICES : targetAndType.indices();
+                                                      && reverse) ? ALL_INDICES : targetIndices;
                     Indices correctedIndicesInTargetWrtType;
                     if (correctForVarargsMutable != null) {
                         correctedIndicesInTargetWrtType = ALL_INDICES;

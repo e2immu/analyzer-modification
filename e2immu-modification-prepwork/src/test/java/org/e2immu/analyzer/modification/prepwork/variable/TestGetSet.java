@@ -38,7 +38,18 @@ public class TestGetSet extends CommonTest {
                 double dd() { return this.d; }
             
                 int ri() { return r.i; }
-                int rri() { return rr.i; }
+                int rri() { return rr.i; } // PROBLEM with current implementation
+            
+                void setO(Object o, int i) { objects[i] = o; }
+                X setO2(int i, Object o) { this.objects[i] = o; return this; }
+                X setO3(Object o) { this.objects[0] = o; return this; } // not @GetSet yet
+            
+                void setS(Object o, int i) { list.set(i, o); }
+                X setS2(int i, Object o) { this.list.set(i, o); return this; }
+                X setS3(Object o) { this.list.set(0, o); return this; } // not @GetSet yet
+            
+                void setD(double d) { this.d = d; }
+                void setRI(int i) { this.r.i = i; }
             }
             """;
 
@@ -60,10 +71,24 @@ public class TestGetSet extends CommonTest {
         MethodInfo getO2 = X.findUniqueMethod("getO2", 0);
         assertNull(getO2.getSetField().field());
 
+        MethodInfo setO = X.findUniqueMethod("setO", 2);
+        assertSame(objects, setO.getSetField().field());
+        MethodInfo setO2 = X.findUniqueMethod("setO2", 2);
+        assertSame(objects, setO2.getSetField().field());
+        MethodInfo setO3 = X.findUniqueMethod("setO3", 1);
+        assertNull(setO3.getSetField().field());
+
         MethodInfo getS = X.findUniqueMethod("getS", 1);
         assertSame(list, getS.getSetField().field());
         MethodInfo getS2 = X.findUniqueMethod("getS2", 0);
         assertNull(getS2.getSetField().field());
+
+        MethodInfo setS = X.findUniqueMethod("setS", 2);
+        assertSame(list, setS.getSetField().field());
+        MethodInfo setS2 = X.findUniqueMethod("setS2", 2);
+        assertSame(list, setS2.getSetField().field());
+        MethodInfo setS3 = X.findUniqueMethod("setS3", 1);
+        assertNull(setS3.getSetField().field());
 
         MethodInfo md = X.findUniqueMethod("d", 0);
         assertSame(d, md.getSetField().field());
@@ -73,6 +98,11 @@ public class TestGetSet extends CommonTest {
         MethodInfo mri = X.findUniqueMethod("ri", 0);
         assertSame(ri, mri.getSetField().field());
         MethodInfo mRri = X.findUniqueMethod("rri", 0);
-        assertSame(ri, mRri.getSetField().field()); // FIXME we cannot tell the difference: are we accessing r or rr??
+        assertSame(ri, mRri.getSetField().field()); // IMPORTANT! we cannot yet tell the difference: are we accessing r or rr??
+
+        MethodInfo setD = X.findUniqueMethod("setD", 1);
+        assertSame(d, setD.getSetField().field());
+        MethodInfo setRI = X.findUniqueMethod("setRI", 1);
+        assertSame(ri, setRI.getSetField().field());
     }
 }

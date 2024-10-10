@@ -312,6 +312,7 @@ public class ExpressionAnalyzer {
             return builder.build();
         }
 
+        // FIXME non-fluent setters!
         private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject) {
             if (mc.methodInfo().hasReturnValue()) {
                 // test for fluent setter, see TestStaticValuesAssignment,method

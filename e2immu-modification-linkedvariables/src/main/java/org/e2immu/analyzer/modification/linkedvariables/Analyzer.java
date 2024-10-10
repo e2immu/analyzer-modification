@@ -216,6 +216,9 @@ public class Analyzer {
                     methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
                 }
             }
+            if(v instanceof This && !methodInfo.hasReturnValue()) {
+                // TODO static values without @Fluent
+            }
         }
     }
 

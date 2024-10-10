@@ -132,6 +132,68 @@ public class TestStaticValuesAssignment extends CommonTest {
     }
 
 
+
+    @Language("java")
+    private static final String INPUT2b = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                int j;
+                int k;
+                void setJ(int jp) {
+                    j=jp;
+                }
+                void setJK(int jp, int kp) {
+                    j=jp;
+                    k=kp;
+                }
+                static X method() {
+                    X x = new X();
+                    x.setJ(3);
+                    return x;
+                }
+            }
+            """;
+
+    @DisplayName("assignment to field in builder, non-fluent")
+    @Test
+    public void test2b() {
+        TypeInfo X = javaInspector.parse(INPUT2b);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        FieldInfo fieldJ = X.getFieldByName("j", true);
+        MethodInfo setJ = X.findUniqueMethod("setJ", 1);
+        {
+            Statement s0 = setJ.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+
+            VariableInfo vi0J = vd0.variableInfo(runtime.newFieldReference(fieldJ));
+            assertEquals("-1-:jp", vi0J.linkedVariables().toString());
+            assertEquals("E=jp", vi0J.staticValues().toString());
+        }
+
+        StaticValues setJSv = setJ.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+        assertNotNull(setJSv);
+        assertEquals("this.j=jp", setJSv.toString());
+
+        MethodInfo setJK = X.findUniqueMethod("setJK", 2);
+        StaticValues setJKSv = setJK.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+        assertEquals("this.j=jp, this.k=kp", setJKSv.toString());
+
+        MethodInfo method = X.findUniqueMethod("method", 0);
+        {
+            Statement s0 = method.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+
+            VariableInfo vi0X = vd0.variableInfo("x");
+            assertEquals("E=new X() this.j=3", vi0X.staticValues().toString());
+        }
+        StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+        assertEquals("E=new X() this.j=3", methodSv.toString());
+    }
+
+
     @Language("java")
     private static final String INPUT3 = """
             package a.b;

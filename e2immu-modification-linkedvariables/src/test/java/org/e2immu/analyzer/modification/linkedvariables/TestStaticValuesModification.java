@@ -1,5 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -281,11 +283,11 @@ public class TestStaticValuesModification extends CommonTest {
             class X {
                 interface R {
                     @GetSet("objects") Object get(int i);
-                    @GetSet("objects") void set(int i, Object o);
+                    @GetSet("objects") R set(int i, Object o);
                 }
-                record RI(Object[] objects) {
+                record RI(Object[] objects) implements R {
                     Object get(int i) { return objects[i]; }
-                    void set(int i, Object o) { objects[i] = o; }
+                    R set(int i, Object o) { objects[i] = o; return this; }
                 }
             
                 void modify(R r, int index) {
@@ -326,6 +328,19 @@ public class TestStaticValuesModification extends CommonTest {
             assertSame(objectsRI, get.getSetField().field());
             MethodInfo set = RI.findUniqueMethod("set", 2);
             assertSame(objectsRI, set.getSetField().field());
+
+            {
+                Statement s0 = set.methodBody().statements().get(0);
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo viObjectsI = vd0.variableInfo("a.b.X.RI.objects[a.b.X.RI.set(int,Object):0:i]");
+                assertEquals("E=o", viObjectsI.staticValues().toString());
+                VariableInfo viObjects = vd0.variableInfo("a.b.X.RI.objects");
+                assertEquals("this[i]=o", viObjects.staticValues().toString()); // seems a bit weird
+                VariableInfo viThis = vd0.variableInfo(runtime.newThis(X));
+                assertEquals("this.objects[i]=o", viThis.staticValues().toString());
+            }
+            StaticValues setSv = set.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            assertEquals("E=this this.objects[i]=o", setSv.toString());
         }
 
         MethodInfo method = X.findUniqueMethod("method", 1);
