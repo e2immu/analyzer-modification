@@ -175,24 +175,18 @@ public class TestStaticValuesModification extends CommonTest {
         VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
         assertTrue(viSetAdd0R.isModified());
         assertEquals("a.b.X.setAdd(a.b.X.R):0:r", vdSetAdd0.knownVariableNamesToString());
-        // FIXME here the 'r.set()' accessor has not been expanded, the r.set field reference does not exist, and
-        //  we have no knowledge of which component is modified
-        //  but at least there is a 1-1 mapping between the components of the interface, and the components of the implementation
-        //    thanks to the @GetSet
-        // it would help if we had a @Modified("set") here on the parameter 'r'
 
         MethodInfo method = X.findUniqueMethod("method", 0);
         Statement s3 = method.methodBody().statements().get(3);
         VariableData vd3 = VariableDataImpl.of(s3);
         VariableInfo vi3R = vd3.variableInfo("r");
         assertEquals("Type a.b.X.RI E=new RI(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
-        assertEquals("-2-:this,FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
+        assertEquals("FM-2-*M:l,FM-2-*M:s", vi3R.linkedVariables().toString());
         assertTrue(vi3R.isModified());
 
         VariableInfo vd3S = vd3.variableInfo("s");
-        assertEquals("*M-2-FM:r,-2-:l,-2-:this", vd3S.linkedVariables().toString());
+        assertEquals("*M-2-FM:r", vd3S.linkedVariables().toString());
         assertTrue(vd3S.isModified());
-        // FIXME all link related issues remain the same
     }
 
 
@@ -364,7 +358,7 @@ public class TestStaticValuesModification extends CommonTest {
             Statement s0 = modify.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Set = vd0.variableInfo("set");
-            assertEquals("*-2-F:r", vi0Set.linkedVariables().toString()); // FIXME result type of method should be Set, not Object; we can live with 4M though
+            assertEquals("*-4-F:r", vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
             assertEquals("E=r.objects", vi0Set.staticValues().toString()); // this is the result of @GetSet
         }
         {
@@ -372,11 +366,11 @@ public class TestStaticValuesModification extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Set = vd1.variableInfo("set");
             assertTrue(vi1Set.isModified());
-            assertEquals("*M-2-FM:r", vi1Set.linkedVariables().toString());
+            assertEquals("*-4-F:r", vi1Set.linkedVariables().toString());
             assertEquals("E=r.objects", vi1Set.staticValues().toString()); // this is the result of @GetSet
         }
-        assertTrue(modify0.isModified());
-
+        assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
+        assertEquals("", method0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.EMPTY).map().toString());
         assertTrue(method0.isModified());
     }
 

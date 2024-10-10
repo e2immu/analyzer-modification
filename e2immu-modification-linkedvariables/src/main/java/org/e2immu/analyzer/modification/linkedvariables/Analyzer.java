@@ -228,7 +228,11 @@ public class Analyzer {
                 }
             }
             if (v instanceof This && !methodInfo.hasReturnValue()) {
-                // TODO static values without @Fluent
+                StaticValues staticValues = vi.staticValues();
+                if (staticValues != null) {
+                    StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
+                    methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
+                }
             }
         }
     }

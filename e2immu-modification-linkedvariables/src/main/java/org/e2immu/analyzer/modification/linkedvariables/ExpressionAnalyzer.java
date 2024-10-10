@@ -175,7 +175,7 @@ public class ExpressionAnalyzer {
             }
             if (dependentVariable != null) {
                 Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
-                Immutable immutableForward = forwardType == null ? immutable: analysisHelper.typeImmutable(forwardType);
+                Immutable immutableForward = forwardType == null ? immutable : analysisHelper.typeImmutable(forwardType);
                 if (!immutableForward.isImmutable()) {
                     boolean isMutable = immutableForward.isMutable();
                     Indices targetIndices = v instanceof DependentVariable ? new IndicesImpl(0) : IndicesImpl.FIELD_INDICES;
@@ -375,39 +375,19 @@ public class ExpressionAnalyzer {
             return builder.build();
         }
 
-        // FIXME non-fluent setters!
         private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject) {
+            StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
+
             if (mc.methodInfo().hasReturnValue()) {
-                // test for fluent setter, see TestStaticValuesAssignment,method
-                StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
+                // fluent setter, see TestStaticValuesAssignment,method
                 if (svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
-                    Map<Variable, Expression> map = new HashMap<>();
-                    for (Map.Entry<Variable, Expression> entry : svm.values().entrySet()) {
-                        Variable variable;
-                        if (entry.getKey() instanceof DependentVariable dv && dv.indexVariable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
-                            //dv: this.objects[i]; mc arguments: 0, set -> objects[0]=set
-                            Expression concreteIndex = mc.parameterExpressions().get(pi.index());
-                            variable = runtime.newDependentVariable(dv.arrayExpression(), concreteIndex);
-                        } else {
-                            variable = entry.getKey();
-                        }
-                        if (entry.getValue() instanceof VariableExpression vve
-                            && vve.variable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
-                            map.put(variable, mc.parameterExpressions().get(pi.index()));
-                        }
-                    }
-                    Expression expression;
-                    if (mc.object() instanceof MethodCall mco && mco.methodInfo().isFluent()) {
-                        expression = leObject.staticValues().expression();
-                        map.putAll(leObject.staticValues().values());
-                    } else {
-                        expression = mc.object();
-                    }
-                    StaticValues sv = new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
+                    assert mc.methodInfo().isFluent();
+                    StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
                     builder.setStaticValues(sv);
                     return;
                 }
 
+                // getter: return value becomes the field reference
                 Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
                 if (getSet.field() != null) {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), mc.concreteReturnType());
@@ -418,20 +398,57 @@ public class ExpressionAnalyzer {
                     builder.setStaticValues(svs).merge(fr, svsVar);
                     return;
                 }
+            }
 
-                // builder, build() method
-                if (mc.object() instanceof VariableExpression veObject && variableDataPrevious != null) {
-                    VariableInfoContainer vicObject = variableDataPrevious.variableInfoContainerOrNull(veObject.variable().fullyQualifiedName());
-                    if (vicObject != null) {
-                        VariableInfo viObject = vicObject.best(stageOfPrevious);
-                        StaticValues svObject = viObject.staticValues();
-                        if (svObject != null && svObject.expression() != null && svm.expression() != null) {
-                            StaticValues sv = new StaticValuesImpl(svm.type(), null, svObject.values());
-                            builder.setStaticValues(sv);
-                        }
+            // copy into the object, if it is a variable
+            if (mc.object() instanceof VariableExpression ve
+                && !mc.methodInfo().hasReturnValue()
+                && !(ve.variable() instanceof This)) {
+                StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
+                builder.merge(ve.variable(), sv);
+            }
+
+            // and if we have a return value and our object is variable, copy from the object into the return value
+            // adjusting for the object
+            if (mc.methodInfo().hasReturnValue()
+                && mc.object() instanceof VariableExpression veObject && variableDataPrevious != null) {
+                VariableInfoContainer vicObject = variableDataPrevious.variableInfoContainerOrNull(veObject.variable().fullyQualifiedName());
+                if (vicObject != null) {
+                    VariableInfo viObject = vicObject.best(stageOfPrevious);
+                    StaticValues svObject = viObject.staticValues();
+                    if (svObject != null && svObject.expression() != null && svm.expression() != null) {
+                        StaticValues sv = new StaticValuesImpl(svm.type(), null, svObject.values());
+                        builder.setStaticValues(sv);
                     }
                 }
             }
+        }
+
+        private StaticValues makeSvFromMethodCall(MethodCall mc, LinkEvaluation leObject, StaticValues svm) {
+            Map<Variable, Expression> map = new HashMap<>();
+            for (Map.Entry<Variable, Expression> entry : svm.values().entrySet()) {
+                Variable variable;
+                if (entry.getKey() instanceof DependentVariable dv && dv.indexVariable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
+                    //dv: this.objects[i]; mc arguments: 0, set -> objects[0]=set
+                    Expression concreteIndex = mc.parameterExpressions().get(pi.index());
+                    variable = runtime.newDependentVariable(dv.arrayExpression(), concreteIndex);
+                } else {
+                    variable = entry.getKey();
+                }
+                if (entry.getValue() instanceof VariableExpression vve
+                    && vve.variable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
+                    map.put(variable, mc.parameterExpressions().get(pi.index()));
+                }
+            }
+            Expression expression;
+            if (mc.object() instanceof MethodCall mco && mco.methodInfo().isFluent()) {
+                expression = leObject.staticValues().expression();
+                map.putAll(leObject.staticValues().values());
+            } else {
+                expression = mc.object();
+            }
+            StaticValues sv = new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
+            return sv;
         }
 
         private void methodCallModified(MethodCall mc, LinkEvaluation.Builder builder) {

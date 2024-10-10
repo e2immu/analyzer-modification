@@ -132,7 +132,6 @@ public class TestStaticValuesAssignment extends CommonTest {
     }
 
 
-
     @Language("java")
     private static final String INPUT2b = """
             package a.b;
@@ -187,10 +186,17 @@ public class TestStaticValuesAssignment extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0X = vd0.variableInfo("x");
-            assertEquals("E=new X() this.j=3", vi0X.staticValues().toString());
+            assertEquals("Type a.b.X E=new X()", vi0X.staticValues().toString());
+        }
+        {
+            Statement s1 = method.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+
+            VariableInfo vi1X = vd1.variableInfo("x");
+            assertEquals("Type a.b.X E=x this.j=3", vi1X.staticValues().toString());
         }
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-        assertEquals("E=new X() this.j=3", methodSv.toString());
+        assertEquals("Type a.b.X E=x this.j=3", methodSv.toString());
     }
 
 
@@ -333,7 +339,8 @@ public class TestStaticValuesAssignment extends CommonTest {
 
             VariableInfo vi0R = vd0.variableInfo(r);
             assertEquals("", vi0R.linkedVariables().toString());
-            assertEquals("this.i=3", vi0R.staticValues().toString());
+            // IMPROVE the r.i=3 is maybe not necessary here
+            assertEquals("r.i=3, this.i=3", vi0R.staticValues().toString());
 
             Variable ri = runtime.newFieldReference(iField, runtime.newVariableExpression(r), iField.type());
             assertEquals("r.i", ri.toString());
