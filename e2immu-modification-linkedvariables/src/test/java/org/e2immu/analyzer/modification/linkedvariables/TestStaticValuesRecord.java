@@ -237,7 +237,8 @@ public class TestStaticValuesRecord extends CommonTest {
         assertEquals(rVi0.staticValues(), rVi1.staticValues());
 
         VariableInfo rvVi1 = vd1.variableInfo(method.fullyQualifiedName());
-        assertEquals("*M-2-0M:r", rvVi1.linkedVariables().toString());
+        // 4 and M: we have type T, immutable HC, but a concrete choice Set, Mutable
+        assertEquals("*M-4-0M:r", rvVi1.linkedVariables().toString());
         // we don't want E=r.t here, that one can be substituted again because r.t=in
         assertEquals("E=in", rvVi1.staticValues().toString());
 

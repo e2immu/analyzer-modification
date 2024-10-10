@@ -297,8 +297,14 @@ public class TestStaticValuesModification extends CommonTest {
             
                 void method(Set<Integer> set) {
                     Object[] objects = new Object[2];
+                    RI r = new RI(objects).set(0, set);
+                    modify(r, 0); // this action should see 'set' modified
+                }
+            
+                void method2(Set<Integer> set) {
+                    Object[] objects = new Object[2];
                     R r = new RI(objects);
-                    r.set(0, set);
+                    r.set(0, set); // via interface
                     modify(r, 0); // this action should see 'set' modified
                 }
             }
@@ -348,16 +354,29 @@ public class TestStaticValuesModification extends CommonTest {
         {
             Statement s1 = method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
-            VariableInfo vi1R = vd1.variableInfo("r");
-            assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects", vi1R.staticValues().toString());
+            VariableInfo vi1Ri = vd1.variableInfo("r");
+            assertEquals("E=new RI(objects) objects[0]=set", vi1Ri.staticValues().toString());
+        }
+
+        MethodInfo modify = X.findUniqueMethod("modify", 2);
+        ParameterInfo modify0 = modify.parameters().get(0);
+        {
+            Statement s0 = modify.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0Set = vd0.variableInfo("set");
+            assertEquals("*-2-F:r", vi0Set.linkedVariables().toString()); // FIXME result type of method should be Set, not Object; we can live with 4M though
+            assertEquals("E=r.objects", vi0Set.staticValues().toString()); // this is the result of @GetSet
         }
         {
-            Statement s2 = method.methodBody().statements().get(2);
-            VariableData vd2 = VariableDataImpl.of(s2);
-            VariableInfo vi2R = vd2.variableInfo("r");
-            assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects, this.objects[0]=set",
-                    vi2R.staticValues().toString());
+            Statement s1 = modify.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+            VariableInfo vi1Set = vd1.variableInfo("set");
+            assertTrue(vi1Set.isModified());
+            assertEquals("*M-2-FM:r", vi1Set.linkedVariables().toString());
+            assertEquals("E=r.objects", vi1Set.staticValues().toString()); // this is the result of @GetSet
         }
+        assertTrue(modify0.isModified());
+
         assertTrue(method0.isModified());
     }
 

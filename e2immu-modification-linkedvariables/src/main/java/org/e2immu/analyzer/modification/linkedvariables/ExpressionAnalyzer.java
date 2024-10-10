@@ -1,9 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Property;
@@ -71,10 +70,13 @@ public class ExpressionAnalyzer {
         }
 
         LinkEvaluation eval(Expression expression) {
+            return eval(expression, null);
+        }
+
+        LinkEvaluation eval(Expression expression, ParameterizedType forwardType) {
             if (expression instanceof VariableExpression ve) {
-                // TODO add scope fields, arrays
                 Variable v = ve.variable();
-                LinkedVariables lvs = LinkedVariablesImpl.of(v, LVImpl.LINK_ASSIGNED);
+                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, forwardType);
                 // do we have a static value for 'v'? this static value can be in the current evaluation forward (NYI)
                 // or in the previous statement
                 Expression svExpression = inferStaticValues(ve);
@@ -127,7 +129,7 @@ public class ExpressionAnalyzer {
 
             // pass-through
             if (expression instanceof Cast c) {
-                LinkEvaluation evalValue = eval(c.expression());
+                LinkEvaluation evalValue = eval(c.expression(), c.parameterizedType());
                 return new LinkEvaluation.Builder().merge(evalValue).build();
             }
             if (expression instanceof EnclosedExpression c) {
@@ -157,6 +159,37 @@ public class ExpressionAnalyzer {
                 return new LinkEvaluation.Builder().setLinkedVariables(EMPTY).setStaticValues(sv).build();
             }
             return LinkEvaluation.EMPTY;
+        }
+
+        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve, Variable v, ParameterizedType forwardType) {
+            Map<Variable, LV> map = new HashMap<>();
+            map.put(v, LVImpl.LINK_ASSIGNED);
+            Variable dependentVariable;
+            if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression sv
+                && !(sv.variable() instanceof This)) {
+                dependentVariable = fr.scopeVariable();
+            } else if (v instanceof DependentVariable dv) {
+                dependentVariable = dv.arrayVariable();
+            } else {
+                dependentVariable = null;
+            }
+            if (dependentVariable != null) {
+                Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
+                Immutable immutableForward = forwardType == null ? immutable: analysisHelper.typeImmutable(forwardType);
+                if (!immutableForward.isImmutable()) {
+                    boolean isMutable = immutableForward.isMutable();
+                    Indices targetIndices = v instanceof DependentVariable ? new IndicesImpl(0) : IndicesImpl.FIELD_INDICES;
+                    Links links = new LinksImpl(Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable)));
+                    LV lv;
+                    if (immutable.isAtLeastImmutableHC()) {
+                        lv = LVImpl.createHC(links);
+                    } else {
+                        lv = LVImpl.createDependent(links);
+                    }
+                    map.put(dependentVariable, lv);
+                }
+            }
+            return LinkedVariablesImpl.of(map);
         }
 
         private void setStaticValuesForVariableHierarchy(Assignment assignment, LinkEvaluation evalValue, LinkEvaluation.Builder builder) {
@@ -350,9 +383,17 @@ public class ExpressionAnalyzer {
                 if (svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
                     Map<Variable, Expression> map = new HashMap<>();
                     for (Map.Entry<Variable, Expression> entry : svm.values().entrySet()) {
+                        Variable variable;
+                        if (entry.getKey() instanceof DependentVariable dv && dv.indexVariable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
+                            //dv: this.objects[i]; mc arguments: 0, set -> objects[0]=set
+                            Expression concreteIndex = mc.parameterExpressions().get(pi.index());
+                            variable = runtime.newDependentVariable(dv.arrayExpression(), concreteIndex);
+                        } else {
+                            variable = entry.getKey();
+                        }
                         if (entry.getValue() instanceof VariableExpression vve
                             && vve.variable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
-                            map.put(entry.getKey(), mc.parameterExpressions().get(pi.index()));
+                            map.put(variable, mc.parameterExpressions().get(pi.index()));
                         }
                     }
                     Expression expression;

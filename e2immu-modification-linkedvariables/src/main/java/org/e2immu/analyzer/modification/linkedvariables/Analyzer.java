@@ -7,6 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
+import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.analyzer.shallow.analyzer.ShallowMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -50,12 +51,14 @@ public class Analyzer {
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
+    private final AnalysisHelper analysisHelper;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
         computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
+        this.analysisHelper = new AnalysisHelper();
     }
 
     public void doMethod(MethodInfo methodInfo) {
@@ -128,9 +131,7 @@ public class Analyzer {
     }
 
     private Independent doIndependentParameter(ParameterInfo pi, VariableData lastOfMainBlock) {
-        TypeInfo piTypeInfo = pi.parameterizedType().typeInfo();
-        boolean typeIsImmutable = piTypeInfo != null && piTypeInfo.analysis()
-                .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
+        boolean typeIsImmutable = analysisHelper.typeImmutable(pi.parameterizedType()).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
         if (pi.methodInfo().isAbstract() || pi.methodInfo().methodBody().isEmpty()) return DEPENDENT;
         return worstLinkToFields(lastOfMainBlock, pi.fullyQualifiedName());
@@ -143,9 +144,7 @@ public class Analyzer {
         }
         boolean fluent = methodInfo.analysis().getOrDefault(FLUENT_METHOD, FALSE).isTrue();
         if (fluent) return INDEPENDENT;
-        TypeInfo returnTypeInfo = methodInfo.returnType().typeInfo();
-        boolean typeIsImmutable = returnTypeInfo != null && returnTypeInfo.analysis()
-                .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable();
+        boolean typeIsImmutable = analysisHelper.typeImmutable(methodInfo.returnType()).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
         return worstLinkToFields(lastOfMainBlock, methodInfo.fullyQualifiedName());
     }
@@ -159,8 +158,18 @@ public class Analyzer {
                 .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
                 .map(Map.Entry::getValue)
                 .min(LV::compareTo).orElse(LVImpl.LINK_INDEPENDENT);
+        if (worstLinkToFields.isStaticallyAssignedOrAssigned()) {
+            Value.Immutable immField = viRv.linkedVariables().stream()
+                    .filter(e -> e.getValue().isStaticallyAssignedOrAssigned())
+                    .map(Map.Entry::getKey)
+                    .filter(v -> v instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                    .map(v -> analysisHelper.typeImmutable(v.parameterizedType()))
+                    .findFirst().orElseThrow();
+            return immField.toCorrespondingIndependent();
+        }
         if (worstLinkToFields.equals(LVImpl.LINK_INDEPENDENT)) return INDEPENDENT;
         if (worstLinkToFields.isCommonHC()) return INDEPENDENT_HC;
+
         return DEPENDENT;
     }
 
@@ -178,12 +187,14 @@ public class Analyzer {
                 if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
                     boolean modified = vi.isModified();
                     pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
-                    if (modified && !pi.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_PARAMETER)) {
-                        Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
-                        if (!modifiedComponents.isEmpty()) {
-                            Value.VariableBooleanMap vbm = new ValueImpl.VariableBooleanMapImpl(modifiedComponents);
-                            pi.analysis().set(MODIFIED_COMPONENTS_PARAMETER, vbm);
-                        }
+                }
+                // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
+                // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
+                if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_PARAMETER)) {
+                    Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
+                    if (!modifiedComponents.isEmpty()) {
+                        Value.VariableBooleanMap vbm = new ValueImpl.VariableBooleanMapImpl(modifiedComponents);
+                        pi.analysis().set(MODIFIED_COMPONENTS_PARAMETER, vbm);
                     }
                 }
                 Value.VariableBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
@@ -216,18 +227,33 @@ public class Analyzer {
                     methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
                 }
             }
-            if(v instanceof This && !methodInfo.hasReturnValue()) {
+            if (v instanceof This && !methodInfo.hasReturnValue()) {
                 // TODO static values without @Fluent
             }
         }
     }
 
+    // step 1: modification check on fields of parameter
+    // step 2: modification check on variables who have been assigned to a field of a parameter
     private Map<Variable, Boolean> computeModifiedComponents(VariableData variableData, ParameterInfo pi) {
         if (pi.parameterizedType().isTypeParameter()) return Map.of();
-        return variableData.variableInfoStream()
+        Stream<Variable> step1 = variableData.variableInfoStream()
                 .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursively(pi))
                 .filter(VariableInfo::isModified)
-                .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi -> true));
+                .map(VariableInfo::variable);
+        Stream<Variable> step2 = variableData.variableInfoStream()
+                .filter(VariableInfo::isModified)
+                .map(vi -> {
+                    StaticValues sv = vi.staticValues();
+                    if (sv != null && sv.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsRecursively(pi)) {
+                        return ve.variable();
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull);
+        return Stream.concat(step1, step2)
+                .distinct() // we could be in both!
+                .collect(Collectors.toUnmodifiableMap(v -> v, v -> true));
     }
 
     // NOTE: the doBlocks, doBlock methods, and parts of doStatement, have been copied from prepwork.MethodAnalyzer
