@@ -174,6 +174,7 @@ public class Analyzer {
     }
 
     private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
+        Map<Variable, Boolean> modifiedComponentsMethod = new HashMap<>();
         for (VariableInfo vi : variableData.variableInfoStream().toList()) {
             Variable v = vi.variable();
             if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
@@ -225,6 +226,9 @@ public class Analyzer {
                     && !methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)
                     && !set.infoSet().contains(methodInfo)) {
                     methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
+                    if (v instanceof FieldReference) {
+                        modifiedComponentsMethod.put(v, true);
+                    }
                 }
             }
             if (v instanceof This && !methodInfo.hasReturnValue()) {
@@ -234,6 +238,9 @@ public class Analyzer {
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
             }
+        }
+        if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_METHOD) && !modifiedComponentsMethod.isEmpty()) {
+            methodInfo.analysis().set(MODIFIED_COMPONENTS_METHOD, new ValueImpl.VariableBooleanMapImpl(modifiedComponentsMethod));
         }
     }
 

@@ -9,6 +9,7 @@ import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
@@ -19,6 +20,7 @@ import java.util.List;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.NONE;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_COMPONENTS_METHOD;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_COMPONENTS_PARAMETER;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -212,7 +214,7 @@ public class TestStaticValuesModification extends CommonTest {
             import java.util.List;
             class X {
                 interface R {
-                    @Modified//("set")   corresponds to LoopData.hasNext()
+                    @Modified("set") //corresponds to LoopData.hasNext()
                     void add();
                 }
                 record RI(Set<Integer> set, int i, List<String> list) implements R {
@@ -259,22 +261,54 @@ public class TestStaticValuesModification extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo R = X.findSubType("R");
+        TypeInfo RI = X.findSubType("RI");
+        {
+            // computed
+            MethodInfo add = RI.findUniqueMethod("add", 0);
+            assertTrue(add.isModifying());
+            assertEquals("this.set=true", add.analysis().getOrDefault(MODIFIED_COMPONENTS_METHOD,
+                    ValueImpl.VariableBooleanMapImpl.EMPTY).toString());
+        }
+        {
+            // from annotations
+            MethodInfo add = R.findUniqueMethod("add", 0);
+            assertTrue(add.isModifying());
+            Value.VariableBooleanMap map = add.analysis().getOrDefault(MODIFIED_COMPONENTS_METHOD,
+                    ValueImpl.VariableBooleanMapImpl.EMPTY);
+            assertEquals("this.set=true", map.toString());
+            FieldInfo set = R.getFieldByName("set", true);
+            assertTrue(set.isSynthetic());
+            Variable variable = map.map().keySet().stream().findFirst().orElseThrow();
+            if (variable instanceof FieldReference fr) {
+                assertSame(set, fr.fieldInfo());
+            } else fail();
+        }
+        {
+            // propagated to the parameter
+            MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
+            ParameterInfo setAdd0 = setAdd.parameters().get(0);
+            assertTrue(setAdd0.isModified());
+            assertEquals("set", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.EMPTY).toString());
+        }
+        {
+            MethodInfo method = X.findUniqueMethod("method", 0);
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
+            VariableInfo vi2B = vd2.variableInfo("b");
+            assertEquals("E=new Builder() this.intSet=s, this.stringList=l", vi2B.staticValues().toString());
 
-        MethodInfo method = X.findUniqueMethod("method", 0);
-        Statement s2 = method.methodBody().statements().get(2);
-        VariableData vd2 = VariableDataImpl.of(s2);
-        VariableInfo vi2B = vd2.variableInfo("b");
-        assertEquals("E=new Builder() this.intSet=s, this.stringList=l", vi2B.staticValues().toString());
+            // FIXME then this should go over to R
+            Statement s3 = method.methodBody().statements().get(3);
+            VariableData vd3 = VariableDataImpl.of(s3);
+            VariableInfo vi3R = vd3.variableInfo("r");
+            assertEquals("Type a.b.X.RI this.intSet=s, this.stringList=l", vi3R.staticValues().toString());
 
-        // FIXME then this should go over to R
-        Statement s3 = method.methodBody().statements().get(3);
-        VariableData vd3 = VariableDataImpl.of(s3);
-        VariableInfo vi3R = vd3.variableInfo("r");
-        assertEquals("Type a.b.X.RI this.intSet=s, this.stringList=l", vi3R.staticValues().toString());
-
-        // FIXME at the same time, the method 'setAdd(R r)' should have a modification to the component 'set'
-        //  this comes about because of the @Modified("set") on the R.add() method
-        // and then we're fine.
+            // FIXME at the same time, the method 'setAdd(R r)' should have a modification to the component 'set'
+            //  this comes about because of the @Modified("set") on the R.add() method
+            // and then we're fine.
+        }
     }
 
 

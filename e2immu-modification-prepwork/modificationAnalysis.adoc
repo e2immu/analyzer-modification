@@ -3,7 +3,8 @@
 
 Inspection phase
 
-- get/set
+- get/set synthetic fields `@GetSet("field")`
+- modification component synthetic fields `@Modified("field")`
 
 Prep work
 
