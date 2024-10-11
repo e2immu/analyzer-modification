@@ -6,12 +6,9 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.variable.*;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +18,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.prepwork.StatementIndex.*;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 
 /*
 do all the analysis of this phase
@@ -561,40 +556,11 @@ public class MethodAnalyzer {
                     fr.scope().visit(this);
                 }
                 a.value().visit(this);
-
-                // an assignment is not a modification of the object itself, but of its scope
-                if (a.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
-                    markModified(fr.scopeVariable());
-                } else if (a.variableTarget() instanceof DependentVariable dv && dv.arrayVariable() != null) {
-                    markModified(dv.arrayVariable());
-                }
                 return false;
             }
             if (e instanceof MethodCall mc) {
-                int i = 0;
-                int nMinus1 = mc.methodInfo().parameters().size() - 1;
-                for (Expression expression : mc.parameterExpressions()) {
-                    if (expression instanceof VariableExpression ve) {
-                        ParameterInfo pi = mc.methodInfo().parameters().get(Math.min(i, nMinus1));
-                        boolean parameterModifying = pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
-                        if (parameterModifying) markModified(ve.variable());
-                    }
-                    i++;
-                }
+                
             }
-            if (e instanceof ConstructorCall cc && cc.constructor() != null) {
-                int i = 0;
-                int nMinus1 = cc.constructor().parameters().size() - 1;
-                for (Expression expression : cc.parameterExpressions()) {
-                    if (expression instanceof VariableExpression ve) {
-                        ParameterInfo pi = cc.constructor().parameters().get(Math.min(i, nMinus1));
-                        boolean parameterModifying = pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
-                        if (parameterModifying) markModified(ve.variable());
-                    }
-                    i++;
-                }
-            }
-
             return true;
         }
 
@@ -632,21 +598,6 @@ public class MethodAnalyzer {
             }
             // then block, or restrict to current statement
             return stmtIndex + ".0.0";
-        }
-
-        // NOTE: there is a semi-duplicate in ExpressionAnalyzer (modification-linkedvariables)
-        private void markModified(Variable variable) {
-            TypeInfo typeInfo = variable.parameterizedType().typeInfo();
-            boolean mutable = typeInfo != null && typeInfo.analysis()
-                    .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
-            // functional interface types are handled in the advanced analyzer
-            if (mutable && !variable.parameterizedType().isFunctionalInterface()) {
-                if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
-                    markModified(fr.scopeVariable());
-                } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
-                    markModified(dv.arrayVariable());
-                }
-            }
         }
 
         public Visitor withIndex(String s) {
