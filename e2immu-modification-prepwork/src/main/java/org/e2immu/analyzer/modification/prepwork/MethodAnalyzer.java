@@ -6,10 +6,14 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
+import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.*;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -568,6 +572,15 @@ public class MethodAnalyzer {
                     Variable v = getSet.createVariable(runtime, mc.object(), indexOrNull);
                     markRead(v); // we simply ensure that the VariableInfo object exists
                 }
+                // also, simply ensure that modified component variables exist
+                Value.VariableBooleanMap modifiedComponents = mc.methodInfo().analysis()
+                        .getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_METHOD, ValueImpl.VariableBooleanMapImpl.EMPTY);
+                modifiedComponents.map().keySet().forEach(v -> {
+                    if (v instanceof FieldReference fr) {
+                        FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), mc.object(), fr.parameterizedType());
+                        markRead(newFr);
+                    }
+                });
             }
             return true;
         }

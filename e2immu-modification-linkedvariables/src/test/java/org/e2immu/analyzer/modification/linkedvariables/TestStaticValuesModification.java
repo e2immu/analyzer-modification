@@ -207,7 +207,8 @@ public class TestStaticValuesModification extends CommonTest {
     @Language("java")
     private static final String INPUT3 = """
             package a.b;
-            import org.e2immu.annotation.Fluent;import org.e2immu.annotation.Modified;import org.e2immu.annotation.method.GetSet;
+            import org.e2immu.annotation.Fluent;
+            import org.e2immu.annotation.Modified;
             import java.util.ArrayList;
             import java.util.HashSet;
             import java.util.Set;
@@ -278,6 +279,7 @@ public class TestStaticValuesModification extends CommonTest {
                     ValueImpl.VariableBooleanMapImpl.EMPTY);
             assertEquals("this.set=true", map.toString());
             FieldInfo set = R.getFieldByName("set", true);
+
             assertTrue(set.isSynthetic());
             Variable variable = map.map().keySet().stream().findFirst().orElseThrow();
             if (variable instanceof FieldReference fr) {
@@ -288,8 +290,20 @@ public class TestStaticValuesModification extends CommonTest {
             // propagated to the parameter
             MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
             ParameterInfo setAdd0 = setAdd.parameters().get(0);
+            {
+                Statement s0 = setAdd.methodBody().statements().get(0);
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo vi0r = vd0.variableInfo(setAdd0);
+                assertTrue(vi0r.isModified());
+                // we expect the r.set variable to exist (see MethodAnalyzer.Visitor.beforeExpression,MC.)
+                assertEquals("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
+                        vd0.knownVariableNamesToString());
+                // we expect to see a modification on r.set (via ExpressionAnalyzer,markModified)
+                VariableInfo vi0rSet = vd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
+                assertTrue(vi0rSet.isModified());
+            }
             assertTrue(setAdd0.isModified());
-            assertEquals("set", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+            assertEquals("r.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.EMPTY).toString());
         }
         {
@@ -299,15 +313,34 @@ public class TestStaticValuesModification extends CommonTest {
             VariableInfo vi2B = vd2.variableInfo("b");
             assertEquals("E=new Builder() this.intSet=s, this.stringList=l", vi2B.staticValues().toString());
 
-            // FIXME then this should go over to R
-            Statement s3 = method.methodBody().statements().get(3);
-            VariableData vd3 = VariableDataImpl.of(s3);
-            VariableInfo vi3R = vd3.variableInfo("r");
-            assertEquals("Type a.b.X.RI this.intSet=s, this.stringList=l", vi3R.staticValues().toString());
+            {
+                Statement s4 = method.methodBody().statements().get(4);
+                VariableData vd4 = VariableDataImpl.of(s4);
+                assertEquals("a.b.X.this, b, l, r, s", vd4.knownVariableNamesToString());
 
-            // FIXME at the same time, the method 'setAdd(R r)' should have a modification to the component 'set'
-            //  this comes about because of the @Modified("set") on the R.add() method
-            // and then we're fine.
+                VariableInfo vi4R = vd4.variableInfo("r");
+                assertTrue(vi4R.isModified());
+                // note that we have the fields in RI here, not those of the builder! Code is dedicated to builder-like
+                // methods, ExpressionAnalyzer.checkCaseForBuilder
+
+                assertEquals("Type a.b.X.RI this.list=l, this.set=s", vi4R.staticValues().toString());
+                Variable v0 = vi4R.staticValues().values().keySet().stream().findFirst().orElseThrow();
+                if (v0 instanceof FieldReference fr) {
+                    assertEquals("Type a.b.X.RI", fr.scopeVariable().parameterizedType().toString());
+                } else fail();
+
+                // IMPORTANT: we are relying on the name "set" to be the same in @Modified("set") and the field name in RI
+                // we need the correspondence between R and RI!!
+                // the lifting occurs in: ...
+
+                // check that the correct component is modified!
+                VariableInfo vi4s = vd4.variableInfo("s");
+                assertTrue(vi4s.isModified());
+
+                VariableInfo vi4l = vd4.variableInfo("l");
+                assertFalse(vi4l.isModified());
+            }
+
         }
     }
 

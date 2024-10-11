@@ -4,6 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -20,9 +21,12 @@ import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +43,7 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 
 public class ExpressionAnalyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExpressionAnalyzer.class);
 
     private final Runtime runtime;
     private final GenericsHelper genericsHelper;
@@ -425,11 +430,48 @@ public class ExpressionAnalyzer {
                     VariableInfo viObject = vicObject.best(stageOfPrevious);
                     StaticValues svObject = viObject.staticValues();
                     if (svObject != null && svObject.expression() != null && svm.expression() != null) {
-                        StaticValues sv = new StaticValuesImpl(svm.type(), null, svObject.values());
+
+                        Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
+                        StaticValues sv = new StaticValuesImpl(svm.type(), null, svObjectValues);
                         builder.setStaticValues(sv);
                     }
                 }
             }
+        }
+
+        private Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {
+            Map<Variable, Expression> svObjectValues;
+
+            // case for builder()
+            if (!mc.methodInfo().methodBody().isEmpty()) {
+                VariableData vd = VariableDataImpl.of(mc.methodInfo().methodBody().lastStatement());
+                VariableInfo rv = vd.variableInfo(mc.methodInfo().fullyQualifiedName());
+                StaticValues sv = rv.staticValues();
+                LOGGER.debug("return value: {}", sv);
+                if (sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
+                    // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
+                    svObjectValues = new HashMap<>();
+                    for (ParameterInfo pi : cc.constructor().parameters()) {
+                        StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
+                        Expression arg = cc.parameterExpressions().get(pi.index());
+                        if (arg instanceof VariableExpression veArg
+                            && svPi.expression() instanceof VariableExpression ve
+                            && ve.variable() instanceof FieldReference fr) {
+                            // replace the value in svObject.values() to this one...
+                            Expression value = svObject.values().get(veArg.variable());
+                            if (value != null) {
+                                svObjectValues.put(fr, value);
+                            }
+                        }
+                    }
+                    LOGGER.debug("Translate {} into {}", svObject.values(), svObjectValues);
+                } else {
+                    svObjectValues = svObject.values();
+                }
+            } else {
+                svObjectValues = svObject.values();
+            }
+            return svObjectValues;
         }
 
         private StaticValues makeSvFromMethodCall(MethodCall mc, LinkEvaluation leObject, StaticValues svm) {
@@ -468,6 +510,14 @@ public class ExpressionAnalyzer {
                     builder.addModifiedFunctionalInterfaceComponent(fr, modifying);
                 } else if (modifying) {
                     markModified(ve.variable(), builder);
+                    Value.VariableBooleanMap map = mc.methodInfo().analysis().getOrDefault(MODIFIED_COMPONENTS_METHOD,
+                            ValueImpl.VariableBooleanMapImpl.EMPTY);
+                    map.map().keySet().forEach(v -> {
+                        if (v instanceof FieldReference fr) {
+                            FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), mc.object(), fr.parameterizedType());
+                            markModified(newFr, builder);
+                        }
+                    });
                 }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
@@ -660,7 +710,7 @@ public class ExpressionAnalyzer {
             TypeInfo typeInfo = variable.parameterizedType().typeInfo();
             boolean mutable = typeInfo != null && typeInfo.analysis()
                     .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
-            if (mutable) {
+            if (mutable || isSyntheticObjectUsedInMethodComponentModification(variable)) {
                 builder.addModified(variable);
                 if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
                     markModified(fr.scopeVariable(), builder);
@@ -668,6 +718,12 @@ public class ExpressionAnalyzer {
                     markModified(dv.arrayVariable(), builder);
                 }
             }
+        }
+
+        private static boolean isSyntheticObjectUsedInMethodComponentModification(Variable variable) {
+            return variable.parameterizedType().isJavaLangObject()
+                   && variable instanceof FieldReference fr
+                   && fr.fieldInfo().isSynthetic();
         }
 
         private void methodCallLinks(MethodInfo currentMethod,

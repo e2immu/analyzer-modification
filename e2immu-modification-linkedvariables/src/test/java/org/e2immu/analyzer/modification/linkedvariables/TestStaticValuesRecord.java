@@ -248,4 +248,52 @@ public class TestStaticValuesRecord extends CommonTest {
         assertSame(TRUE, method.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, FALSE));
         assertSame(FALSE, method.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
     }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            import java.util.Set;
+            import java.util.List;
+            class X {
+                record R(Set<String> set, List<Integer> list, int i) {}
+                static class Builder {
+                    Set<String> stringSet;
+                    List<Integer> intList;
+                    int j;
+                    Builder setStringSet(Set<String> set) { stringSet = set; return this; }
+                    Builder setIntList(List<Integer>list) { intList = list; return this; }
+                    Builder setJ(int k) { j = k; return this; }
+                    R build() { return new R(stringSet, intList, j); }
+                }
+                R method(Set<String> in) {
+                    Builder b = new Builder().setJ(3).setIntList(List.of(0, 1)).setStringSet(in);
+                    R r = b.build();
+                    return r;
+                }
+            }
+            """;
+
+    @DisplayName("simple builder for record")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
+
+        TypeInfo R = X.findSubType("R");
+        MethodInfo constructorR = R.findConstructor(3);
+        ParameterInfo p0ConstructorR = constructorR.parameters().get(0);
+        StaticValues svP0 = p0ConstructorR.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
+        assertEquals("E=this.set", svP0.toString());
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        {
+            LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
+            LocalVariable r = rLvc.localVariable();
+            VariableData vd1 = VariableDataImpl.of(rLvc);
+            VariableInfo rVi1 = vd1.variableInfo(r);
+            assertEquals("Type a.b.X.R this.i=3, this.list=List.of(0,1), this.set=in", rVi1.staticValues().toString());
+        }
+    }
 }
