@@ -378,36 +378,38 @@ public class ExpressionAnalyzer {
         private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject) {
             StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
 
-            if (mc.methodInfo().hasReturnValue()) {
-                // fluent setter, see TestStaticValuesAssignment,method
-                if (svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
-                    assert mc.methodInfo().isFluent();
-                    StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
-                    builder.setStaticValues(sv);
-                    return;
+            // getter: return value becomes the field reference
+            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            if (getSet.field() != null && mc.methodInfo().hasReturnValue() && !mc.methodInfo().isFluent()) {
+                FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), getSet.field().type());
+                Variable variable;
+                if (mc.parameterExpressions().isEmpty()) {
+                    variable = fr;
+                } else {
+                    // indexing
+                    variable = runtime.newDependentVariable(runtime.newVariableExpression(fr), mc.parameterExpressions().get(0));
                 }
-
-                // getter: return value becomes the field reference
-                Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
-                if (getSet.field() != null) {
-                    FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), getSet.field().type());
-                    Variable variable;
-                    if (mc.parameterExpressions().isEmpty()) {
-                        variable = fr;
-                    } else {
-                        // indexing
-                        variable = runtime.newDependentVariable(runtime.newVariableExpression(fr), mc.parameterExpressions().get(0));
-                    }
-                    VariableExpression ve = runtime.newVariableExpression(variable);
-                    Expression svExpression = inferStaticValues(ve);
-                    StaticValues svs = StaticValuesImpl.of(svExpression);
-                    StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
-                    builder.setStaticValues(svs).merge(fr, svsVar);
-                    return;
-                }
+                VariableExpression ve = runtime.newVariableExpression(variable);
+                Expression svExpression = inferStaticValues(ve);
+                StaticValues svs = StaticValuesImpl.of(svExpression);
+                StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
+                builder.setStaticValues(svs).merge(fr, svsVar);
+                return;
             }
 
-            // copy into the object, if it is a variable
+            // fluent setter, see TestStaticValuesAssignment,4,method and method2
+            if (mc.methodInfo().hasReturnValue() && mc.methodInfo().isFluent()
+                && svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
+                StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
+                builder.setStaticValues(sv);
+                // we also add to the object, in case we're not picking up on the result (method2)
+                if (mc.object() instanceof VariableExpression veObject && !(veObject.variable() instanceof This)) {
+                    builder.merge(veObject.variable(), sv);
+                }
+                return;
+            }
+
+            // copy into the object, if it is a variable; serves non-fluent setters
             if (mc.object() instanceof VariableExpression ve
                 && !mc.methodInfo().hasReturnValue()
                 && !(ve.variable() instanceof This)) {
@@ -518,12 +520,13 @@ public class ExpressionAnalyzer {
                         This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo());
                         // go from r.function to this.function, which is what we have in the StaticValues.values() map
                         TranslationMap.Builder tmb = runtime.newTranslationMapBuilder().put(pi, thisInSv);
-                        for(ParameterInfo pi2: mc.methodInfo().parameters()) {
-                            if(pi != pi2) {
+                        for (ParameterInfo pi2 : mc.methodInfo().parameters()) {
+                            if (pi != pi2) {
                                 tmb.put(runtime.newVariableExpression(pi2), mc.parameterExpressions().get(pi2.index()));
                             }
                         }
-                        TranslationMap tm = tmb.build(); runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
+                        TranslationMap tm = tmb.build();
+                        runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
                         Variable key = tm.translateVariable(entry.getKey());
                         Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
                         Map<Variable, Expression> completedAndAugmentedWithImplementation;

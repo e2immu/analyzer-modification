@@ -326,7 +326,7 @@ public class TestStaticValuesModification extends CommonTest {
             assertSame(objectsR, set.getSetField().field());
             StaticValues setSv = set.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
             // this sv is synthetically created from the @GetSet annotation
-            assertEquals("objects[i]=o", setSv.toString());
+            assertEquals("E=this objects[i]=o", setSv.toString());
         }
         {
             TypeInfo RI = X.findSubType("RI");
@@ -427,7 +427,7 @@ public class TestStaticValuesModification extends CommonTest {
                 assertFalse(vi2set.isModified());
 
                 VariableInfo vi2r = vd2.variableInfo("r");
-                assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects, objects[0]=set", vi2r.staticValues().toString());
+                assertEquals("Type a.b.X.RI E=r objects[0]=set, this.objects=objects", vi2r.staticValues().toString());
             }
             { // modify2(r, 0)
                 Statement s3 = method2.methodBody().statements().get(3);

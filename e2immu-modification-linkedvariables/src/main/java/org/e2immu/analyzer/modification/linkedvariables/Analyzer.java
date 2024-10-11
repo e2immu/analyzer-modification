@@ -110,9 +110,13 @@ public class Analyzer {
                         FieldReference getSetFieldRef = runtime.newFieldReference(getSet.field());
                         DependentVariable target = runtime.newDependentVariable(runtime.newVariableExpression(getSetFieldRef),
                                 runtime.newVariableExpression(indexParameter));
-                     //   Expression assignment = runtime.newAssignment(runtime.newVariableExpression(target),
-                  //              runtime.newVariableExpression(valueParameter));
-                        sv = new StaticValuesImpl(null, null, Map.of(target, runtime.newVariableExpression(valueParameter)));
+                        Expression expression;
+                        if(methodInfo.isFluent()) {
+                            expression = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
+                        } else {
+                            expression = null;
+                        }
+                        sv = new StaticValuesImpl(null, expression, Map.of(target, runtime.newVariableExpression(valueParameter)));
                     }
                 }
             }
