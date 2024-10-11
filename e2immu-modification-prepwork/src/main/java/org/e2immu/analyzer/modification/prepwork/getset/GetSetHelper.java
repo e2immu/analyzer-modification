@@ -46,14 +46,14 @@ public class GetSetHelper {
                         && ve.variable() instanceof FieldReference fr
                         && fr.scopeIsRecursivelyThis()) {
                         // return this.field;
-                        getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, -1);
                     } else if (rs.expression() instanceof VariableExpression ve
                                && ve.variable() instanceof DependentVariable dv
                                && dv.arrayVariable() instanceof FieldReference fr
                                && dv.indexVariable() instanceof ParameterInfo
                                && fr.scopeIsRecursivelyThis()) {
                         // return this.objects[param]
-                        getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, 0);
                     } else if (rs.expression() instanceof MethodCall mc
                                && overrideOf(mc.methodInfo(), LIST_GET)
                                && mc.parameterExpressions().get(0) instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
@@ -61,7 +61,7 @@ public class GetSetHelper {
                                && ve2.variable() instanceof FieldReference fr
                                && fr.scopeIsRecursivelyThis()) {
                         // return this.list.get(param);
-                        getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, 0);
                     } else {
                         getSet = null;
                     }
@@ -70,14 +70,14 @@ public class GetSetHelper {
                         && a.variableTarget() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
                         && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
                         // this.field = param
-                        getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, -1);
                     } else if (eas.expression() instanceof Assignment a
                                && a.variableTarget() instanceof DependentVariable dv
                                && dv.arrayVariable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
                                && dv.indexVariable() instanceof ParameterInfo
                                && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
                         // this.objects[i] = param
-                        getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, 0);
                     } else if (eas.expression() instanceof MethodCall mc
                                && overrideOf(mc.methodInfo(), LIST_SET)
                                && mc.parameterExpressions().get(0) instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
@@ -85,7 +85,7 @@ public class GetSetHelper {
                                && mc.object() instanceof VariableExpression ve3 && ve3.variable() instanceof FieldReference fr
                                && fr.scopeIsRecursivelyThis()) {
                         // this.list.set(i, object)
-                        getSet = new ValueImpl.FieldValueImpl(fr.fieldInfo());
+                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, 0);
                     } else {
                         getSet = null;
                     }

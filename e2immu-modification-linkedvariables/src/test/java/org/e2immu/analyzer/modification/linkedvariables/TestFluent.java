@@ -59,7 +59,7 @@ public class TestFluent extends CommonTest {
             assertSame(FALSE, setI.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, FALSE));
             assertSame(TRUE, setI.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
             assertTrue(setI.isFluent());
-            Value.FieldValue fvI = setI.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            Value.FieldValue fvI = setI.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             assertSame(iField, fvI.field());
         }
         {
@@ -86,8 +86,8 @@ public class TestFluent extends CommonTest {
             }
 
             assertSame(FALSE, setI2.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, FALSE));
-            Value.FieldValue fvI = setI2.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
-            assertSame(ValueImpl.FieldValueImpl.EMPTY, fvI);
+            Value.FieldValue fvI = setI2.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
+            assertSame(ValueImpl.GetSetValueImpl.EMPTY, fvI);
 
             StaticValues sv = setI2.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.NONE);
             assertEquals("E=this", sv.toString());

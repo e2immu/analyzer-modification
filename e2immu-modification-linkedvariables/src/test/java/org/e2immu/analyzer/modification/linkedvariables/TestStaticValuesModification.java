@@ -181,7 +181,7 @@ public class TestStaticValuesModification extends CommonTest {
             VariableData vdSetAdd0 = VariableDataImpl.of(s0);
             VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
             assertTrue(viSetAdd0R.isModified());
-            assertEquals("a.b.X.setAdd(a.b.X.R):0:r, we'd like r.set here as well",
+            assertEquals("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                     vdSetAdd0.knownVariableNamesToString());
         }
         assertTrue(setAdd0.isModified());

@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
@@ -379,7 +378,7 @@ public class ExpressionAnalyzer {
             StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
 
             // getter: return value becomes the field reference
-            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             if (getSet.field() != null && mc.methodInfo().hasReturnValue() && !mc.methodInfo().isFluent()) {
                 FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), getSet.field().type());
                 Variable variable;
@@ -588,7 +587,7 @@ public class ExpressionAnalyzer {
         }
 
         private static FieldInfo accessorOf(MethodInfo methodInfo) {
-            Value.FieldValue fv = methodInfo.analysis().getOrNull(GET_SET_FIELD, ValueImpl.FieldValueImpl.class);
+            Value.FieldValue fv = methodInfo.analysis().getOrNull(GET_SET_FIELD, ValueImpl.GetSetValueImpl.class);
             return fv == null ? null : fv.field();
         }
 
@@ -737,7 +736,7 @@ public class ExpressionAnalyzer {
                     fr.parameterizedType()));
         }
         if (expression instanceof MethodCall mc) {
-            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             if (getSet.field() != null) {
                 Expression replacedObject = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
                 FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, mc.concreteReturnType());

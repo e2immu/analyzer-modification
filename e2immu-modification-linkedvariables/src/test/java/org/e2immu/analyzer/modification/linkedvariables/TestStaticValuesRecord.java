@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl.VARIABLE_DATA;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.junit.jupiter.api.Assertions.*;
@@ -75,7 +74,7 @@ public class TestStaticValuesRecord extends CommonTest {
             MethodInfo accessorSet = X.findUniqueMethod("set", 0);
             StaticValues svAccessorSet = accessorSet.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
             assertEquals("E=this.set", svAccessorSet.toString());
-            FieldValue getSet = accessorSet.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            FieldValue getSet = accessorSet.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             assertEquals(setField, getSet.field());
         }
         {
@@ -92,7 +91,7 @@ public class TestStaticValuesRecord extends CommonTest {
             MethodInfo accessorN = X.findUniqueMethod("n", 0);
             StaticValues svAccessorN = accessorN.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
             assertEquals("E=this.n", svAccessorN.toString());
-            FieldValue getSet = accessorN.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+            FieldValue getSet = accessorN.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             assertEquals(nField, getSet.field());
         }
     }

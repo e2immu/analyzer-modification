@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -491,7 +492,7 @@ public class MethodAnalyzer {
         }
     }
 
-    private static class Visitor implements org.e2immu.language.cst.api.element.Visitor {
+    private class Visitor implements org.e2immu.language.cst.api.element.Visitor {
         String index;
         int inNegative;
 
@@ -559,7 +560,14 @@ public class MethodAnalyzer {
                 return false;
             }
             if (e instanceof MethodCall mc) {
-                
+                Value.FieldValue getSet = mc.methodInfo().getSetField();
+                if (getSet.field() != null && !getSet.setter()) {
+                    // getter
+                    Expression indexOrNull = getSet.hasIndex()
+                            ? mc.parameterExpressions().get(getSet.parameterIndexOfIndex()) : null;
+                    Variable v = getSet.createVariable(runtime, mc.object(), indexOrNull);
+                    markRead(v); // we simply ensure that the VariableInfo object exists
+                }
             }
             return true;
         }

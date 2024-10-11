@@ -4,11 +4,10 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
-import org.e2immu.language.cst.api.variable.DependentVariable;
-import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
@@ -25,11 +24,11 @@ public class GetSetHelper {
     }
 
     public void copyStaticValuesForGetSet(MethodInfo methodInfo) {
-        Value.FieldValue getSet = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+        Value.FieldValue getSet = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
         if (getSet.field() != null && !methodInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_METHOD)) {
             assert getSet.field().isSynthetic();
             StaticValues sv;
-            if (!methodInfo.hasReturnValue() || methodInfo.isFluent()) {
+            if (getSet.setter()) {
                 // setter
                 sv = setter(methodInfo, getSet);
             } else {
@@ -41,49 +40,44 @@ public class GetSetHelper {
     }
 
     private StaticValues getter(MethodInfo methodInfo, Value.FieldValue getSet) {
-        Variable target;
+        Expression indexOrNull;
         if (methodInfo.parameters().isEmpty()) {
             // straight
-            target = runtime.newFieldReference(getSet.field());
+            indexOrNull = null;
         } else {
             // indexing
-            ParameterInfo indexParameter = methodInfo.parameters().get(0);
-            FieldReference getSetFieldRef = runtime.newFieldReference(getSet.field());
-            target = runtime.newDependentVariable(runtime.newVariableExpression(getSetFieldRef),
-                    runtime.newVariableExpression(indexParameter));
+            ParameterInfo indexParameter = methodInfo.parameters().get(getSet.parameterIndexOfIndex());
+            indexOrNull = runtime.newVariableExpression(indexParameter);
         }
-        return new StaticValuesImpl(null, runtime.newVariableExpression(target), Map.of());
+        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
+        Variable variable = getSet.createVariable(runtime, thisVe, indexOrNull);
+        return new StaticValuesImpl(null, runtime.newVariableExpression(variable), Map.of());
     }
 
     private StaticValues setter(MethodInfo methodInfo, Value.FieldValue getSet) {
-        Variable target;
         Variable valueParameter;
-        if (methodInfo.parameters().size() == 2) {
+        Expression indexOrNull;
+        if (getSet.hasIndex()) {
             // indexing
             // DECISION: if the object type is 'int' as well, we follow the convention of List.set(index. element)
-            Variable indexParameter = methodInfo.parameters().get(0);
-            valueParameter = methodInfo.parameters().get(1);
-            if (valueParameter.parameterizedType().isInt() && !indexParameter.parameterizedType().isInt()) {
-                Variable tmp = valueParameter;
-                valueParameter = indexParameter;
-                indexParameter = tmp;
-            }
+            Variable indexParameter = methodInfo.parameters().get(getSet.parameterIndexOfIndex());
+            valueParameter = methodInfo.parameters().get(1 - getSet.parameterIndexOfIndex());
+
             // see org.e2immu.language.inspection.api.util.GetSetUtil.extractFieldType
             if (getSet.field().type().arrays() > 0) {
                 // indexing in array: this.objects[i]=o
-
-                // objects == the GetSet field
-                FieldReference getSetFieldRef = runtime.newFieldReference(getSet.field());
-                target = runtime.newDependentVariable(runtime.newVariableExpression(getSetFieldRef),
-                        runtime.newVariableExpression(indexParameter));
+                indexOrNull = runtime.newVariableExpression(indexParameter);
             } else {
                 throw new UnsupportedOperationException("indexing is in a virtual array");
             }
-        } else if (methodInfo.parameters().size() == 1) {
+        } else {
+            assert !methodInfo.parameters().isEmpty();
             // normal setter
-            target = runtime.newFieldReference(getSet.field());
             valueParameter = methodInfo.parameters().get(0);
-        } else throw new UnsupportedOperationException();
+            indexOrNull = null;
+        }
+        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
+        Variable target = getSet.createVariable(runtime, thisVe, indexOrNull);
         Expression expression;
         if (methodInfo.isFluent()) {
             expression = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));

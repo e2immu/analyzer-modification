@@ -128,7 +128,8 @@ public class HiddenContentTypes implements Value {
                     char first = string.charAt(0);
                     String rest = string.substring(1);
                     if ('T' == first) {
-                        namedType = context.findType(rest);
+                        namedType = context.findType(codec.typeProvider(), rest);
+                        assert namedType != null : "Cannot find type " + rest;
                     } else if ('P' == first) {
                         int colon = rest.lastIndexOf(':');
                         String indexWithStars = rest.substring(colon + 1);
@@ -142,11 +143,11 @@ public class HiddenContentTypes implements Value {
                             int mIndex = tpIndex - startOfMethodParameters;
                             assert mIndex < currentMethod.typeParameters().size();
                             namedType = currentMethod.typeParameters().get(mIndex);
+                            assert namedType != null;
                         } else {
-
-
                             assert tpIndex < ti.typeParameters().size();
                             namedType = ti.typeParameters().get(tpIndex);
+                            assert namedType != null;
                         }
                     } else throw new UnsupportedOperationException();
                 } else {

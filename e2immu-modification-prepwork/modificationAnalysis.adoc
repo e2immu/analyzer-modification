@@ -1,0 +1,21 @@
+
+= What is computed where?
+
+Inspection phase
+
+- get/set
+
+Prep work
+
+- hidden content types, hidden content selectors
+- variableData, variableInfo objects
+- part of construction
+- method call graph, recursive methods, order of analysis
+
+
+Linked variables analyzer
+
+- linked variables
+- static values
+- fluent, identity
+- modification and its propagation via static values
