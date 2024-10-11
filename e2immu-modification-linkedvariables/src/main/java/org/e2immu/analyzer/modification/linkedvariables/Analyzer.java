@@ -49,6 +49,7 @@ public class Analyzer {
     private final ExpressionAnalyzer expressionAnalyzer;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
     private final AnalysisHelper analysisHelper;
+    private final GetSetHelper getSetHelper;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
@@ -56,6 +57,7 @@ public class Analyzer {
         computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
         this.analysisHelper = new AnalysisHelper();
+        this.getSetHelper = new GetSetHelper(runtime);
     }
 
     public void doMethod(MethodInfo methodInfo) {
@@ -67,7 +69,7 @@ public class Analyzer {
         if (methodInfo.isAbstract()) {
             shallowMethodAnalyzer.analyze(methodInfo);
             // TODO consider moving this into the shallow analyzer!
-            copyStaticValuesForGetSet(methodInfo);
+            getSetHelper.copyStaticValuesForGetSet(methodInfo);
         } else {
             VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
             if (variableData != null) {
@@ -84,45 +86,6 @@ public class Analyzer {
                          && ve.variable() instanceof This thisVar
                          && thisVar.typeInfo() == methodInfo.typeInfo());
             doIndependent(methodInfo, variableData);
-        }
-    }
-
-    private void copyStaticValuesForGetSet(MethodInfo methodInfo) {
-        Value.FieldValue getSet = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
-        StaticValues sv = null;
-        if (getSet.field() != null && !methodInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_METHOD)) {
-            assert getSet.field().isSynthetic();
-            if (!methodInfo.hasReturnValue() || methodInfo.isFluent()) {
-                // setter
-                if (methodInfo.parameters().size() == 2) {
-                    // indexing
-                    if (getSet.field().type().arrays() > 0) {
-                        // indexing in array: this.objects[i]=o
-                        // TODO what if the object type is int as well? we should mark this somehow
-                        // objects == the GetSet field
-                        ParameterInfo valueParameter = methodInfo.parameters().get(0);
-                        ParameterInfo indexParameter = methodInfo.parameters().get(1);
-                        if (valueParameter.parameterizedType().isInt() && !indexParameter.parameterizedType().isInt()) {
-                            ParameterInfo tmp = valueParameter;
-                            valueParameter = indexParameter;
-                            indexParameter = tmp;
-                        }
-                        FieldReference getSetFieldRef = runtime.newFieldReference(getSet.field());
-                        DependentVariable target = runtime.newDependentVariable(runtime.newVariableExpression(getSetFieldRef),
-                                runtime.newVariableExpression(indexParameter));
-                        Expression expression;
-                        if(methodInfo.isFluent()) {
-                            expression = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
-                        } else {
-                            expression = null;
-                        }
-                        sv = new StaticValuesImpl(null, expression, Map.of(target, runtime.newVariableExpression(valueParameter)));
-                    }
-                }
-            }
-        }
-        if (sv != null) {
-            methodInfo.analysis().set(STATIC_VALUES_METHOD, sv);
         }
     }
 
