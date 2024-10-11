@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.NONE;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_COMPONENTS_PARAMETER;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -87,6 +89,7 @@ public class TestStaticValuesModification extends CommonTest {
 
             Value.VariableBooleanMap modificationMap = setAdd0.analysis().getOrNull(MODIFIED_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class);
+            assertEquals("r.set=true", modificationMap.toString());
             FieldReference frSet = runtime.newFieldReference(rSet, runtime.newVariableExpression(setAdd0), rSet.type());
             assertNotNull(modificationMap);
             assertNotNull(modificationMap.map());
@@ -155,7 +158,7 @@ public class TestStaticValuesModification extends CommonTest {
                     List<String> l = new ArrayList<>();
                     Set<Integer> s = new HashSet<>();
                     R r = new RI(s, 3, l);
-                    setAdd(r); // at this point, s1 should have been modified, via???
+                    setAdd(r); // at this point, s should have been modified, via???
                 }
             }
             """;
@@ -166,15 +169,24 @@ public class TestStaticValuesModification extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
-        // see e2immu-inspection-integration.TestRecord for a check of the @GetSet and override properties of R, RI
+
+        TypeInfo R = X.findSubType("R");
+        MethodInfo rSet = R.findUniqueMethod("set", 0);
+        assertEquals("E=this.set", rSet.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
         ParameterInfo setAdd0 = setAdd.parameters().get(0);
+        {
+            Statement s0 = setAdd.methodBody().statements().get(0);
+            VariableData vdSetAdd0 = VariableDataImpl.of(s0);
+            VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
+            assertTrue(viSetAdd0R.isModified());
+            assertEquals("a.b.X.setAdd(a.b.X.R):0:r, we'd like r.set here as well",
+                    vdSetAdd0.knownVariableNamesToString());
+        }
         assertTrue(setAdd0.isModified());
-        VariableData vdSetAdd0 = VariableDataImpl.of(setAdd.methodBody().lastStatement());
-        VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
-        assertTrue(viSetAdd0R.isModified());
-        assertEquals("a.b.X.setAdd(a.b.X.R):0:r", vdSetAdd0.knownVariableNamesToString());
+        assertEquals("r.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+                ValueImpl.VariableBooleanMapImpl.EMPTY).toString());
 
         MethodInfo method = X.findUniqueMethod("method", 0);
         Statement s3 = method.methodBody().statements().get(3);
@@ -324,7 +336,7 @@ public class TestStaticValuesModification extends CommonTest {
             assertSame(objectsR, get.getSetField().field());
             MethodInfo set = R.findUniqueMethod("set", 2);
             assertSame(objectsR, set.getSetField().field());
-            StaticValues setSv = set.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            StaticValues setSv = set.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
             // this sv is synthetically created from the @GetSet annotation
             assertEquals("E=this objects[i]=o", setSv.toString());
         }
@@ -348,7 +360,7 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableInfo viThis = vd0.variableInfo(runtime.newThis(RI));
                 assertEquals("objects[i]=o", viThis.staticValues().toString());
             }
-            StaticValues setSv = set.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            StaticValues setSv = set.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
             assertEquals("E=this objects[i]=o", setSv.toString());
         }
 

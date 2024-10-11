@@ -3,13 +3,13 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -104,5 +104,46 @@ public class TestGetSet extends CommonTest {
         assertSame(d, setD.getSetField().field());
         MethodInfo setRI = X.findUniqueMethod("setRI", 1);
         assertSame(ri, setRI.getSetField().field());
+    }
+
+
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.ArrayList;
+            import java.util.HashSet;
+            import java.util.Set;
+            import java.util.List;
+            class X {
+                interface R {
+                    @GetSet Set<Integer> set();
+                    int i();
+                }
+            
+                void setAdd(R r) {
+                    r.set().add(r.i());
+                }
+            }
+            """;
+
+    /*
+    why do we want r.set() to leave a variable trace? because the MODIFIED_COMPONENTS_PARAMETER analysis has to
+    pick up the change in one of the components of 'r'. This is nigh impossible if we do not leave some variable trace.
+     */
+    @DisplayName("create variables for @GetSet access")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
+        {
+            Statement s0 = setAdd.methodBody().statements().get(0);
+            VariableData vdSetAdd0 = VariableDataImpl.of(s0);
+            assertEquals("a.b.X.setAdd(a.b.X.R):0:r, we'd like r.set here as well",
+                    vdSetAdd0.knownVariableNamesToString());
+        }
     }
 }
