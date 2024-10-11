@@ -272,12 +272,13 @@ public class TestStaticValuesModification extends CommonTest {
     @Language("java")
     private static final String INPUT4 = """
             package a.b;
+            import org.e2immu.annotation.Fluent;
             import org.e2immu.annotation.method.GetSet;
             import java.util.Set;
             class X {
                 interface R {
                     @GetSet("objects") Object get(int i);
-                    @GetSet("objects") R set(int i, Object o);
+                    @Fluent @GetSet("objects") R set(int i, Object o);
                 }
                 record RI(Object[] objects) implements R {
                     Object get(int i) { return objects[i]; }
@@ -323,6 +324,9 @@ public class TestStaticValuesModification extends CommonTest {
             assertSame(objectsR, get.getSetField().field());
             MethodInfo set = R.findUniqueMethod("set", 2);
             assertSame(objectsR, set.getSetField().field());
+            StaticValues setSv = set.analysis().getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            // this sv is synthetically created from the @GetSet annotation
+            assertEquals("objects[i]=o", setSv.toString());
         }
         {
             TypeInfo RI = X.findSubType("RI");
@@ -385,17 +389,17 @@ public class TestStaticValuesModification extends CommonTest {
 
         // so now modify2
         {
-            MethodInfo modify = X.findUniqueMethod("modify2", 2);
-            ParameterInfo modify0 = modify.parameters().get(0);
+            MethodInfo modify2 = X.findUniqueMethod("modify2", 2);
+            ParameterInfo modify0 = modify2.parameters().get(0);
             {
-                Statement s0 = modify.methodBody().statements().get(0);
+                Statement s0 = modify2.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
                 assertEquals("*-4-F:r", vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
                 assertEquals("E=r.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
             }
             {
-                Statement s1 = modify.methodBody().statements().get(1);
+                Statement s1 = modify2.methodBody().statements().get(1);
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
                 assertTrue(vi1Set.isModified());
@@ -407,13 +411,32 @@ public class TestStaticValuesModification extends CommonTest {
                     ValueImpl.VariableBooleanMapImpl.EMPTY).map().toString());
         }
         {
-            MethodInfo method = X.findUniqueMethod("method2", 1);
-            ParameterInfo method0 = method.parameters().get(0);
+            MethodInfo method2 = X.findUniqueMethod("method2", 1);
+            ParameterInfo method0 = method2.parameters().get(0);
+            { // R r = new RI(objects)
+                Statement s1 = method2.methodBody().statements().get(1);
+                VariableData vd1 = VariableDataImpl.of(s1);
+                VariableInfo vi1r = vd1.variableInfo("r");
+                assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects", vi1r.staticValues().toString());
+            }
+            { // r.set(0, set)
+                Statement s2 = method2.methodBody().statements().get(2);
+                VariableData vd2 = VariableDataImpl.of(s2);
 
-            Statement s1 = method.methodBody().statements().get(2);
-            VariableData vd1 = VariableDataImpl.of(s1);
-            VariableInfo vi1Ri = vd1.variableInfo("r");
-            assertEquals("Type a.b.X.RI E=new RI(objects) objects[0]=set", vi1Ri.staticValues().toString());
+                VariableInfo vi2set = vd2.variableInfo(method0);
+                assertFalse(vi2set.isModified());
+
+                VariableInfo vi2r = vd2.variableInfo("r");
+                assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects, objects[0]=set", vi2r.staticValues().toString());
+            }
+            { // modify2(r, 0)
+                Statement s3 = method2.methodBody().statements().get(3);
+                VariableData vd3 = VariableDataImpl.of(s3);
+
+                // modification has been propagated via the parameter
+                VariableInfo vi3set = vd3.variableInfo(method0);
+                assertTrue(vi3set.isModified());
+            }
             assertTrue(method0.isModified());
         }
     }

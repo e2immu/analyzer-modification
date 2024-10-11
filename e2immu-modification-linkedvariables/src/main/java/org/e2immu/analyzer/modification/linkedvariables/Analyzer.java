@@ -18,10 +18,7 @@ import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.translate.TranslationMap;
-import org.e2immu.language.cst.api.variable.FieldReference;
-import org.e2immu.language.cst.api.variable.LocalVariable;
-import org.e2immu.language.cst.api.variable.This;
-import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
@@ -69,6 +66,8 @@ public class Analyzer {
 
         if (methodInfo.isAbstract()) {
             shallowMethodAnalyzer.analyze(methodInfo);
+            // TODO consider moving this into the shallow analyzer!
+            copyStaticValuesForGetSet(methodInfo);
         } else {
             VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
             if (variableData != null) {
@@ -85,6 +84,41 @@ public class Analyzer {
                          && ve.variable() instanceof This thisVar
                          && thisVar.typeInfo() == methodInfo.typeInfo());
             doIndependent(methodInfo, variableData);
+        }
+    }
+
+    private void copyStaticValuesForGetSet(MethodInfo methodInfo) {
+        Value.FieldValue getSet = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.FieldValueImpl.EMPTY);
+        StaticValues sv = null;
+        if (getSet.field() != null && !methodInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_METHOD)) {
+            assert getSet.field().isSynthetic();
+            if (!methodInfo.hasReturnValue() || methodInfo.isFluent()) {
+                // setter
+                if (methodInfo.parameters().size() == 2) {
+                    // indexing
+                    if (getSet.field().type().arrays() > 0) {
+                        // indexing in array: this.objects[i]=o
+                        // TODO what if the object type is int as well? we should mark this somehow
+                        // objects == the GetSet field
+                        ParameterInfo valueParameter = methodInfo.parameters().get(0);
+                        ParameterInfo indexParameter = methodInfo.parameters().get(1);
+                        if (valueParameter.parameterizedType().isInt() && !indexParameter.parameterizedType().isInt()) {
+                            ParameterInfo tmp = valueParameter;
+                            valueParameter = indexParameter;
+                            indexParameter = tmp;
+                        }
+                        FieldReference getSetFieldRef = runtime.newFieldReference(getSet.field());
+                        DependentVariable target = runtime.newDependentVariable(runtime.newVariableExpression(getSetFieldRef),
+                                runtime.newVariableExpression(indexParameter));
+                     //   Expression assignment = runtime.newAssignment(runtime.newVariableExpression(target),
+                  //              runtime.newVariableExpression(valueParameter));
+                        sv = new StaticValuesImpl(null, null, Map.of(target, runtime.newVariableExpression(valueParameter)));
+                    }
+                }
+            }
+        }
+        if (sv != null) {
+            methodInfo.analysis().set(STATIC_VALUES_METHOD, sv);
         }
     }
 

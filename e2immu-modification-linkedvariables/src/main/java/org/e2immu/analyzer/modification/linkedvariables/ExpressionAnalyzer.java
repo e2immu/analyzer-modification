@@ -454,8 +454,7 @@ public class ExpressionAnalyzer {
             } else {
                 expression = mc.object();
             }
-            StaticValues sv = new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
-            return sv;
+            return new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
         }
 
         private void methodCallModified(MethodCall mc, LinkEvaluation.Builder builder) {
