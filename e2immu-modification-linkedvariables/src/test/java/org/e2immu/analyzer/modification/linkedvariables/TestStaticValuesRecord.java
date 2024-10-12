@@ -296,4 +296,116 @@ public class TestStaticValuesRecord extends CommonTest {
             assertEquals("Type a.b.X.R this.i=3, this.list=List.of(0,1), this.set=in", rVi1.staticValues().toString());
         }
     }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.util.Set;
+            import java.util.List;import java.util.function.Function;
+            class X {
+                record R(Function<String,Integer> function, Object[] variables) {}
+                static class Builder {
+                    Function<String,Integer> function;
+                    Object[] variables;
+                    Builder setFunction(Function<String, Integer> f) { function = f; return this; }
+                    Builder setVariable(int pos, Object value) { variables[pos]=value; return this; }
+                    R build() { return new R(function, variables); }
+                }
+                Function<String, Integer> method(Set<String> in) {
+                    Builder b = new Builder().setFunction(String::length).setVariable(0, "a");
+                    R r = b.build();
+                    return r.function;
+                }
+                Function<String, Integer> method2(Set<String> in) {
+                    Builder b = new Builder().setFunction(String::length).setVariable(0, "a");
+                    R r = b.build();
+                    return r.function();
+                }
+            }
+            """;
+
+    @DisplayName("more complex builder for record: indexed objects")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        {
+            LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
+            LocalVariable r = rLvc.localVariable();
+            VariableData vd1 = VariableDataImpl.of(rLvc);
+            VariableInfo rVi1 = vd1.variableInfo(r);
+            assertEquals("Type a.b.X.R this.function=String::length, this.variables[0]=\"a\"", rVi1.staticValues().toString());
+        }
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData v2 = VariableDataImpl.of(s2);
+            VariableInfo vi2Rv = v2.variableInfo(method.fullyQualifiedName());
+            assertEquals("E=String::length", vi2Rv.staticValues().toString());
+        }
+        MethodInfo method2 = X.findUniqueMethod("method2", 1);
+        {
+            Statement s2 = method2.methodBody().statements().get(2);
+            VariableData v2 = VariableDataImpl.of(s2);
+            VariableInfo vi2Rv = v2.variableInfo(method2.fullyQualifiedName());
+            assertEquals("E=String::length", vi2Rv.staticValues().toString());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.function.Function;
+            class X {
+                interface R {
+                    @GetSet Function<String, Integer> function();
+                    @GetSet Object variable(int i);
+                }
+                record RI(Function<String,Integer> function, Object[] variables) implements R {
+                    Object variable(int i) { return variables[i]; }
+                }
+                static class Builder {
+                    Function<String,Integer> function;
+                    Object[] variables;
+                    Builder setFunction(Function<String, Integer> f) { function = f; return this; }
+                    Builder setVariable(int pos, Object value) { variables[pos]=value; return this; }
+                    R build() { return new RI(function, variables); }
+                }
+                Function<String, Integer> method(String s) {
+                    Builder b = new Builder().setFunction(String::length).setVariable(0, s);
+                    R r = b.build();
+                    return r.function();
+                }
+            }
+            """;
+
+    @DisplayName("interface in between")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        {
+            LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
+            LocalVariable r = rLvc.localVariable();
+            VariableData vd1 = VariableDataImpl.of(rLvc);
+            VariableInfo rVi1 = vd1.variableInfo(r);
+            // FIXME see previous test: missing variables
+            assertEquals("Type a.b.X.RI this.function=String::length", rVi1.staticValues().toString());
+        }
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData v2 = VariableDataImpl.of(s2);
+            VariableInfo vi2Rv = v2.variableInfo(method.fullyQualifiedName());
+            // FIXME lifting!
+            assertEquals("E=String::length", vi2Rv.staticValues().toString());
+        }
+    }
 }

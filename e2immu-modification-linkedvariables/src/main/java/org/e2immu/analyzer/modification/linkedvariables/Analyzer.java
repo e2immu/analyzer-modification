@@ -34,6 +34,7 @@ import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfC
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
@@ -379,6 +380,16 @@ public class Analyzer {
                                 .map(VariableInfoContainer::best)
                                 .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
                         merge.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+                    }
+                    if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
+                        Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()
+                                .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                                .filter(Objects::nonNull)
+                                .map(VariableInfoContainer::best)
+                                .flatMap(vi -> vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, ValueImpl.VariableBooleanMapImpl.EMPTY).map().entrySet().stream())
+                                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue,
+                                        (b1, b2) -> b1 || b2)); // TODO is this the correct merge function?
+                        merge.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(map));
                     }
                 }
             });
