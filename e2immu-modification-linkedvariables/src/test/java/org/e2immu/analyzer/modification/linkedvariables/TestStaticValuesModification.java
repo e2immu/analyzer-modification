@@ -313,7 +313,7 @@ public class TestStaticValuesModification extends CommonTest {
             VariableInfo vi2B = vd2.variableInfo("b");
             assertEquals("E=new Builder() this.intSet=s, this.stringList=l", vi2B.staticValues().toString());
 
-            {
+            {   // setAdd(r)  it should modify r.set
                 Statement s4 = method.methodBody().statements().get(4);
                 VariableData vd4 = VariableDataImpl.of(s4);
                 assertEquals("a.b.X.this, b, l, r, s", vd4.knownVariableNamesToString());

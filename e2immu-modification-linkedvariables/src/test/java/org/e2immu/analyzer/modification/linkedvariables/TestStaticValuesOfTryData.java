@@ -191,78 +191,20 @@ public class TestStaticValuesOfTryData extends CommonTest {
         TypeInfo throwingFunction = X.findSubType("ThrowingFunction");
         assertTrue(throwingFunction.isExtensible());
 
-        // why not Object? ThrowingFunction and Exception have "synthetic fields", @GetSet
-        // the get(i) from the array is not (yet) seen as accessor
         TypeInfo tryData = X.findSubType("TryData");
-        HiddenContentTypes hctTryData = tryData.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object", hctTryData.detailedSortedTypes());
-        MethodInfo tryDataGet = tryData.findUniqueMethod("get", 1);
-        HiddenContentTypes hctTryDataGet = tryDataGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object - ", hctTryDataGet.detailedSortedTypes());
-
-        // the implementation does see Object
         TypeInfo tryDataImpl = X.findSubType("TryDataImpl");
-        HiddenContentTypes hctTryDataImpl = tryDataImpl.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception", hctTryDataImpl.detailedSortedTypes());
-
-        MethodInfo tryDataImplGet = tryDataImpl.findUniqueMethod("get", 1);
-        HiddenContentTypes hctTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception - ", hctTryDataImplGet.detailedSortedTypes());
-        HiddenContentSelector hcsTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HCS_METHOD, NONE);
-        assertEquals("2=*", hcsTryDataImplGet.detailed());
-
         TypeInfo builder = tryDataImpl.findSubType("Builder");
+
+        testGetSet(tryData, tryDataImpl);
 
         analyzer.doPrimaryType(X, analysisOrder);
 
+        testBody(builder);
+        testRun(X);
+        testMethod(X);
+    }
 
-        MethodInfo body = builder.findUniqueMethod("body", 1);
-        {
-            ParameterInfo body0 = body.parameters().get(0);
-            FieldInfo bodyThrowingFunction = builder.getFieldByName("bodyThrowingFunction", true);
-            Statement s0 = body.methodBody().statements().get(0);
-            VariableData vd0 = VariableDataImpl.of(s0);
-            VariableInfo vi0 = vd0.variableInfo(body0);
-            assertSame(FALSE, vi0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-            assertEquals("-1-:bodyThrowingFunction", vi0.linkedVariables().toString()); // link to the field
-            VariableInfo viBtf0 = vd0.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
-            assertSame(FALSE, viBtf0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE)); // assignment is not a modification!
-            VariableInfo viThis0 = vd0.variableInfo(new ThisImpl(builder));
-            assertSame(TRUE, viThis0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-
-            Statement s1 = body.methodBody().statements().get(1);
-            VariableData vd1 = VariableDataImpl.of(s1);
-            VariableInfo vi1 = vd1.variableInfo(body0);
-            assertEquals("-1-:bodyThrowingFunction", vi1.linkedVariables().toString()); // still link to field
-
-            VariableInfo viThis = vd1.variableInfo(new ThisImpl(builder));
-            assertEquals("", viThis.linkedVariables().toString());
-            VariableInfo viBtf = vd1.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
-            assertEquals("-1-:throwingFunction", viBtf.linkedVariables().toString());
-
-            assertSame(FALSE, vi1.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-            assertSame(FALSE, viBtf.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-            assertSame(TRUE, viThis.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-
-            assertSame(TRUE, body.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, FALSE));
-            assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()
-                    .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
-            assertSame(FALSE, body0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
-        }
-
-        MethodInfo run = X.findUniqueMethod("run", 1);
-        {
-            ParameterInfo runTd = run.parameters().get(0);
-            Statement s0 = run.methodBody().statements().get(0);
-            Statement s000 = s0.block().statements().get(0);
-            VariableData vd000 = VariableDataImpl.of(s000);
-            VariableInfo viTd = vd000.variableInfo(runTd);
-            assertEquals("?", viTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
-                    ValueImpl.VariableBooleanMapImpl.class).toString());
-
-            assertEquals("a.b.X.R.function=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
-                    ValueImpl.VariableBooleanMapImpl.class).toString());
-        }
+    private static void testMethod(TypeInfo X) {
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
             Statement s0 = method.methodBody().statements().get(0);
@@ -275,7 +217,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X));
             assertEquals("", vi0This.linkedVariables().toString());
-            assertSame(FALSE, vi0This.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertFalse(vi0This.isModified());
         }
         {
             Statement s1 = method.methodBody().statements().get(1);
@@ -292,7 +234,79 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X));
             assertEquals("", vi2This.linkedVariables().toString());
-            assertSame(TRUE, vi2This.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertTrue(vi2This.isModified());
+        }
+    }
+
+    private static void testGetSet(TypeInfo tryData, TypeInfo tryDataImpl) {
+        HiddenContentTypes hctTryData = tryData.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object", hctTryData.detailedSortedTypes());
+        MethodInfo tryDataGet = tryData.findUniqueMethod("get", 1);
+        HiddenContentTypes hctTryDataGet = tryDataGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object - ", hctTryDataGet.detailedSortedTypes());
+
+        // the implementation does see Object
+        HiddenContentTypes hctTryDataImpl = tryDataImpl.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception", hctTryDataImpl.detailedSortedTypes());
+
+        MethodInfo tryDataImplGet = tryDataImpl.findUniqueMethod("get", 1);
+        HiddenContentTypes hctTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception - ", hctTryDataImplGet.detailedSortedTypes());
+        HiddenContentSelector hcsTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HCS_METHOD, NONE);
+        assertEquals("2=*", hcsTryDataImplGet.detailed());
+    }
+
+    private static void testRun(TypeInfo X) {
+        MethodInfo run = X.findUniqueMethod("run", 1);
+        {
+            ParameterInfo runTd = run.parameters().get(0);
+            Statement s0 = run.methodBody().statements().get(0);
+            Statement s000 = s0.block().statements().get(0);
+            VariableData vd000 = VariableDataImpl.of(s000);
+            VariableInfo viTd = vd000.variableInfo(runTd);
+            assertEquals("td.throwingFunction=false", viTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
+                    ValueImpl.VariableBooleanMapImpl.class).toString());
+
+            assertEquals("a.b.X.R.function=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.class).toString());
+        }
+    }
+
+    private static void testBody(TypeInfo builder) {
+        MethodInfo body = builder.findUniqueMethod("body", 1);
+        {
+            ParameterInfo body0 = body.parameters().get(0);
+            FieldInfo bodyThrowingFunction = builder.getFieldByName("bodyThrowingFunction", true);
+            {
+                Statement s0 = body.methodBody().statements().get(0);
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo vi0 = vd0.variableInfo(body0);
+                assertFalse(vi0.isModified());
+                assertEquals("-1-:bodyThrowingFunction", vi0.linkedVariables().toString()); // link to the field
+                VariableInfo viBtf0 = vd0.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
+                assertFalse(viBtf0.isModified()); // assignment is not a modification!
+                VariableInfo viThis0 = vd0.variableInfo(new ThisImpl(builder));
+                assertTrue(viThis0.isModified());
+            }
+            {
+                Statement s1 = body.methodBody().statements().get(1);
+                VariableData vd1 = VariableDataImpl.of(s1);
+                VariableInfo vi1 = vd1.variableInfo(body0);
+                assertEquals("-1-:bodyThrowingFunction", vi1.linkedVariables().toString()); // still link to field
+
+                VariableInfo vi1This = vd1.variableInfo(new ThisImpl(builder));
+                assertEquals("", vi1This.linkedVariables().toString());
+                VariableInfo vi1Btf = vd1.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
+                assertEquals("-1-:throwingFunction", vi1Btf.linkedVariables().toString());
+
+                assertFalse(vi1.isModified());
+                assertFalse(vi1Btf.isModified()); // assignment is not a modification!
+                assertTrue(vi1This.isModified());
+            }
+            assertTrue(body.isFluent());
+            assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()
+                    .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
+            assertFalse(body0.isModified());
         }
     }
 

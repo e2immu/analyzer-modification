@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
@@ -625,6 +626,7 @@ public class ExpressionAnalyzer {
         /*
         given a field 'i' in RImpl, with accessor RImpl.i(), is there a (synthetic?) field higher up in the hierarchy?
         We go via the accessor.
+        If that fails, we try to find an identically named field.
          */
         private FieldInfo liftField(FieldInfo fieldInfo) {
             MethodInfo accessor = fieldInfo.typeInfo().methodStream().filter(mi -> accessorOf(mi) == fieldInfo).findFirst().orElse(null);
@@ -633,7 +635,11 @@ public class ExpressionAnalyzer {
                 FieldInfo fieldOfOverride = accessorOf(override);
                 if (fieldOfOverride != null) return fieldOfOverride;
             }
-            return fieldInfo; // no change
+            String fieldName = fieldInfo.name();
+            // see TestStaticValuesAssignment,3 for an example where this returns a field in a supertype (RI.set -> R.set)
+            return fieldInfo.owner().recursiveSuperTypeStream()
+                    .map(ti -> ti.getFieldByName(fieldName, false))
+                    .filter(Objects::nonNull).findFirst().orElse(fieldInfo);
         }
 
         private static FieldInfo accessorOf(MethodInfo methodInfo) {

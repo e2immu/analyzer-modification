@@ -134,13 +134,17 @@ public class ComputeLinkCompletion {
                         expression = sv.expression();
                     } else if (!sv.values().isEmpty()) {
                         expression = sv.values().values().stream().findFirst().orElseThrow();
-                    } else throw new UnsupportedOperationException();
+                    } else {
+                        return null; // empty sv
+                    }
                     Map<Variable, Expression> newMap = Map.of(runtime.newFieldReference(svFieldInfo, svScope,
                             svFieldInfo.type()), expression);
                     return (StaticValues) new StaticValuesImpl(null, null, newMap);
-                }).toList();
+                }).filter(Objects::nonNull).toList();
                 Variable variable = ve.variable();
-                append.put(variable, newList);
+                if (!newList.isEmpty()) {
+                    append.put(variable, newList);
+                }
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
                 if (vic == null) {
                     // grab the "original", we'll copy some info
