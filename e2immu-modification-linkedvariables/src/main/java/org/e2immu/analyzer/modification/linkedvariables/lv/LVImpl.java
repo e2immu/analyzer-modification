@@ -1,9 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
-import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
-import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
-import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
@@ -13,8 +10,8 @@ import org.e2immu.language.cst.api.analysis.Value;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.FIELD_INDICES;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
@@ -133,24 +130,6 @@ public class LVImpl implements LV {
 
     public static LV createDependent(Links links) {
         return new LVImpl(I_DEPENDENT, links, createLabel(links, I_DEPENDENT), INDEPENDENT);
-    }
-
-    /*
-    go from hidden content selectors to an actual Links object, in the method context.
-    Assume, for now, that mutable == false.
-     */
-    public static Links matchingLinks(HiddenContentSelector from, HiddenContentSelector to) {
-        Map<Indices, Link> res = new HashMap<>();
-        for (Map.Entry<Integer, Indices> entry : from.getMap().entrySet()) {
-            int hctIndex = entry.getKey();
-            Indices indicesInTo = to.getMap().get(hctIndex);
-            if (indicesInTo != null) {
-                Indices indicesInFrom = entry.getValue();
-                res.put(indicesInFrom, new LinkImpl(indicesInTo, false));
-            }
-        }
-        assert !res.isEmpty();
-        return new LinksImpl(Map.copyOf(res));
     }
 
     @Override

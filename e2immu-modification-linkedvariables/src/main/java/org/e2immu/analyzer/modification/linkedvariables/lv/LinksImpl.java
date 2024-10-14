@@ -26,6 +26,9 @@ public record LinksImpl(Map<Indices, Link> map) implements Links {
                 new LinkImpl(new IndicesImpl(Set.of(new IndexImpl(List.of(to)))), false)));
     }
 
+
+    private static final List<Indices> SPECIAL_INDICES = List.of(ALL_INDICES, FIELD_INDICES);
+
     /*
       this method, together with allowModified(), is key to the whole linking + modification process
       */
@@ -53,12 +56,14 @@ public record LinksImpl(Map<Indices, Link> map) implements Links {
                     returnNull = false;
                 }
             } else {
-                Link allLink = this.map.get(ALL_INDICES);
-                if (allLink != null) {
-                    // start again from *
-                    boolean mutable = entry.getValue().mutable() || allLink.mutable();
-                    Link newLink = mutable == allLink.mutable() ? allLink : new LinkImpl(allLink.to(), true);
-                    res.merge(entry.getKey(), newLink, Link::merge);
+                for (Indices special : SPECIAL_INDICES) {
+                    Link allLink = this.map.get(special);
+                    if (allLink != null) {
+                        // start again from *
+                        boolean mutable = entry.getValue().mutable() || allLink.mutable();
+                        Link newLink = mutable == allLink.mutable() ? allLink : new LinkImpl(allLink.to(), true);
+                        res.merge(entry.getKey(), newLink, Link::merge);
+                    }
                 }
             }
         }
