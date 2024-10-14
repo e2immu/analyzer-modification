@@ -401,6 +401,7 @@ public class TestStaticValuesRecord extends CommonTest {
                     R r = b.build();
                     return r.function();
                 }
+                // we see that this is an @Identity method!!
                 Object method2(String s) {
                     Builder b = new Builder().setFunction(String::length).setVariable(0, s);
                     R r = b.build();
@@ -436,6 +437,7 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableData v2 = VariableDataImpl.of(s2);
             VariableInfo vi2Rv = v2.variableInfo(method2.fullyQualifiedName());
             assertEquals("E=s", vi2Rv.staticValues().toString());
+            assertTrue(method2.isIdentity());
         }
     }
 }

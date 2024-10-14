@@ -46,7 +46,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             package a.b;
             import java.util.ArrayList;
             import java.util.List;
-            import org.e2immu.annotation.method.GetSet;
+            import org.e2immu.annotation.Independent;import org.e2immu.annotation.Modified;import org.e2immu.annotation.method.GetSet;
             class X {
                 private final List<Integer> list = new ArrayList<>();
             
@@ -90,7 +90,8 @@ public class TestStaticValuesOfTryData extends CommonTest {
                 }
             
                 public interface ThrowingFunction {
-                    TryData apply(TryData o) throws Exception;
+                    @Modified
+                    TryData apply(@Independent TryData o) throws Exception;
                 }
             
                 public interface TryData {
@@ -261,17 +262,17 @@ public class TestStaticValuesOfTryData extends CommonTest {
             Statement s000 = s0.block().statements().get(0);
             VariableData vd000 = VariableDataImpl.of(s000);
             VariableInfo viTd000 = vd000.variableInfo(runTd);
-            assertEquals("td.throwingFunction=false", viTd000.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
+            assertEquals("td.throwingFunction=true", viTd000.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
 
             // test that the analysis is copied "up" to the try statement
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viTd0 = vd0.variableInfo(runTd);
-            assertEquals("td.throwingFunction=false", viTd0.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
+            assertEquals("td.throwingFunction=true", viTd0.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
 
             // test that it is copied onto the parameter
-            assertEquals("td.throwingFunction=false", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+            assertEquals("td.throwingFunction=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
         }
     }
