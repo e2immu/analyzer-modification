@@ -336,6 +336,7 @@ public class HiddenContentSelector implements Value {
             // the last entry
             assert from.typeInfo() != null;
             ParameterizedType formalFrom = from.typeInfo().asParameterizedType(runtime);
+            assert atPos >= 0;
             assert formalFrom.parameters().get(atPos).equals(ptFrom);
             if (formalFrom.typeInfo() == to.typeInfo()) {
                 ParameterizedType concrete;

@@ -48,6 +48,7 @@ public class ComputeHiddenContent {
     }
 
     private HiddenContentTypes compute(TypeInfo typeInfo, Set<TypeInfo> cycleProtection) {
+        assert typeInfo != null && typeInfo.source() != null;
         boolean compiledCode = typeInfo.source().isCompiledClass();
 
         int offset;
