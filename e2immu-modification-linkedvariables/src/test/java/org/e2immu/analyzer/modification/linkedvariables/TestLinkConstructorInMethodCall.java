@@ -134,6 +134,14 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
+        MethodInfo withException = loopDataImpl.findUniqueMethod("withException", 1);
+        {
+            Statement s0 = withException.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0Ee = vd0.variableInfo(withException.fullyQualifiedName());
+            assertEquals("FM-2-*M:e", vi0Ee.linkedVariables().toString());
+        }
     }
 
 }

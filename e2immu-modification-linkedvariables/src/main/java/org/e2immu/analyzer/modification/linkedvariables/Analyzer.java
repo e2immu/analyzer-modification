@@ -430,20 +430,21 @@ public class Analyzer {
     public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
         LOGGER.info("Start primary type {}", primaryType);
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
+        Value.SetOfInfo partOfConstruction = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
         for (Info info : analysisOrder) {
             if (info instanceof MethodInfo mi) {
                 doMethod(mi);
                 appendToFieldStaticValueMap(mi, svMap);
             } else if (info instanceof FieldInfo fi) {
-                doField(fi, svMap.get(fi));
+                doField(fi, svMap.get(fi), partOfConstruction);
             } else if (info instanceof TypeInfo ti) {
                 LOGGER.info("Do type {}", ti);
-                fromParameterToField(ti);
+                fromFieldToParameter(ti);
             }
         }
     }
 
-    private void fromParameterToField(TypeInfo typeInfo) {
+    private void fromFieldToParameter(TypeInfo typeInfo) {
         Map<ParameterInfo, StaticValues> svMapParameters = collectReverseFromFieldsToParameters(typeInfo);
         svMapParameters.forEach((pi, sv) -> {
             if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
@@ -481,13 +482,28 @@ public class Analyzer {
                 });
     }
 
-    private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList) {
+    private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList, SetOfInfo partOfConstruction) {
         // initial field assignments
         StaticValues reduced = staticValuesList == null ? NONE
                 : staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
         if (!fieldInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_FIELD)) {
             fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
             LOGGER.info("Do field {}: set {}", fieldInfo, reduced);
+        }
+        if (!fieldInfo.analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
+            boolean modified = fieldInfo.owner().primaryType().recursiveMethodStream()
+                    .filter(mi -> !partOfConstruction.infoSet().contains(mi))
+                    .filter(mi -> !mi.methodBody().isEmpty())
+                    .anyMatch(mi -> {
+                        Statement lastStatement = mi.methodBody().lastStatement();
+                        VariableData vd = VariableDataImpl.of(lastStatement);
+                        return vd.variableInfoStream().anyMatch(vi -> vi.variable() instanceof FieldReference fr
+                                                                      && fr.fieldInfo() == fieldInfo
+                                                                      && vi.isModified());
+                    });
+            if (modified) {
+                fieldInfo.analysis().set(MODIFIED_FIELD, TRUE);
+            }
         }
     }
 }

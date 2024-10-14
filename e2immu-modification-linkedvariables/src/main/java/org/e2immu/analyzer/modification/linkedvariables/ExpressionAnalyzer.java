@@ -456,20 +456,19 @@ public class ExpressionAnalyzer {
                 if (vicObject != null) {
                     VariableInfo viObject = vicObject.best(stageOfPrevious);
                     StaticValues svObject = viObject.staticValues();
-                    if (svObject != null && svObject.expression() != null && svm.expression() != null) {
 
-                        Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
-                        StaticValues sv = new StaticValuesImpl(svm.type(), null, svObjectValues);
-                        builder.setStaticValues(sv);
-                    }
+                    Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
+                    StaticValues sv = new StaticValuesImpl(svm.type(), null, svObjectValues);
+                    builder.setStaticValues(sv);
                 }
             }
         }
 
         private Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {
-            Map<Variable, Expression> svObjectValues;
 
             // case for builder()
+            Map<Variable, Expression> existingMap = svObject == null ? Map.of() : svObject.values();
+
             if (!mc.methodInfo().methodBody().isEmpty()) {
                 VariableData vd = VariableDataImpl.of(mc.methodInfo().methodBody().lastStatement());
                 VariableInfo rv = vd.variableInfo(mc.methodInfo().fullyQualifiedName());
@@ -477,10 +476,12 @@ public class ExpressionAnalyzer {
                 LOGGER.debug("return value: {}", sv);
                 if (sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
                     // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
-                    svObjectValues = new HashMap<>();
+                    Map<Variable, Expression> svObjectValues = new HashMap<>();
                     for (ParameterInfo pi : cc.constructor().parameters()) {
                         StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
                         Expression arg = cc.parameterExpressions().get(pi.index());
+
+                        // builder situation
                         if (arg instanceof VariableExpression veArg
                             && svPi.expression() instanceof VariableExpression ve
                             && ve.variable() instanceof FieldReference fr) {
@@ -490,7 +491,7 @@ public class ExpressionAnalyzer {
                             if (fr.parameterizedType().arrays() > 0
                                 && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
                                 // can we add components of the array?
-                                for (Map.Entry<Variable, Expression> entry : svObject.values().entrySet()) {
+                                for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
                                     if (entry.getKey() instanceof DependentVariable dv
                                         && dv.arrayVariable().equals(veArg.variable())) {
                                         DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
@@ -499,21 +500,17 @@ public class ExpressionAnalyzer {
                                 }
                             } else {
                                 // whole objects
-                                Expression value = svObject.values().get(veArg.variable());
+                                Expression value = existingMap.get(veArg.variable());
                                 if (value != null) {
                                     svObjectValues.put(fr, value);
                                 }
                             }
                         }
                     }
-                    LOGGER.debug("Translate {} into {}", svObject.values(), svObjectValues);
-                } else {
-                    svObjectValues = svObject.values();
+                    return svObjectValues;
                 }
-            } else {
-                svObjectValues = svObject.values();
             }
-            return svObjectValues;
+            return existingMap;
         }
 
         private StaticValues makeSvFromMethodCall(MethodCall mc, LinkEvaluation leObject, StaticValues svm) {

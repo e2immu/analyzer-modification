@@ -286,7 +286,9 @@ public class HiddenContentSelector implements Value {
             if (from.arrays() > 0 && hiddenContentSelector.selectArrayElement(from.arrays())) {
                 Indices indices = new IndicesImpl(Set.of(IndexImpl.createZeroes(from.arrays())));
                 iat = new IndicesAndType(indices, to);
-            } else if (from.typeParameter() != null || from.equals(to)) {
+            } else if (from.typeParameter() != null || from.equals(to)
+                       || entry1.getKey().equals(FIELD_INDICES)
+                       || entry1.getKey().equals(ALL_INDICES)) {
                 iat = new IndicesAndType(entry1.getKey(), to);
             } else {
                 iat = findAll(runtime, genericsHelper, entry1.getKey(), entry1.getValue(), from, to);
