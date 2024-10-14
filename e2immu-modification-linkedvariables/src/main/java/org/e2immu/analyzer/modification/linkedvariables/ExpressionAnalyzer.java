@@ -459,9 +459,24 @@ public class ExpressionAnalyzer {
                             && svPi.expression() instanceof VariableExpression ve
                             && ve.variable() instanceof FieldReference fr) {
                             // replace the value in svObject.values() to this one...
-                            Expression value = svObject.values().get(veArg.variable());
-                            if (value != null) {
-                                svObjectValues.put(fr, value);
+
+                            // array components, see TestStaticValuesRecord,6
+                            if (fr.parameterizedType().arrays() > 0
+                                && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
+                                // can we add components of the array?
+                                for (Map.Entry<Variable, Expression> entry : svObject.values().entrySet()) {
+                                    if (entry.getKey() instanceof DependentVariable dv
+                                        && dv.arrayVariable().equals(veArg.variable())) {
+                                        DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
+                                        svObjectValues.put(newDv, entry.getValue());
+                                    }
+                                }
+                            } else {
+                                // whole objects
+                                Expression value = svObject.values().get(veArg.variable());
+                                if (value != null) {
+                                    svObjectValues.put(fr, value);
+                                }
                             }
                         }
                     }

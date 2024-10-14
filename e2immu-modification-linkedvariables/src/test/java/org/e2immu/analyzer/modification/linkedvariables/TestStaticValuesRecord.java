@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
@@ -331,14 +332,33 @@ public class TestStaticValuesRecord extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT6);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo builder = X.findSubType("Builder");
+        MethodInfo build = builder.findUniqueMethod("build", 0);
+        assertEquals("Type a.b.X.R E=new R(this.function,this.variables)",
+                build.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
+
+        MethodInfo setVariable = builder.findUniqueMethod("setVariable", 2);
+        Value.FieldValue fv = setVariable.getSetField();
+        assertTrue(fv.setter());
+        assertEquals(0, fv.parameterIndexOfIndex());
+        assertEquals("a.b.X.Builder.variables", fv.field().toString());
 
         MethodInfo method = X.findUniqueMethod("method", 1);
+        {
+            LocalVariableCreation bLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+            LocalVariable b = bLvc.localVariable();
+            VariableData vd0 = VariableDataImpl.of(bLvc);
+            VariableInfo bVi0 = vd0.variableInfo(b);
+            // code of ExpressionAnalyzer.methodCallStaticValue
+            assertEquals("E=new Builder() this.function=String::length, variables[0]=\"a\"", bVi0.staticValues().toString());
+        }
         {
             LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
             LocalVariable r = rLvc.localVariable();
             VariableData vd1 = VariableDataImpl.of(rLvc);
             VariableInfo rVi1 = vd1.variableInfo(r);
-            assertEquals("Type a.b.X.R this.function=String::length, this.variables[0]=\"a\"", rVi1.staticValues().toString());
+            // code of ExpressionAnalyzer.checkCaseForBuilder
+            assertEquals("Type a.b.X.R this.function=String::length, variables[0]=\"a\"", rVi1.staticValues().toString());
         }
         {
             Statement s2 = method.methodBody().statements().get(2);
