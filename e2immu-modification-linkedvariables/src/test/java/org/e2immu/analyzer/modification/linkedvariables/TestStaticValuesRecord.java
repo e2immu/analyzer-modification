@@ -384,7 +384,7 @@ public class TestStaticValuesRecord extends CommonTest {
             class X {
                 interface R {
                     @GetSet Function<String, Integer> function();
-                    @GetSet Object variable(int i);
+                    @GetSet("variables") Object variable(int i);
                 }
                 record RI(Function<String,Integer> function, Object[] variables) implements R {
                     Object variable(int i) { return variables[i]; }
@@ -400,6 +400,11 @@ public class TestStaticValuesRecord extends CommonTest {
                     Builder b = new Builder().setFunction(String::length).setVariable(0, s);
                     R r = b.build();
                     return r.function();
+                }
+                Object method2(String s) {
+                    Builder b = new Builder().setFunction(String::length).setVariable(0, s);
+                    R r = b.build();
+                    return r.variable(0);
                 }
             }
             """;
@@ -417,15 +422,20 @@ public class TestStaticValuesRecord extends CommonTest {
             LocalVariable r = rLvc.localVariable();
             VariableData vd1 = VariableDataImpl.of(rLvc);
             VariableInfo rVi1 = vd1.variableInfo(r);
-            // FIXME see previous test: missing variables
-            assertEquals("Type a.b.X.RI this.function=String::length", rVi1.staticValues().toString());
+            assertEquals("Type a.b.X.RI this.function=String::length, variables[0]=s", rVi1.staticValues().toString());
         }
         {
             Statement s2 = method.methodBody().statements().get(2);
             VariableData v2 = VariableDataImpl.of(s2);
             VariableInfo vi2Rv = v2.variableInfo(method.fullyQualifiedName());
-            // FIXME lifting!
             assertEquals("E=String::length", vi2Rv.staticValues().toString());
+        }
+        MethodInfo method2 = X.findUniqueMethod("method2", 1);
+        {
+            Statement s2 = method2.methodBody().statements().get(2);
+            VariableData v2 = VariableDataImpl.of(s2);
+            VariableInfo vi2Rv = v2.variableInfo(method2.fullyQualifiedName());
+            assertEquals("E=s", vi2Rv.staticValues().toString());
         }
     }
 }

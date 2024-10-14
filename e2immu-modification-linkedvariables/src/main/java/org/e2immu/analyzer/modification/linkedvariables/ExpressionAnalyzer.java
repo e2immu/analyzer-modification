@@ -21,7 +21,6 @@ import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
@@ -237,13 +236,40 @@ public class ExpressionAnalyzer {
                         return svV.expression();
                     }
                 }
-                if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
-                    VariableInfoContainer vicSv = variableDataPrevious.variableInfoContainerOrNull(fr.scopeVariable().fullyQualifiedName());
+                if (variable instanceof DependentVariable dv
+                    && dv.arrayExpression() instanceof VariableExpression av
+                    && av.variable() instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    // r.variable[0]
+                    VariableInfoContainer vicSv = variableDataPrevious.variableInfoContainerOrNull(fr.scopeVariable()
+                            .fullyQualifiedName());
                     if (vicSv != null) {
                         VariableInfo viV = vicSv.best();
                         StaticValues svV = viV.staticValues();
                         if (svV != null) {
-                            Expression valueForField = svV.values().get(runtime.newFieldReference(fr.fieldInfo()));
+                            Map<Variable, Expression> valueMap = new HashMap<>(svV.values());
+                            ParameterizedType targetType = fr.scope().parameterizedType();
+                            Map<Variable, Expression> completed = augmentWithImplementation(targetType, svV, valueMap);
+                            FieldReference newFr = runtime.newFieldReference(fr.fieldInfo());
+                            DependentVariable newDv = runtime.newDependentVariable(runtime.newVariableExpression(newFr),
+                                    dv.indexExpression());
+                            Expression valueForField = completed.get(newDv);
+                            if (valueForField != null) {
+                                return valueForField;
+                            }
+                        }
+                    }
+                } else if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    // r.variable
+                    VariableInfoContainer vicSv = variableDataPrevious.variableInfoContainerOrNull(fr.scopeVariable()
+                            .fullyQualifiedName());
+                    if (vicSv != null) {
+                        VariableInfo viV = vicSv.best();
+                        StaticValues svV = viV.staticValues();
+                        if (svV != null) {
+                            Map<Variable, Expression> valueMap = new HashMap<>(svV.values());
+                            ParameterizedType targetType = fr.scope().parameterizedType();
+                            Map<Variable, Expression> completed = augmentWithImplementation(targetType, svV, valueMap);
+                            Expression valueForField = completed.get(runtime.newFieldReference(fr.fieldInfo()));
                             if (valueForField != null) {
                                 return valueForField;
                             }
@@ -594,25 +620,32 @@ public class ExpressionAnalyzer {
                         runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
                         Variable key = tm.translateVariable(entry.getKey());
                         Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
-                        Map<Variable, Expression> completedAndAugmentedWithImplementation;
-                        if (svParam.type() != null && !svParam.type().equals(pi.parameterizedType())) {
-                            assert pi.parameterizedType().isAssignableFrom(runtime, svParam.type());
-                            completedAndAugmentedWithImplementation = new HashMap<>(completedMap);
-                            completedMap.forEach((v, e) -> {
-                                Variable tv = liftVariable(v);
-                                if (tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
-                                    completedAndAugmentedWithImplementation.put(tv, e);
-                                }
-                            });
-                        } else {
-                            completedAndAugmentedWithImplementation = completedMap;
-                        }
-
-                        Expression e = completedAndAugmentedWithImplementation.get(key);
+                        Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
+                                completedMap);
+                        Expression e = augmented.get(key);
                         consumer.accept(e, entry.getValue());
                     }
                 }
             }
+        }
+
+        private Map<Variable, Expression> augmentWithImplementation(ParameterizedType targetType,
+                                                                    StaticValues svParam,
+                                                                    Map<Variable, Expression> completedMap) {
+            Map<Variable, Expression> completedAndAugmentedWithImplementation;
+            if (svParam.type() != null && !svParam.type().equals(targetType)) {
+                assert targetType.isAssignableFrom(runtime, svParam.type());
+                completedAndAugmentedWithImplementation = new HashMap<>(completedMap);
+                completedMap.forEach((v, e) -> {
+                    Variable tv = liftVariable(v);
+                    if (tv != v && !completedAndAugmentedWithImplementation.containsKey(tv)) {
+                        completedAndAugmentedWithImplementation.put(tv, e);
+                    }
+                });
+            } else {
+                completedAndAugmentedWithImplementation = completedMap;
+            }
+            return completedAndAugmentedWithImplementation;
         }
 
         /*
@@ -621,8 +654,25 @@ public class ExpressionAnalyzer {
         't.s.r.i' are synthetic fields corresponding to accessors in the interface types T, S, R.
 
         TODO: there could be multiple results. We'll first do the situation with one result.
+
+        TODO also lift dependent variable's index?
          */
         private Variable liftVariable(Variable v) {
+            if (v instanceof DependentVariable dv && dv.arrayExpression() instanceof VariableExpression av
+                && av.variable() instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve) {
+                FieldInfo liftField = liftField(fr.fieldInfo());
+                if (liftField != fr.fieldInfo()) {
+                    // we can go up: there is (synthetic) field higher up.
+                    Variable liftedScope = liftScope(ve.variable(), liftField.owner().asSimpleParameterizedType());
+                    if (liftedScope != ve.variable()) {
+                        // the scope can join us
+                        FieldReference newFr = runtime.newFieldReference(liftField, runtime.newVariableExpression(liftedScope),
+                                liftField.type());
+                        return runtime.newDependentVariable(runtime.newVariableExpression(newFr),
+                                dv.indexExpression());
+                    }
+                }
+            }
             if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve) {
                 FieldInfo liftField = liftField(fr.fieldInfo());
                 if (liftField != fr.fieldInfo()) {
@@ -673,7 +723,7 @@ public class ExpressionAnalyzer {
                 if (variable instanceof This) {
                     return runtime.newThis(requiredType.typeInfo());
                 }
-                throw new RuntimeException(); // FIXME what to do?
+                throw new RuntimeException(); // ?? what to do?
             }
             return variable; // failure to lift
         }
