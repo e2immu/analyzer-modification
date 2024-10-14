@@ -261,7 +261,7 @@ public class HiddenContentTypes implements Value {
     to return a HiddenContentTypes containing T instead of E
      */
     public HiddenContentTypes translate(Runtime runtime, ParameterizedType pt) {
-        Map<NamedType, ParameterizedType> map = pt.initialTypeParameterMap(runtime);
+        Map<NamedType, ParameterizedType> map = pt.initialTypeParameterMap();
         Set<ParameterizedType> newTypes = typeToIndex.keySet().stream()
                 .map(t -> translate(runtime, pt, map, t))
                 .collect(Collectors.toUnmodifiableSet());

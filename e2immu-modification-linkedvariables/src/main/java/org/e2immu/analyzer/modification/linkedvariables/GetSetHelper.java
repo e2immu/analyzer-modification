@@ -49,7 +49,7 @@ public class GetSetHelper {
             ParameterInfo indexParameter = methodInfo.parameters().get(getSet.parameterIndexOfIndex());
             indexOrNull = runtime.newVariableExpression(indexParameter);
         }
-        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
+        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
         Variable variable = getSet.createVariable(runtime, thisVe, indexOrNull);
         return new StaticValuesImpl(null, runtime.newVariableExpression(variable), Map.of());
     }
@@ -76,11 +76,11 @@ public class GetSetHelper {
             valueParameter = methodInfo.parameters().get(0);
             indexOrNull = null;
         }
-        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
+        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
         Variable target = getSet.createVariable(runtime, thisVe, indexOrNull);
         Expression expression;
         if (methodInfo.isFluent()) {
-            expression = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo()));
+            expression = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
         } else {
             expression = null;
         }

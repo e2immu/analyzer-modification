@@ -11,6 +11,7 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.type.ParameterizedTypeImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 
 import java.util.*;
@@ -144,24 +145,6 @@ public class HiddenContentSelector implements Value {
         return Objects.hash(hiddenContentTypes, map);
     }
 
-    public Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
-        assert this != NONE;
-        return map.values().stream()
-                .filter(i -> !FIELD_INDICES.equals(i))
-                .collect(Collectors.toUnmodifiableMap(i -> i,
-                        i -> {
-                            Integer single = i.single();
-                            TypeInfo fieldType = hiddenContentTypes.isExtensible(single);
-                            if (fieldType != null) {
-                                return fieldType.asSimpleParameterizedType();
-                            }
-                            Integer index = hiddenContentTypes.indexOfOrNull(type);
-                            if (index != null) {
-                                return type;
-                            }
-                            return i.findInFormal(runtime, type);
-                        }));
-    }
 
     public boolean selectArrayElement(int arrays) {
         if (map.size() == 1) {
@@ -279,6 +262,9 @@ public class HiddenContentSelector implements Value {
                                                             ParameterizedType from,
                                                             ParameterizedType to) {
         if (hiddenContentSelector.isNone()) return Map.of();
+        if(to.isTypeOfNullConstant()) {
+            return Map.of();
+        }
         Map<Indices, ParameterizedType> map1 = hiddenContentSelector.extract(runtime, from);
         Map<Indices, IndicesAndType> result = new HashMap<>();
         for (Map.Entry<Indices, ParameterizedType> entry1 : map1.entrySet()) {
@@ -296,6 +282,25 @@ public class HiddenContentSelector implements Value {
             result.put(entry1.getKey(), iat);
         }
         return Map.copyOf(result);
+    }
+
+    private Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
+        assert this != NONE;
+        return map.values().stream()
+                .filter(i -> !FIELD_INDICES.equals(i))
+                .collect(Collectors.toUnmodifiableMap(i -> i,
+                        i -> {
+                            Integer single = i.single();
+                            TypeInfo fieldType = hiddenContentTypes.isExtensible(single);
+                            if (fieldType != null) {
+                                return fieldType.asSimpleParameterizedType();
+                            }
+                            Integer index = hiddenContentTypes.indexOfOrNull(type);
+                            if (index != null) {
+                                return type;
+                            }
+                            return i.findInFormal(runtime, type);
+                        }));
     }
 
     /*
@@ -337,7 +342,7 @@ public class HiddenContentSelector implements Value {
         if (pos == index.list().size() - 1) {
             // the last entry
             assert from.typeInfo() != null;
-            ParameterizedType formalFrom = from.typeInfo().asParameterizedType(runtime);
+            ParameterizedType formalFrom = from.typeInfo().asParameterizedType();
             assert atPos >= 0;
             assert formalFrom.parameters().get(atPos).equals(ptFrom);
             if (formalFrom.typeInfo() == to.typeInfo()) {
@@ -350,7 +355,7 @@ public class HiddenContentSelector implements Value {
                 }
                 return new IndicesAndType(new IndicesImpl(Set.of(index)), concrete);
             }
-            ParameterizedType formalTo = to.typeInfo().asParameterizedType(runtime);
+            ParameterizedType formalTo = to.typeInfo().asParameterizedType();
             Map<NamedType, ParameterizedType> map1;
             if (formalFrom.isAssignableFrom(runtime, formalTo)) {
                 map1 = genericsHelper.mapInTermsOfParametersOfSuperType(to.typeInfo(), formalFrom);
@@ -364,7 +369,7 @@ public class HiddenContentSelector implements Value {
             int iTo = hct.indexOf(ptTo);
             Index indexTo = index.replaceLast(iTo);
             Indices indicesTo = new IndicesImpl(Set.of(indexTo));
-            Map<NamedType, ParameterizedType> map2 = to.initialTypeParameterMap(runtime);
+            Map<NamedType, ParameterizedType> map2 = to.initialTypeParameterMap();
             ParameterizedType concreteTypeTo = map2.get(ptTo.namedType());
             assert concreteTypeTo != null;
             return new IndicesAndType(indicesTo, concreteTypeTo);

@@ -24,10 +24,113 @@ import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.H
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestLinkThis extends CommonTest {
+public class TestLinkObjectRecursion extends CommonTest {
 
     @Language("java")
     private static final String INPUT1 = """
+            package a.b;
+            import java.util.Iterator;
+            import java.util.function.Function;
+            class X {
+                record LL<T>(T head, LL<T> tail) {
+                    LL<T> prepend(T t) {
+                        LL<T> ll = new LL<>(t, this);
+                        return ll;
+                    }
+                    LL<T> prepend2(T t) {
+                        return new LL<>(t, this);
+                    }
+                }
+                static <T> void add(LL<T> list, T one) {
+                    LL<T> longer = list.prepend(one);
+                    assert longer.head != null;
+                }
+            }
+            """;
+
+    @DisplayName("linked list")
+    @Test
+    public void test1() {
+        TypeInfo X = javaInspector.parse(INPUT1);
+        List<Info> analysisOrder = prepWork(X);
+        TypeInfo LL = X.findSubType("LL");
+        assertEquals("0=T, 1=LL", LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE).detailedSortedTypes());
+
+        analyzer.doPrimaryType(X, analysisOrder);
+        assertTrue(LL.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+
+        This thisVar = runtime.newThis(LL.asParameterizedType());
+        MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
+        {
+            Statement s0 = prepend.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0This = vd0.variableInfo(thisVar);
+            assertEquals("0-4-*:t,0;1M-2-*M:ll", vi0This.linkedVariables().toString());
+            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
+            assertEquals("*-4-0:ll,*-4-0:this", vi0T.linkedVariables().toString());
+            VariableInfo vi0LL = vd0.variableInfo("ll");
+
+            // interpretation: t is an integral part of the hidden content of 'll'; 0 is the type of T
+            // at the same time, because LL is mutable (we do not analyzer IMMUTABLE_TYPE yet), ll is linked to 'this':
+            // via the concretely mutable type LL, (M-2-M)
+            assertEquals("0-4-*:t,1M-2-1M:this", vi0LL.linkedVariables().toString());
+        }
+
+        MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
+        {
+            Statement s0 = prepend2.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0This = vd0.variableInfo(thisVar);
+            assertEquals("", vi0This.linkedVariables().toString());
+            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
+            assertEquals("", vi0T.linkedVariables().toString());
+            VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
+            assertEquals("0-4-*:t,0M-2-0M:this", vi0Rv.linkedVariables().toString());
+        }
+    }
+
+
+    @DisplayName("immutable HC linked list")
+    @Test
+    public void test1b() {
+        TypeInfo X = javaInspector.parse(INPUT1);
+        List<Info> analysisOrder = prepWork(X);
+        TypeInfo LL = X.findSubType("LL");
+        assertEquals("0=T, 1=LL", LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE).detailedSortedTypes());
+
+        // we're explicitly setting IMMUTABLE_HC because we cannot compute it yet
+        LL.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
+
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        This thisVar = runtime.newThis(LL.asParameterizedType());
+        MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
+        {
+            Statement s0 = prepend.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0This = vd0.variableInfo(thisVar);
+            assertEquals("0-4-*:t,0;*-4-1:ll", vi0This.linkedVariables().toString());
+            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
+            assertEquals("*-4-0:ll,*-4-0:this", vi0T.linkedVariables().toString());
+            VariableInfo vi0LL = vd0.variableInfo("ll");
+            assertEquals("0-4-*:t,1-4-*:this", vi0LL.linkedVariables().toString());
+        }
+
+        MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
+        {
+            Statement s0 = prepend2.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0This = vd0.variableInfo(thisVar);
+            assertEquals("", vi0This.linkedVariables().toString());
+            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
+            assertEquals("", vi0T.linkedVariables().toString());
+            VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
+            assertEquals("0-4-*:t,0M-2-0M:this", vi0Rv.linkedVariables().toString());
+        }
+    }
+
+    @Language("java")
+    private static final String INPUT2 = """
             package a.b;
             import java.util.Iterator;
             import java.util.function.Function;
@@ -67,8 +170,8 @@ public class TestLinkThis extends CommonTest {
 
     @DisplayName("links between this and self-referencing objects")
     @Test
-    public void test1() {
-        TypeInfo X = javaInspector.parse(INPUT1);
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
@@ -82,7 +185,7 @@ public class TestLinkThis extends CommonTest {
         HiddenContentTypes ldiHct = loopDataImpl.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=Iterator, 1=Object, 2=Function, 3=LoopData", ldiHct.detailedSortedTypes());
 
-        This thisVar = runtime.newThis(loopDataImpl);
+        This thisVar = runtime.newThis(loopDataImpl.asParameterizedType());
         FieldInfo loop = loopDataImpl.getFieldByName("loop", true);
         assertFalse(loop.isFinal());
         assertTrue(loop.isPropertyFinal());
@@ -92,6 +195,7 @@ public class TestLinkThis extends CommonTest {
         MethodInfo constructor = loopDataImpl.findConstructor(3);
         ParameterInfo c0 = constructor.parameters().get(0);
         assertEquals("loop", c0.simpleName());
+        // NOTE: we know this SVP value only after analyzing withLoopValue
         assertEquals("E=this.loop", c0.analysis().getOrDefault(STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE).toString());
 
         MethodInfo withLoopValue = loopDataImpl.findUniqueMethod("withLoopValue", 1);
@@ -116,7 +220,7 @@ public class TestLinkThis extends CommonTest {
                 VariableData vd001 = VariableDataImpl.of(s001);
                 VariableInfo vi001This = vd001.variableInfo(thisVar);
                 VariableInfo vi001NextLd = vd001.variableInfo("nextLd");
-                assertEquals("Type a.b.X.LoopDataImpl ? ? ?", vi001NextLd.staticValues().toString());
+                assertEquals("Type a.b.X.LoopDataImpl", vi001NextLd.staticValues().toString());
 
                 assertEquals("-2-:this", vi001NextLd.linkedVariables().toString());
                 assertEquals("-2-:nextLd", vi001This.linkedVariables().toString());

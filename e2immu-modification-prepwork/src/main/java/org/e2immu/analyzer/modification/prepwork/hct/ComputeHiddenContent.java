@@ -151,7 +151,7 @@ public class ComputeHiddenContent {
         HiddenContentTypes hctParent = getOrCompute(superType.typeInfo(), cycleProtection);
         if (hctParent != null) {
             if (!hctParent.isEmpty()) {
-                Map<NamedType, ParameterizedType> fromMeToParent = superType.initialTypeParameterMap(runtime);
+                Map<NamedType, ParameterizedType> fromMeToParent = superType.initialTypeParameterMap();
                 assert fromMeToParent != null;
                 // the following include all recursively computed
                 hctParent.getTypeToIndex().entrySet().stream()

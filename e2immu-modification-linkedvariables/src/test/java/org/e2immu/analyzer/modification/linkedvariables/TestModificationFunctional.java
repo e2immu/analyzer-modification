@@ -95,7 +95,7 @@ public class TestModificationFunctional extends CommonTest {
         {
             Statement s0 = go.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
-            VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X));
+            VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X.asParameterizedType()));
             assertSame(TRUE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
             // as a consequence, 'go' becomes modified
             assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));

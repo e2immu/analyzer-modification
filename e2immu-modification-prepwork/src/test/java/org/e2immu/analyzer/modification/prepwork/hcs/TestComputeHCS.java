@@ -474,14 +474,14 @@ public class TestComputeHCS extends CommonTest {
         HiddenContentSelector hcsRc4 = Rc4.analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("0=0,2=*", hcsRc4.detailed());
 
-        ParameterizedType formalR = R.asParameterizedType(runtime);
+        ParameterizedType formalR = R.asParameterizedType();
         assertEquals("Type a.b.X.R<T>", formalR.toString());
         HiddenContentSelector hcsFormal = HiddenContentSelector.selectAll(hctR, formalR);
         assertEquals("0=0,1=F,2=F", hcsFormal.detailed());
 
         HiddenContentTypes hctX = X.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=R", hctX.detailedSortedTypes());
-        ParameterizedType formalX = X.asParameterizedType(runtime);
+        ParameterizedType formalX = X.asParameterizedType();
         HiddenContentSelector hcsXFormal = HiddenContentSelector.selectAll(hctX, formalX);
         assertEquals("0=F", hcsXFormal.detailed());
 

@@ -72,6 +72,10 @@ public class TestComputeHiddenContent extends CommonTest {
                         return o;
                     }
                 }
+                record R(int k, R r) {
+                }
+                record RT<T>(T t, RT<T> r) {
+                }
             }
             """;
 
@@ -127,6 +131,18 @@ public class TestComputeHiddenContent extends CommonTest {
         assertEquals("0=Object", hctCO.detailedSortedTypes());
         assertEquals("Object=0", hctCO.detailedSortedTypeToIndex());
         CO.analysis().set(HIDDEN_CONTENT_TYPES, hctCO);
+
+        // if a type has a self-reference, and hidden content, the type itself is part of the hidden content!
+
+        // self-reference, but no hidden content
+        TypeInfo R = X.findSubType("R");
+        HiddenContentTypes hctR = chc.compute(R);
+        assertEquals("", hctR.detailedSortedTypes());
+
+        // self-reference and hidden content
+        TypeInfo RT = X.findSubType("RT");
+        HiddenContentTypes hctRT = chc.compute(RT);
+        assertEquals("0=T, 1=RT", hctRT.detailedSortedTypes());
     }
 
     @Language("java")
@@ -224,7 +240,7 @@ public class TestComputeHiddenContent extends CommonTest {
         SliceSpliteratorOfPrimitive.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliteratorOfPrimitive);
 
         assertEquals(3, SliceSpliteratorOfPrimitive.typeParameters().size());
-        ParameterizedType pt = SliceSpliteratorOfPrimitive.asParameterizedType(runtime);
+        ParameterizedType pt = SliceSpliteratorOfPrimitive.asParameterizedType();
         assertEquals(3, pt.parameters().size());
 
         TypeInfo SliceSpliteratorOfDouble = SliceSpliterator.findSubType("OfDouble");

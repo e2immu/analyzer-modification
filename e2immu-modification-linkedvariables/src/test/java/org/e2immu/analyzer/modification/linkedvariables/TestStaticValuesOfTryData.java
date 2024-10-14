@@ -213,7 +213,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertEquals("E=new Builder() this.bodyThrowingFunction=this::body, variables[0]=i",
                     vi0B.staticValues().toString());
 
-            VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X));
+            VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X.asParameterizedType()));
             assertEquals("", vi0This.linkedVariables().toString());
             assertFalse(vi0This.isModified());
         }
@@ -230,7 +230,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             Statement s2 = method.methodBody().statements().get(2);
             VariableData vd2 = VariableDataImpl.of(s2);
 
-            VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X));
+            VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X.asParameterizedType()));
             assertEquals("", vi2This.linkedVariables().toString());
             assertTrue(vi2This.isModified());
         }
@@ -304,7 +304,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                 VariableInfo vi1 = vd1.variableInfo(body0);
                 assertEquals("-1-:bodyThrowingFunction", vi1.linkedVariables().toString()); // still link to field
 
-                VariableInfo vi1This = vd1.variableInfo(new ThisImpl(builder));
+                VariableInfo vi1This = vd1.variableInfo(new ThisImpl(builder.asParameterizedType()));
                 assertEquals("", vi1This.linkedVariables().toString());
                 VariableInfo vi1Btf = vd1.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
                 assertEquals("-1-:throwingFunction", vi1Btf.linkedVariables().toString());

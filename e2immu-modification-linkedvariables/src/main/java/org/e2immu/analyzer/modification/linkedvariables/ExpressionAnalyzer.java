@@ -204,7 +204,7 @@ public class ExpressionAnalyzer {
                 Expression indexExpression = null;
                 while (true) {
                     if (v instanceof DependentVariable dv) {
-                        This thisVar = runtime.newThis(currentMethod.typeInfo()); // irrelevant which type
+                        This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()); // irrelevant which type
                         Variable indexed = runtime.newDependentVariable(thisVar, value.parameterizedType(), dv.indexVariable());
                         StaticValues newSv = new StaticValuesImpl(null, null, Map.of(indexed, value));
                         builder.merge(dv.arrayVariable(), newSv);
@@ -353,7 +353,7 @@ public class ExpressionAnalyzer {
             HiddenContentSelector hcsMethod = mr.methodInfo().analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
             assert hcsMethod != null : "Have no hidden content selector computed for " + mr.methodInfo();
 
-            Map<NamedType, ParameterizedType> map = mr.parameterizedType().initialTypeParameterMap(runtime);
+            Map<NamedType, ParameterizedType> map = mr.parameterizedType().initialTypeParameterMap();
             ParameterizedType typeOfReturnValue = mr.methodInfo().returnType();
             ParameterizedType concreteTypeOfReturnValue = typeOfReturnValue.applyTranslation(runtime, map);
             List<ParameterizedType> concreteParameterTypes = mr.methodInfo().parameters().stream()
@@ -476,41 +476,45 @@ public class ExpressionAnalyzer {
                 LOGGER.debug("return value: {}", sv);
                 if (sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
                     // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
-                    Map<Variable, Expression> svObjectValues = new HashMap<>();
-                    for (ParameterInfo pi : cc.constructor().parameters()) {
-                        StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
-                        Expression arg = cc.parameterExpressions().get(pi.index());
-
-                        // builder situation
-                        if (arg instanceof VariableExpression veArg
-                            && svPi.expression() instanceof VariableExpression ve
-                            && ve.variable() instanceof FieldReference fr) {
-                            // replace the value in svObject.values() to this one...
-
-                            // array components, see TestStaticValuesRecord,6
-                            if (fr.parameterizedType().arrays() > 0
-                                && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
-                                // can we add components of the array?
-                                for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
-                                    if (entry.getKey() instanceof DependentVariable dv
-                                        && dv.arrayVariable().equals(veArg.variable())) {
-                                        DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
-                                        svObjectValues.put(newDv, entry.getValue());
-                                    }
-                                }
-                            } else {
-                                // whole objects
-                                Expression value = existingMap.get(veArg.variable());
-                                if (value != null) {
-                                    svObjectValues.put(fr, value);
-                                }
-                            }
-                        }
-                    }
-                    return svObjectValues;
+                    return staticValuesInCaseOfABuilder(cc, existingMap);
                 }
             }
             return existingMap;
+        }
+
+        private Map<Variable, Expression> staticValuesInCaseOfABuilder(ConstructorCall cc, Map<Variable, Expression> existingMap) {
+            Map<Variable, Expression> svObjectValues = new HashMap<>();
+            for (ParameterInfo pi : cc.constructor().parameters()) {
+                StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
+                Expression arg = cc.parameterExpressions().get(pi.index());
+
+                // builder situation
+                if (arg instanceof VariableExpression veArg
+                    && svPi.expression() instanceof VariableExpression ve
+                    && ve.variable() instanceof FieldReference fr) {
+                    // replace the value in svObject.values() to this one...
+
+                    // array components, see TestStaticValuesRecord,6
+                    if (fr.parameterizedType().arrays() > 0
+                        && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
+                        // can we add components of the array?
+                        for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
+                            if (entry.getKey() instanceof DependentVariable dv
+                                && dv.arrayVariable().equals(veArg.variable())) {
+                                DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
+                                svObjectValues.put(newDv, entry.getValue());
+                            }
+                        }
+                    } else {
+                        // whole objects
+                        Expression value = existingMap.get(veArg.variable());
+                        if (value != null) {
+                            svObjectValues.put(fr, value);
+                        }
+                    }
+                }
+            }
+            return svObjectValues;
         }
 
         private StaticValues makeSvFromMethodCall(MethodCall mc, LinkEvaluation leObject, StaticValues svm) {
@@ -605,7 +609,7 @@ public class ExpressionAnalyzer {
                 if (pe instanceof VariableExpression ve) {
                     StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
                     for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
-                        This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo());
+                        This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo().asParameterizedType());
                         // go from r.function to this.function, which is what we have in the StaticValues.values() map
                         TranslationMap.Builder tmb = runtime.newTranslationMapBuilder().put(pi, thisInSv);
                         for (ParameterInfo pi2 : mc.methodInfo().parameters()) {
@@ -718,7 +722,7 @@ public class ExpressionAnalyzer {
                 }
             } else if (requiredType.isAssignableFrom(runtime, variable.parameterizedType())) {
                 if (variable instanceof This) {
-                    return runtime.newThis(requiredType.typeInfo());
+                    return runtime.newThis(requiredType.typeInfo().asParameterizedType());
                 }
                 throw new RuntimeException(); // ?? what to do?
             }

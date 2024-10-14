@@ -75,7 +75,7 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
                 HiddenContentTypes hct = type.typeInfo().analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
                 NamedType byIndex = hct.typeByIndex(pos);
                 if (byIndex != null) {
-                    return byIndex.asParameterizedType(runtime);
+                    return byIndex.asParameterizedType();
                 }
             }
             return runtime.objectParameterizedType();
@@ -83,7 +83,7 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
         int index = list.get(pos);
         if (pos == list.size() - 1) {
             assert type.typeInfo() != null;
-            ParameterizedType formal = switchToFormal ? type.typeInfo().asParameterizedType(runtime) : type;
+            ParameterizedType formal = switchToFormal ? type.typeInfo().asParameterizedType() : type;
             assert index < formal.parameters().size();
             return formal.parameters().get(index);
         }

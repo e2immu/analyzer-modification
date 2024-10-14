@@ -63,7 +63,7 @@ public class LinkHelper {
         this.currentPrimaryType = currentMethod.primaryType();
         hiddenContentTypes = bestHiddenContentTypes(methodInfoIn);
         this.methodInfo = Objects.requireNonNullElse(hiddenContentTypes.getMethodInfo(), methodInfoIn);
-        ParameterizedType formalObject = this.methodInfo.typeInfo().asParameterizedType(runtime);
+        ParameterizedType formalObject = this.methodInfo.typeInfo().asParameterizedType();
         hcsSource = HiddenContentSelector.selectAll(hiddenContentTypes, formalObject);
     }
 
@@ -166,7 +166,7 @@ public class LinkHelper {
             } else {
                 // we have type parameters in the concrete type --- must link into those
                 HiddenContentTypes newHiddenContentTypes = parameterType.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                ParameterizedType newParameterMethodType = parameterType.typeInfo().asParameterizedType(runtime);
+                ParameterizedType newParameterMethodType = parameterType.typeInfo().asParameterizedType();
                 HiddenContentSelector newHcsSource = HiddenContentSelector.selectAll(newHiddenContentTypes, newParameterMethodType);
                 LinkedVariables recursive = linkedVariablesOfParameter(runtime, newHiddenContentTypes,
                         newParameterMethodType, parameterType, linkedVariablesOfParameter, newHcsSource);
@@ -460,7 +460,7 @@ public class LinkHelper {
                     if (inResult) {
                         methodPt = methodInfo.returnType();
                     } else {
-                        methodPt = methodInfo.typeInfo().asParameterizedType(runtime);
+                        methodPt = methodInfo.typeInfo().asParameterizedType();
                     }
                     HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
                     Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex = methodHct
@@ -652,7 +652,7 @@ public class LinkHelper {
         }
         Value.Independent independent = methodInfo.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
                 ValueImpl.IndependentImpl.DEPENDENT);
-        ParameterizedType methodType = methodInfo.typeInfo().asParameterizedType(runtime);
+        ParameterizedType methodType = methodInfo.typeInfo().asParameterizedType();
         ParameterizedType methodReturnType = methodInfo.returnType();
 
         HiddenContentSelector hcsTarget = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE)
@@ -799,7 +799,7 @@ public class LinkHelper {
 
         Value.Immutable immutableOfFormalSource;
         if (sourceType.typeInfo() != null) {
-            ParameterizedType formalSource = sourceType.typeInfo().asParameterizedType(runtime);
+            ParameterizedType formalSource = sourceType.typeInfo().asParameterizedType();
             immutableOfFormalSource = analysisHelper.typeImmutable(currentPrimaryType, formalSource);
         } else {
             immutableOfFormalSource = immutableOfSource;
@@ -898,7 +898,7 @@ public class LinkHelper {
                     if(IndicesImpl.FIELD_INDICES.equals(indicesInTargetWrtMethod)) {
                         // 2 questions: do we know the type? we must know if it is -2- or -4-
                         // it cannot be recursively immutable, but it can be immutable HC
-                        type =((TypeInfo) hiddenContentTypes.typeByIndex(entry.getKey())).asParameterizedType(runtime) ;//null; // FIXME
+                        type =hiddenContentTypes.typeByIndex(entry.getKey()).asParameterizedType();//null; // FIXME
                         targetIndices  = IndicesImpl.FIELD_INDICES;
                     } else {
                         HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
@@ -1132,12 +1132,12 @@ public class LinkHelper {
         HiddenContentSelector hcsTarget = HiddenContentSelector.selectAll(hct, formalFieldType);
         if (hcsTarget.isOnlyAll() && formalFieldType.isTypeParameter() && !fieldType.parameters().isEmpty()) {
             int index = hcsTarget.getMap().keySet().stream().findFirst().orElseThrow();
-            ParameterizedType fft = fieldType.typeInfo().asParameterizedType(runtime);
+            ParameterizedType fft = fieldType.typeInfo().asParameterizedType();
             LinkedVariables recursive = forFieldAccess(runtime, genericsHelper, analysisHelper, linkedVariables,
                     currentMethod, fieldType, fft, fieldType);
             return recursive.map(lv -> lv.prefixTheirs(index));
         }
-        ParameterizedType formalScopeType = scopeType.typeInfo().asParameterizedType(runtime);
+        ParameterizedType formalScopeType = scopeType.typeInfo().asParameterizedType();
         HiddenContentSelector hcsSource = HiddenContentSelector.selectAll(hct, formalScopeType);
         LinkHelper lh = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod, hct, hcsSource);
         Value.Immutable immutable = analysisHelper.typeImmutable(currentMethod.typeInfo(), fieldType);
