@@ -91,14 +91,14 @@ public class TestLinkCast extends CommonTest {
             Statement s0 = setAdd.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Set = vd0.variableInfo("set");
-            assertEquals("*M-4-FM:r,-1-:object", vi0Set.linkedVariables().toString());
+            assertEquals("*M-4-0M:r,-1-:object", vi0Set.linkedVariables().toString());
             assertFalse(vi0Set.isModified());
         }
         {
             Statement s1 = setAdd.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Set = vd1.variableInfo("set");
-            assertEquals("*M-4-FM:r,-1-:object", vi1Set.linkedVariables().toString());
+            assertEquals("*M-4-0M:r,-1-:object", vi1Set.linkedVariables().toString());
             assertTrue(vi1Set.isModified());
             VariableInfo vi1R = vd1.variableInfo(r);
             assertFalse(vi1R.isModified());
@@ -154,7 +154,7 @@ public class TestLinkCast extends CommonTest {
             Statement s0 = noCast.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viO0 = vd0.variableInfo("o");
-            assertEquals("*-4-F:r", viO0.linkedVariables().toString());
+            assertEquals("*-4-0:r", viO0.linkedVariables().toString());
             assertEquals("E=r.object", viO0.staticValues().toString());
         }
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
@@ -165,7 +165,7 @@ public class TestLinkCast extends CommonTest {
             Statement s0 = setAdd.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Set = vd0.variableInfo("set");
-            assertEquals("*-4-F:r", vi0Set.linkedVariables().toString());
+            assertEquals("*-4-0:r", vi0Set.linkedVariables().toString());
             assertEquals("E=r.object", vi0Set.staticValues().toString());
             assertFalse(vi0Set.isModified());
         }
@@ -173,7 +173,7 @@ public class TestLinkCast extends CommonTest {
             Statement s1 = setAdd.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Set = vd1.variableInfo("set");
-            assertEquals("*-4-F:r", vi1Set.linkedVariables().toString());
+            assertEquals("*-4-0:r", vi1Set.linkedVariables().toString());
             assertEquals("E=r.object", vi1Set.staticValues().toString());
             assertTrue(vi1Set.isModified());
             VariableInfo vi1R = vd1.variableInfo(r);

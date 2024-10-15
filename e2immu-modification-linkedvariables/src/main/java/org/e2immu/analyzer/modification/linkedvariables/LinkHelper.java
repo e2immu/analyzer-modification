@@ -893,20 +893,13 @@ public class LinkHelper {
                 }
                 for (Map.Entry<Integer, Indices> entry : entrySet) {
                     Indices indicesInTargetWrtMethod = entry.getValue();
-                    ParameterizedType type;
-                    Indices targetIndices;
-                    if(IndicesImpl.FIELD_INDICES.equals(indicesInTargetWrtMethod)) {
-                        // 2 questions: do we know the type? we must know if it is -2- or -4-
-                        // it cannot be recursively immutable, but it can be immutable HC
-                        type =hiddenContentTypes.typeByIndex(entry.getKey()).asParameterizedType();//null; // FIXME
-                        targetIndices  = IndicesImpl.FIELD_INDICES;
-                    } else {
-                        HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
-                        assert targetAndType != null;
-                        type = targetAndType.type();
-                        assert type != null;
-                        targetIndices = targetAndType.indices();
-                    }
+
+                    HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
+                    assert targetAndType != null;
+                    ParameterizedType type = targetAndType.type();
+                    assert type != null;
+                    Indices targetIndices = targetAndType.indices();
+
                     Value.Immutable typeImmutable = analysisHelper.typeImmutable(currentPrimaryType, type);
                     if (typeImmutable == null) {
                         return sourceLvs.changeToDelay();
@@ -926,15 +919,12 @@ public class LinkHelper {
                      */
                     Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
                     assert indicesInSourceWrtMethod != null;
-                    Indices indicesInSourceWrtType;
-                    if (IndicesImpl.FIELD_INDICES.equals(indicesInSourceWrtMethod)) {
-                        indicesInSourceWrtType = IndicesImpl.FIELD_INDICES;
-                    } else {
-                        HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
-                        assert indicesAndType != null;
-                        indicesInSourceWrtType = indicesAndType.indices();
-                        assert indicesInSourceWrtType != null;
-                    }
+
+                    HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
+                    assert indicesAndType != null;
+                    Indices indicesInSourceWrtType = indicesAndType.indices();
+                    assert indicesInSourceWrtType != null;
+
                     // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
                     Indices indicesInTargetWrtType = (lv.theirsIsAll()
                                                       && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()

@@ -26,6 +26,8 @@ public class TestWeightedGraph8B extends CommonWG {
      Compared to test 8, this is the correct scenario, the keys are a view of the key set of the map;
      the values are a view of the values of the map.
 
+     A modification on the keys (removal) has an effect on the values; we must keep the -2- link.
+
      Map<K,V> map = ...; Set<K> keys = map.keySet(); Collection<V> values = map.values()
 
      map 1--2--0 values

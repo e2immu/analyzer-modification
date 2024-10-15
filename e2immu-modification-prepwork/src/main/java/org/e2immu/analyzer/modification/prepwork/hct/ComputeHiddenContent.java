@@ -75,6 +75,7 @@ public class ComputeHiddenContent {
 
         Set<TypeParameter> typeParametersInFields;
         if (compiledCode || typeInfo.isInterface()) {
+            // TODO add types of getters and setters
             typeParametersInFields = typeInfo.typeParameters().stream().collect(Collectors.toUnmodifiableSet());
         } else {
             typeParametersInFields = typeInfo.fields().stream()

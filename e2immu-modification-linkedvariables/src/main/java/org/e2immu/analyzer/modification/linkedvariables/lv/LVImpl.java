@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
-import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.FIELD_INDICES;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 /*
@@ -49,11 +48,6 @@ public class LVImpl implements LV {
 
     public static LV delay(CausesOfDelay someDelay) {
         return new LVImpl(I_DELAY, NO_LINKS, "delay", INDEPENDENT_DELAYED);
-    }
-
-    @Override
-    public boolean intoField() {
-        return links.map().values().stream().allMatch(l -> l.to().equals(FIELD_INDICES));
     }
 
     @Override
@@ -121,7 +115,6 @@ public class LVImpl implements LV {
 
     private static String indexToString(Indices i) {
         if (ALL_INDICES.equals(i)) return "*";
-        if (FIELD_INDICES.equals(i)) return "F";
         return i.toString();
     }
 

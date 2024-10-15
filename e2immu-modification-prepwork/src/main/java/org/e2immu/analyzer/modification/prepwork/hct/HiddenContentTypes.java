@@ -289,7 +289,7 @@ public class HiddenContentTypes implements Value {
         return null;
     }
 
-    public int indexOf(ParameterizedType type) {
+    public Integer indexOf(ParameterizedType type) {
         return indexOfOrNull(type);
     }
 

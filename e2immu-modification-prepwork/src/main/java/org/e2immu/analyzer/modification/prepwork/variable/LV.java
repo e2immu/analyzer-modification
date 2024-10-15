@@ -3,7 +3,6 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 import java.util.Map;
 
 public interface LV extends Comparable<LV> {
-    boolean intoField();
 
     LV max(LV other);
 

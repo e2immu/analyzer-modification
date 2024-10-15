@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
@@ -182,15 +183,30 @@ public class ExpressionAnalyzer {
                 Immutable immutableForward = forwardType == null ? immutable : analysisHelper.typeImmutable(forwardType);
                 if (!immutableForward.isImmutable()) {
                     boolean isMutable = immutableForward.isMutable();
-                    Indices targetIndices = v instanceof DependentVariable ? new IndicesImpl(0) : IndicesImpl.FIELD_INDICES;
-                    Links links = new LinksImpl(Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable)));
-                    LV lv;
-                    if (immutable.isAtLeastImmutableHC()) {
-                        lv = LVImpl.createHC(links);
+                    Indices targetIndices;
+                    if (v instanceof DependentVariable) {
+                        targetIndices = new IndicesImpl(0);
+                    } else if (ve.parameterizedType().typeInfo() == null || ve.parameterizedType().typeInfo().isExtensible()) {
+                        HiddenContentTypes hct = currentMethod.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+                        Integer i = hct.indexOf(ve.parameterizedType());
+                        if (i != null) {
+                            targetIndices = new IndicesImpl(i);
+                        } else {
+                            targetIndices = null;
+                        }
                     } else {
-                        lv = LVImpl.createDependent(links);
+                        targetIndices = null;
                     }
-                    map.put(dependentVariable, lv);
+                    if (targetIndices != null) {
+                        Links links = new LinksImpl(Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable)));
+                        LV lv;
+                        if (immutable.isAtLeastImmutableHC()) {
+                            lv = LVImpl.createHC(links);
+                        } else {
+                            lv = LVImpl.createDependent(links);
+                        }
+                        map.put(dependentVariable, lv);
+                    }
                 }
             }
             return LinkedVariablesImpl.of(map);

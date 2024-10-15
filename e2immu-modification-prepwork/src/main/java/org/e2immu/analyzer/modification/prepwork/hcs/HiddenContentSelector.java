@@ -117,7 +117,6 @@ public class HiddenContentSelector implements Value {
      */
     private static String print(int i, Indices indices, boolean detailed) {
         if (ALL_INDICES.equals(indices)) return detailed ? i + "=*" : "*";
-        if (FIELD_INDICES.equals(indices)) return detailed ? i + "=F" : "F";
         String is = indices.toString();
         String iToString = "" + i;
         if (!detailed && is.equals(iToString)) return iToString;
@@ -197,9 +196,10 @@ public class HiddenContentSelector implements Value {
             }
         }
         if (type.typeInfo() != null && type.typeInfo().equals(hiddenContentTypes.getTypeInfo())) {
-            // we're on our own type, add indices for types -> FIELD
+            // we're on our own type, add indices for types; only for the object itself we use ALL_INDICES
             hiddenContentTypes.typesOfExtensibleFields().forEach(e -> map.put(e.getValue(),
-                    e.getKey() instanceof TypeInfo ti && (ti == type.typeInfo() || type.typeInfo().superTypesExcludingJavaLangObject().contains(ti)) ? ALL_INDICES : FIELD_INDICES
+                    e.getKey() instanceof TypeInfo ti && (ti == type.typeInfo() || type.typeInfo().superTypesExcludingJavaLangObject().contains(ti))
+                            ? ALL_INDICES : new IndicesImpl(e.getValue())
             ));
         }
         if (type.typeInfo() != null && !haveArrays) {
@@ -277,9 +277,7 @@ public class HiddenContentSelector implements Value {
                 iat = new IndicesAndType(indices, to);
             } else if (from.equals(to)) {
                 iat = new IndicesAndType(entry1.getKey(), entry1.getValue());
-            } else if (from.typeParameter() != null
-                       || entry1.getKey().equals(FIELD_INDICES)
-                       || entry1.getKey().equals(ALL_INDICES)) {
+            } else if (from.typeParameter() != null || entry1.getKey().equals(ALL_INDICES)) {
                 iat = new IndicesAndType(entry1.getKey(), to);
             } else {
                 iat = findAll(runtime, genericsHelper, entry1.getKey(), entry1.getValue(), from, to);
@@ -296,15 +294,16 @@ public class HiddenContentSelector implements Value {
      */
     Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
         assert this != NONE;
-        return map.values().stream()
-                .filter(i -> !FIELD_INDICES.equals(i))
-                .distinct()
-                .collect(Collectors.toUnmodifiableMap(i -> i, i -> extract(runtime, type, i)));
+        return map.values().stream().collect(Collectors.toUnmodifiableMap(i -> i, i -> extract(runtime, type, i)));
     }
 
     private ParameterizedType extract(Runtime runtime, ParameterizedType type, Indices i) {
         if (ALL_INDICES.equals(i)) return type;
-        return i.findInFormal(runtime, type);
+        ParameterizedType inFormal = i.findInFormal(runtime, type);
+        if (inFormal == null) {
+            return hiddenContentTypes.typeByIndex(i.single()).asParameterizedType();
+        }
+        return inFormal;
     }
 
 
@@ -319,12 +318,16 @@ public class HiddenContentSelector implements Value {
     If from=Set<Set<K>>, and we extract K at 0.0
     If to=Collection<ArrayList<String>>, we'll have to return 0.0, String
      */
-    private static IndicesAndType findAll(Runtime runtime,
-                                          GenericsHelper genericsHelper,
-                                          Indices indices,
-                                          ParameterizedType ptInFrom,
-                                          ParameterizedType from,
-                                          ParameterizedType to) {
+    private IndicesAndType findAll(Runtime runtime,
+                                   GenericsHelper genericsHelper,
+                                   Indices indices,
+                                   ParameterizedType ptInFrom,
+                                   ParameterizedType from,
+                                   ParameterizedType to) {
+        Integer single = indices.single();
+        if (single != null && single >= from.typeInfo().asParameterizedType().parameters().size()) {
+            return new IndicesAndType(indices, hiddenContentTypes.typeByIndex(single).asParameterizedType());
+        }
         // it does not matter with which index we start
         Index index = indices.set().stream().findFirst().orElseThrow();
         IndicesAndType res = findAll(runtime, genericsHelper, index, 0, ptInFrom, from, to);
@@ -336,19 +339,20 @@ public class HiddenContentSelector implements Value {
     }
 
 
-    private static IndicesAndType findAll(Runtime runtime,
-                                          GenericsHelper genericsHelper,
-                                          Index index,
-                                          int pos,
-                                          ParameterizedType ptFrom,
-                                          ParameterizedType from,
-                                          ParameterizedType to) {
+    private IndicesAndType findAll(Runtime runtime,
+                                   GenericsHelper genericsHelper,
+                                   Index index,
+                                   int pos,
+                                   ParameterizedType ptFrom,
+                                   ParameterizedType from,
+                                   ParameterizedType to) {
         int atPos = index.list().get(pos);
         if (pos == index.list().size() - 1) {
             // the last entry
             assert from.typeInfo() != null;
             ParameterizedType formalFrom = from.typeInfo().asParameterizedType();
             assert atPos >= 0;
+            assert atPos < formalFrom.parameters().size() : "Has been picked up in parent method";
             assert formalFrom.parameters().get(atPos).equals(ptFrom);
             if (formalFrom.typeInfo() == to.typeInfo()) {
                 ParameterizedType concrete;

@@ -18,9 +18,6 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
     public static final int ALL = -1;
     public static final Index ALL_INDEX = new IndexImpl(List.of(ALL));
 
-    public static final int FIELD = -2;
-    public static final Index FIELD_INDEX = new IndexImpl(List.of(FIELD));
-
     public static Index createZeroes(int arrays) {
         List<Integer> list = new ArrayList<>(arrays);
         for (int i = 0; i < arrays; i++) list.add(0);
@@ -84,8 +81,10 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
         if (pos == list.size() - 1) {
             assert type.typeInfo() != null;
             ParameterizedType formal = switchToFormal ? type.typeInfo().asParameterizedType() : type;
-            assert index < formal.parameters().size();
-            return formal.parameters().get(index);
+            if (index < formal.parameters().size()) {
+                return formal.parameters().get(index);
+            }
+            return null; // signal to keep
         }
         ParameterizedType nextType = type.parameters().get(index);
         assert nextType != null;
