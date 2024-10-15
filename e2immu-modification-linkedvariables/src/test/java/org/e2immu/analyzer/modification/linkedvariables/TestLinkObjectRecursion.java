@@ -8,6 +8,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -65,15 +66,15 @@ public class TestLinkObjectRecursion extends CommonTest {
             Statement s0 = prepend.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
-            assertEquals("0-4-*:t,0;1M-2-*M:ll", vi0This.linkedVariables().toString());
+            assertEquals("0-2-0:ll,0-4-*:t", vi0This.linkedVariables().toString());
             VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
             assertEquals("*-4-0:ll,*-4-0:this", vi0T.linkedVariables().toString());
             VariableInfo vi0LL = vd0.variableInfo("ll");
 
             // interpretation: t is an integral part of the hidden content of 'll'; 0 is the type of T
             // at the same time, because LL is mutable (we do not analyzer IMMUTABLE_TYPE yet), ll is linked to 'this':
-            // via the concretely mutable type LL, (M-2-M)
-            assertEquals("0-4-*:t,1M-2-1M:this", vi0LL.linkedVariables().toString());
+            // only the hidden content type 0 is added as context/label.
+            assertEquals("0-2-0:this,0-4-*:t", vi0LL.linkedVariables().toString());
         }
 
         MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
@@ -85,7 +86,7 @@ public class TestLinkObjectRecursion extends CommonTest {
             VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
             assertEquals("", vi0T.linkedVariables().toString());
             VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
-            assertEquals("0-4-*:t,0M-2-0M:this", vi0Rv.linkedVariables().toString());
+            assertEquals("0-2-0:this,0-4-*:t", vi0Rv.linkedVariables().toString());
         }
     }
 
@@ -109,11 +110,11 @@ public class TestLinkObjectRecursion extends CommonTest {
             Statement s0 = prepend.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
-            assertEquals("0-4-*:t,0;*-4-1:ll", vi0This.linkedVariables().toString());
+            assertEquals("0-4-*:t,0-4-0:ll", vi0This.linkedVariables().toString());
             VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
             assertEquals("*-4-0:ll,*-4-0:this", vi0T.linkedVariables().toString());
             VariableInfo vi0LL = vd0.variableInfo("ll");
-            assertEquals("0-4-*:t,1-4-*:this", vi0LL.linkedVariables().toString());
+            assertEquals("0-4-*:t,0-4-0:this", vi0LL.linkedVariables().toString());
         }
 
         MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
@@ -125,7 +126,7 @@ public class TestLinkObjectRecursion extends CommonTest {
             VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
             assertEquals("", vi0T.linkedVariables().toString());
             VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
-            assertEquals("0-4-*:t,0M-2-0M:this", vi0Rv.linkedVariables().toString());
+            assertEquals("0-4-*:t,0-4-0:this", vi0Rv.linkedVariables().toString());
         }
     }
 
@@ -158,7 +159,7 @@ public class TestLinkObjectRecursion extends CommonTest {
                             LoopData nextLd = withLoopValue(loopValue);
                             return body.apply(nextLd);
                         }
-                        return null;// body.apply(this);
+                        return body.apply(this);
                     }
             
                     private LoopData withLoopValue(Object loopValue) {
@@ -192,6 +193,9 @@ public class TestLinkObjectRecursion extends CommonTest {
         assertSame(ValueImpl.BoolImpl.TRUE, loop.analysis().getOrDefault(PropertyImpl.MODIFIED_FIELD,
                 ValueImpl.BoolImpl.FALSE));
 
+        FieldInfo body = loopDataImpl.getFieldByName("body", true);
+        FieldReference bodyFr = runtime.newFieldReference(body);
+
         MethodInfo constructor = loopDataImpl.findConstructor(3);
         ParameterInfo c0 = constructor.parameters().get(0);
         assertEquals("loop", c0.simpleName());
@@ -222,12 +226,34 @@ public class TestLinkObjectRecursion extends CommonTest {
                 VariableInfo vi001NextLd = vd001.variableInfo("nextLd");
                 assertEquals("Type a.b.X.LoopDataImpl", vi001NextLd.staticValues().toString());
 
-                assertEquals("-2-:this", vi001NextLd.linkedVariables().toString());
-                assertEquals("-2-:nextLd", vi001This.linkedVariables().toString());
+                // FIXME what does this mean?
+                // * to F from nextLd to 'this': a change to me implies a change to 'this'
+                assertEquals("*M-2-FM:this", vi001NextLd.linkedVariables().toString());
+                assertEquals("FM-2-*M:nextLd", vi001This.linkedVariables().toString());
             }
-            VariableData vd0 = VariableDataImpl.of(s0);
-            VariableInfo vi0This = vd0.variableInfo(thisVar);
-            assertEquals("F-4-0;1:body,FM-2-*M:nextLd", vi0This.linkedVariables().toString());
+            {
+                Statement s002 = s0.block().statements().get(2);
+                VariableData vd002 = VariableDataImpl.of(s002);
+                VariableInfo vi002This = vd002.variableInfo(thisVar);
+                VariableInfo vi002NextLd = vd002.variableInfo("nextLd");
+                VariableInfo vi002Body = vd002.variableInfo(bodyFr);
+                assertEquals("Type a.b.X.LoopDataImpl", vi002NextLd.staticValues().toString());
+
+                // FIXME explain
+                assertEquals("*M-2-FM:this,*M-4-0;1M:body", vi002NextLd.linkedVariables().toString());
+                assertEquals("F-4-0;1:body,FM-2-*M:nextLd", vi002This.linkedVariables().toString());
+                assertEquals("0;1-4-F:this,0;1M-4-*M:nextLd", vi002Body.linkedVariables().toString());
+            }
+            {
+                VariableData vd0 = VariableDataImpl.of(s0);
+                VariableInfo vi0This = vd0.variableInfo(thisVar);
+                assertEquals("F-4-0;1:body", vi0This.linkedVariables().toString());
+
+                VariableInfo vi0Body = vd0.variableInfo(bodyFr);
+                assertEquals("0;1-4-F:this", vi0Body.linkedVariables().toString());
+
+                assertFalse(vd0.isKnown("nextLd"));
+            }
         }
     }
 }

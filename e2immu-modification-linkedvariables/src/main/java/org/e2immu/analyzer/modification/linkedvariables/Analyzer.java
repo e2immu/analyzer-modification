@@ -366,7 +366,7 @@ public class Analyzer {
                     Variable variable = vic.variable();
                     VariableInfoImpl merge = (VariableInfoImpl) vic.best();
 
-                    LinkedVariables reducedLv = computeLinkedVariablesMerge(lastOfEachSubBlock, variable);
+                    LinkedVariables reducedLv = computeLinkedVariablesMerge(lastOfEachSubBlock, variable, vd);
                     merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
                     merge.setLinkedVariables(reducedLv);
 
@@ -408,7 +408,9 @@ public class Analyzer {
         return staticValuesList.stream().reduce(NONE, StaticValues::merge);
     }
 
-    private static LinkedVariables computeLinkedVariablesMerge(Map<String, VariableData> lastOfEachSubBlock, Variable variable) {
+    private static LinkedVariables computeLinkedVariablesMerge(Map<String, VariableData> lastOfEachSubBlock,
+                                                               Variable variable,
+                                                               VariableData vdMerge) {
         List<LinkedVariables> linkedVariablesList = lastOfEachSubBlock.values().stream()
                 .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
                 .filter(Objects::nonNull)
@@ -416,7 +418,7 @@ public class Analyzer {
                 .map(VariableInfo::linkedVariables)
                 .filter(Objects::nonNull)
                 .toList();
-        return linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge);
+        return linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge).remove(v -> !vdMerge.isKnown(v.fullyQualifiedName()));
     }
 
     /*

@@ -107,10 +107,11 @@ public class LVImpl implements LV {
             assert i != null;
             boolean toIsAll = i.equals(ALL_INDICES);
             String t = indexToString(i) + (mutable ? "M" : "");
-            assert !(fromIsAll && toIsAll);
-            from.add(f);
-            to.add(t);
-            countAll += (fromIsAll || toIsAll) ? 1 : 0;
+            if( !(fromIsAll && toIsAll)) {
+                from.add(f);
+                to.add(t);
+                countAll += (fromIsAll || toIsAll) ? 1 : 0;
+            } // else: ignore self-referencing links; rely on the other hidden content
         }
         assert countAll <= 1;
         assert from.size() == to.size();

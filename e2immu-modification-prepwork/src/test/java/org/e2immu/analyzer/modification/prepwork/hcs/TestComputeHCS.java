@@ -619,4 +619,75 @@ public class TestComputeHCS extends CommonTest {
                 0=IndicesAndType[indices=0, type=Type param T]\
                 """, MapUtil.nice(translate));
     }
+
+
+    @Language("java")
+    private static final String INPUT9 = """
+            package a.b;
+            import java.util.Iterator;
+            import java.util.function.Function;
+            class X {
+                interface L {
+                    Object head();
+                    L tail();
+                    L prepend(Object t);
+                }
+                record LL(Object head, L tail) implements L {
+                    @Override
+                    L prepend(Object t) {
+                        return new LL(t, this);
+                    }
+                }
+                static void add(L list, Object one) {
+                    L longer = list.prepend(one);
+                    assert longer.head() != null;
+                }
+            }
+            """;
+
+    /*
+    we're not treating "Object" on equal footing to "T"
+    essentially because ???
+    there could be multiple fields with type Object? but the same holds for T
+    why not??
+     */
+    @DisplayName("object recursion, interface in between, Object instead of type parameter")
+    @Test
+    public void test9() {
+        TypeInfo X = javaInspector.parse(INPUT9);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+
+        TypeInfo L = X.findSubType("L");
+        HiddenContentTypes hctL = L.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("", hctL.detailedSortedTypes()); // this is how the shallow analyzer works
+
+        TypeInfo LL = X.findSubType("LL");
+        HiddenContentTypes hctLL = LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=Object, 1=L", hctLL.detailedSortedTypes());
+
+        MethodInfo LLC = LL.findConstructor(2);
+        ParameterizedType LLpt = LL.asParameterizedType();
+        HiddenContentTypes hctLLC = LLC.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=Object, 1=L - ", hctLLC.detailedSortedTypes());
+
+        HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
+        assertEquals("0=F,1=*", hcsFormalViaConstructor.detailed());
+
+        ParameterizedType Lpt = L.asParameterizedType();
+        assertEquals("Type a.b.X.L", Lpt.toString());
+        assertEquals("Type a.b.X.LL", LLpt.toString());
+
+        Map<Indices, ParameterizedType> mapLL = hcsFormalViaConstructor.extract(runtime, LLpt);
+        assertEquals("-1=Type a.b.X.LL", MapUtil.nice(mapLL));
+
+        Map<Indices, ParameterizedType> mapL = hcsFormalViaConstructor.extract(runtime, Lpt);
+        assertEquals("-1=Type a.b.X.L", MapUtil.nice(mapL));
+
+        GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
+        assertTrue(Lpt.isAssignableFrom(runtime, LLpt));
+        Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, Lpt, LLpt);
+        assertEquals("-1=IndicesAndType[indices=-1, type=Type a.b.X.LL]", MapUtil.nice(translate));
+    }
 }
