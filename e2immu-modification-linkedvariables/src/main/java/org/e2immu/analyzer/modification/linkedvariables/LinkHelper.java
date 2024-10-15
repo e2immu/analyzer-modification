@@ -173,8 +173,8 @@ public class LinkHelper {
                 return recursive.map(lv -> lv.prefixMine(index));
             }
         } else {
-            Map<Indices, HiddenContentSelector.IndicesAndType> targetData = HiddenContentSelector
-                    .translateHcs(runtime, genericsHelper, hcsSource, parameterMethodType, parameterType);
+            Map<Indices, HiddenContentSelector.IndicesAndType> targetData = hcsSource
+                    .translateHcs(runtime, genericsHelper, parameterMethodType, parameterType);
             linkedVariablesOfParameter.stream().forEach(e -> {
                 LV newLv;
                 LV lv = e.getValue();
@@ -795,7 +795,7 @@ public class LinkHelper {
             }
         }
         Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
-                () -> HiddenContentSelector.translateHcs(runtime, genericsHelper, hcsSource, methodSourceType, sourceType);
+                () -> hcsSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType);
 
         Value.Immutable immutableOfFormalSource;
         if (sourceType.typeInfo() != null) {
@@ -821,8 +821,8 @@ public class LinkHelper {
                                                     HiddenContentSelector hiddenContentSelectorOfTarget,
                                                     Supplier<Map<Indices, IndicesAndType>> hctMethodToHctSourceSupplier,
                                                     boolean reverse) {
-        Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget = HiddenContentSelector
-                .translateHcs(runtime, genericsHelper, hiddenContentSelectorOfTarget, methodTargetType, targetType);
+        Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget = hiddenContentSelectorOfTarget
+                .translateHcs(runtime, genericsHelper, methodTargetType, targetType);
         Value.Independent correctedIndependent = correctIndependent(immutableOfFormalSource, transferIndependent,
                 targetType, hiddenContentSelectorOfTarget, hctMethodToHcsTarget);
 

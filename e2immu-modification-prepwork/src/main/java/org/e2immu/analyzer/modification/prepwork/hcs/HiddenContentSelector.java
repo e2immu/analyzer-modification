@@ -198,7 +198,9 @@ public class HiddenContentSelector implements Value {
         }
         if (type.typeInfo() != null && type.typeInfo().equals(hiddenContentTypes.getTypeInfo())) {
             // we're on our own type, add indices for types -> FIELD
-            hiddenContentTypes.typesOfExtensibleFields().forEach(e -> map.put(e.getValue(), IndicesImpl.FIELD_INDICES));
+            hiddenContentTypes.typesOfExtensibleFields().forEach(e -> map.put(e.getValue(),
+                    e.getKey() instanceof TypeInfo ti && (ti == type.typeInfo() || type.typeInfo().superTypesExcludingJavaLangObject().contains(ti)) ? ALL_INDICES : FIELD_INDICES
+            ));
         }
         if (type.typeInfo() != null && !haveArrays) {
             recursivelyCollectHiddenContentParameters(hiddenContentTypes, type, new Stack<>(), map);
@@ -252,27 +254,30 @@ public class HiddenContentSelector implements Value {
      The result maps 'indices' 0 to the combination of "M" and indices 0.
     */
 
-    // FIXME move to HCS, and use the HCT of the HCS
     public record IndicesAndType(Indices indices, ParameterizedType type) {
     }
 
-    public static Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
-                                                            GenericsHelper genericsHelper,
-                                                            HiddenContentSelector hiddenContentSelector,
-                                                            ParameterizedType from,
-                                                            ParameterizedType to) {
-        if (hiddenContentSelector.isNone()) return Map.of();
-        if(to.isTypeOfNullConstant()) {
-            return Map.of();
-        }
-        Map<Indices, ParameterizedType> map1 = hiddenContentSelector.extract(runtime, from);
+    public Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
+                                                     GenericsHelper genericsHelper,
+                                                     ParameterizedType from,
+                                                     ParameterizedType to) {
+        assert from.isAssignableFrom(runtime, to);
+
+        if (isNone() || to.isTypeOfNullConstant()) return Map.of();
+
+        // which indices are we talking about? 'from' is a type that can be expressed in the context of 'this',
+        // the HCS of a method. Concretely, it is the method's formal return type, or a formal parameter.
+        Map<Indices, ParameterizedType> map1 = extract(runtime, from);
+
         Map<Indices, IndicesAndType> result = new HashMap<>();
         for (Map.Entry<Indices, ParameterizedType> entry1 : map1.entrySet()) {
             IndicesAndType iat;
-            if (from.arrays() > 0 && hiddenContentSelector.selectArrayElement(from.arrays())) {
+            if (from.arrays() > 0 && selectArrayElement(from.arrays())) {
                 Indices indices = new IndicesImpl(Set.of(IndexImpl.createZeroes(from.arrays())));
                 iat = new IndicesAndType(indices, to);
-            } else if (from.typeParameter() != null || from.equals(to)
+            } else if (from.equals(to)) {
+                iat = new IndicesAndType(entry1.getKey(), entry1.getValue());
+            } else if (from.typeParameter() != null
                        || entry1.getKey().equals(FIELD_INDICES)
                        || entry1.getKey().equals(ALL_INDICES)) {
                 iat = new IndicesAndType(entry1.getKey(), to);
@@ -284,24 +289,24 @@ public class HiddenContentSelector implements Value {
         return Map.copyOf(result);
     }
 
-    private Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
+    /*
+    Return those HCT components that are available in the formal return or parameter type of the method.
+
+    We ignore fields, because there could be multiple, and we would not know where to map them to.
+     */
+    Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
         assert this != NONE;
         return map.values().stream()
                 .filter(i -> !FIELD_INDICES.equals(i))
-                .collect(Collectors.toUnmodifiableMap(i -> i,
-                        i -> {
-                            Integer single = i.single();
-                            TypeInfo fieldType = hiddenContentTypes.isExtensible(single);
-                            if (fieldType != null) {
-                                return fieldType.asSimpleParameterizedType();
-                            }
-                            Integer index = hiddenContentTypes.indexOfOrNull(type);
-                            if (index != null) {
-                                return type;
-                            }
-                            return i.findInFormal(runtime, type);
-                        }));
+                .distinct()
+                .collect(Collectors.toUnmodifiableMap(i -> i, i -> extract(runtime, type, i)));
     }
+
+    private ParameterizedType extract(Runtime runtime, ParameterizedType type, Indices i) {
+        if (ALL_INDICES.equals(i)) return type;
+        return i.findInFormal(runtime, type);
+    }
+
 
     /*
     if what is a type parameter, is will be with respect to the formal type of that level of generics.

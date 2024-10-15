@@ -7,13 +7,14 @@ import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
+import org.e2immu.util.internal.util.MapUtil;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.*;
@@ -446,6 +447,8 @@ public class TestComputeHCS extends CommonTest {
     @DisplayName("type parameters and other HC")
     @Test
     public void test6() {
+        GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
+
         TypeInfo X = javaInspector.parse(INPUT6);
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
@@ -460,6 +463,11 @@ public class TestComputeHCS extends CommonTest {
         ParameterInfo Rc0 = constructorR.parameters().get(0);
         HiddenContentSelector hcsRc0 = Rc0.analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("1=*", hcsRc0.detailed());
+
+        ParameterizedType setInteger = Rc0.parameterizedType();
+        Map<Indices, IndicesAndType> translate = hcsRc0.translateHcs(runtime, genericsHelper, setInteger, setInteger);
+        assertEquals("-1=IndicesAndType[indices=-1, type=Type java.util.Set<Integer>]", MapUtil.nice(translate));
+
         ParameterInfo Rc1 = constructorR.parameters().get(1);
         HiddenContentSelector hcsRc1 = Rc1.analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("X", hcsRc1.detailed());
@@ -488,9 +496,127 @@ public class TestComputeHCS extends CommonTest {
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctRConstructor, formalR);
         assertEquals("0=0,1=F,2=F", hcsFormalViaConstructor.detailed());
 
+        Map<Indices, IndicesAndType> t = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, formalR, formalR);
+        assertEquals("{0=IndicesAndType[indices=0, type=Type param T]}", t.toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import java.util.Iterator;
+            import java.util.function.Function;
+            class X {
+                record LL<T>(T head, LL<T> tail) {
+                    LL<T> prepend(T t) {
+                        return new LL<>(t, this);
+                    }
+                }
+                static <T> void add(LL<T> list, T one) {
+                    LL<T> longer = list.prepend(one);
+                    assert longer.head != null;
+                }
+            }
+            """;
+
+    @DisplayName("object recursion")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+        TypeInfo LL = X.findSubType("LL");
+        HiddenContentTypes hctLL = LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=LL", hctLL.detailedSortedTypes());
+
+        MethodInfo LLC = LL.findConstructor(2);
+        ParameterizedType LLpt = LL.asParameterizedType();
+        HiddenContentTypes hctLLC = LLC.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=LL - ", hctLLC.detailedSortedTypes());
+
+        HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+
+        This thisVar = runtime.newThis(LLpt);
+        assertSame(LLpt, thisVar.parameterizedType());
+        assertEquals("Type a.b.X.LL<T>", LLpt.toString());
+        Map<Indices, ParameterizedType> map = hcsFormalViaConstructor.extract(runtime, thisVar.parameterizedType());
+        assertEquals("-1=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(map));
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
 
-        Map<Indices, IndicesAndType> t = translateHcs(runtime, genericsHelper, hcsFormalViaConstructor, formalR, formalR);
-        assertEquals("{0=IndicesAndType[indices=0, type=Type a.b.X.R<T>]}", t.toString());
+        Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, LLpt, LLpt);
+        assertEquals("""
+                -1=IndicesAndType[indices=-1, type=Type a.b.X.LL<T>], \
+                0=IndicesAndType[indices=0, type=Type param T]\
+                """, MapUtil.nice(translate));
+    }
+
+
+    @Language("java")
+    private static final String INPUT8 = """
+            package a.b;
+            import java.util.Iterator;
+            import java.util.function.Function;
+            class X {
+                interface L<T> {
+                    T head();
+                    L<T> tail();
+                    L<T> prepend(T t);
+                }
+                record LL<T>(T head, L<T> tail) implements L<T> {
+                    @Override
+                    L<T> prepend(T t) {
+                        return new LL<>(t, this);
+                    }
+                }
+                static <T> void add(L<T> list, T one) {
+                    L<T> longer = list.prepend(one);
+                    assert longer.head() != null;
+                }
+            }
+            """;
+
+    @DisplayName("object recursion, interface in between")
+    @Test
+    public void test8() {
+        TypeInfo X = javaInspector.parse(INPUT8);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
+        prepAnalyzer.doPrimaryType(X);
+
+        TypeInfo L = X.findSubType("L");
+        HiddenContentTypes hctL = L.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T", hctL.detailedSortedTypes());
+
+        TypeInfo LL = X.findSubType("LL");
+        HiddenContentTypes hctLL = LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=L", hctLL.detailedSortedTypes());
+
+        MethodInfo LLC = LL.findConstructor(2);
+        ParameterizedType LLpt = LL.asParameterizedType();
+        HiddenContentTypes hctLLC = LLC.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        assertEquals("0=T, 1=L - ", hctLLC.detailedSortedTypes());
+
+        HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+
+        ParameterizedType Lpt = L.asParameterizedType();
+        assertEquals("Type a.b.X.L<T>", Lpt.toString());
+        assertEquals("Type a.b.X.LL<T>", LLpt.toString());
+
+        Map<Indices, ParameterizedType> mapLL = hcsFormalViaConstructor.extract(runtime, LLpt);
+        assertEquals("-1=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(mapLL));
+
+        Map<Indices, ParameterizedType> mapL = hcsFormalViaConstructor.extract(runtime, Lpt);
+        assertEquals("-1=Type a.b.X.L<T>, 0=Type param T", MapUtil.nice(mapL));
+
+        GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
+        assertTrue(Lpt.isAssignableFrom(runtime, LLpt));
+        Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, Lpt, LLpt);
+        assertEquals("""
+                -1=IndicesAndType[indices=-1, type=Type a.b.X.LL<T>], \
+                0=IndicesAndType[indices=0, type=Type param T]\
+                """, MapUtil.nice(translate));
     }
 }
