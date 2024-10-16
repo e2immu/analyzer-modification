@@ -7,6 +7,10 @@ import java.util.Map;
 public interface Links extends DijkstraShortestPath.Connection {
     Map<Indices, Link> map();
 
+    Indices modificationAreaSource();
+
+    Indices modificationAreaTarget();
+
     Links mineToTheirs(Links links);
 
     Links reverse();

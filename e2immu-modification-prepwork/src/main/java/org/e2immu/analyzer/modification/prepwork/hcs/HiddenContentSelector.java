@@ -116,7 +116,7 @@ public class HiddenContentSelector implements Value {
     '*' means: the whole object; otherwise, we're digging deeper
      */
     private static String print(int i, Indices indices, boolean detailed) {
-        if (ALL_INDICES.equals(indices)) return detailed ? i + "=*" : "*";
+        if (indices.isAll()) return detailed ? i + "=*" : "*";
         String is = indices.toString();
         String iToString = "" + i;
         if (!detailed && is.equals(iToString)) return iToString;
@@ -232,8 +232,7 @@ public class HiddenContentSelector implements Value {
 
     // useful for testing
     public boolean isOnlyAll() {
-        return map.keySet().size() == 1
-               && map.entrySet().stream().findFirst().orElseThrow().getValue().equals(ALL_INDICES);
+        return map.keySet().size() == 1 && map.entrySet().stream().findFirst().orElseThrow().getValue().isAll();
     }
 
      /*
@@ -277,7 +276,7 @@ public class HiddenContentSelector implements Value {
                 iat = new IndicesAndType(indices, to);
             } else if (from.equals(to)) {
                 iat = new IndicesAndType(entry1.getKey(), entry1.getValue());
-            } else if (from.typeParameter() != null || entry1.getKey().equals(ALL_INDICES)) {
+            } else if (from.typeParameter() != null || entry1.getKey().isAll()) {
                 iat = new IndicesAndType(entry1.getKey(), to);
             } else {
                 iat = findAll(runtime, genericsHelper, entry1.getKey(), entry1.getValue(), from, to);
@@ -298,7 +297,7 @@ public class HiddenContentSelector implements Value {
     }
 
     private ParameterizedType extract(Runtime runtime, ParameterizedType type, Indices i) {
-        if (ALL_INDICES.equals(i)) return type;
+        if (i.isAll()) return type;
         ParameterizedType inFormal = i.findInFormal(runtime, type);
         if (inFormal == null) {
             return hiddenContentTypes.typeByIndex(i.single()).asParameterizedType();

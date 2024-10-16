@@ -20,4 +20,10 @@ public record LinkImpl(Indices to, boolean mutable) implements Link {
     public Link prefixTheirs(int index) {
         return new LinkImpl(to.prefix(index), mutable);
     }
+
+    @Override
+    public String toString() {
+        String toStr = to.isAll() ? "*" : to.toString();
+        return "LinkImpl[" + toStr + ",mutable=" + mutable + "]";
+    }
 }

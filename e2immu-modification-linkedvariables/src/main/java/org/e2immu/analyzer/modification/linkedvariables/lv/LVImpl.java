@@ -95,13 +95,13 @@ public class LVImpl implements LV {
         int countAll = 0;
         for (Map.Entry<Indices, Link> e : links.map().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             boolean mutable = e.getValue().mutable();
-            boolean fromIsAll = e.getKey().equals(ALL_INDICES);
+            boolean fromIsAll = e.getKey().isAll();
             String f = indexToString(e.getKey()) + (mutable ? "M" : "");
             Indices i = e.getValue().to();
             assert i != null;
-            boolean toIsAll = i.equals(ALL_INDICES);
+            boolean toIsAll = i.isAll();
             String t = indexToString(i) + (mutable ? "M" : "");
-            if( !(fromIsAll && toIsAll)) {
+            if (!(fromIsAll && toIsAll)) {
                 from.add(f);
                 to.add(t);
                 countAll += (fromIsAll || toIsAll) ? 1 : 0;
@@ -110,7 +110,14 @@ public class LVImpl implements LV {
         assert countAll <= 1;
         assert from.size() == to.size();
         assert hc != I_HC || !from.isEmpty() : "Result is HC, but cannot create map; links = " + links;
-        return String.join(",", from) + "-" + hc + "-" + String.join(",", to);
+        String modArea;
+        if (!links.modificationAreaSource().isAll() || !links.modificationAreaTarget().isAll()) {
+            modArea = "|" + indexToString(links.modificationAreaSource())
+                      + "-" + indexToString(links.modificationAreaTarget());
+        } else {
+            modArea = "";
+        }
+        return String.join(",", from) + "-" + hc + "-" + String.join(",", to) + modArea;
     }
 
     private static String indexToString(Indices i) {
@@ -240,7 +247,7 @@ public class LVImpl implements LV {
 
     @Override
     public boolean theirsIsAll() {
-        return links.map().size() == 1 && links.map().values().stream().findFirst().orElseThrow().to().equals(ALL_INDICES);
+        return links.map().size() == 1 && links.map().values().stream().findFirst().orElseThrow().to().isAll();
     }
 
     /*

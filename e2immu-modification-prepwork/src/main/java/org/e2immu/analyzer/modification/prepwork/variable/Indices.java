@@ -10,6 +10,12 @@ import java.util.function.IntFunction;
 public interface Indices extends Comparable<Indices> {
     Codec.EncodedValue encode(Codec codec, Codec.Context context);
 
+    boolean intersectionNonEmpty(Indices indices);
+
+    boolean isAll();
+
+    boolean isNoModification();
+
     Indices merge(Indices indices);
 
     ParameterizedType findInFormal(Runtime runtime, ParameterizedType type);

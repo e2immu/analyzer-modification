@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 // important: as soon as there are multiple elements, use a TreeSet!!
 public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices> {
     public static final Indices ALL_INDICES = new IndicesImpl(Set.of(IndexImpl.ALL_INDEX));
+    public static final Indices NO_MODIFICATION_INDICES = new IndicesImpl(Set.of(IndexImpl.NO_MODIFICATIO_INDEX));
 
     public static final int UNSPECIFIED = -2;
 
@@ -24,6 +25,15 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
 
     public IndicesImpl(int i) {
         this(Set.of(new IndexImpl(List.of(i))));
+    }
+
+    @Override
+    public boolean isAll() {
+        return ALL_INDICES == this || ALL_INDICES.equals(this);
+    }
+
+    public boolean isNoModification() {
+        return NO_MODIFICATION_INDICES == this || NO_MODIFICATION_INDICES.equals(this);
     }
 
     @Override
@@ -45,6 +55,8 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
 
     @Override
     public String toString() {
+        if (isAll()) return "*";
+        if (isNoModification()) return "X";
         return set.stream().map(Object::toString).collect(Collectors.joining(";"));
     }
 
@@ -143,5 +155,15 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
     @Override
     public Indices map(IntFunction<Integer> intFunction) {
         return new IndicesImpl(set.stream().map(index -> index.map(intFunction)).collect(Collectors.toUnmodifiableSet()));
+    }
+
+    @Override
+    public boolean intersectionNonEmpty(Indices indices) {
+        for (Index index : set) {
+            for (Index index1 : indices.set()) {
+                if (index.equals(index1)) return true;
+            }
+        }
+        return false;
     }
 }

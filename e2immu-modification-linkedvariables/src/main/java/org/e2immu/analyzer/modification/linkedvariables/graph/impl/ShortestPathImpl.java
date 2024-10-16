@@ -207,7 +207,7 @@ public class ShortestPathImpl implements ShortestPath {
                     .filter(e -> maxWeight == null || e.getValue().dist() <= maxWeightLong);
         };
         DijkstraShortestPath.DC[] shortestL = dijkstraShortestPath.shortestPathDC(variables.length, edgeProvider,
-                l -> l == DEPENDENT, startVertex);
+                startVertex);
         debug("delay low", shortestL, ShortestPathImpl::fromDistanceSum);
 
         long maxWeightLongHigh = maxWeight == null ? 0L : toDistanceComponentHigh(maxWeight);
@@ -218,7 +218,7 @@ public class ShortestPathImpl implements ShortestPath {
                     .filter(e -> maxWeight == null || e.getValue().dist() <= maxWeightLongHigh);
         };
         DijkstraShortestPath.DC[] shortestH = dijkstraShortestPath.shortestPathDC(variables.length, edgeProviderHigh,
-                l -> l == DEPENDENT_H, startVertex);
+                startVertex);
         debug("delay high", shortestH, ShortestPathImpl::fromDistanceSumHigh);
 
         LV[] shortest = new LV[shortestL.length];

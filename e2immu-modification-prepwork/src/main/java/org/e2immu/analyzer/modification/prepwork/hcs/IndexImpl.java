@@ -16,7 +16,9 @@ import java.util.stream.Stream;
 
 public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> {
     public static final int ALL = -1;
+    public static final int NO_MODIFICATION = -3;
     public static final Index ALL_INDEX = new IndexImpl(List.of(ALL));
+    public static final Index NO_MODIFICATIO_INDEX = new IndexImpl(List.of(NO_MODIFICATION));
 
     public static Index createZeroes(int arrays) {
         List<Integer> list = new ArrayList<>(arrays);
@@ -47,7 +49,8 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
 
     @Override
     public String toString() {
-        return list.stream().map(Object::toString).collect(Collectors.joining("."));
+        return list.stream().map(i -> i == ALL ? "*" : i == NO_MODIFICATION ? "X" : i.toString())
+                .collect(Collectors.joining("."));
     }
 
     /*
