@@ -3,7 +3,6 @@ package org.e2immu.analyzer.modification.linkedvariables.graph.impl;
 import org.e2immu.analyzer.modification.linkedvariables.graph.Cache;
 import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
-import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -156,5 +155,19 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         ShortestPathImpl.LinkMap linkMap = (ShortestPathImpl.LinkMap)
                 cache.computeIfAbsent(hash, h -> new ShortestPathImpl.LinkMap(new LinkedHashMap<>(), new AtomicInteger(), cacheKey));
         return new ShortestPathImpl(variableIndex, variables, edges, linkMap);
+    }
+
+    @Override
+    public WeightedGraph copyForModification() {
+        WeightedGraphImpl wg = new WeightedGraphImpl(cache);
+        nodeMap.forEach((v, node) -> {
+            Node newNode = new Node(v);
+            newNode.dependsOn = node.dependsOn == null ? Map.of() :
+                    node.dependsOn.entrySet().stream()
+                            .filter(e -> !e.getValue().theirsIsAll())
+                            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+            wg.nodeMap.put(v, newNode);
+        });
+        return wg;
     }
 }

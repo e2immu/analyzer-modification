@@ -206,8 +206,11 @@ public class ComputeLinkCompletion {
             // ensure that all variables known at this stage, are present
             variableData.variableInfoStream(stage).forEach(vi -> weightedGraph.addNode(vi.variable(), Map.of()));
 
+            WeightedGraph wgForModification = weightedGraph.copyForModification();
+            ShortestPath shortestPathForMod = wgForModification.shortestPath();
+            Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPathForMod);
+            
             ShortestPath shortestPath = weightedGraph.shortestPath();
-            Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPath);
             Map<Variable, Map<Variable, Boolean>> mfiComponentMaps = computeMFIComponents(previous, stageOfPrevious,
                     modifiedFunctionalComponents, shortestPath);
 
@@ -332,16 +335,17 @@ public class ComputeLinkCompletion {
             boolean change = true;
             while (change) {
                 change = false;
-                for (Variable variable : shortestPath.variables()) {
+                Set<Variable> newModified = new HashSet<>(modified);
+                for (Variable variable : modified) {
                     Map<Variable, LV> links = shortestPath.links(variable, null);
                     for (Map.Entry<Variable, LV> e : links.entrySet()) {
                         Variable to = e.getKey();
-                        if (to != variable && modified.contains(to) &&
-                            (e.getValue().isDependent() || e.getValue().isStaticallyAssignedOrAssigned())) {
-                            change |= modified.add(variable);
+                        if (to != variable && (e.getValue().isDependent() || e.getValue().isStaticallyAssignedOrAssigned())) {
+                            change |= newModified.add(to);
                         }
                     }
                 }
+                modified.addAll(newModified);
             }
             return modified;
         }

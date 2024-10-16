@@ -78,11 +78,6 @@ public class ShortestPathImpl implements ShortestPath {
         return LVImpl.createHC(links);
     }
 
-    public static String code(LV dv) {
-        if (dv.isDelayed()) return "D";
-        return Integer.toString(dv.value());
-    }
-
     record Key(int start, long maxWeight) {
     }
 

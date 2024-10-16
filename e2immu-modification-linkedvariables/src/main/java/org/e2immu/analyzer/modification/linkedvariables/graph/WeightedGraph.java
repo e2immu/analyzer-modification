@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
 
 public interface WeightedGraph {
 
+    WeightedGraph copyForModification();
+
     @NotModified
     int size();
 

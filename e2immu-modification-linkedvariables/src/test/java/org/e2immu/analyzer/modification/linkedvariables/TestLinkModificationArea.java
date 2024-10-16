@@ -181,7 +181,6 @@ public class TestLinkModificationArea extends CommonTest {
         }
     }
 
-
     @Language("java")
     private static final String INPUT2 = """
             package a.b;
@@ -214,6 +213,69 @@ public class TestLinkModificationArea extends CommonTest {
 
             VariableInfo viR = vd0.variableInfo(r);
             assertEquals("0M-2-*M|0-*:a,0M-2-*M|0-*:aa", viR.linkedVariables().toString());
+        }
+        {
+            Statement s1 = modifyA.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+            VariableInfo viA = vd1.variableInfo("aa");
+            assertEquals("E=r.a", viA.staticValues().toString());
+            assertEquals("*M-2-0M|*-0:r,-1-:a", viA.linkedVariables().toString());
+
+            VariableInfo viB = vd1.variableInfo("bb");
+            assertEquals("E=r.b", viB.staticValues().toString());
+            assertEquals("*M-2-0M|*-1:r,-1-:b", viB.linkedVariables().toString());
+
+            VariableInfo viR = vd1.variableInfo(r);
+            assertEquals("0M-2-*M|0-*:a,0M-2-*M|0-*:aa,0M-2-*M|1-*:b,0M-2-*M|1-*:bb",
+                    viR.linkedVariables().toString());
+        }
+        {
+            Statement s2 = modifyA.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
+            VariableInfo viA = vd2.variableInfo("aa");
+            assertTrue(viA.isModified());
+
+            VariableInfo viR = vd2.variableInfo(r);
+            assertTrue(viR.isModified());
+
+            VariableInfo viB = vd2.variableInfo("bb");
+            assertFalse(viB.isModified());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT2b = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                static class M { int i; int get() { return i; } void set(int i) { this.i = i; }}
+                record R(M a, M b) {}
+                static void modifyA(R r) {
+                    M aa = r.a();
+                    M bb = r.b();
+                    aa.set(3);
+                }
+            }
+            """;
+
+    @DisplayName("modify one component, variant with accessors")
+    @Test
+    public void test2b() {
+        TypeInfo X = javaInspector.parse(INPUT2b);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+        MethodInfo modifyA = X.findUniqueMethod("modifyA", 1);
+        ParameterInfo r = modifyA.parameters().get(0);
+        {
+            Statement s0 = modifyA.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo viA = vd0.variableInfo("aa");
+            assertEquals("E=r.a", viA.staticValues().toString());
+            assertEquals("*M-2-0M|*-0:r", viA.linkedVariables().toString());
+
+            VariableInfo viR = vd0.variableInfo(r);
+            assertEquals("0M-2-*M|0-*:a", viR.linkedVariables().toString());
         }
         {
             Statement s1 = modifyA.methodBody().statements().get(1);
