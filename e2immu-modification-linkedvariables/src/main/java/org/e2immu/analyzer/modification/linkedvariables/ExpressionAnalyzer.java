@@ -39,6 +39,8 @@ import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelecto
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.EMPTY;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
@@ -170,13 +172,17 @@ public class ExpressionAnalyzer {
             Map<Variable, LV> map = new HashMap<>();
             map.put(v, LVImpl.LINK_ASSIGNED);
             Variable dependentVariable;
+            int fieldIndex;
             if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression sv
                 && !(sv.variable() instanceof This)) {
                 dependentVariable = fr.scopeVariable();
+                fieldIndex = fieldIndex(fr.fieldInfo());
             } else if (v instanceof DependentVariable dv) {
                 dependentVariable = dv.arrayVariable();
+                fieldIndex = 0;
             } else {
                 dependentVariable = null;
+                fieldIndex = -1; // irrelevant
             }
             if (dependentVariable != null) {
                 Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
@@ -184,10 +190,13 @@ public class ExpressionAnalyzer {
                 if (!immutableForward.isImmutable()) {
                     boolean isMutable = immutableForward.isMutable();
                     Indices targetIndices;
+                    Indices targetModificationArea = new IndicesImpl(fieldIndex);
                     if (v instanceof DependentVariable) {
                         targetIndices = new IndicesImpl(0);
                     } else if (ve.parameterizedType().typeInfo() == null || ve.parameterizedType().typeInfo().isExtensible()) {
-                        HiddenContentTypes hct = currentMethod.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+                        TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
+                        assert bestType != null : "The unbound type parameter does not have any fields";
+                        HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
                         Integer i = hct.indexOf(ve.parameterizedType());
                         if (i != null) {
                             targetIndices = new IndicesImpl(i);
@@ -197,19 +206,33 @@ public class ExpressionAnalyzer {
                     } else {
                         targetIndices = null;
                     }
-                    if (targetIndices != null) {
-                        Links links = new LinksImpl(Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable)));
-                        LV lv;
-                        if (immutable.isAtLeastImmutableHC()) {
-                            lv = LVImpl.createHC(links);
-                        } else {
-                            lv = LVImpl.createDependent(links);
-                        }
-                        map.put(dependentVariable, lv);
+                    Map<Indices, Link> linkMap;
+                    if (targetIndices == null) {
+                        linkMap = Map.of();
+                    } else {
+                        linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
                     }
+                    Links links = new LinksImpl(linkMap, IndicesImpl.ALL_INDICES, targetModificationArea);
+                    LV lv;
+                    if (immutable.isAtLeastImmutableHC()) {
+                        lv = LVImpl.createHC(links);
+                    } else {
+                        lv = LVImpl.createDependent(links);
+                    }
+                    map.put(dependentVariable, lv);
+
                 }
             }
             return LinkedVariablesImpl.of(map);
+        }
+
+        private int fieldIndex(FieldInfo fieldInfo) {
+            int count = 0;
+            for (FieldInfo f : fieldInfo.owner().fields()) {
+                if (f == fieldInfo) return count;
+                ++count;
+            }
+            throw new UnsupportedOperationException();
         }
 
         private void setStaticValuesForVariableHierarchy(Assignment assignment, LinkEvaluation evalValue, LinkEvaluation.Builder builder) {
