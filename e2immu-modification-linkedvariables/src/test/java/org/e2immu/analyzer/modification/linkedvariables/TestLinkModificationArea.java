@@ -236,11 +236,11 @@ public class TestLinkModificationArea extends CommonTest {
             VariableInfo viA = vd2.variableInfo("aa");
             assertTrue(viA.isModified());
 
-            VariableInfo viB = vd2.variableInfo("bb");
-            assertFalse(viB.isModified());
-
             VariableInfo viR = vd2.variableInfo(r);
             assertTrue(viR.isModified());
+
+            VariableInfo viB = vd2.variableInfo("bb");
+            assertFalse(viB.isModified());
         }
     }
 }

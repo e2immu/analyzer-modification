@@ -369,10 +369,8 @@ public class TestLinkBasics extends CommonTest {
             VariableInfo vi2list = vd2.variableInfo(list);
             assertEquals("0-2-0:l,0-2-0:l2,0-4-*:t", vi2list.linkedVariables().toString());
 
-            // NOTE: link to l is missing here, we have not (yet) implemented full completion of the
-            // -1- clusters
             VariableInfo vi2t = vd2.variableInfo(t);
-            assertEquals("*-4-0:l2,*-4-0:list", vi2t.linkedVariables().toString());
+            assertEquals("*-4-0:l,*-4-0:l2,*-4-0:list", vi2t.linkedVariables().toString());
         }
 
         // in the parameter's list, the local variable has been filtered out
@@ -536,9 +534,8 @@ public class TestLinkBasics extends CommonTest {
             VariableInfo vi3t = vd3.variableInfo(t);
             assertEquals("*-4-0:l,*-4-0:l2,*-4-0:list", vi3t.linkedVariables().toString());
 
-            // we're again not expecting completion, but we cannot have links between t and t2
             VariableInfo vi3t2 = vd3.variableInfo(t2);
-            assertEquals("*-4-0:l2,*-4-0:list", vi3t2.linkedVariables().toString());
+            assertEquals("*-4-0:l,*-4-0:l2,*-4-0:list", vi3t2.linkedVariables().toString());
         }
 
         // in the parameter's list, the local variable has been filtered out
@@ -601,9 +598,8 @@ public class TestLinkBasics extends CommonTest {
             VariableInfo vi4t = vd4.variableInfo(t);
             assertEquals("*-4-0:l,*-4-0:l2,*-4-0:l3,*-4-0:list", vi4t.linkedVariables().toString());
 
-            // we're again not expecting completion, but we cannot have links between t and t2
             VariableInfo vi4t2 = vd4.variableInfo(t2);
-            assertEquals("*-4-0:l3,*-4-0:list", vi4t2.linkedVariables().toString());
+            assertEquals("*-4-0:l,*-4-0:l2,*-4-0:l3,*-4-0:list", vi4t2.linkedVariables().toString());
         }
 
         // in the parameter's list, the local variable has been filtered out

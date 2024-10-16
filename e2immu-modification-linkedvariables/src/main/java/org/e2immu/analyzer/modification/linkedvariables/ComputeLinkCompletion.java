@@ -316,7 +316,6 @@ public class ComputeLinkCompletion {
                                               Set<Variable> modifiedInEval,
                                               ShortestPath shortestPath) {
 
-            // because we have no completeness of the graph at the moment, we iterate
             Set<Variable> modified = new HashSet<>(modifiedInEval);
             if (previous != null) {
                 for (Variable variable : shortestPath.variables()) {
@@ -329,6 +328,7 @@ public class ComputeLinkCompletion {
                     }
                 }
             }
+            // because we have no completeness of the graph at the moment, we iterate
             boolean change = true;
             while (change) {
                 change = false;

@@ -122,7 +122,6 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         }
         StringBuilder sb = new StringBuilder(n * n * 5);
         Map<Integer, Map<Integer, DijkstraShortestPath.DCP>> edges = new LinkedHashMap<>();
-        Map<Integer, Map<Integer, DijkstraShortestPath.DCP>> edgesHigh = new LinkedHashMap<>();
         //CausesOfDelay delay = null;
         for (int d1 = 0; d1 < n; d1++) {
             Node node = nodeMap.get(variables[d1]);
@@ -132,20 +131,15 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
 
                 Map<Integer, DijkstraShortestPath.DCP> edgesOfD1 = new LinkedHashMap<>();
                 edges.put(d1, edgesOfD1);
-                Map<Integer, DijkstraShortestPath.DCP> edgesOfD1High = new LinkedHashMap<>();
-                edgesHigh.put(d1, edgesOfD1High);
+
                 List<String> unsorted = new ArrayList<>(dependsOn.size());
                 for (Map.Entry<Variable, LV> e2 : dependsOn.entrySet()) {
                     Integer d2 = variableIndex.get(e2.getKey());
                     assert d2 != null : "Variable " + e2.getKey() + " is not in " + Arrays.toString(variables);
                     LV lv = e2.getValue();
-                    //if (lv.isDelayed() && delay == null) {
-                    //    delay = lv.causesOfDelay();
-                    //
+
                     long d = ShortestPathImpl.toDistanceComponent(lv);
                     edgesOfD1.put(d2, new DijkstraShortestPath.DCP(d, lv.links()));
-                    long dHigh = ShortestPathImpl.toDistanceComponentHigh(lv);
-                    edgesOfD1High.put(d2, new DijkstraShortestPath.DCP(dHigh, lv.links()));
 
                     String cacheCode = lv.isDelayed() ? "D" : lv.minimal();
                     unsorted.add(d2 + ":" + cacheCode);
@@ -161,6 +155,6 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         Cache.Hash hash = cache.createHash(cacheKey);
         ShortestPathImpl.LinkMap linkMap = (ShortestPathImpl.LinkMap)
                 cache.computeIfAbsent(hash, h -> new ShortestPathImpl.LinkMap(new LinkedHashMap<>(), new AtomicInteger(), cacheKey));
-        return new ShortestPathImpl(variableIndex, variables, edges, edgesHigh, CausesOfDelay.DELAY, linkMap);
+        return new ShortestPathImpl(variableIndex, variables, edges, linkMap);
     }
 }
