@@ -166,4 +166,13 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
         }
         return false;
     }
+
+    @Override
+    public Indices prepend(Indices modificationAreaTarget) {
+        assert set.size() == 1 && modificationAreaTarget.set().size() == 1;
+        Index index = set.stream().findFirst().orElseThrow();
+        Index other = modificationAreaTarget.set().stream().findFirst().orElseThrow();
+        Index newIndex = index.prepend(other);
+        return new IndicesImpl(Set.of(newIndex));
+    }
 }

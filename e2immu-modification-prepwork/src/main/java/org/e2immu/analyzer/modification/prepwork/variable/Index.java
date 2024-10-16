@@ -29,6 +29,8 @@ public interface Index extends Comparable<Index> {
 
     Index prefix(int index);
 
+    Index prepend(Index other);
+
     Index replaceLast(int v);
 
     Integer single();

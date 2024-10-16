@@ -30,6 +30,8 @@ public interface Indices extends Comparable<Indices> {
 
     boolean containsSize2Plus();
 
+    Indices prepend(Indices modificationAreaTarget);
+
     Indices size2PlusDropOne();
 
     Indices first();

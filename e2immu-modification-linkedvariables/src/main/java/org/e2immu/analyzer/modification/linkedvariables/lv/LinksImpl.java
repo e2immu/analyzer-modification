@@ -67,6 +67,9 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
         boolean conflicted = false;
         LinksImpl currentLink = (LinksImpl) current;
 
+        Indices maTarget = currentLink.modificationAreaTarget;
+        Indices maSource = this.modificationAreaSource;
+
         Map<Indices, Link> res = new HashMap<>();
         for (Map.Entry<Indices, Link> entry : currentLink.map.entrySet()) {
             Indices middle = entry.getValue().to();
@@ -75,7 +78,7 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
             if (link != null) {
                 boolean fromAllToAll = entry.getKey().equals(ALL_INDICES) && link.to().equals(ALL_INDICES);
                 if (fromAllToAll) {
-                    boolean intersect = modificationAreaSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
+                    boolean intersect = maSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
                     conflicted |= !intersect;
                 } else {
                     boolean mutable = !middleIsAll && entry.getValue().mutable() && link.mutable();
@@ -85,23 +88,40 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
             } else {
                 Link allLink = this.map.get(ALL_INDICES);
                 if (allLink != null) {
-                    // start again from * FIXME a -> r, r -> s  should give a -> r.s (*->1, 1->2 -> *->2.1)
+                    // start again from *
                     boolean mutable = entry.getValue().mutable() || allLink.mutable();
                     Link newLink = mutable == allLink.mutable() ? allLink : new LinkImpl(allLink.to(), true);
                     res.merge(entry.getKey(), newLink, Link::merge);
+
+                    //  a -> r, r -> s  should give a -> r.s (*->1, 1->2 -> *->2.1)
+                    // see TestWeightedGraph15B, start in a
+                    if (this.modificationAreaSource.isAll() && !this.modificationAreaTarget.isAll()
+                        && currentLink.modificationAreaSource.isAll() && !currentLink.modificationAreaTarget.isAll()) {
+                        maTarget = currentLink.modificationAreaTarget.prepend(this.modificationAreaTarget);
+                    }
                 } else if (!middleIsAll) {
-                    boolean intersect = modificationAreaSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
+                    boolean intersect = maSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
                     conflicted |= !intersect;
+                } else {
+                    // see TestWeightedGraph15B, start in s
+                    if (!this.modificationAreaSource.isAll() && modificationAreaTarget.isAll()
+                        && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
+                        maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
+                        maTarget = ALL_INDICES;
+                        boolean mutable = entry.getValue().mutable();
+                        LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
+                        res.merge(entry.getKey(), newLInk, Link::merge);
+                    }
                 }
             }
         }
         if (res.isEmpty()) {
-            boolean allowNoConnection = !modificationAreaSource.isNoModification()
+            boolean allowNoConnection = !maSource.isNoModification()
                                         && !currentLink.modificationAreaTarget.isNoModification();
             boolean accept = allowNoConnection && !conflicted;
             return new DijkstraShortestPath.Accept(accept, null);
         }
-        LinksImpl next = new LinksImpl(res, modificationAreaSource, currentLink.modificationAreaTarget);
+        LinksImpl next = new LinksImpl(res, maSource, maTarget);
         return new DijkstraShortestPath.Accept(true, next);
     }
 

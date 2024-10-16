@@ -128,6 +128,11 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
     }
 
     @Override
+    public Index prepend(Index other) {
+        return new IndexImpl(Stream.concat(other.list().stream(), list.stream()).toList());
+    }
+
+    @Override
     public Integer single() {
         return list.size() == 1 ? list.get(0) : null;
     }
