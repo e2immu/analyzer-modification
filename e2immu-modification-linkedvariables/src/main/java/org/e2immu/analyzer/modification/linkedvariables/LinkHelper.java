@@ -1,12 +1,9 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
@@ -14,12 +11,14 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -468,6 +467,18 @@ public class LinkHelper {
                     correctionMap.putAll(mapMethodHCTIndexToTypeHCTIndex);
                     HiddenContentSelector hcsTarget = pi.analysis().getOrDefault(HCS_PARAMETER, NONE).correct(mapMethodHCTIndexToTypeHCTIndex);
                     if (pt != null) {
+
+                        // see TestLinkConstructorInMethodCall,2 for an example
+                        Integer indexToDirectlyLinkedField;
+                        StaticValues svPi = pi.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE);
+
+                        // FIXME only known at the end of the type
+
+                        if (svPi.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
+                            indexToDirectlyLinkedField = fr.fieldInfo().indexInType(); // TODO only works for first order at the moment
+                        } else {
+                            indexToDirectlyLinkedField = null;
+                        }
                         LinkedVariables lv;
                         if (inResult) {
                             // parameter -> result
@@ -476,7 +487,7 @@ public class LinkHelper {
                             HiddenContentSelector hcsSource = methodHcs.correct(mapMethodHCTIndexToTypeHCTIndex);
                             lv = linkedVariables(this.hcsSource, parameterType, pi.parameterizedType(), hcsTarget,
                                     parameterLvs, false, formalParameterIndependent, pt, methodPt,
-                                    hcsSource, false);
+                                    hcsSource, false, indexToDirectlyLinkedField);
                         } else {
                             Value.Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
                             if (mutable == null) {
@@ -491,7 +502,7 @@ public class LinkHelper {
                                 // object -> parameter (rather than the other way around)
                                 lv = linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, false,
                                         formalParameterIndependent, parameterType, pi.parameterizedType(), hcsTarget,
-                                        true);
+                                        true, indexToDirectlyLinkedField);
                             } else {
                                 lv = null;
                             }
@@ -545,8 +556,8 @@ public class LinkHelper {
                                 : ValueImpl.IndependentImpl.DEPENDENT;
                         LinkedVariables mergedLvs = linkedVariables(hcsSource, targetType, target.parameterizedType(), hcsSource,
                                 targetLinkedVariables, targetIsVarArgs, independentDv, sourceType, pi.parameterizedType(),
-                                hcsTarget, targetIsVarArgs);
-                        crossLink(sourceLvs, mergedLvs, builder); // FIXME
+                                hcsTarget, targetIsVarArgs, null); // FIXME
+                        crossLink(sourceLvs, mergedLvs, builder);
                     }
                 } // else: no value... empty varargs
             });
@@ -658,11 +669,14 @@ public class LinkHelper {
         HiddenContentSelector hcsTarget = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE)
                 .correct(mapMethodHCTIndexToTypeHCTIndex);
 
+        Value.FieldValue fieldValue = methodInfo.getSetField();
+        Integer indexOfDirectlyLinkedField = fieldValue.field() != null && !fieldValue.setter() ? fieldValue.field().indexInType() : null;
+
         return linkedVariables(hcsSource, objectType,
                 methodType, hcsSource, linkedVariablesOfObject,
                 false,
                 independent, returnType, methodReturnType, hcsTarget,
-                false);
+                false, indexOfDirectlyLinkedField);
     }
 
        /* we have to probe the object first, to see if there is a value
@@ -712,7 +726,8 @@ public class LinkHelper {
                                             ParameterizedType targetType,
                                             ParameterizedType methodTargetType,
                                             HiddenContentSelector hiddenContentSelectorOfTarget,
-                                            boolean reverse) {
+                                            boolean reverse,
+                                            Integer indexOfDirectlyLinkedField) {
         assert targetType != null;
 
         // RULE 1: no linking when the source is not linked or there is no transfer
@@ -785,7 +800,7 @@ public class LinkHelper {
                         LinkedVariables lvs = continueLinkedVariables(hctContext, newHiddenContentSelectorOfSource,
                                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
                                 newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
-                                reverse);
+                                reverse, indexOfDirectlyLinkedField);
                         lvsList.add(lvs);
                     }
                 }
@@ -807,7 +822,8 @@ public class LinkHelper {
         return continueLinkedVariables(hiddenContentTypes,
                 hiddenContentSelectorOfSource,
                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
-                methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse);
+                methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse,
+                indexOfDirectlyLinkedField);
     }
 
     private LinkedVariables continueLinkedVariables(HiddenContentTypes hiddenContentTypes,
@@ -820,7 +836,8 @@ public class LinkHelper {
                                                     ParameterizedType methodTargetType,
                                                     HiddenContentSelector hiddenContentSelectorOfTarget,
                                                     Supplier<Map<Indices, IndicesAndType>> hctMethodToHctSourceSupplier,
-                                                    boolean reverse) {
+                                                    boolean reverse,
+                                                    Integer indexOfDirectlyLinkedField) {
         Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget = hiddenContentSelectorOfTarget
                 .translateHcs(runtime, genericsHelper, methodTargetType, targetType);
         Value.Independent correctedIndependent = correctIndependent(immutableOfFormalSource, transferIndependent,
@@ -939,14 +956,13 @@ public class LinkHelper {
                     linkMap.put(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable));
                 }
 
-
                 boolean createDependentLink = immutable.isMutable() && isDependent(transferIndependent,
                         correctedIndependent, immutableOfFormalSource, lv);
                 if (createDependentLink) {
                     if (linkMap.isEmpty()) {
                         newLinked.put(e.getKey(), LINK_DEPENDENT);
                     } else {
-                        Links links = new LinksImpl(Map.copyOf(linkMap));
+                        Links links = buildLinks(hiddenContentSelectorOfTarget, immutable, linkMap, indexOfDirectlyLinkedField);
                         LV dependent = reverse ? LVImpl.createDependent(links.reverse()) : LVImpl.createDependent(links);
                         newLinked.put(e.getKey(), dependent);
                     }
@@ -958,6 +974,29 @@ public class LinkHelper {
             }
         }
         return LinkedVariablesImpl.of(newLinked);
+    }
+
+    /*
+    special code to add the modificationArea objects in case of a Getter
+     */
+    private Links buildLinks(HiddenContentSelector hiddenContentSelectorOfTarget,
+                             Immutable immutable,
+                             Map<Indices, Link> linkMap,
+                             Integer indexOfDirectlyLinkedField) {
+        Indices modificationAreaSource;
+        Indices modificationAreaTarget;
+        if (immutable.isAtLeastImmutableHC()) {
+            modificationAreaSource = IndicesImpl.NO_MODIFICATION_INDICES;
+            modificationAreaTarget = IndicesImpl.NO_MODIFICATION_INDICES;
+        } else {
+            modificationAreaSource = ALL_INDICES;
+            if (hiddenContentSelectorOfTarget.isOnlyAll() && indexOfDirectlyLinkedField != null) {
+                modificationAreaTarget = new IndicesImpl(indexOfDirectlyLinkedField);
+            } else {
+                modificationAreaTarget = ALL_INDICES;
+            }
+        }
+        return new LinksImpl(Map.copyOf(linkMap), modificationAreaSource, modificationAreaTarget);
     }
 
     private Set<Map.Entry<Integer, Indices>> filter(Set<Indices> indices, Set<Map.Entry<Integer, Indices>> entries) {
@@ -1133,7 +1172,7 @@ public class LinkHelper {
         Value.Immutable immutable = analysisHelper.typeImmutable(currentMethod.typeInfo(), fieldType);
         Value.Independent independent = immutable.toCorrespondingIndependent();
         return lh.linkedVariables(hcsSource, scopeType, formalScopeType, hcsSource, linkedVariables, false,
-                independent, fieldType, formalFieldType, hcsTarget, false);
+                independent, fieldType, formalFieldType, hcsTarget, false, null);
     }
 
     public static Links factoryMethodLinks(HiddenContentTypes hct,

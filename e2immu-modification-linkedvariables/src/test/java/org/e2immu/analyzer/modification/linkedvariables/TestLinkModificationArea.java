@@ -182,6 +182,42 @@ public class TestLinkModificationArea extends CommonTest {
     }
 
     @Language("java")
+    private static final String INPUT1e = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                static class M { int i; int get() { return i; } void set(int i) { this.i = i; }}
+                record R(M a) {}
+                static M getA(R r) {
+                    return r.a();
+                }
+            }
+            """;
+
+    @DisplayName("getter, accessor variant")
+    @Test
+    public void test1e() {
+        TypeInfo X = javaInspector.parse(INPUT1e);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo M = X.findSubType("M");
+        assertTrue(M.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+        assertTrue(M.isExtensible());
+        TypeInfo R = X.findSubType("R");
+        HiddenContentTypes hctR = R.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=M", hctR.detailedSortedTypes());
+
+        MethodInfo getA = X.findUniqueMethod("getA", 1);
+        {
+            Statement s0 = getA.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo viRv = vd0.variableInfo(getA.fullyQualifiedName());
+            assertEquals("E=r.a", viRv.staticValues().toString());
+            assertEquals("*M-2-0M|*-0:r", viRv.linkedVariables().toString());
+        }
+    }
+
+    @Language("java")
     private static final String INPUT2 = """
             package a.b;
             import java.util.Set;
@@ -275,22 +311,21 @@ public class TestLinkModificationArea extends CommonTest {
             assertEquals("*M-2-0M|*-0:r", viA.linkedVariables().toString());
 
             VariableInfo viR = vd0.variableInfo(r);
-            assertEquals("0M-2-*M|0-*:a", viR.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:aa", viR.linkedVariables().toString());
         }
         {
             Statement s1 = modifyA.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo viA = vd1.variableInfo("aa");
             assertEquals("E=r.a", viA.staticValues().toString());
-            assertEquals("*M-2-0M|*-0:r,-1-:a", viA.linkedVariables().toString());
+            assertEquals("*M-2-0M|*-0:r", viA.linkedVariables().toString());
 
             VariableInfo viB = vd1.variableInfo("bb");
             assertEquals("E=r.b", viB.staticValues().toString());
-            assertEquals("*M-2-0M|*-1:r,-1-:b", viB.linkedVariables().toString());
+            assertEquals("*M-2-0M|*-1:r", viB.linkedVariables().toString());
 
             VariableInfo viR = vd1.variableInfo(r);
-            assertEquals("0M-2-*M|0-*:a,0M-2-*M|0-*:aa,0M-2-*M|1-*:b,0M-2-*M|1-*:bb",
-                    viR.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:aa,0M-2-*M|1-*:bb", viR.linkedVariables().toString());
         }
         {
             Statement s2 = modifyA.methodBody().statements().get(2);

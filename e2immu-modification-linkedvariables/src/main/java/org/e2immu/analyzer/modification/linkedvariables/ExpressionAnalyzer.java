@@ -177,7 +177,7 @@ public class ExpressionAnalyzer {
             if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression sv
                 && !(sv.variable() instanceof This)) {
                 dependentVariable = fr.scopeVariable();
-                fieldIndex = fieldIndex(fr.fieldInfo());
+                fieldIndex = fr.fieldInfo().indexInType();
                 fieldType = fr.fieldInfo().type();
             } else if (v instanceof DependentVariable dv) {
                 dependentVariable = dv.arrayVariable();
@@ -236,15 +236,6 @@ public class ExpressionAnalyzer {
                 }
             }
             return LinkedVariablesImpl.of(map);
-        }
-
-        private int fieldIndex(FieldInfo fieldInfo) {
-            int count = 0;
-            for (FieldInfo f : fieldInfo.owner().fields()) {
-                if (f == fieldInfo) return count;
-                ++count;
-            }
-            throw new UnsupportedOperationException();
         }
 
         private void setStaticValuesForVariableHierarchy(Assignment assignment, LinkEvaluation evalValue, LinkEvaluation.Builder builder) {

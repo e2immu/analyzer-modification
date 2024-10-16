@@ -1,14 +1,13 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
+import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -90,15 +89,14 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
                 // the "M" is there because the hidden content type "Exit" gets a concrete modifiable instance, ExceptionThrown
                 // the -2- is there because the objects are of different types (ExceptionThrown vs Exception)
                 // the "F" and "*" indicate that a field in ET is linked to the whole Exception object
-                assertEquals("0M-2-*M:e", vi0Ee.linkedVariables().toString());
+                assertEquals("0M-2-*M|0-*:e", vi0Ee.linkedVariables().toString());
             }
             {
                 Statement s1 = withException.methodBody().lastStatement();
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Rv = vd1.variableInfo(withException.fullyQualifiedName());
                 assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(ee)", vi1Rv.staticValues().toString());
-                assertEquals("-2-:e,0M-2-*M:ee", vi1Rv.linkedVariables().toString());
-                // FIXME here we've lost the "chain"
+                assertEquals("0M-2-*M|0-*:ee,0M-2-*M|0.0-*:e", vi1Rv.linkedVariables().toString());
             }
         }
     }
@@ -116,7 +114,8 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
                 }
             
                 static class LoopDataImpl {
-                    private Exit exit;
+                    private final Exit exit;
+            
                     LoopDataImpl(Exit exit) {
                         this.exit = exit;
                     }
@@ -135,13 +134,19 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
+        MethodInfo ldConstructor = loopDataImpl.findConstructor(1);
+        ParameterInfo ldConstructor0 = ldConstructor.parameters().get(0);
+        StaticValues sv0 = ldConstructor0.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE);
+        assertEquals("E=this.exit", sv0.toString());
+
         MethodInfo withException = loopDataImpl.findUniqueMethod("withException", 1);
         {
             Statement s0 = withException.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Ee = vd0.variableInfo(withException.fullyQualifiedName());
-            assertEquals("0M-2-*M:e", vi0Ee.linkedVariables().toString());
+            assertEquals("0M-2-*M|0.0-*:e", vi0Ee.linkedVariables().toString());
         }
     }
 
