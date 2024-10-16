@@ -76,7 +76,7 @@ public class TestWeightedGraph17 extends CommonWG {
         Map<Variable, LV> startAtL2 = shortestPath.links(l2, null);
         assertEquals("l2:-0-, l:-0-, list:-1-, t1:0-4-*, t2:0-4-*", print(startAtL2));
         Map<Variable, LV> startAtT2 = shortestPath.links(t2, null);
-        assertEquals("l2:*-4-0, t2:-0-", print(startAtT2)); // should not contain t1!
+        assertEquals("l2:*-4-0, l:*-4-0, list:*-4-0, t2:-0-", print(startAtT2)); // should not contain t1!
     }
 
     private String print(Map<Variable, LV> map) {

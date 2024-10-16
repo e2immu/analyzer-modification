@@ -43,4 +43,37 @@ public class TestRecord extends CommonTest {
         assertEquals("D:-, A:[]", vi0ParamA.assignments().toString());
         assertEquals("0", vi0ParamA.reads().toString());
     }
+
+
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                static class M { int i; int get() { return i; } void set(int i) { this.i = i; }}
+                record R(M a, M b) {}
+                static void modifyA(R r) {
+                    M a = r.a;
+                    M b = r.b;
+                    a.set(3);
+                }
+            }
+            """;
+
+    @DisplayName("modify one component")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+        MethodInfo modifyA = X.findUniqueMethod("modifyA", 1);
+        {
+            Statement s0 = modifyA.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            // r, a, and r.a should exist in the first statement
+            assertEquals("a, a.b.X.R.a#a.b.X.modifyA(a.b.X.R):0:r, a.b.X.modifyA(a.b.X.R):0:r",
+                    vd0.knownVariableNamesToString());
+        }
+    }
+
 }

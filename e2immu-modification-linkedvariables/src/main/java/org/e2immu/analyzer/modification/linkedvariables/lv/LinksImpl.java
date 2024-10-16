@@ -58,11 +58,12 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
      this method, together with allowModified(), is key to the whole linking + modification process
      */
     @Override
-    public DijkstraShortestPath.Accept next(DijkstraShortestPath.Connection current, boolean keepNoLinks) {
-        if (current == NO_LINKS || this == NO_LINKS && keepNoLinks) {
-            // good for -2- and -D-, but not for -0-, -1-
-            // sadly enough, we do not have that info here
+    public DijkstraShortestPath.Accept next(DijkstraShortestPath.Connection current) {
+        if (current == NO_LINKS) {
             return new DijkstraShortestPath.Accept(true, this);
+        }
+        if (this == NO_LINKS) {
+            return new DijkstraShortestPath.Accept(true, current);
         }
         boolean conflicted = false;
         LinksImpl currentLink = (LinksImpl) current;

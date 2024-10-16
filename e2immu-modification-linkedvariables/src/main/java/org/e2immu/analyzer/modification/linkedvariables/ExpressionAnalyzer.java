@@ -172,17 +172,21 @@ public class ExpressionAnalyzer {
             Map<Variable, LV> map = new HashMap<>();
             map.put(v, LVImpl.LINK_ASSIGNED);
             Variable dependentVariable;
+            ParameterizedType fieldType;
             int fieldIndex;
             if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression sv
                 && !(sv.variable() instanceof This)) {
                 dependentVariable = fr.scopeVariable();
                 fieldIndex = fieldIndex(fr.fieldInfo());
+                fieldType = fr.fieldInfo().type();
             } else if (v instanceof DependentVariable dv) {
                 dependentVariable = dv.arrayVariable();
                 fieldIndex = 0;
+                fieldType = dv.arrayVariable().parameterizedType().copyWithOneFewerArrays();
             } else {
                 dependentVariable = null;
                 fieldIndex = -1; // irrelevant
+                fieldType = null;
             }
             if (dependentVariable != null) {
                 Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
@@ -190,14 +194,22 @@ public class ExpressionAnalyzer {
                 if (!immutableForward.isImmutable()) {
                     boolean isMutable = immutableForward.isMutable();
                     Indices targetIndices;
-                    Indices targetModificationArea = new IndicesImpl(fieldIndex);
+                    Indices targetModificationArea ;
+                    Indices sourceModificationArea;
+                    if( immutable.isAtLeastImmutableHC()) {
+                        targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                        sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                    } else {
+                        targetModificationArea = new IndicesImpl(fieldIndex);
+                        sourceModificationArea = IndicesImpl.ALL_INDICES;
+                    }
                     if (v instanceof DependentVariable) {
                         targetIndices = new IndicesImpl(0);
                     } else if (ve.parameterizedType().typeInfo() == null || ve.parameterizedType().typeInfo().isExtensible()) {
                         TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
                         assert bestType != null : "The unbound type parameter does not have any fields";
                         HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                        Integer i = hct.indexOf(ve.parameterizedType());
+                        Integer i = hct.indexOf(fieldType);
                         if (i != null) {
                             targetIndices = new IndicesImpl(i);
                         } else {
@@ -212,7 +224,7 @@ public class ExpressionAnalyzer {
                     } else {
                         linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
                     }
-                    Links links = new LinksImpl(linkMap, IndicesImpl.ALL_INDICES, targetModificationArea);
+                    Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationArea);
                     LV lv;
                     if (immutable.isAtLeastImmutableHC()) {
                         lv = LVImpl.createHC(links);
