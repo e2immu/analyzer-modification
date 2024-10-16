@@ -41,8 +41,8 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
 
     public LinksImpl(int from, int to, boolean isHc) {
         this(Map.of(from == ALL ? ALL_INDICES : new IndicesImpl(Set.of(new IndexImpl(List.of(from)))),
-                new LinkImpl(new IndicesImpl(Set.of(new IndexImpl(List.of(to)))), false)),
-                isHc ? NO_MODIFICATION_INDICES: ALL_INDICES, isHc ? NO_MODIFICATION_INDICES: ALL_INDICES);
+                        new LinkImpl(new IndicesImpl(Set.of(new IndexImpl(List.of(to)))), false)),
+                isHc ? NO_MODIFICATION_INDICES : ALL_INDICES, isHc ? NO_MODIFICATION_INDICES : ALL_INDICES);
     }
 
     public LinksImpl(Map<Indices, Link> map) {
@@ -55,61 +55,8 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
     }
 
     /*
-            @Override
-            public DijkstraShortestPath.Accept next(DijkstraShortestPath.Connection current, boolean allowNoConnection, boolean keepNoLinks) {
-                if (current == NO_LINKS || this == NO_LINKS && keepNoLinks) {
-                    // good for -2- and -D-, but not for -0-, -1-
-                    // sadly enough, we do not have that info here
-                    return new DijkstraShortestPath.Accept(true, this);
-                }
-                boolean returnNull = true;
-                int conflicted = 0;
-                Map<Indices, Link> res = new HashMap<>();
-
-                LinksImpl currentLink = (LinksImpl) current;
-                for (Map.Entry<Indices, Link> entry : currentLink.map.entrySet()) {
-                    Indices middle = entry.getValue().to();
-                    Link link = this.map.get(middle);
-                    if (link != null) {
-                        boolean fromAllToAll = entry.getKey().isAll() && link.to().isAll();
-                        if (fromAllToAll) {
-                            boolean intersect = modificationAreaTarget.intersectionNonEmpty(currentLink.modificationAreaSource());
-                            if (intersect) {
-                                // accept the link
-                                res.merge(entry.getKey(), link, Link::merge);
-                            } else {
-                                // block the link
-                                conflicted++;
-                            }
-                        } else {
-                            boolean middleIsAll = middle.isAll();
-                            boolean mutable = !middleIsAll && entry.getValue().mutable() && link.mutable();
-                            Link newLink = mutable == link.mutable() ? link : new LinkImpl(link.to(), false);
-                            res.merge(entry.getKey(), newLink, Link::merge);
-                        }
-                    } else {
-                        Link allLink = this.map.get(ALL_INDICES);
-                        if (allLink != null) {
-                            // start again from *
-                            boolean mutable = entry.getValue().mutable() || allLink.mutable();
-                            Link newLink = mutable == allLink.mutable() ? allLink : new LinkImpl(allLink.to(), true);
-                            res.merge(entry.getKey(), newLink, Link::merge);
-                        } else if (!this.map.isEmpty()) { // FIXME this condition may have to be more strict
-                            ++conflicted;
-                        }
-                    }
-                }
-                assert conflicted <= 1;
-                if (res.isEmpty()) {
-                    if (allowNoConnection && conflicted == 0) return new DijkstraShortestPath.Accept(returnNull, null);
-                    return new DijkstraShortestPath.Accept(false, null);
-                }
-                LinksImpl next = new LinksImpl(res, modificationAreaSource, currentLink.modificationAreaTarget);
-                return new DijkstraShortestPath.Accept(true, next);
-            }*/
-     /*
-      this method, together with allowModified(), is key to the whole linking + modification process
-      */
+     this method, together with allowModified(), is key to the whole linking + modification process
+     */
     @Override
     public DijkstraShortestPath.Accept next(DijkstraShortestPath.Connection current, boolean keepNoLinks) {
         if (current == NO_LINKS || this == NO_LINKS && keepNoLinks) {
@@ -123,6 +70,7 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
         Map<Indices, Link> res = new HashMap<>();
         for (Map.Entry<Indices, Link> entry : currentLink.map.entrySet()) {
             Indices middle = entry.getValue().to();
+            boolean middleIsAll = middle.isAll();
             Link link = this.map.get(middle);
             if (link != null) {
                 boolean fromAllToAll = entry.getKey().equals(ALL_INDICES) && link.to().equals(ALL_INDICES);
@@ -130,7 +78,6 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
                     boolean intersect = modificationAreaSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
                     conflicted |= !intersect;
                 } else {
-                    boolean middleIsAll = middle.isAll();
                     boolean mutable = !middleIsAll && entry.getValue().mutable() && link.mutable();
                     Link newLink = mutable == link.mutable() ? link : new LinkImpl(link.to(), false);
                     res.merge(entry.getKey(), newLink, Link::merge);
@@ -138,16 +85,13 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
             } else {
                 Link allLink = this.map.get(ALL_INDICES);
                 if (allLink != null) {
-                    // start again from *
+                    // start again from * FIXME a -> r, r -> s  should give a -> r.s (*->1, 1->2 -> *->2.1)
                     boolean mutable = entry.getValue().mutable() || allLink.mutable();
                     Link newLink = mutable == allLink.mutable() ? allLink : new LinkImpl(allLink.to(), true);
                     res.merge(entry.getKey(), newLink, Link::merge);
-                } else{
+                } else if (!middleIsAll) {
                     boolean intersect = modificationAreaSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
-                    if (!intersect) {
-                        // block the link
-                        conflicted = true;
-                    }
+                    conflicted |= !intersect;
                 }
             }
         }
