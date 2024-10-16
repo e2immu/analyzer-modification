@@ -466,7 +466,7 @@ public class TestComputeHCS extends CommonTest {
 
         ParameterizedType setInteger = Rc0.parameterizedType();
         Map<Indices, IndicesAndType> translate = hcsRc0.translateHcs(runtime, genericsHelper, setInteger, setInteger);
-        assertEquals("-1=IndicesAndType[indices=-1, type=Type java.util.Set<Integer>]", MapUtil.nice(translate));
+        assertEquals("*=IndicesAndType[indices=*, type=Type java.util.Set<Integer>]", MapUtil.nice(translate));
 
         ParameterInfo Rc1 = constructorR.parameters().get(1);
         HiddenContentSelector hcsRc1 = Rc1.analysis().getOrDefault(HCS_PARAMETER, NONE);
@@ -542,12 +542,12 @@ public class TestComputeHCS extends CommonTest {
         assertSame(LLpt, thisVar.parameterizedType());
         assertEquals("Type a.b.X.LL<T>", LLpt.toString());
         Map<Indices, ParameterizedType> map = hcsFormalViaConstructor.extract(runtime, thisVar.parameterizedType());
-        assertEquals("-1=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(map));
+        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(map));
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
 
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, LLpt, LLpt);
         assertEquals("""
-                -1=IndicesAndType[indices=-1, type=Type a.b.X.LL<T>], \
+                *=IndicesAndType[indices=*, type=Type a.b.X.LL<T>], \
                 0=IndicesAndType[indices=0, type=Type param T]\
                 """, MapUtil.nice(translate));
     }
@@ -606,16 +606,16 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("Type a.b.X.LL<T>", LLpt.toString());
 
         Map<Indices, ParameterizedType> mapLL = hcsFormalViaConstructor.extract(runtime, LLpt);
-        assertEquals("-1=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(mapLL));
+        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(mapLL));
 
         Map<Indices, ParameterizedType> mapL = hcsFormalViaConstructor.extract(runtime, Lpt);
-        assertEquals("-1=Type a.b.X.L<T>, 0=Type param T", MapUtil.nice(mapL));
+        assertEquals("*=Type a.b.X.L<T>, 0=Type param T", MapUtil.nice(mapL));
 
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
         assertTrue(Lpt.isAssignableFrom(runtime, LLpt));
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, Lpt, LLpt);
         assertEquals("""
-                -1=IndicesAndType[indices=-1, type=Type a.b.X.LL<T>], \
+                *=IndicesAndType[indices=*, type=Type a.b.X.LL<T>], \
                 0=IndicesAndType[indices=0, type=Type param T]\
                 """, MapUtil.nice(translate));
     }
@@ -680,14 +680,14 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("Type a.b.X.LL", LLpt.toString());
 
         Map<Indices, ParameterizedType> mapLL = hcsFormalViaConstructor.extract(runtime, LLpt);
-        assertEquals("-1=Type a.b.X.LL, 0=Type Object", MapUtil.nice(mapLL));
+        assertEquals("*=Type a.b.X.LL, 0=Type Object", MapUtil.nice(mapLL));
 
         Map<Indices, ParameterizedType> mapL = hcsFormalViaConstructor.extract(runtime, Lpt);
-        assertEquals("-1=Type a.b.X.L, 0=Type Object", MapUtil.nice(mapL));
+        assertEquals("*=Type a.b.X.L, 0=Type Object", MapUtil.nice(mapL));
 
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
         assertTrue(Lpt.isAssignableFrom(runtime, LLpt));
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, Lpt, LLpt);
-        assertEquals("-1=IndicesAndType[indices=-1, type=Type a.b.X.LL], 0=IndicesAndType[indices=0, type=Type Object]", MapUtil.nice(translate));
+        assertEquals("*=IndicesAndType[indices=*, type=Type a.b.X.LL], 0=IndicesAndType[indices=0, type=Type Object]", MapUtil.nice(translate));
     }
 }
