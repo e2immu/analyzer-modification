@@ -110,8 +110,9 @@ public class LVImpl implements LV {
         assert countAll <= 1;
         assert from.size() == to.size();
         assert hc != I_HC || !from.isEmpty() : "Result is HC, but cannot create map; links = " + links;
+        assert hc != I_HC || links.modificationAreaSource().isNoModification() && links.modificationAreaTarget().isNoModification();
         String modArea;
-        if (!links.modificationAreaSource().isAll() || !links.modificationAreaTarget().isAll()) {
+        if (links.modificationAreaSource().haveValue() || links.modificationAreaTarget().haveValue()) {
             modArea = "|" + indexToString(links.modificationAreaSource())
                       + "-" + indexToString(links.modificationAreaTarget());
         } else {
@@ -126,7 +127,8 @@ public class LVImpl implements LV {
     }
 
     public static LV createHC(Links links) {
-        return new LVImpl(I_HC, links, createLabel(links, I_HC), INDEPENDENT);
+        Links newLinks = links.ensureNoModification();
+        return new LVImpl(I_HC, newLinks, createLabel(newLinks, I_HC), INDEPENDENT);
     }
 
     public static LV createDependent(Links links) {

@@ -10,6 +10,10 @@ import java.util.function.IntFunction;
 public interface Indices extends Comparable<Indices> {
     Codec.EncodedValue encode(Codec codec, Codec.Context context);
 
+    default boolean haveValue() {
+        return !isNoModification() && !isAll();
+    }
+
     boolean intersectionNonEmpty(Indices indices);
 
     boolean isAll();
