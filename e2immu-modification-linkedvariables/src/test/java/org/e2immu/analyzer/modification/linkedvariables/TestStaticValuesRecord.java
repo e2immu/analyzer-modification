@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
@@ -13,6 +14,7 @@ import org.e2immu.language.cst.api.statement.ReturnStatement;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
@@ -183,7 +186,7 @@ public class TestStaticValuesRecord extends CommonTest {
             LocalVariableCreation sLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(sLvc);
             VariableInfo sVi1 = vd1.variableInfo("s");
-            assertEquals("-1-:r,0M-2-*M:in", sVi1.linkedVariables().toString());
+            assertEquals("-1-:r,0M-2-*M|0-*:in", sVi1.linkedVariables().toString());
             assertEquals(rVi0.staticValues(), sVi1.staticValues());
         }
 
@@ -332,10 +335,17 @@ public class TestStaticValuesRecord extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT6);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+        TypeInfo R = X.findSubType("R");
         TypeInfo builder = X.findSubType("Builder");
         MethodInfo build = builder.findUniqueMethod("build", 0);
-        assertEquals("Type a.b.X.R E=new R(this.function,this.variables)",
-                build.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
+        StaticValues sv = build.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
+        assertEquals("Type a.b.X.R E=new R(this.function,this.variables) this.function=this.function, this.variables=this.variables",
+                sv.toString());
+        Map.Entry<Variable, Expression> e0 = sv.values().entrySet().stream().findFirst().orElseThrow();
+
+        // you can't see it, but the types are correct
+        assertSame(R, ((FieldReference) e0.getKey()).fieldInfo().owner());
+        assertSame(builder, ((FieldReference)((VariableExpression)e0.getValue()).variable()).fieldInfo().owner());
 
         MethodInfo setVariable = builder.findUniqueMethod("setVariable", 2);
         Value.FieldValue fv = setVariable.getSetField();

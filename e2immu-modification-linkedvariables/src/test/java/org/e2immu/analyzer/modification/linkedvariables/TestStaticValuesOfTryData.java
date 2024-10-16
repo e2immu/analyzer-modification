@@ -279,7 +279,12 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
     private static void testBuilderBuild(TypeInfo builder) {
         MethodInfo build = builder.findUniqueMethod("build", 0);
-        assertEquals("Type a.b.X.TryDataImpl E=new TryDataImpl(this.bodyThrowingFunction,this.variables,null)",
+        assertEquals("""
+                        Type a.b.X.TryDataImpl E=new TryDataImpl(this.bodyThrowingFunction,this.variables,null) \
+                        this.exception=null, \
+                        this.throwingFunction=this.bodyThrowingFunction, \
+                        this.variables=this.variables\
+                        """,
                 build.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.NONE).toString());
         assertFalse(build.isModifying());
     }

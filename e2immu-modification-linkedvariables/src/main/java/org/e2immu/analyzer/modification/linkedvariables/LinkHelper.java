@@ -156,6 +156,7 @@ public class LinkHelper {
                     if (!immutable.isImmutable()) {
                         boolean m = immutable.isMutable();
                         Indices indices = new IndicesImpl(Set.of(new IndexImpl(List.of(index))));
+                        // FIXME what to do with the current link's (lv) info? modification areas?
                         Links links = new LinksImpl(Map.of(indices, new LinkImpl(ALL_INDICES, m)));
                         boolean independentHc = lv.isCommonHC();
                         LV newLv = independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
@@ -468,17 +469,20 @@ public class LinkHelper {
                     HiddenContentSelector hcsTarget = pi.analysis().getOrDefault(HCS_PARAMETER, NONE).correct(mapMethodHCTIndexToTypeHCTIndex);
                     if (pt != null) {
 
+
+                        // this block of code may have to be moved up for linkedVariablesOfParameter to use it
                         // see TestLinkConstructorInMethodCall,2 for an example
                         Integer indexToDirectlyLinkedField;
                         StaticValues svPi = pi.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE);
-
-                        // FIXME only known at the end of the type
-
                         if (svPi.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
-                            indexToDirectlyLinkedField = fr.fieldInfo().indexInType(); // TODO only works for first order at the moment
+                            indexToDirectlyLinkedField = fr.fieldInfo().indexInType();
+                            // FIXME only works for first order at the moment
+                            // FIXME only works for @Final fields in the same type, because SV_PARAM is computed afterwards for non-final fields
                         } else {
                             indexToDirectlyLinkedField = null;
                         }
+
+
                         LinkedVariables lv;
                         if (inResult) {
                             // parameter -> result

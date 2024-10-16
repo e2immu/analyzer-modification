@@ -251,7 +251,7 @@ public class TestStaticValuesAssignment extends CommonTest {
         TypeInfo builder = X.findSubType("Builder");
         MethodInfo build = builder.findUniqueMethod("build", 0);
         StaticValues svBuild = build.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
-        assertEquals("Type a.b.X E=new X(this.j,this.k)", svBuild.toString());
+        assertEquals("Type a.b.X E=new X(this.j,this.k) this.j=this.j, this.k=this.k", svBuild.toString());
 
         MethodInfo builderSetJK = builder.findUniqueMethod("setJK", 2);
         assertTrue(builderSetJK.isFluent());

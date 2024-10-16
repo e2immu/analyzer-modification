@@ -95,7 +95,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
                 Statement s1 = withException.methodBody().lastStatement();
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Rv = vd1.variableInfo(withException.fullyQualifiedName());
-                assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(ee)", vi1Rv.staticValues().toString());
+                assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(ee) this.exit=ee", vi1Rv.staticValues().toString());
                 assertEquals("0M-2-*M|0-*:ee,0M-2-*M|0.0-*:e", vi1Rv.linkedVariables().toString());
             }
         }

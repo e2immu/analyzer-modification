@@ -9,8 +9,12 @@ Inspection phase
 Prep work
 
 * hidden content types, hidden content selectors
-* variableData, variableInfo objects
+* variableData
+** variableInfo objects
+
 * part of construction
+** final fields
+
 * method call graph, recursive methods, order of analysis
 
 

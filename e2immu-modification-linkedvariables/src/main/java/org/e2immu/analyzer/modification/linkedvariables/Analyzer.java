@@ -232,6 +232,15 @@ public class Analyzer {
                     }
                 }
             }
+            if (methodInfo.isConstructor()
+                && v instanceof FieldReference fr && fr.scopeIsThis() && fr.fieldInfo().isPropertyFinal()) {
+                StaticValues sv = vi.staticValues();
+                if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo pi
+                    && !pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
+                    StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), Map.of());
+                    pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
+                }
+            }
             if (v instanceof This && !methodInfo.hasReturnValue()) {
                 StaticValues staticValues = vi.staticValues();
                 if (staticValues != null) {
@@ -441,13 +450,13 @@ public class Analyzer {
                 doField(fi, svMap.get(fi), partOfConstruction);
             } else if (info instanceof TypeInfo ti) {
                 LOGGER.info("Do type {}", ti);
-                fromFieldToParameter(ti);
+                fromNonFinalFieldToParameter(ti);
             }
         }
     }
 
-    private void fromFieldToParameter(TypeInfo typeInfo) {
-        Map<ParameterInfo, StaticValues> svMapParameters = collectReverseFromFieldsToParameters(typeInfo);
+    private void fromNonFinalFieldToParameter(TypeInfo typeInfo) {
+        Map<ParameterInfo, StaticValues> svMapParameters = collectReverseFromNonFinalFieldsToParameters(typeInfo);
         svMapParameters.forEach((pi, sv) -> {
             if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
                 pi.analysis().set(STATIC_VALUES_PARAMETER, sv);
@@ -455,19 +464,22 @@ public class Analyzer {
         });
     }
 
-    private Map<ParameterInfo, StaticValues> collectReverseFromFieldsToParameters(TypeInfo typeInfo) {
+    private Map<ParameterInfo, StaticValues> collectReverseFromNonFinalFieldsToParameters(TypeInfo typeInfo) {
         Map<ParameterInfo, StaticValues> svMapParameters = new HashMap<>();
-        typeInfo.fields().forEach(fieldInfo -> {
-            StaticValues sv = fieldInfo.analysis().getOrNull(STATIC_VALUES_FIELD, StaticValuesImpl.class);
-            if (sv != null
-                && sv.expression() instanceof VariableExpression ve
-                && ve.variable() instanceof ParameterInfo pi) {
-                VariableExpression reverseVe = runtime.newVariableExpression(runtime.newFieldReference(fieldInfo));
-                StaticValues reverse = StaticValuesImpl.of(reverseVe);
-                StaticValues prev = svMapParameters.put(pi, reverse);
-                if (prev != null && !prev.equals(sv)) throw new UnsupportedOperationException("TODO");
-            }
-        });
+        typeInfo.fields()
+                .stream()
+                .filter(f -> !f.isPropertyFinal())
+                .forEach(fieldInfo -> {
+                    StaticValues sv = fieldInfo.analysis().getOrNull(STATIC_VALUES_FIELD, StaticValuesImpl.class);
+                    if (sv != null
+                        && sv.expression() instanceof VariableExpression ve
+                        && ve.variable() instanceof ParameterInfo pi) {
+                        VariableExpression reverseVe = runtime.newVariableExpression(runtime.newFieldReference(fieldInfo));
+                        StaticValues reverse = StaticValuesImpl.of(reverseVe);
+                        StaticValues prev = svMapParameters.put(pi, reverse);
+                        if (prev != null && !prev.equals(sv)) throw new UnsupportedOperationException("TODO");
+                    }
+                });
         return svMapParameters;
     }
 
