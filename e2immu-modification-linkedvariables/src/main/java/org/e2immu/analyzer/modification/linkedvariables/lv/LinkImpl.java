@@ -23,7 +23,7 @@ public record LinkImpl(Indices to, boolean mutable) implements Link {
 
     @Override
     public String toString() {
-        String toStr = to.isAll() ? "*" : to.toString();
+        String toStr = to == null ? "NULL" : to.isAll() ? "*" : to.toString();
         return "LinkImpl[" + toStr + ",mutable=" + mutable + "]";
     }
 }

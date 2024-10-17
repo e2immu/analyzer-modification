@@ -133,6 +133,7 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
         if (this == NOT_YET_SET) return NOT_YET_SET_STR;
         if (this == EMPTY || variables.isEmpty()) return "";
         return variables.entrySet().stream()
+           //     .sorted(Comparator.comparing(e -> e.getKey().simpleName()))
                 .map(e -> e.getValue().label() + ":" + e.getKey().simpleName())
                 .sorted()
                 .collect(Collectors.joining(","));

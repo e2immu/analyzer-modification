@@ -104,10 +104,11 @@ public class LinkHelper {
     // recursive!
     private LinkedVariables linkedVariablesOfParameter(HiddenContentTypes hiddenContentTypes,
                                                        ParameterizedType formalParameterType,
-                                                       ParameterizedType concreteParameterType,
+                                                       ParameterizedType concreteParameterTypeIn,
                                                        LinkedVariables linkedVariablesOfParameter,
                                                        HiddenContentSelector hcsSource) {
         Map<Variable, LV> map = new HashMap<>();
+        ParameterizedType concreteParameterType = ensureTypeParameters(concreteParameterTypeIn);
 
         Integer index = hiddenContentTypes.indexOfOrNull(formalParameterType);
         if (index != null && formalParameterType.parameters().isEmpty()) {
@@ -160,6 +161,7 @@ public class LinkHelper {
                             continue;
                         }
                         boolean mutable = immutable.isMutable();
+                        assert iInHctTarget != null;
                         linkMap.put(iInHctSource, new LinkImpl(iInHctTarget, mutable));
                     }
                     if (linkMap.isEmpty()) {
@@ -184,6 +186,14 @@ public class LinkHelper {
             });
         }
         return LinkedVariablesImpl.of(map);
+    }
+
+    private ParameterizedType ensureTypeParameters(ParameterizedType pt) {
+        if (!pt.parameters().isEmpty() || pt.typeInfo() == null) return pt;
+        ParameterizedType formal = pt.typeInfo().asParameterizedType();
+        List<ParameterizedType> parameters = new ArrayList<>();
+        for (int i = 0; i < formal.parameters().size(); ++i) parameters.add(runtime.objectParameterizedType());
+        return pt.withParameters(List.copyOf(parameters));
     }
 
     public record FromParameters(LinkEvaluation.Builder intoObject,
@@ -546,19 +556,21 @@ public class LinkHelper {
      * @return the linked values of the target
      */
     private LinkedVariables linkedVariables(HiddenContentSelector hcsSource,
-                                            ParameterizedType sourceType,
+                                            ParameterizedType sourceTypeIn,
                                             ParameterizedType methodSourceType,
                                             HiddenContentSelector hiddenContentSelectorOfSource,
                                             LinkedVariables sourceLvs,
                                             boolean sourceIsVarArgs,
                                             Value.Independent transferIndependent,
-                                            ParameterizedType targetType,
+                                            ParameterizedType targetTypeIn,
                                             ParameterizedType methodTargetType,
                                             HiddenContentSelector hiddenContentSelectorOfTarget,
                                             boolean reverse,
                                             Integer indexOfDirectlyLinkedField) {
-        assert targetType != null;
-
+        assert sourceTypeIn != null;
+        ParameterizedType sourceType = ensureTypeParameters(sourceTypeIn); // Pair -> Pair<Object, Object>
+        assert targetTypeIn != null;
+        ParameterizedType targetType = ensureTypeParameters(targetTypeIn);
         // RULE 1: no linking when the source is not linked or there is no transfer
         if (sourceLvs.isEmpty() || transferIndependent.isIndependent()) {
             return LinkedVariablesImpl.EMPTY;
@@ -685,8 +697,6 @@ public class LinkHelper {
 
                 Boolean correctForVarargsMutable = null;
 
-                assert hctMethodToHctSource != null;
-
                 // NOTE: this type of filtering occurs in 'linkedVariablesOfParameter' as well
                 Set<Map.Entry<Integer, Indices>> entrySet;
                 if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
@@ -719,7 +729,7 @@ public class LinkHelper {
                      */
                     Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
                     assert indicesInSourceWrtMethod != null;
-
+                    assert hctMethodToHctSource != null;
                     HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
                     assert indicesAndType != null;
                     Indices indicesInSourceWrtType = indicesAndType.indices();
@@ -736,7 +746,9 @@ public class LinkHelper {
                         correctedIndicesInTargetWrtType = indicesInTargetWrtType;
                     }
                     assert correctedIndicesInTargetWrtType != null;
-                    linkMap.put(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable));
+                    // see TestLinkToReturnValueMap,1(copy8) for an example of merging
+                    linkMap.merge(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable),
+                            Link::merge);
                 }
 
                 boolean createDependentLink = immutable.isMutable() && isDependent(transferIndependent,

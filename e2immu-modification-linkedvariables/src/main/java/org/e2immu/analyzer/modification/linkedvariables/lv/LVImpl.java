@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
@@ -8,7 +9,9 @@ import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.language.cst.api.analysis.Value;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
@@ -166,20 +169,36 @@ public class LVImpl implements LV {
         if (isDelayed()) return this;
         if (other.isDelayed()) return other;
         if (value > other.value()) return other;
-        if (isCommonHC() && other.isCommonHC()) {
+        if (!links.map().isEmpty() && !other.links().map().isEmpty()) {
             // IMPORTANT: the union only "compacts" on the "to" side for now, see Linking_1A.f9m()
             Links union = union(other.links());
-            return createHC(union);
+            return new LVImpl(value, union, createLabel(union, value), correspondingIndependent);
         }
         return this;
     }
 
+    // both this and other have links
+    // we start off with ours
     private Links union(Links other) {
-        Map<Indices, Link> res = new HashMap<>(links.map());
-        for (Map.Entry<Indices, Link> e : other.map().entrySet()) {
+        Map<Indices, Link> res = new HashMap<>();
+        List<Indices> keysThatLinkToAll = new ArrayList<>();
+        AtomicBoolean linkToAllMutable = new AtomicBoolean();
+
+        Stream.concat(links.map().entrySet().stream(), other.map().entrySet().stream()).forEach(e -> {
             res.merge(e.getKey(), e.getValue(), Link::merge);
+            if (e.getValue().to().isAll()) {
+                keysThatLinkToAll.add(e.getKey());
+                if (e.getValue().mutable()) linkToAllMutable.set(true);
+            }
+        });
+        if (keysThatLinkToAll.size() > 1) {
+            Indices merged = keysThatLinkToAll.stream().skip(1).reduce(keysThatLinkToAll.get(0), Indices::merge);
+            keysThatLinkToAll.forEach(res.keySet()::remove);
+            res.put(merged, new LinkImpl(ALL_INDICES, linkToAllMutable.get()));
         }
-        return new LinksImpl(Map.copyOf(res));
+        Indices maSource = links.modificationAreaSource().merge(other.modificationAreaSource());
+        Indices maTarget = links.modificationAreaTarget().merge(other.modificationAreaTarget());
+        return new LinksImpl(Map.copyOf(res), maSource, maTarget);
     }
 
     private boolean sameLinks(LV other) {

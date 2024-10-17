@@ -235,7 +235,8 @@ public class Analyzer {
             if (methodInfo.isConstructor()
                 && v instanceof FieldReference fr && fr.scopeIsThis() && fr.fieldInfo().isPropertyFinal()) {
                 StaticValues sv = vi.staticValues();
-                if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo pi
+                if (sv != null && sv.expression() instanceof VariableExpression ve
+                    && ve.variable() instanceof ParameterInfo pi
                     && !pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
                     StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), Map.of());
                     pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);

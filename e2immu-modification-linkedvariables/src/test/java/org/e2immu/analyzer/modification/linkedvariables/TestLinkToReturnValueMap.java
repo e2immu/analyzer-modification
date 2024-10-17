@@ -40,6 +40,15 @@ public class TestLinkToReturnValueMap extends CommonTest {
                 static <Y> Map<String, Y> copy5(Map<String, Y> map) {
                     return new HashMap<>(map);
                 }
+                static Map<Object, Object> copy6(Map<Object, Object> map) {
+                    return new HashMap<>(map);
+                }
+                static Map<?, ?> copy7(Map<?, ?> map) {
+                    return new HashMap<>(map);
+                }
+                static Map copy8(Map map) {
+                    return new HashMap<>(map);
+                }
             }
             """;
 
@@ -68,6 +77,20 @@ public class TestLinkToReturnValueMap extends CommonTest {
 
         MethodInfo copy5 = X.findUniqueMethod("copy5", 1);
         assertEquals("1-4-1:map", copy5.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
+
+        MethodInfo copy6 = X.findUniqueMethod("copy6", 1);
+        assertEquals("0;1-4-0;1:map", copy6.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
+
+        // ? acts like Object
+        MethodInfo copy7 = X.findUniqueMethod("copy7", 1);
+        assertEquals("0;1-4-0;1:map", copy7.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
+
+        // no type parameters acts like Object
+        MethodInfo copy8 = X.findUniqueMethod("copy8", 1);
+        assertEquals("0;1-4-0;1:map", copy8.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
     }
 

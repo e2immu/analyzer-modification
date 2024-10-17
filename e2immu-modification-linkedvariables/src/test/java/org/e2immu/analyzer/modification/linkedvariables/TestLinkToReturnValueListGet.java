@@ -38,6 +38,9 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 static String get3(List<String> list, int i) {
                     return list.get(i);
                 }
+                static Object get4(List<Object> list, int i) {
+                    return list.get(i);
+                }
             }
             """;
 
@@ -70,6 +73,10 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         MethodInfo listGet3 = X.findUniqueMethod("get3", 2);
         assertEquals("", listGet3.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
+
+        MethodInfo listGet4 = X.findUniqueMethod("get4", 2);
+        assertEquals("*-4-0:list", listGet4.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
     }
 
 
@@ -91,6 +98,9 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                     return new ArrayList<>(list).get(i);
                 }
                 static String get3(List<String> list, int i) {
+                    return new ArrayList<>(list).get(i);
+                }
+                static Object get4(List<Object> list, int i) {
                     return new ArrayList<>(list).get(i);
                 }
             }
@@ -126,6 +136,9 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 static String get3(List<String> list, int i) {
                     return list.subList(0, 10).get(i);
                 }
+                static Object get4(List<Object> list, int i) {
+                    return list.subList(0, 10).get(i);
+                }
             }
             """;
 
@@ -156,6 +169,9 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                     return list.subList(0, 10).subList(1, 5).get(i);
                 }
                 static String get3(List<String> list, int i) {
+                    return list.subList(0, 10).subList(1, 5).get(i);
+                }
+                static Object get4(List<Object> list, int i) {
                     return list.subList(0, 10).subList(1, 5).get(i);
                 }
             }
