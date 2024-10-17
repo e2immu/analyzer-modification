@@ -41,7 +41,7 @@ public class TestLinkBasics extends CommonTest {
             }
             """;
 
-    @DisplayName("modification already done by prep-work, check no links")
+    @DisplayName("add to set, immutable type parameter")
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
@@ -160,15 +160,16 @@ public class TestLinkBasics extends CommonTest {
             import java.util.ArrayList;
             import java.util.List;
             class X {
-                final static class M {
-                    private int i;
-                    public int getI() { return i; }
-                    public void setI(int i) { this.i = i; }
-                }
+                final static class M { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
+                static class ME { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
+    
                 static <T> List<T> copy(List<T> list) {
                     return new ArrayList<>(list);
                 }
                 static List<M> copyM(List<M> list) {
+                    return new ArrayList<>(list);
+                }
+                static List<ME> copyME(List<ME> list) {
                     return new ArrayList<>(list);
                 }
                 static List<String> copyS(List<String> list) {
@@ -201,6 +202,15 @@ public class TestLinkBasics extends CommonTest {
         // for this to be correct, M must be modifying
         assertEquals("0M-4-0M:list", lvRvM.toString());
 
+        TypeInfo ME = X.findSubType("ME");
+        assertTrue(ME.isExtensible());
+        MethodInfo methodInfoME = X.findUniqueMethod("copyME", 1);
+        assertSame(ME, methodInfoME.returnType().parameters().get(0).typeInfo());
+        LinkedVariables lvRvME = methodInfoME.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY);
+        // for this to be correct, M must be modifying
+        assertEquals("0M-4-0M:list", lvRvME.toString());
+
         MethodInfo methodInfoS = X.findUniqueMethod("copyS", 1);
         assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().get(0).typeInfo());
         LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
@@ -214,18 +224,21 @@ public class TestLinkBasics extends CommonTest {
             package a.b;
             import java.util.List;
             class X {
-                final static class M {
-                    private int i;
-                    public int getI() { return i; }
-                    public void setI(int i) { this.i = i; }
-                }
+                final static class M { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
+                static class ME { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
+    
                 static <T> List<T> listAdd(List<T> list, T t) {
                     List<T> l = list.subList(0, 10);
                     l.add(t);
                     return l;
                 }
-                static List<M> listAdd2(List<M> list, M t) {
+                static List<M> listAddM(List<M> list, M t) {
                     List<M> l = list.subList(0, 10);
+                    l.add(t);
+                    return l;
+                }
+                static List<ME> listAddME(List<ME> list, ME t) {
+                    List<ME> l = list.subList(0, 10);
                     l.add(t);
                     return l;
                 }
@@ -293,8 +306,14 @@ public class TestLinkBasics extends CommonTest {
         assertSame(TRUE, listAdd0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
 
         {
-            MethodInfo listAdd2 = X.findUniqueMethod("listAdd2", 2);
-            LinkedVariables lvMethod2 = listAdd2.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+            MethodInfo listAddM = X.findUniqueMethod("listAddM", 2);
+            LinkedVariables lvMethod2 = listAddM.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                    LinkedVariablesImpl.class);
+            assertEquals("0M-2-0M:list,0M-4-*M:t", lvMethod2.toString());
+        }
+        {
+            MethodInfo listAddME = X.findUniqueMethod("listAddME", 2);
+            LinkedVariables lvMethod2 = listAddME.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                     LinkedVariablesImpl.class);
             assertEquals("0M-2-0M:list,0M-4-*M:t", lvMethod2.toString());
         }
