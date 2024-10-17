@@ -51,11 +51,13 @@ public class ExpressionAnalyzer {
     private final Runtime runtime;
     private final GenericsHelper genericsHelper;
     private final AnalysisHelper analysisHelper;
+   private final LinkHelperFunctional linkHelperFunctional;
 
     public ExpressionAnalyzer(Runtime runtime) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper();
+       this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
     }
 
     public LinkEvaluation linkEvaluation(MethodInfo currentMethod,
@@ -194,9 +196,9 @@ public class ExpressionAnalyzer {
                 if (!immutableForward.isImmutable()) {
                     boolean isMutable = immutableForward.isMutable();
                     Indices targetIndices;
-                    Indices targetModificationArea ;
+                    Indices targetModificationArea;
                     Indices sourceModificationArea;
-                    if( immutable.isAtLeastImmutableHC()) {
+                    if (immutable.isAtLeastImmutableHC()) {
                         targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
                         sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
                     } else {
@@ -328,7 +330,6 @@ public class ExpressionAnalyzer {
             MethodInfo sami = anonymousTypeImplementsFunctionalInterface(anonymousTypeInfo);
             if (sami == null) return LinkEvaluation.EMPTY;
 
-            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod, sami);
             ParameterizedType cft = anonymousTypeInfo.interfacesImplemented().get(0);
             Value.Independent indepOfMethod = sami.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
             HiddenContentSelector hcsMethod = sami.analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
@@ -347,8 +348,8 @@ public class ExpressionAnalyzer {
             List<ParameterizedType> parameterTypes = sami.parameters().stream()
                     .map(ParameterInfo::parameterizedType)
                     .toList();
-            LinkedVariables lvs = linkHelper.functional(indepOfMethod, hcsMethod, lvsObject, concreteReturnType,
-                    independentOfParameters, hcsParameters, parameterTypes, lvsParams, cft);
+            LinkedVariables lvs = linkHelperFunctional.functional(currentMethod.primaryType(), indepOfMethod, hcsMethod,
+                    lvsObject, concreteReturnType, independentOfParameters, hcsParameters, parameterTypes, lvsParams, cft);
             return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
         }
 
@@ -364,7 +365,7 @@ public class ExpressionAnalyzer {
         }
 
         private LinkEvaluation linkEvaluationOfLambda(Lambda lambda) {
-            LinkHelper.LambdaResult lr = LinkHelper.lambdaLinking(runtime, lambda.methodInfo());
+            LinkHelperFunctional.LambdaResult lr = LinkHelperFunctional.lambdaLinking(runtime, lambda.methodInfo());
             LinkedVariables lvsBeforeRemove;
             if (lambda.methodInfo().isModifying()) {
                 lvsBeforeRemove = lr.mergedLinkedToParameters();
@@ -408,7 +409,8 @@ public class ExpressionAnalyzer {
                     .toList();
 
             LinkedVariables linkedVariablesOfObject = scopeResult.linkedVariables();
-            LinkedVariables lvs = linkHelper.functional(independentOfMethod, hcsMethod, linkedVariablesOfObject,
+            LinkedVariables lvs = linkHelperFunctional.functional(currentMethod.primaryType(),
+                    independentOfMethod, hcsMethod, linkedVariablesOfObject,
                     concreteTypeOfReturnValue, independentOfParameters, hcsParameters, concreteParameterTypes,
                     List.of(linkedVariablesOfObject), concreteTypeOfReturnValue);
             return new LinkEvaluation.Builder().merge(scopeResult).setLinkedVariables(lvs).build();
