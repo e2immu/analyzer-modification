@@ -6,8 +6,6 @@ import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
@@ -16,7 +14,6 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
-import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -27,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -209,108 +205,127 @@ public class LinkHelper {
             boolean isFactoryMethod = methodInfo.isFactoryMethod();
             // links between object/return value and parameters
             for (ParameterInfo pi : methodInfo.parameters()) {
-                Value.Independent formalParameterIndependent = pi.analysis()
-                        .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
-                LinkedVariables lvsToResult = isFactoryMethod
-                        ? pi.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
-                        LinkedVariablesImpl.EMPTY)
-                        : linkedVariablesToResult(pi);
-                boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
-                if (!formalParameterIndependent.isIndependent() || inResult) {
-                    ParameterizedType concreteParameterType = parameterExpressions.get(pi.index()).parameterizedType();
-                    LinkedVariables parameterLvs;
-                    LinkEvaluation linkEvaluation = linkedVariables.get(pi.index());
-                    LinkedVariables lvs = linkEvaluation.linkedVariables();
-                    if (inResult) {
-                        /*
-                        change the links of the parameter to the value of the return variable (see also MethodReference,
-                        computation of links when modified is true)
-                         */
-                        LinkedVariables returnValueLvs = linkedVariablesOfParameter(pi.parameterizedType(),
-                                parameterExpressions.get(pi.index()).parameterizedType(), lvs, hcsSource);
-                        LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
-                                .map(Map.Entry::getValue).findFirst().orElseThrow();
-                        Map<Variable, LV> map = returnValueLvs.stream().collect(Collectors.toMap(Map.Entry::getKey,
-                                e -> Objects.requireNonNull(follow(valueOfReturnValue, e.getValue()))));
-                        parameterLvs = LinkedVariablesImpl.of(map);
-                        formalParameterIndependent = valueOfReturnValue.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC :
-                                ValueImpl.IndependentImpl.DEPENDENT;
-                    } else {
-                        parameterLvs = linkedVariablesOfParameter(pi.parameterizedType(),
-                                parameterExpressions.get(pi.index()).parameterizedType(), lvs, hcsSource);
-                    }
-                    LinkEvaluation.Builder builder = inResult ? intoResultBuilder : intoObjectBuilder;
-                    linkEvaluation.links().forEach((v, lvs1) -> {
-                        lvs1.forEach(e -> {
-                            if (!e.getValue().isStaticallyAssignedOrAssigned()) {
-                                builder.merge(v, LinkedVariablesImpl.of(e.getKey(), e.getValue()));
-                            } // FIXME this is not the best way to approach copying, what with -1- links??
-                        });
-                    });
-                    ParameterizedType pt = inResult ? resultPt : objectPt;
-                    ParameterizedType methodPt;
-                    if (inResult) {
-                        methodPt = methodInfo.returnType();
-                    } else {
-                        methodPt = methodInfo.typeInfo().asParameterizedType();
-                    }
-                    HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                    Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex = methodHct
-                            .mapMethodToTypeIndices(inResult ? methodInfo.returnType() : pi.parameterizedType());
-                    correctionMap.putAll(mapMethodHCTIndexToTypeHCTIndex);
-                    HiddenContentSelector hcsTarget = pi.analysis().getOrDefault(HCS_PARAMETER, NONE).correct(mapMethodHCTIndexToTypeHCTIndex);
-                    if (pt != null) {
+                LinkEvaluation linkEvaluation = linkedVariables.get(pi.index());
+                Expression parameterExpression = parameterExpressions.get(pi.index());
 
-
-                        // this block of code may have to be moved up for linkedVariablesOfParameter to use it
-                        // see TestLinkConstructorInMethodCall,2 for an example
-                        Integer indexToDirectlyLinkedField;
-                        StaticValues svPi = pi.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE);
-                        if (svPi.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
-                            indexToDirectlyLinkedField = fr.fieldInfo().indexInType();
-                            // FIXME only works for first order at the moment
-                            // FIXME only works for @Final fields in the same type, because SV_PARAM is computed afterwards for non-final fields
-                        } else {
-                            indexToDirectlyLinkedField = null;
-                        }
-
-
-                        LinkedVariables lv;
-                        if (inResult) {
-                            // parameter -> result
-
-                            HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
-                            HiddenContentSelector hcsSource = methodHcs.correct(mapMethodHCTIndexToTypeHCTIndex);
-                            lv = linkedVariables(this.hcsSource, concreteParameterType, pi.parameterizedType(), hcsTarget,
-                                    parameterLvs, false, formalParameterIndependent, pt, methodPt,
-                                    hcsSource, false, indexToDirectlyLinkedField);
-                        } else {
-                            Value.Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
-                            if (pi.parameterizedType().isTypeParameter() && !concreteParameterType.parameters().isEmpty()) {
-                                if (mutable.isMutable()) {
-                                    lv = parameterLvs;
-                                } else {
-                                    lv = parameterLvs.map(LV::changeToHc);
-                                }
-                            } else if (!mutable.isImmutable()) {
-                                // object -> parameter (rather than the other way around)
-                                lv = linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, false,
-                                        formalParameterIndependent, concreteParameterType, pi.parameterizedType(), hcsTarget,
-                                        true, indexToDirectlyLinkedField);
-                            } else {
-                                lv = null;
-                            }
-                        }
-                        if (lv != null) {
-                            builder.mergeLinkedVariablesOfExpression(lv);
-                        }
-                    }
-                }
+                linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, linkEvaluation,
+                        isFactoryMethod, intoResultBuilder, intoObjectBuilder, correctionMap);
             }
-
             linksBetweenParameters(intoObjectBuilder, methodInfo, parameterExpressions, linkedVariables);
         }
         return new FromParameters(intoObjectBuilder, intoResultBuilder, Map.copyOf(correctionMap));
+    }
+
+    private void linkParameterToObjectOrResult(ParameterInfo pi,
+                                               ParameterizedType objectPt,
+                                               ParameterizedType resultPt,
+                                               Expression parameterExpression,
+                                               LinkEvaluation linkEvaluationOfParameter,
+                                               boolean isFactoryMethod,
+                                               LinkEvaluation.Builder intoResultBuilder,
+                                               LinkEvaluation.Builder intoObjectBuilder,
+                                               Map<Integer, Integer> correctionMap) {
+        Independent formalParameterIndependent = pi.analysis()
+                .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
+        LinkedVariables lvsToResult = isFactoryMethod
+                ? pi.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                LinkedVariablesImpl.EMPTY)
+                : linkedVariablesToResult(pi);
+        boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
+        if (!formalParameterIndependent.isIndependent() || inResult) {
+            ParameterizedType concreteParameterType = parameterExpression.parameterizedType();
+            LinkedVariables parameterLvs;
+            LinkedVariables lvs = linkEvaluationOfParameter.linkedVariables();
+            if (inResult) {
+                /*
+                change the links of the parameter to the value of the return variable (see also MethodReference,
+                computation of links when modified is true)
+                 */
+                LinkedVariables returnValueLvs = linkedVariablesOfParameter(pi.parameterizedType(),
+                        parameterExpression.parameterizedType(), lvs, hcsSource);
+                LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
+                        .map(Map.Entry::getValue).findFirst().orElseThrow();
+                Map<Variable, LV> map = returnValueLvs.stream().collect(Collectors.toMap(Map.Entry::getKey,
+                        e -> Objects.requireNonNull(follow(valueOfReturnValue, e.getValue()))));
+                parameterLvs = LinkedVariablesImpl.of(map);
+                formalParameterIndependent = valueOfReturnValue.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC :
+                        ValueImpl.IndependentImpl.DEPENDENT;
+            } else {
+                parameterLvs = linkedVariablesOfParameter(pi.parameterizedType(),
+                        parameterExpression.parameterizedType(), lvs, hcsSource);
+            }
+            LinkEvaluation.Builder builder = inResult ? intoResultBuilder : intoObjectBuilder;
+            linkEvaluationOfParameter.links().forEach((v, lvs1) -> {
+                lvs1.forEach(e -> {
+                    if (!e.getValue().isStaticallyAssignedOrAssigned()) {
+                        builder.merge(v, LinkedVariablesImpl.of(e.getKey(), e.getValue()));
+                    } // FIXME this is not the best way to approach copying, what with -1- links??
+                });
+            });
+            ParameterizedType pt = inResult ? resultPt : objectPt;
+            ParameterizedType methodPt;
+            if (inResult) {
+                methodPt = methodInfo.returnType();
+            } else {
+                methodPt = methodInfo.typeInfo().asParameterizedType();
+            }
+            HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+            Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex = methodHct
+                    .mapMethodToTypeIndices(inResult ? methodInfo.returnType() : pi.parameterizedType());
+            correctionMap.putAll(mapMethodHCTIndexToTypeHCTIndex);
+            HiddenContentSelector hcsTarget = pi.analysis().getOrDefault(HCS_PARAMETER, NONE).correct(mapMethodHCTIndexToTypeHCTIndex);
+            if (pt != null) {
+                LinkedVariables lv = computeLvForParameter(pi, inResult, mapMethodHCTIndexToTypeHCTIndex,
+                        concreteParameterType, hcsTarget, parameterLvs, formalParameterIndependent, pt, methodPt);
+                if (lv != null) {
+                    builder.mergeLinkedVariablesOfExpression(lv);
+                }
+            }
+        }
+    }
+
+    private LinkedVariables computeLvForParameter(ParameterInfo pi,
+                                                  boolean inResult,
+                                                  Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex,
+                                                  ParameterizedType concreteParameterType,
+                                                  HiddenContentSelector hcsTarget,
+                                                  LinkedVariables parameterLvs,
+                                                  Independent formalParameterIndependent,
+                                                  ParameterizedType pt,
+                                                  ParameterizedType methodPt) {
+        // this block of code may have to be moved up for linkedVariablesOfParameter to use it
+        // see TestLinkConstructorInMethodCall,2 for an example
+        Integer indexToDirectlyLinkedField;
+        StaticValues svPi = pi.analysis().getOrDefault(StaticValuesImpl.STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE);
+        if (svPi.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
+            indexToDirectlyLinkedField = fr.fieldInfo().indexInType();
+            // FIXME only works for first order at the moment
+            // FIXME only works for @Final fields in the same type, because SV_PARAM is computed afterwards for non-final fields
+        } else {
+            indexToDirectlyLinkedField = null;
+        }
+        if (inResult) {
+            // parameter -> result
+            HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
+            HiddenContentSelector hcsSource = methodHcs.correct(mapMethodHCTIndexToTypeHCTIndex);
+            return linkedVariables(this.hcsSource, concreteParameterType, pi.parameterizedType(), hcsTarget,
+                    parameterLvs, false, formalParameterIndependent, pt, methodPt,
+                    hcsSource, false, indexToDirectlyLinkedField);
+        }
+        Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
+        if (pi.parameterizedType().isTypeParameter() && !concreteParameterType.parameters().isEmpty()) {
+            if (mutable.isMutable()) {
+                return parameterLvs;
+            }
+            return parameterLvs.map(LV::changeToHc);
+        }
+        if (!mutable.isImmutable()) {
+            // object -> parameter (rather than the other way around)
+            return linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, false,
+                    formalParameterIndependent, concreteParameterType, pi.parameterizedType(), hcsTarget,
+                    true, indexToDirectlyLinkedField);
+        }
+        return null;
     }
 
     public void linksBetweenParameters(LinkEvaluation.Builder builder,
@@ -423,27 +438,21 @@ public class LinkHelper {
     */
 
     public LinkedVariables linkedVariablesMethodCallObjectToReturnType(ParameterizedType objectType,
-                                                                       LinkedVariables linkedVariablesOfObject,
-                                                                       List<LinkedVariables> linkedVariables,
-                                                                       ParameterizedType returnType) {
-        return linkedVariablesMethodCallObjectToReturnType(objectType, linkedVariablesOfObject, linkedVariables, returnType, Map.of());
-    }
-
-    public LinkedVariables linkedVariablesMethodCallObjectToReturnType(ParameterizedType objectType,
                                                                        LinkedVariables linkedVariablesOfObjectIn,
                                                                        List<LinkedVariables> linkedVariables,
                                                                        ParameterizedType returnType,
                                                                        Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex) {
-        // RULE 1: void method cannot link
+        // RULE 1: void methods cannot link
         if (methodInfo.noReturnValue()) return LinkedVariablesImpl.EMPTY;
-        boolean recursiveCall = recursiveCall(methodInfo, currentMethod);
-        if (recursiveCall) {
-            return LinkedVariablesImpl.EMPTY;
-        }
+
+        // RULE 2: recursive methods TODO
+        //boolean recursiveCall = recursiveCall(methodInfo, currentMethod);
+        //if (recursiveCall) {
+        //    return LinkedVariablesImpl.EMPTY;
+        //}
 
         // RULE 2: @Identity links to the 1st parameter
-        boolean identity = methodInfo.analysis().getOrDefault(PropertyImpl.IDENTITY_METHOD, ValueImpl.BoolImpl.FALSE).isTrue();
-        if (identity) {
+        if (methodInfo.isIdentity()) {
             return linkedVariables.get(0).maximum(LINK_ASSIGNED);
         }
         LinkedVariables linkedVariablesOfObject = linkedVariablesOfObjectIn.maximum(LINK_ASSIGNED);

@@ -340,4 +340,48 @@ public class TestLinkModificationArea extends CommonTest {
             assertFalse(viB.isModified());
         }
     }
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                static <T> T nonNull(T t) {
+                    if(t == null) throw new NullPointerException(t);
+                    return t;
+                }
+                static class M { int i; int get() { return i; } void set(int i) { this.i = i; }}
+                record R(M a) {}
+                static M getA(R r) {
+                    return nonNull(r.a);
+                }
+            }
+            """;
+
+    @DisplayName("identity function preserves modification area information, static values")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+        MethodInfo nonNull = X.findUniqueMethod("nonNull", 1);
+        assertTrue(nonNull.isIdentity());
+
+        TypeInfo M = X.findSubType("M");
+        assertTrue(M.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+        assertTrue(M.isExtensible());
+        TypeInfo R = X.findSubType("R");
+        HiddenContentTypes hctR = R.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=M", hctR.detailedSortedTypes());
+
+        MethodInfo getA = X.findUniqueMethod("getA", 1);
+        {
+            Statement s0 = getA.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo viRv = vd0.variableInfo(getA.fullyQualifiedName());
+            assertEquals("E=r.a", viRv.staticValues().toString());
+            assertEquals("*M-2-0M|*-0:r,-1-:a", viRv.linkedVariables().toString());
+        }
+    }
+
 }

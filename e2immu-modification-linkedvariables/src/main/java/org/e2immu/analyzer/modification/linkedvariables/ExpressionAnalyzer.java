@@ -51,13 +51,13 @@ public class ExpressionAnalyzer {
     private final Runtime runtime;
     private final GenericsHelper genericsHelper;
     private final AnalysisHelper analysisHelper;
-   private final LinkHelperFunctional linkHelperFunctional;
+    private final LinkHelperFunctional linkHelperFunctional;
 
     public ExpressionAnalyzer(Runtime runtime) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper();
-       this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
+        this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
     }
 
     public LinkEvaluation linkEvaluation(MethodInfo currentMethod,
@@ -445,13 +445,20 @@ public class ExpressionAnalyzer {
 
             methodCallLinks(currentMethod, mc, builder, leObject, leParams);
             methodCallModified(mc, builder);
-            methodCallStaticValue(mc, builder, leObject);
+            methodCallStaticValue(mc, builder, leObject, leParams);
 
             return builder.build();
         }
 
-        private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject) {
+        private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject,
+                                           List<LinkEvaluation> leParams) {
             StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
+
+            // identity method
+            if (mc.methodInfo().isIdentity()) {
+                builder.setStaticValues(leParams.get(0).staticValues());
+                return;
+            }
 
             // getter: return value becomes the field reference
             Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
