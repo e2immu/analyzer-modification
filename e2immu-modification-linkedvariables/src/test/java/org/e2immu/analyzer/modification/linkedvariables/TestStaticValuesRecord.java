@@ -186,7 +186,7 @@ public class TestStaticValuesRecord extends CommonTest {
             LocalVariableCreation sLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(sLvc);
             VariableInfo sVi1 = vd1.variableInfo("s");
-            assertEquals("-1-:r,0M-2-*M|0-*:in", sVi1.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:in, -1-:r", sVi1.linkedVariables().toString());
             assertEquals(rVi0.staticValues(), sVi1.staticValues());
         }
 

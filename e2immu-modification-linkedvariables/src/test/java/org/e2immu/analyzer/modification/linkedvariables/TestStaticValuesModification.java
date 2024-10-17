@@ -115,7 +115,7 @@ public class TestStaticValuesModification extends CommonTest {
 
             VariableInfo vd2R = vd2.variableInfo("r");
             assertFalse(vd2R.isModified());
-            assertEquals("0M-2-*M|0-*:s,1M-2-*M|2-*:l", vd2R.linkedVariables().toString());
+            assertEquals("1M-2-*M|2-*:l, 0M-2-*M|0-*:s", vd2R.linkedVariables().toString());
             assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vd2R.staticValues().toString());
         }
         {
@@ -123,7 +123,7 @@ public class TestStaticValuesModification extends CommonTest {
             VariableData vd3 = VariableDataImpl.of(s3);
             VariableInfo vi3R = vd3.variableInfo("r");
             assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
-            assertEquals("0M-2-*M|0-*:s,1M-2-*M|2-*:l", vi3R.linkedVariables().toString());
+            assertEquals("1M-2-*M|2-*:l, 0M-2-*M|0-*:s", vi3R.linkedVariables().toString());
             assertTrue(vi3R.isModified());
 
             VariableInfo vd3L = vd3.variableInfo("l");
@@ -195,7 +195,7 @@ public class TestStaticValuesModification extends CommonTest {
         VariableData vd3 = VariableDataImpl.of(s3);
         VariableInfo vi3R = vd3.variableInfo("r");
         assertEquals("Type a.b.X.RI E=new RI(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
-        assertEquals("0M-2-*M|0-*:s,1M-2-*M|2-*:l", vi3R.linkedVariables().toString());
+        assertEquals("1M-2-*M|2-*:l, 0M-2-*M|0-*:s", vi3R.linkedVariables().toString());
         assertTrue(vi3R.isModified());
 
         VariableInfo vd3S = vd3.variableInfo("s");

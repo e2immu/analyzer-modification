@@ -48,12 +48,12 @@ public class TestLinkVariousExpressionTypes extends CommonTest {
         Statement s000 = method.methodBody().statements().get(0).block().statements().get(0);
         VariableData vd000 = VariableDataImpl.of(s000);
         VariableInfo rv000 = vd000.variableInfo(method.fullyQualifiedName());
-        assertEquals("-1-:m,-1-:object", rv000.linkedVariables().toString());
+        assertEquals("-1-:m, -1-:object", rv000.linkedVariables().toString());
 
         Statement s0 = method.methodBody().statements().get(0);
         VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo rv0 = vd0.variableInfo(method.fullyQualifiedName());
-        assertEquals("-1-:m,-1-:object", rv0.linkedVariables().toString());
+        assertEquals("-1-:m, -1-:object", rv0.linkedVariables().toString());
 
         VariableData vd = VariableDataImpl.of(method);
         VariableInfo rv = vd.variableInfo(method.fullyQualifiedName());

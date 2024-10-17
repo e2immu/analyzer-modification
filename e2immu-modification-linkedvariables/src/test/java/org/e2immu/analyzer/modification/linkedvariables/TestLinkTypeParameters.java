@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -75,16 +74,16 @@ public class TestLinkTypeParameters extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo create0 = X.findUniqueMethod("create0", 2);
-        assertEquals("0-4-*:x,1-4-*:y", lvs(create0));
+        assertEquals("0-4-*:x, 1-4-*:y", lvs(create0));
 
         MethodInfo create1 = X.findUniqueMethod("create1", 2);
-        assertEquals("0-4-*:x,1M-4-*M:m", lvs(create1));
+        assertEquals("1M-4-*M:m, 0-4-*:x", lvs(create1));
 
         MethodInfo create2 = X.findUniqueMethod("create2", 2);
-        assertEquals("0-4-*:x,1M-4-*M:m", lvs(create2));
+        assertEquals("1M-4-*M:m, 0-4-*:x", lvs(create2));
 
         MethodInfo create3 = X.findUniqueMethod("create3", 2);
-        assertEquals("0M-4-*M:n,1M-4-*M:m", lvs(create3));
+        assertEquals("1M-4-*M:m, 0M-4-*M:n", lvs(create3));
 
         MethodInfo create4 = X.findUniqueMethod("create4", 2);
         assertEquals("1M-4-*M:m", lvs(create4));
@@ -176,19 +175,19 @@ public class TestLinkTypeParameters extends CommonTest {
         assertTrue(R.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
 
         MethodInfo copy = X.findUniqueMethod("copy", 1);
-        assertEquals("0-4-*:f,0;1-4-*:pair,1-4-*:g", lvs(copy));
+        assertEquals("0-4-*:f, 1-4-*:g, 0;1-4-*:pair", lvs(copy));
 
         MethodInfo copy2 = X.findUniqueMethod("copy2", 1);
-        assertEquals("0-4-*:f,0;1-4-*:pair,1-4-*:g", lvs(copy2));
+        assertEquals("0-4-*:f, 1-4-*:g, 0;1-4-*:pair", lvs(copy2));
 
         MethodInfo copy3 = X.findUniqueMethod("copy3", 1);
-        assertEquals("0;1-4-*:f,0;1-4-*:g,0;1-4-*:pair", lvs(copy3));
+        assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy3));
 
         MethodInfo copy4 = X.findUniqueMethod("copy4", 1);
-        assertEquals("0;1-4-*:f,0;1-4-*:g,0;1-4-*:pair", lvs(copy4));
+        assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy4));
 
         MethodInfo reverse = X.findUniqueMethod("reverse", 1);
-        assertEquals("0-4-*:g,0;1-4-*:pair,1-4-*:f", lvs(reverse));
+        assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair", lvs(reverse));
 
         MethodInfo reverse2 = X.findUniqueMethod("reverse2", 1);
         // FIXME links to f, g missing
