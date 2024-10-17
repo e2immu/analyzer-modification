@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.Function;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.EMPTY;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_METHOD;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
@@ -26,6 +29,66 @@ import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.N
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkObjectRecursion extends CommonTest {
+
+
+    @Language("java")
+    private static final String INPUT0 = """
+            package a.b;
+            import java.util.Iterator;
+            import java.util.function.Function;
+            class X {
+                record LL<T>(T head, LL<T> tail) {
+                    LL<T> prepend(T t) {
+                        LL<T> ll = new LL<>(t, this);
+                        return ll;
+                    }
+                    LL<T> prepend2(T t) {
+                        return new LL<>(t, this);
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("prep-work, with immutable LL")
+    @Test
+    public void test0() {
+        TypeInfo X = javaInspector.parse(INPUT0);
+        TypeInfo LL = X.findSubType("LL");
+        LL.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC); // cannot compute that yet
+        List<Info> analysisOrder = prepWork(X);
+        assertEquals("0=T, 1=LL", LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE).detailedSortedTypes());
+
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        This thisVar = runtime.newThis(LL.asParameterizedType());
+        MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
+        {
+            Statement s0 = prepend.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0This = vd0.variableInfo(thisVar);
+            assertEquals("0-4-*:t,0-4-0:ll", vi0This.linkedVariables().toString());
+            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
+            assertEquals("*-4-0:ll,*-4-0:this", vi0T.linkedVariables().toString());
+            VariableInfo vi0LL = vd0.variableInfo("ll");
+
+            // interpretation: t is an integral part of the hidden content of 'll'; 0 is the type of T
+            // at the same time, because LL is mutable (we do not analyzer IMMUTABLE_TYPE yet), ll is linked to 'this':
+            // only the hidden content type 0 is added as context/label.
+            assertEquals("0-4-*:t,0-4-0:this", vi0LL.linkedVariables().toString());
+        }
+
+        MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
+        {
+            Statement s0 = prepend2.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0This = vd0.variableInfo(thisVar);
+            assertEquals("", vi0This.linkedVariables().toString());
+            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
+            assertEquals("", vi0T.linkedVariables().toString());
+            VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
+            assertEquals("0-4-*:t,0-4-0:this", vi0Rv.linkedVariables().toString());
+        }
+    }
 
     @Language("java")
     private static final String INPUT1 = """
@@ -49,7 +112,7 @@ public class TestLinkObjectRecursion extends CommonTest {
             }
             """;
 
-    @DisplayName("linked list")
+    @DisplayName("linked list, with mutable LL")
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
@@ -76,6 +139,8 @@ public class TestLinkObjectRecursion extends CommonTest {
             // only the hidden content type 0 is added as context/label.
             assertEquals("0-2-0:this,0-4-*:t", vi0LL.linkedVariables().toString());
         }
+        assertEquals("0-2-0:this,0-4-*:t", prepend.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+                .toString());
 
         MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
         {
@@ -88,6 +153,8 @@ public class TestLinkObjectRecursion extends CommonTest {
             VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
             assertEquals("0-2-0:this,0-4-*:t", vi0Rv.linkedVariables().toString());
         }
+        assertEquals("0-2-0:this,0-4-*:t", prepend2.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+                .toString());
     }
 
 

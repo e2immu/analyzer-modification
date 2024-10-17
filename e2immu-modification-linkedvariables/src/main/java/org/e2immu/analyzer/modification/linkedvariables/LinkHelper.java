@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
@@ -228,8 +229,7 @@ public class LinkHelper {
         Independent formalParameterIndependent = pi.analysis()
                 .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
         LinkedVariables lvsToResult = isFactoryMethod
-                ? pi.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
-                LinkedVariablesImpl.EMPTY)
+                ? pi.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY)
                 : linkedVariablesToResult(pi);
         boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
         if (!formalParameterIndependent.isIndependent() || inResult) {
@@ -335,46 +335,76 @@ public class LinkHelper {
         Map<ParameterInfo, LinkedVariables> crossLinks = translateLinksToParameters(methodInfo);
         if (crossLinks.isEmpty()) return;
         crossLinks.forEach((pi, lv) -> {
-            boolean sourceIsVarArgs = pi.isVarArgs();
-            assert !sourceIsVarArgs : "Varargs must always be a target";
-            HiddenContentSelector hcsSource = methodInfo.parameters().get(pi.index()).analysis()
-                    .getOrDefault(HCS_PARAMETER, NONE);
-            ParameterizedType sourceType = parameterExpressions.get(pi.index()).parameterizedType();
-            LinkedVariables sourceLvs = linkedVariablesOfParameter(pi.parameterizedType(),
-                    parameterExpressions.get(pi.index()).parameterizedType(),
-                    linkedVariables.get(pi.index()).linkedVariables(), hcsSource);
-
-            lv.stream().forEach(e -> {
-                ParameterInfo target = (ParameterInfo) e.getKey();
-
-                boolean targetIsVarArgs = target.isVarArgs();
-                if (!targetIsVarArgs || linkedVariables.size() > target.index()) {
-
-                    LV level = e.getValue();
-
-                    for (int i = target.index(); i < linkedVariables.size(); i++) {
-                        ParameterizedType targetType = parameterExpressions.get(target.index()).parameterizedType();
-                        HiddenContentSelector hcsTarget = methodInfo.parameters().get(target.index()).analysis()
-                                .getOrDefault(HCS_PARAMETER, NONE);
-
-                        LinkedVariables targetLinkedVariables = linkedVariablesOfParameter(target.parameterizedType(),
-                                parameterExpressions.get(i).parameterizedType(),
-                                linkedVariables.get(i).linkedVariables(), hcsSource);
-
-                        Value.Independent independentDv = level.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC
-                                : ValueImpl.IndependentImpl.DEPENDENT;
-                        LinkedVariables mergedLvs = linkedVariables(hcsSource, targetType, target.parameterizedType(), hcsSource,
-                                targetLinkedVariables, targetIsVarArgs, independentDv, sourceType, pi.parameterizedType(),
-                                hcsTarget, targetIsVarArgs, null); // FIXME
-                        crossLink(sourceLvs, mergedLvs, builder);
-                    }
-                } // else: no value... empty varargs
-            });
+            doCrossLinkOfParameter(builder, methodInfo, parameterExpressions, linkedVariables, pi, lv);
         });
     }
 
+    private void doCrossLinkOfParameter(LinkEvaluation.Builder builder,
+                                        MethodInfo methodInfo,
+                                        List<Expression> parameterExpressions,
+                                        List<LinkEvaluation> linkedVariables,
+                                        ParameterInfo pi,
+                                        LinkedVariables lv) {
+        boolean sourceIsVarArgs = pi.isVarArgs();
+        assert !sourceIsVarArgs : "Varargs must always be a target";
+        HiddenContentSelector hcsSource = methodInfo.parameters().get(pi.index()).analysis()
+                .getOrDefault(HCS_PARAMETER, NONE);
+        ParameterizedType sourceType = parameterExpressions.get(pi.index()).parameterizedType();
+        LinkedVariables sourceLvs = linkedVariablesOfParameter(pi.parameterizedType(),
+                parameterExpressions.get(pi.index()).parameterizedType(),
+                linkedVariables.get(pi.index()).linkedVariables(), hcsSource);
+
+        lv.stream().forEach(e -> {
+            ParameterInfo target = (ParameterInfo) e.getKey();
+
+            doCrossLinkFromTo(builder, methodInfo, parameterExpressions, linkedVariables, pi, e, target, hcsSource, sourceType, sourceLvs);
+        });
+    }
+
+    private void doCrossLinkFromTo(LinkEvaluation.Builder builder,
+                                   MethodInfo methodInfo,
+                                   List<Expression> parameterExpressions,
+                                   List<LinkEvaluation> linkedVariables,
+                                   ParameterInfo pi,
+                                   Map.Entry<Variable, LV> e,
+                                   ParameterInfo target,
+                                   HiddenContentSelector hcsSource,
+                                   ParameterizedType sourceType,
+                                   LinkedVariables sourceLvs) {
+        boolean targetIsVarArgs = target.isVarArgs();
+        if (!targetIsVarArgs || linkedVariables.size() > target.index()) {
+
+            LV level = e.getValue();
+
+            for (int i = target.index(); i < linkedVariables.size(); i++) {
+                ParameterizedType targetType = parameterExpressions.get(target.index()).parameterizedType();
+                HiddenContentSelector hcsTarget = methodInfo.parameters().get(target.index()).analysis()
+                        .getOrDefault(HCS_PARAMETER, NONE);
+
+                LinkedVariables targetLinkedVariables = linkedVariablesOfParameter(target.parameterizedType(),
+                        parameterExpressions.get(i).parameterizedType(),
+                        linkedVariables.get(i).linkedVariables(), hcsSource);
+
+                Independent independentDv = level.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC
+                        : ValueImpl.IndependentImpl.DEPENDENT;
+                LinkedVariables mergedLvs = linkedVariables(hcsSource, targetType, target.parameterizedType(), hcsSource,
+                        targetLinkedVariables, targetIsVarArgs, independentDv, sourceType, pi.parameterizedType(),
+                        hcsTarget, targetIsVarArgs, null); // FIXME
+                crossLink(sourceLvs, mergedLvs, builder);
+            }
+        } // else: no value... empty varargs
+    }
+
     private LinkedVariables linkedVariablesToResult(ParameterInfo pi) {
-        return LinkedVariablesImpl.EMPTY; // FIXME
+        LinkedVariables lvMethod = pi.methodInfo().analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY);
+        LV lv = lvMethod.stream().filter(e -> e.getKey() == pi).map(Map.Entry::getValue).findFirst().orElse(null);
+        assert !pi.methodInfo().isIdentity() || pi.index() != 0 || lv != null
+                : "We must have a value for @Identity methods and the first parameter";
+        if (lv == null) return LinkedVariablesImpl.EMPTY;
+        ReturnVariable rv = new ReturnVariableImpl(pi.methodInfo());
+        LV reverse = lv.reverse(); // we must link towards to result!!!
+        return LinkedVariablesImpl.of(rv, reverse);
     }
 
     private Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
@@ -530,11 +560,10 @@ public class LinkHelper {
         assert targetType != null;
 
         // RULE 1: no linking when the source is not linked or there is no transfer
-        if (sourceLvs.isEmpty() || transferIndependent != null && transferIndependent.isIndependent()) {
+        if (sourceLvs.isEmpty() || transferIndependent.isIndependent()) {
             return LinkedVariablesImpl.EMPTY;
         }
-        assert !(hiddenContentSelectorOfTarget.isNone()
-                 && transferIndependent != null && transferIndependent.isIndependentHc())
+        assert !(hiddenContentSelectorOfTarget.isNone() && transferIndependent.isIndependentHc())
                 : "Impossible to have no knowledge of hidden content, and INDEPENDENT_HC";
 
         Value.Immutable immutableOfSource = analysisHelper.typeImmutable(currentPrimaryType, sourceType);
