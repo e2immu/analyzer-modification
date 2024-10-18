@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
@@ -39,7 +40,7 @@ public class CommonTest {
     @BeforeAll
     public static void beforeAll() {
         ((Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
-        ((Logger) LoggerFactory.getLogger("org.e2immu.analyzer.modification.prepwork")).setLevel(Level.DEBUG);
+        ((Logger) LoggerFactory.getLogger("graph-algorithm")).setLevel(Level.DEBUG);
     }
 
     @BeforeEach

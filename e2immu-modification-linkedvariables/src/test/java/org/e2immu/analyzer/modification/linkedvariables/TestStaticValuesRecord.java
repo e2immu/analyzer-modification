@@ -540,10 +540,10 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi2r = vd2.variableInfo("r");
             assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
                     vi2r.staticValues().toString());
-            assertEquals("0-2-0|1-*:list, 0-2-0|0-*:set", vi2r.linkedVariables().toString());
+            assertEquals("0,2M-2-0,*M|1-*:list, 0,1M-2-0,*M|0-*:set", vi2r.linkedVariables().toString());
 
             VariableInfo vi2Set = vd2.variableInfo("set");
-            assertEquals("0-2-0|*-0:r", vi2Set.linkedVariables().toString());
+            assertEquals("*M,0-2-1M,0|*-0:r", vi2Set.linkedVariables().toString());
             assertFalse(vi2Set.isModified());
 
             VariableInfo vi2List = vd2.variableInfo("list");
@@ -596,6 +596,8 @@ public class TestStaticValuesRecord extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 3);
+        ParameterInfo set = method.parameters().get(0);
+        ParameterInfo list = method.parameters().get(1);
         {
             Statement s0 = method.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
@@ -603,14 +605,14 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi2r = vd0.variableInfo("r");
             assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
                     vi2r.staticValues().toString());
-            assertEquals("0-2-0|1-*:list, 0-2-0|0-*:set", vi2r.linkedVariables().toString());
+            assertEquals("0,2M-2-0,*M|1-*:list, 0,1M-2-0,*M|0-*:set", vi2r.linkedVariables().toString());
 
-            VariableInfo vi2Set = vd0.variableInfo("set");
+            VariableInfo vi2Set = vd0.variableInfo(set);
             assertEquals("0-2-0|*-0:r", vi2Set.linkedVariables().toString());
             assertFalse(vi2Set.isModified());
 
-            VariableInfo vi2List = vd0.variableInfo("list");
-            assertEquals("0-2-0|*-1:r", vi2List.linkedVariables().toString());
+            VariableInfo vi2List = vd0.variableInfo(list);
+            assertEquals("*M,0-2-1M,0|*-0:r", vi2List.linkedVariables().toString());
             assertFalse(vi2List.isModified());
         }
         {
@@ -623,13 +625,12 @@ public class TestStaticValuesRecord extends CommonTest {
             assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
                     vi4R.linkedVariables().toString());
 
-            // FIXME we should never link to list!!!
-            VariableInfo vi4Set = vd2.variableInfo("set");
+            VariableInfo vi4Set = vd2.variableInfo(set);
             assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
 
             assertTrue(vi4Set.isModified());
             assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
-            VariableInfo vi4List = vd2.variableInfo("list");
+            VariableInfo vi4List = vd2.variableInfo(list);
             assertFalse(vi4List.isModified());
         }
     }

@@ -43,7 +43,8 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class Analyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Analyzer.class);
-
+    private static final Logger LOGGER_GRAPH = LoggerFactory.getLogger("graph-algorithm");
+    
     private final Runtime runtime;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
@@ -322,6 +323,7 @@ public class Analyzer {
                                      Statement statement,
                                      VariableData previous,
                                      boolean first) {
+        LOGGER_GRAPH.debug("Statement {}", statement.source());
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         VariableData vd = VariableDataImpl.of(statement);
         assert vd != null : "No variable data in " + statement + " source " + statement.source();

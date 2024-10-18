@@ -17,5 +17,7 @@ public interface Links extends DijkstraShortestPath.Connection {
 
     Links reverse();
 
+    String toString(int hc);
+
     Links theirsToTheirs(Links links);
 }

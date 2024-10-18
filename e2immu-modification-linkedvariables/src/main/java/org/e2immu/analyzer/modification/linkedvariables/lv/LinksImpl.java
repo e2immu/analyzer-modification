@@ -7,12 +7,11 @@ import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.util.internal.graph.op.DijkstraShortestPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
+import java.util.function.Function;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl.ALL;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
@@ -35,6 +34,9 @@ The important consequence is that a modification in A does imply a modification 
 
 public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
                         Indices modificationAreaTarget) implements Links {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("graph-algorithm");
+
     // link info on -0-, -1-, -2- without extra link info. -4- must have hidden content links,
     // and its modification areas must be NO_MODIFICATION_INDICES
     public static final Links NO_LINKS = new LinksImpl(Map.of(), ALL_INDICES, ALL_INDICES);
@@ -54,11 +56,64 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
         return new LinksImpl(map, NO_MODIFICATION_INDICES, NO_MODIFICATION_INDICES);
     }
 
+    @Override
+    public String toString() {
+        return toString(0);
+    }
+
+    @Override
+    public String toString(int hc) {
+        List<String> from = new ArrayList<>();
+        List<String> to = new ArrayList<>();
+        int countAll = 0;
+        for (Map.Entry<Indices, Link> e : map().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            boolean mutable = e.getValue().mutable();
+            boolean fromIsAll = e.getKey().isAll();
+            String f = indexToString(e.getKey()) + (mutable ? "M" : "");
+            Indices i = e.getValue().to();
+            assert i != null;
+            boolean toIsAll = i.isAll();
+            String t = indexToString(i) + (mutable ? "M" : "");
+            if (!(fromIsAll && toIsAll)) {
+                from.add(f);
+                to.add(t);
+                countAll += (fromIsAll || toIsAll) ? 1 : 0;
+            } // else: ignore self-referencing links; rely on the other hidden content
+        }
+        assert countAll <= 1;
+        assert from.size() == to.size();
+
+        String modArea;
+        if (modificationAreaSource().haveValue() || modificationAreaTarget().haveValue()) {
+            modArea = "|" + indexToString(modificationAreaSource())
+                      + "-" + indexToString(modificationAreaTarget());
+        } else {
+            modArea = "";
+        }
+        String hcStr = hc == 0 ? "?" : "" + hc;
+        return String.join(",", from) + "-" + hcStr + "-" + String.join(",", to) + modArea;
+    }
+
+    private static String indexToString(Indices i) {
+        if (ALL_INDICES.equals(i)) return "*";
+        return i.toString();
+    }
+
     /*
      this method, together with allowModified(), is key to the whole linking + modification process
      */
     @Override
-    public DijkstraShortestPath.Accept next(DijkstraShortestPath.Connection current) {
+    public DijkstraShortestPath.Accept next(Function<Integer, String> nodePrinter, int from, int to,
+                                            DijkstraShortestPath.Connection current) {
+        DijkstraShortestPath.Accept a = internalNext(current);
+        LOGGER.debug("Accept {} -> {} ______ {} -> {} ----> {}: {}",
+                current, nodePrinter.apply(from),
+                this, nodePrinter.apply(to),
+                a.accept(), a.next());
+        return a;
+    }
+
+    private DijkstraShortestPath.Accept internalNext(DijkstraShortestPath.Connection current) {
         if (current == NO_LINKS) {
             return new DijkstraShortestPath.Accept(true, this);
         }
@@ -105,15 +160,16 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
                     conflicted |= !intersect;
                 } else {
                     // see TestWeightedGraph15B, start in s; x->* y->*
-                    assert entry.getValue().to().isAll() && map.values().stream().allMatch(l -> l.to().isAll());
-                    if (!this.modificationAreaSource.isAll() && modificationAreaTarget.isAll()
-                        && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
-                        maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
-                        maTarget = ALL_INDICES;
+                    if (entry.getValue().to().isAll() && map.values().stream().allMatch(l -> l.to().isAll())) {
+                        if (!this.modificationAreaSource.isAll() && modificationAreaTarget.isAll()
+                            && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
+                            maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
+                            maTarget = ALL_INDICES;
+                        }
+                        boolean mutable = entry.getValue().mutable();
+                        LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
+                        res.merge(entry.getKey(), newLInk, Link::merge);
                     }
-                    boolean mutable = entry.getValue().mutable();
-                    LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
-                    res.merge(entry.getKey(), newLInk, Link::merge);
                 }
             }
         }

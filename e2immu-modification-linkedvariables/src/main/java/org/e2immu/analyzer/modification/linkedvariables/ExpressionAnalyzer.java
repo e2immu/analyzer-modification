@@ -224,13 +224,13 @@ public class ExpressionAnalyzer {
                     Indices targetIndices;
                     Indices targetModificationArea;
                     Indices sourceModificationArea;
-                   // if (isMutable) {
+                    if (isMutable) {
                         targetModificationArea = new IndicesImpl(fieldIndex);
                         sourceModificationArea = IndicesImpl.ALL_INDICES;
-                    //} else {
-                   //     targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                   //     sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                   // }
+                    } else {
+                        targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                        sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                    }
                     if (v instanceof DependentVariable) {
                         targetIndices = new IndicesImpl(0);
                     } else {

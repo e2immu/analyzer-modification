@@ -93,40 +93,7 @@ public class LVImpl implements LV {
     }
 
     private static String createLabel(Links links, int hc) {
-        List<String> from = new ArrayList<>();
-        List<String> to = new ArrayList<>();
-        int countAll = 0;
-        for (Map.Entry<Indices, Link> e : links.map().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-            boolean mutable = e.getValue().mutable();
-            boolean fromIsAll = e.getKey().isAll();
-            String f = indexToString(e.getKey()) + (mutable ? "M" : "");
-            Indices i = e.getValue().to();
-            assert i != null;
-            boolean toIsAll = i.isAll();
-            String t = indexToString(i) + (mutable ? "M" : "");
-            if (!(fromIsAll && toIsAll)) {
-                from.add(f);
-                to.add(t);
-                countAll += (fromIsAll || toIsAll) ? 1 : 0;
-            } // else: ignore self-referencing links; rely on the other hidden content
-        }
-        assert countAll <= 1;
-        assert from.size() == to.size();
-        assert hc != I_HC || !from.isEmpty() : "Result is HC, but cannot create map; links = " + links;
-        assert hc != I_HC || links.modificationAreaSource().isNoModification() && links.modificationAreaTarget().isNoModification();
-        String modArea;
-        if (links.modificationAreaSource().haveValue() || links.modificationAreaTarget().haveValue()) {
-            modArea = "|" + indexToString(links.modificationAreaSource())
-                      + "-" + indexToString(links.modificationAreaTarget());
-        } else {
-            modArea = "";
-        }
-        return String.join(",", from) + "-" + hc + "-" + String.join(",", to) + modArea;
-    }
-
-    private static String indexToString(Indices i) {
-        if (ALL_INDICES.equals(i)) return "*";
-        return i.toString();
+        return links.toString(hc);
     }
 
     public static LV createHC(Links links) {

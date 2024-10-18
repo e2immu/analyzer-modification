@@ -7,6 +7,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.util.internal.graph.op.DijkstraShortestPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,6 +18,7 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
 
 public class ShortestPathImpl implements ShortestPath {
+    private static final Logger LOGGER = LoggerFactory.getLogger("graph-algorithm");
 
     private final Map<Variable, Integer> variableIndex;
     private final Variable[] variables;
@@ -30,8 +33,12 @@ public class ShortestPathImpl implements ShortestPath {
         this.variables = variables;
         this.edges = edges;
         this.variableIndex = variableIndex;
-        dijkstraShortestPath = new DijkstraShortestPath(NO_LINKS, ShortestPathImpl::distancePrinter);
+        dijkstraShortestPath = new DijkstraShortestPath(NO_LINKS, this::nodePrinter, ShortestPathImpl::distancePrinter);
         this.linkMap = linkMap;
+    }
+
+    private String nodePrinter(int i) {
+        return variables[i].simpleName();
     }
 
     static final int BITS = 15;
@@ -91,6 +98,8 @@ public class ShortestPathImpl implements ShortestPath {
 
     @Override
     public Map<Variable, LV> links(Variable v, LV maxWeight) {
+        LOGGER.debug("Start in {}", v.simpleName());
+
         Integer startVertex = variableIndex.get(v);
         if (startVertex == null) {
             return Map.of(v, LINK_STATICALLY_ASSIGNED);
