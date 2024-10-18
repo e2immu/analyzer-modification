@@ -504,7 +504,7 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi4R = vd4.variableInfo("r");
             assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
                     vi4R.staticValues().toString());
-            assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2",
+            assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
                     vi4R.linkedVariables().toString());
 
             // FIXME we should never link to list!!!

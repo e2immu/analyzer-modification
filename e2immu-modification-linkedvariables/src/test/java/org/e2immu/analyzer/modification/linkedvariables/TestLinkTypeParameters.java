@@ -265,9 +265,9 @@ public class TestLinkTypeParameters extends CommonTest {
             VariableInfo vi0Rpair = vd0.variableInfo("a.b.X.R.pair#a.b.X.reverse3(a.b.X.R<X,Y>):0:r");
             assertEquals("0-4-*:f, 1-4-*:g, *M-2-2M|*-0:r", vi0Rpair.linkedVariables().toString());
 
-            // r -- TODO why are links to f and g missing?
+            // r
             VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().get(0));
-            assertEquals("2M-2-*M|0-*:pair", vi0R.linkedVariables().toString());
+            assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", vi0R.linkedVariables().toString());
 
             // return variable
             VariableInfo vi0Rv = vd0.variableInfo(reverse3.fullyQualifiedName());
@@ -277,7 +277,7 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo reverse4 = X.findUniqueMethod("reverse4", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0,1-2-0,1:pair, 0M,1M-2-2M,2M:r", lvs(reverse4));
-        assertEquals("2M-2-*M|0-*:pair", lvs(reverse4, 0));
+        assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", lvs(reverse4, 0));
 
         MethodInfo reverse5 = X.findUniqueMethod("reverse5", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0,1-2-0,1:pair, 0,1-2-0,1:r", lvs(reverse5));
@@ -289,7 +289,7 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo reverse7 = X.findUniqueMethod("reverse7", 1);
         assertEquals("0;1-4-0;1:f, 0;1-4-0;1:g, 0;1-2-0;1:pair, 0;1M-2-2M:r", lvs(reverse7));
-        assertEquals("2M-2-*M|0-*:pair", lvs(reverse7, 0));
+        assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", lvs(reverse7, 0));
 
         MethodInfo reverse8 = X.findUniqueMethod("reverse8", 2);
         assertEquals("1-4-*:x, 0-4-*:y", lvs(reverse8));
@@ -297,8 +297,8 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo reverse9 = X.findUniqueMethod("reverse9", 2);
         assertEquals("1-4-*:f, 0-4-*:g, 1-4-*:pair, 0-4-*:pair, 1-4-2:r1, 0-4-2:r2", lvs(reverse9));
-        assertEquals("2M-2-*M|0-*:pair", lvs(reverse9, 0));
-        assertEquals("2M-2-*M|0-*:pair", lvs(reverse9, 1));
+        assertEquals("2M-4-*M:f, 2M-2-*M|0-*:pair", lvs(reverse9, 0));
+        assertEquals("2M-4-*M:g, 2M-2-*M|0-*:pair", lvs(reverse9, 1));
 
         MethodInfo reverse10 = X.findUniqueMethod("reverse10", 2);
         assertEquals("1-4-*:f, 0-4-*:g, 1-4-*:pair, 0-4-*:pair, 1-4-*:r1, 0-4-*:r2", lvs(reverse10));
@@ -376,9 +376,9 @@ public class TestLinkTypeParameters extends CommonTest {
             VariableInfo vi0Rpair = vd0.variableInfo("a.b.X.R.pair#a.b.X.reverse3(a.b.X.R<X,Y>):0:r");
             assertEquals("0-4-*:f, 1-4-*:g, *-4-2:r", vi0Rpair.linkedVariables().toString());
 
-            // r -- TODO why are links to f and g missing?
+            // r
             VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().get(0));
-            assertEquals("2-4-*:pair", vi0R.linkedVariables().toString());
+            assertEquals("2-4-*:f, 2-4-*:g, 2-4-*:pair", vi0R.linkedVariables().toString());
 
             // return variable
             VariableInfo vi0Rv = vd0.variableInfo(reverse3.fullyQualifiedName());
@@ -388,7 +388,7 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo reverse4 = X.findUniqueMethod("reverse4", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0,1-4-0,1:pair, 0,1-4-2,2:r", lvs(reverse4));
-        assertEquals("2-4-*:pair", lvs(reverse4, 0));
+        assertEquals("2-4-*:f, 2-4-*:g, 2-4-*:pair", lvs(reverse4, 0));
 
         MethodInfo reverse5 = X.findUniqueMethod("reverse5", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0,1-4-0,1:pair, 0,1-4-0,1:r", lvs(reverse5));
@@ -400,7 +400,7 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo reverse7 = X.findUniqueMethod("reverse7", 1);
         assertEquals("0;1-4-0;1:f, 0;1-4-0;1:g, 0;1-4-0;1:pair, 0;1-4-2:r", lvs(reverse7));
-        assertEquals("2-4-*:pair", lvs(reverse7, 0));
+        assertEquals("2-4-*:f, 2-4-*:g, 2-4-*:pair", lvs(reverse7, 0));
 
         MethodInfo reverse8 = X.findUniqueMethod("reverse8", 2);
         assertEquals("1-4-*:x, 0-4-*:y", lvs(reverse8));
@@ -408,8 +408,8 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo reverse9 = X.findUniqueMethod("reverse9", 2);
         assertEquals("1-4-*:f, 0-4-*:g, 1-4-*:pair, 0-4-*:pair, 1-4-2:r1, 0-4-2:r2", lvs(reverse9));
-        assertEquals("2-4-*:pair", lvs(reverse9, 0));
-        assertEquals("2-4-*:pair", lvs(reverse9, 1));
+        assertEquals("2-4-*:f, 2-4-*:pair", lvs(reverse9, 0));
+        assertEquals("2-4-*:g, 2-4-*:pair", lvs(reverse9, 1));
 
         MethodInfo reverse10 = X.findUniqueMethod("reverse10", 2);
         assertEquals("1-4-*:f, 0-4-*:g, 1-4-*:pair, 0-4-*:pair, 1-4-*:r1, 0-4-*:r2", lvs(reverse10));

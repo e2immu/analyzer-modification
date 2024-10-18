@@ -24,6 +24,7 @@ public class CommonWG {
     final LV delay = LVImpl.delay(CausesOfDelay.DELAY);
     final Indices i0 = new IndicesImpl(0);
     final Indices i1 = new IndicesImpl(1);
+    final Indices i2 = new IndicesImpl(2);
 
     protected Variable makeVariable(String name) {
         CompilationUnit compilationUnit = runtime.newCompilationUnitBuilder().setPackageName("a.b.c").build();

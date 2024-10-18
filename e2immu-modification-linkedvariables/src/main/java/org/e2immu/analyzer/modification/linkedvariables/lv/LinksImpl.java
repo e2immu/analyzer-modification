@@ -109,10 +109,10 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
                         && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
                         maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
                         maTarget = ALL_INDICES;
-                        boolean mutable = entry.getValue().mutable();
-                        LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
-                        res.merge(entry.getKey(), newLInk, Link::merge);
                     }
+                    boolean mutable = entry.getValue().mutable();
+                    LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
+                    res.merge(entry.getKey(), newLInk, Link::merge);
                 }
             }
         }
