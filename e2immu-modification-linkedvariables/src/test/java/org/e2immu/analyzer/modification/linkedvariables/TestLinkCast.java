@@ -91,19 +91,19 @@ public class TestLinkCast extends CommonTest {
             Statement s0 = setAdd.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Set = vd0.variableInfo("set");
-            assertEquals("-1-:object, *M-4-0M:r", vi0Set.linkedVariables().toString());
+            assertEquals("-1-:object, *M-2-0M|*-0:r", vi0Set.linkedVariables().toString());
             assertFalse(vi0Set.isModified());
         }
         {
             Statement s1 = setAdd.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Set = vd1.variableInfo("set");
-            assertEquals("-1-:object, *M-4-0M:r", vi1Set.linkedVariables().toString());
+            assertEquals("-1-:object, *M-2-0M|*-0:r", vi1Set.linkedVariables().toString());
             assertTrue(vi1Set.isModified());
             VariableInfo vi1R = vd1.variableInfo(r);
-            assertFalse(vi1R.isModified());
+            assertTrue(vi1R.isModified());
         }
-        assertFalse(r.isModified());
+        assertTrue(r.isModified());
         Value.VariableBooleanMap map = r.analysis().getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.EMPTY);
         assertEquals(1, map.map().size());
         assertEquals("{r.object=true}", map.map().toString());

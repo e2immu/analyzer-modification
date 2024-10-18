@@ -254,12 +254,16 @@ public class LinkHelper {
                 LinkedVariables returnValueLvs = linkedVariablesOfParameter(pi.parameterizedType(),
                         parameterExpression.parameterizedType(), lvs, hcsSource);
                 LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
-                        .map(Map.Entry::getValue).findFirst().orElseThrow();
-                Map<Variable, LV> map = returnValueLvs.stream().collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> Objects.requireNonNull(follow(valueOfReturnValue, e.getValue()))));
-                parameterLvs = LinkedVariablesImpl.of(map);
-                formalParameterIndependent = valueOfReturnValue.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC :
-                        ValueImpl.IndependentImpl.DEPENDENT;
+                        .map(Map.Entry::getValue).findFirst().orElse(null);
+                if (valueOfReturnValue != null) {
+                    Map<Variable, LV> map = returnValueLvs.stream().collect(Collectors.toMap(Map.Entry::getKey,
+                            e -> Objects.requireNonNull(follow(valueOfReturnValue, e.getValue()))));
+                    parameterLvs = LinkedVariablesImpl.of(map);
+                    formalParameterIndependent = valueOfReturnValue.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC :
+                            ValueImpl.IndependentImpl.DEPENDENT;
+                } else {
+                    parameterLvs = LinkedVariablesImpl.EMPTY;
+                }
             } else {
                 parameterLvs = linkedVariablesOfParameter(pi.parameterizedType(),
                         parameterExpression.parameterizedType(), lvs, hcsSource);
@@ -896,7 +900,7 @@ public class LinkHelper {
         );
     }
 
-    public static LV follow(LV fromLv, LV toLv) {
+    private static LV follow(LV fromLv, LV toLv) {
         boolean fromLvHaveLinks = fromLv.haveLinks();
         boolean toLvHaveLinks = toLv.haveLinks();
         if (!fromLvHaveLinks && !toLvHaveLinks) {

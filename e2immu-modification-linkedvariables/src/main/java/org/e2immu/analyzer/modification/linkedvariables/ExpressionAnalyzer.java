@@ -224,16 +224,16 @@ public class ExpressionAnalyzer {
                     Indices targetIndices;
                     Indices targetModificationArea;
                     Indices sourceModificationArea;
-                    if (immutable.isAtLeastImmutableHC()) {
-                        targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                        sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                    } else {
+                    if (isMutable) {
                         targetModificationArea = new IndicesImpl(fieldIndex);
                         sourceModificationArea = IndicesImpl.ALL_INDICES;
+                    } else {
+                        targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                        sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
                     }
                     if (v instanceof DependentVariable) {
                         targetIndices = new IndicesImpl(0);
-                    } else if (ve.parameterizedType().typeInfo() == null || ve.parameterizedType().typeInfo().isExtensible()) {
+                    } else {
                         TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
                         assert bestType != null : "The unbound type parameter does not have any fields";
                         HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
@@ -243,21 +243,20 @@ public class ExpressionAnalyzer {
                         } else {
                             targetIndices = null;
                         }
-                    } else {
-                        targetIndices = null;
                     }
                     Map<Indices, Link> linkMap;
                     if (targetIndices == null) {
                         linkMap = Map.of();
+                        assert isMutable;
                     } else {
                         linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
                     }
                     Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationArea);
                     LV lv;
-                    if (immutable.isAtLeastImmutableHC()) {
-                        lv = LVImpl.createHC(links);
-                    } else {
+                    if (isMutable) {
                         lv = LVImpl.createDependent(links);
+                    } else {
+                        lv = LVImpl.createHC(links);
                     }
                     map.put(dependentVariable, lv);
 
