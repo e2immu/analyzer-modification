@@ -485,12 +485,6 @@ public class LinkHelper {
         // RULE 1: void methods cannot link
         if (methodInfo.noReturnValue()) return LinkedVariablesImpl.EMPTY;
 
-        // RULE 2: recursive methods TODO
-        //boolean recursiveCall = recursiveCall(methodInfo, currentMethod);
-        //if (recursiveCall) {
-        //    return LinkedVariablesImpl.EMPTY;
-        //}
-
         // RULE 2: @Identity links to the 1st parameter
         if (methodInfo.isIdentity()) {
             return linkedVariables.get(0).maximum(LINK_ASSIGNED);
@@ -502,6 +496,7 @@ public class LinkHelper {
         if (fluent.isTrue()) {
             return linkedVariablesOfObject;
         }
+
         Value.Independent independent = methodInfo.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
                 ValueImpl.IndependentImpl.DEPENDENT);
         ParameterizedType methodType = methodInfo.typeInfo().asParameterizedType();
@@ -513,28 +508,25 @@ public class LinkHelper {
         Value.FieldValue fieldValue = methodInfo.getSetField();
         Integer indexOfDirectlyLinkedField = fieldValue.field() != null && !fieldValue.setter() ? fieldValue.field().indexInType() : null;
 
-        return linkedVariables(hcsSource, objectType,
+        LinkedVariables lvs = linkedVariables(hcsSource, objectType,
                 methodType, hcsSource, linkedVariablesOfObject,
                 false,
                 independent, returnType, methodReturnType, hcsTarget,
                 false, indexOfDirectlyLinkedField);
-    }
 
-       /* we have to probe the object first, to see if there is a value
-       A. if there is a value, and the value offers a concrete implementation, we replace methodInfo by that
-       concrete implementation.
-       B otherwise (no value, no concrete implementation forthcoming) we continue with the abstract method.
-       */
-
-    public static boolean recursiveCall(MethodInfo methodInfo, MethodInfo currentMethod) {
-        if (currentMethod == methodInfo) return true;
-        MethodInfo enclosingMethod = currentMethod.typeInfo().enclosingMethod();
-        if (enclosingMethod != null) {
-            LOGGER.debug("Going recursive on call to {}, to {} ", methodInfo.fullyQualifiedName(),
-                    enclosingMethod.typeInfo());
-            return recursiveCall(methodInfo, enclosingMethod);
+        Value.FieldValue getSetField = methodInfo.getSetField();
+        if (getSetField.field() != null && !getSetField.setter()) {
+            Immutable immutable = analysisHelper.typeImmutable(getSetField.field().type());
+            if (immutable.isImmutable()) return lvs;
+            Map<Variable, LV> lvMap = new HashMap<>();
+            linkedVariablesOfObject.variablesAssigned().forEach(v -> {
+                FieldReference fr = runtime.newFieldReference(getSetField.field(),
+                        runtime.newVariableExpression(v), getSetField.field().type());
+                lvMap.put(fr, LINK_ASSIGNED);
+            });
+            return LinkedVariablesImpl.of(lvMap).merge(lvs);
         }
-        return false;
+        return lvs;
     }
 
     /**
@@ -542,13 +534,13 @@ public class LinkHelper {
      * to connect the object to the return value, as called from <code>linkedVariablesMethodCallObjectToReturnType</code>.
      * Calls originating from <code>linksInvolvingParameters</code> must take this into account.
      *
-     * @param sourceType                    must be type of object or parameterExpression, return type, non-evaluated
+     * @param sourceTypeIn                  must be type of object or parameterExpression, return type, non-evaluated
      * @param methodSourceType              the method declaration's type of the source
      * @param hiddenContentSelectorOfSource with respect to the method's HCT and methodSourceType
      * @param sourceLvs                     linked variables of the source
      * @param sourceIsVarArgs               allow for a correction of array -> element
      * @param transferIndependent           the transfer mode (dependent, independent HC, independent)
-     * @param targetType                    must be type of object or parameterExpression, return type, non-evaluated
+     * @param targetTypeIn                  must be type of object or parameterExpression, return type, non-evaluated
      * @param methodTargetType              the method declaration's type of the target
      * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
      * @param reverse                       reverse the link, because we're reversing source and target, because we
@@ -589,55 +581,10 @@ public class LinkHelper {
             return LinkedVariablesImpl.EMPTY;
         }
 
-        // special code block for functional interfaces with both return value and parameters (i.e. variants
-        // on Function<T,R>, BiFunction<T,S,R> etc. Not Consumers (no return value) nor Suppliers (no parameters))
-        if (hiddenContentSelectorOfTarget.isOnlyAll() && transferIndependent.isIndependentHc()) {
-            HiddenContentTypes hctContext = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        LinkedVariables lvFunctional = lvFunctional(transferIndependent, hiddenContentSelectorOfTarget, reverse,
+                targetType, sourceType, immutableOfSource, sourceLvs, sourceIsVarArgs, indexOfDirectlyLinkedField);
+        if (lvFunctional != null) return lvFunctional;
 
-            HiddenContentSelector hcsTargetContext = HiddenContentSelector.selectAll(hctContext, targetType);
-            HiddenContentSelector hcsSourceContext = HiddenContentSelector.selectAll(hctContext, sourceType);
-            Set<Integer> set = new HashSet<>(hcsSourceContext.set());
-            set.retainAll(hcsTargetContext.set());
-            if (!set.isEmpty()) {
-                List<LinkedVariables> lvsList = new ArrayList<>();
-                for (int index : set) {
-                    Indices indices = hcsSourceContext.getMap().get(index);
-                    if (indices.containsSize2Plus()) {
-                        Indices newIndices = indices.size2PlusDropOne();
-                        Indices base = indices.first();
-                        HiddenContentSelector newHiddenContentSelectorOfSource
-                                = new HiddenContentSelector(hctContext, Map.of(index, newIndices));
-                        ParameterizedType newSourceType = base.find(runtime, sourceType);
-                        Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
-                                () -> Map.of(newIndices, new HiddenContentSelector.IndicesAndType(newIndices, newSourceType));
-                        HiddenContentSelector newHcsTarget;
-                        ParameterizedType newTargetType;
-                        if (reverse && !targetType.isTypeParameter()) {
-                            // List<T> as parameter
-                            newHcsTarget = newHiddenContentSelectorOfSource;
-                            newTargetType = newSourceType;
-                        } else if (!reverse && !targetType.isTypeParameter()) {
-                            // List<T> as return type
-                            newTargetType = targetType;
-                            newHcsTarget = newHiddenContentSelectorOfSource;
-                        } else {
-                            // object -> return
-                            newHcsTarget = new HiddenContentSelector(hctContext, Map.of(index, ALL_INDICES));
-                            newTargetType = targetType;
-                        }
-
-                        LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
-                                sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
-                                newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
-                                reverse, indexOfDirectlyLinkedField);
-                        lvsList.add(lvs);
-                    }
-                }
-                if (!lvsList.isEmpty()) {
-                    return lvsList.stream().reduce(LinkedVariablesImpl.EMPTY, LinkedVariables::merge);
-                }
-            }
-        }
         Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
                 () -> hcsSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType);
 
@@ -653,6 +600,71 @@ public class LinkHelper {
                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
                 methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse,
                 indexOfDirectlyLinkedField);
+    }
+
+    private LinkedVariables lvFunctional(Value.Independent transferIndependent,
+                                         HiddenContentSelector hiddenContentSelectorOfTarget,
+                                         boolean reverse,
+                                         ParameterizedType targetType,
+                                         ParameterizedType sourceType,
+                                         Value.Immutable immutableOfSource,
+                                         LinkedVariables sourceLvs,
+                                         boolean sourceIsVarArgs,
+                                         Integer indexOfDirectlyLinkedField) {
+
+        // special code block for functional interfaces with both return value and parameters (i.e. variants
+        // on Function<T,R>, BiFunction<T,S,R> etc. Not Consumers (no return value) nor Suppliers (no parameters))
+        if (!hiddenContentSelectorOfTarget.isOnlyAll() || !transferIndependent.isIndependentHc()) {
+            return null;
+        }
+
+        HiddenContentTypes hctContext = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+        HiddenContentSelector hcsTargetContext = HiddenContentSelector.selectAll(hctContext, targetType);
+        HiddenContentSelector hcsSourceContext = HiddenContentSelector.selectAll(hctContext, sourceType);
+        Set<Integer> set = new HashSet<>(hcsSourceContext.set());
+        set.retainAll(hcsTargetContext.set());
+        if (set.isEmpty()) {
+            return null;
+        }
+
+        List<LinkedVariables> lvsList = new ArrayList<>();
+        for (int index : set) {
+            Indices indices = hcsSourceContext.getMap().get(index);
+            if (indices.containsSize2Plus()) {
+                Indices newIndices = indices.size2PlusDropOne();
+                Indices base = indices.first();
+                HiddenContentSelector newHiddenContentSelectorOfSource
+                        = new HiddenContentSelector(hctContext, Map.of(index, newIndices));
+                ParameterizedType newSourceType = base.find(runtime, sourceType);
+                Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
+                        () -> Map.of(newIndices, new HiddenContentSelector.IndicesAndType(newIndices, newSourceType));
+                HiddenContentSelector newHcsTarget;
+                ParameterizedType newTargetType;
+                if (reverse && !targetType.isTypeParameter()) {
+                    // List<T> as parameter
+                    newHcsTarget = newHiddenContentSelectorOfSource;
+                    newTargetType = newSourceType;
+                } else if (!reverse && !targetType.isTypeParameter()) {
+                    // List<T> as return type
+                    newTargetType = targetType;
+                    newHcsTarget = newHiddenContentSelectorOfSource;
+                } else {
+                    // object -> return
+                    newHcsTarget = new HiddenContentSelector(hctContext, Map.of(index, ALL_INDICES));
+                    newTargetType = targetType;
+                }
+
+                LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
+                        sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
+                        newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
+                        reverse, indexOfDirectlyLinkedField);
+                lvsList.add(lvs);
+            }
+        }
+        if (!lvsList.isEmpty()) {
+            return lvsList.stream().reduce(LinkedVariablesImpl.EMPTY, LinkedVariables::merge);
+        }
+        return null;
     }
 
     private LinkedVariables continueLinkedVariables(HiddenContentSelector hiddenContentSelectorOfSource,
@@ -902,9 +914,9 @@ public class LinkHelper {
             if (fromLvMineIsAll && !toLvMineIsAll) {
                 return fromLv.reverse();
             }
-            if (toLvMineIsAll && !fromLvMineIsAll) {
-                return toLv;
-            } else if (toLvMineIsAll) {
+            if (toLvMineIsAll) {  //X-Y *-Z
+                if (!fromLvMineIsAll) return toLv;
+                // *-Y *-Z
                 return LVImpl.createHC(fromLv.links().theirsToTheirs(toLv.links()));
             }
             boolean fromLvTheirsIsAll = fromLv.theirsIsAll();

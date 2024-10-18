@@ -38,7 +38,8 @@ public class TestGetSet extends CommonTest {
                 double dd() { return this.d; }
             
                 int ri() { return r.i; }
-                int rri() { return rr.i; } // PROBLEM with current implementation
+                int rri() { return rr.i; }
+                int ri2() { return r.i(); } // ri2 is not an accessor! (we must have a field)
             
                 void setO(Object o, int i) { objects[i] = o; }
                 X setO2(int i, Object o) { this.objects[i] = o; return this; }
@@ -99,6 +100,8 @@ public class TestGetSet extends CommonTest {
         assertSame(ri, mri.getSetField().field());
         MethodInfo mRri = X.findUniqueMethod("rri", 0);
         assertSame(ri, mRri.getSetField().field()); // IMPORTANT! we cannot yet tell the difference: are we accessing r or rr??
+        MethodInfo mRi2 = X.findUniqueMethod("ri2", 0);
+        assertNull(mRi2.getSetField().field());
 
         MethodInfo setD = X.findUniqueMethod("setD", 1);
         assertSame(d, setD.getSetField().field());
@@ -142,8 +145,97 @@ public class TestGetSet extends CommonTest {
         {
             Statement s0 = setAdd.methodBody().statements().get(0);
             VariableData vdSetAdd0 = VariableDataImpl.of(s0);
+            //FIXME do we expect r.i to be known?
             assertEquals("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                     vdSetAdd0.knownVariableNamesToString());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.ArrayList;
+            import java.util.HashSet;
+            import java.util.Set;
+            import java.util.List;
+            class X {
+                record Pair<F, G>(F f, G g) { }
+            
+                static <F, G> F getF(Pair<F, G> pair) {
+                    return pair.f;
+                }
+                static <F, G> F getF2(Pair<F, G> pair) {
+                    return pair.f(); // 1st level
+                }
+            
+                record R<F, G>(Pair<F, G> pair) {
+                    public R {
+                        assert pair != null;
+                    }
+                }
+                static <X, Y> boolean bothNotNull(R<X, Y> r) {
+                    X x = r.pair.f;
+                    Y y = r.pair().g(); // 2nd level, relies on correct recursion
+                    return x != null && y != null;
+                }
+            }
+            """;
+
+    @DisplayName("create variables for @GetSet access, recursion")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo getF = X.findUniqueMethod("getF", 1);
+        {
+            Statement s0 = getF.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            assertEquals("""
+                            a.b.X.Pair.f#a.b.X.getF(a.b.X.Pair<F,G>):0:pair, \
+                            a.b.X.getF(a.b.X.Pair<F,G>), \
+                            a.b.X.getF(a.b.X.Pair<F,G>):0:pair\
+                            """,
+                    vd0.knownVariableNamesToString());
+        }
+        MethodInfo getF2 = X.findUniqueMethod("getF2", 1);
+        {
+            Statement s0 = getF2.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            assertEquals("""
+                            a.b.X.Pair.f#a.b.X.getF2(a.b.X.Pair<F,G>):0:pair, \
+                            a.b.X.getF2(a.b.X.Pair<F,G>), \
+                            a.b.X.getF2(a.b.X.Pair<F,G>):0:pair\
+                            """,
+                    vd0.knownVariableNamesToString());
+        }
+
+        MethodInfo bnn = X.findUniqueMethod("bothNotNull", 1);
+        {
+            Statement s0 = bnn.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            assertEquals("""
+                            a.b.X.Pair.f#a.b.X.R.pair#a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            a.b.X.R.pair#a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            x\
+                            """,
+                    vd0.knownVariableNamesToString());
+        }
+        {
+            Statement s1 = bnn.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+            assertEquals("""
+                            a.b.X.Pair.f#a.b.X.R.pair#a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            a.b.X.Pair.g#a.b.X.R.pair#a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            a.b.X.R.pair#a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            a.b.X.bothNotNull(a.b.X.R<X,Y>):0:r, \
+                            x, y\
+                            """,
+                    vd1.knownVariableNamesToString());
         }
     }
 }

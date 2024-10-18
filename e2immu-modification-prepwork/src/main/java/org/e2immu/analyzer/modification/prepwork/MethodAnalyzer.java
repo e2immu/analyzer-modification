@@ -567,10 +567,8 @@ public class MethodAnalyzer {
                 Value.FieldValue getSet = mc.methodInfo().getSetField();
                 if (getSet.field() != null && !getSet.setter()) {
                     // getter
-                    Expression indexOrNull = getSet.hasIndex()
-                            ? mc.parameterExpressions().get(getSet.parameterIndexOfIndex()) : null;
-                    Variable v = getSet.createVariable(runtime, mc.object(), indexOrNull);
-                    markRead(v); // we simply ensure that the VariableInfo object exists
+                    markGetterRecursion(mc);
+                    return false; // and getters do not have modified components
                 }
                 // also, simply ensure that modified component variables exist
                 Value.VariableBooleanMap modifiedComponents = mc.methodInfo().analysis()
@@ -583,6 +581,28 @@ public class MethodAnalyzer {
                 });
             }
             return true;
+        }
+
+        private Variable markGetterRecursion(MethodCall mc) {
+            Value.FieldValue getSet = mc.methodInfo().getSetField();
+            if (getSet.field() != null && !getSet.setter()) {
+                Variable object;
+                if (mc.object() instanceof VariableExpression ve) {
+                    object = ve.variable();
+                    markRead(object);
+                } else if (mc.object() instanceof MethodCall mc2) {
+                    object = markGetterRecursion(mc2);
+                } else {
+                    object = null;
+                }
+                if (object != null) {
+                    FieldReference fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object),
+                            getSet.field().type());
+                    markRead(fr);
+                    return fr;
+                }
+            }
+            return null;
         }
 
         private void markRead(Variable variable) {

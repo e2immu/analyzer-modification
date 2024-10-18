@@ -128,12 +128,22 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
         return variables.isEmpty();
     }
 
+    private static final Comparator<Map.Entry<Variable, LV>> COMPARATOR = (e1, e2) -> {
+        Variable v1 = e1.getKey();
+        Variable v2 = e2.getKey();
+        int c = v1.simpleName().compareTo(v2.simpleName());
+        if (c == 0) {
+            return v1.fullyQualifiedName().compareTo(v2.fullyQualifiedName());
+        }
+        return c;
+    };
+
     @Override
     public String toString() {
         if (this == NOT_YET_SET) return NOT_YET_SET_STR;
         if (this == EMPTY || variables.isEmpty()) return "";
         return variables.entrySet().stream()
-                .sorted(Comparator.comparing(e -> e.getKey().simpleName()))
+                .sorted(COMPARATOR)
                 .map(e -> e.getValue().label() + ":" + e.getKey().simpleName())
                 .collect(Collectors.joining(", "));
     }

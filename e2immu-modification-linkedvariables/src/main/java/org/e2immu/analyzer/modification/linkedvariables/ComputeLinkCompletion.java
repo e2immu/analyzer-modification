@@ -209,7 +209,7 @@ public class ComputeLinkCompletion {
             WeightedGraph wgForModification = weightedGraph.copyForModification();
             ShortestPath shortestPathForMod = wgForModification.shortestPath();
             Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPathForMod);
-            
+
             ShortestPath shortestPath = weightedGraph.shortestPath();
             Map<Variable, Map<Variable, Boolean>> mfiComponentMaps = computeMFIComponents(previous, stageOfPrevious,
                     modifiedFunctionalComponents, shortestPath);
@@ -218,7 +218,7 @@ public class ComputeLinkCompletion {
                 Map<Variable, LV> links = shortestPath.links(variable, null);
 
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
-                assert vic != null;
+                assert vic != null : "Do not know " + variable;
                 if (!vic.has(stage)) {
                     throw new UnsupportedOperationException("We should make an entry at this stage?");
                 }

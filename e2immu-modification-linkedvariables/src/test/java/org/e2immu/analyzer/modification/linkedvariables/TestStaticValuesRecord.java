@@ -241,7 +241,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
         VariableInfo rvVi1 = vd1.variableInfo(method.fullyQualifiedName());
         // 4 and M: we have type T, immutable HC, but a concrete choice Set, Mutable
-        assertEquals("*M-4-0M:r", rvVi1.linkedVariables().toString());
+        assertEquals("*M-4-0M:r, -1-:t", rvVi1.linkedVariables().toString());
         // we don't want E=r.t here, that one can be substituted again because r.t=in
         assertEquals("E=in", rvVi1.staticValues().toString());
 
@@ -345,7 +345,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
         // you can't see it, but the types are correct
         assertSame(R, ((FieldReference) e0.getKey()).fieldInfo().owner());
-        assertSame(builder, ((FieldReference)((VariableExpression)e0.getValue()).variable()).fieldInfo().owner());
+        assertSame(builder, ((FieldReference) ((VariableExpression) e0.getValue()).variable()).fieldInfo().owner());
 
         MethodInfo setVariable = builder.findUniqueMethod("setVariable", 2);
         Value.FieldValue fv = setVariable.getSetField();
@@ -448,6 +448,73 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi2Rv = v2.variableInfo(method2.fullyQualifiedName());
             assertEquals("E=s", vi2Rv.staticValues().toString());
             assertTrue(method2.isIdentity());
+        }
+    }
+
+    @Language("java")
+    private static final String INPUT8 = """
+            package a.b;
+            import java.util.ArrayList;
+            import java.util.HashSet;
+            import java.util.List;
+            import java.util.Set;
+            class X {
+                record R<T>(Set<T> s, List<T> l) {}
+                static <T> void method(T t) {
+                    Set<T> set = new HashSet<>();
+                    List<T> list = new ArrayList<>();
+                    R<T> r = new R<>(set, list);
+                    Set<T> set2 = r.s;
+                    set2.add(t); // assert that set has been modified, but not list
+                }
+            }
+            """;
+
+    @DisplayName("")
+    @Test
+    public void test8() {
+        TypeInfo X = javaInspector.parse(INPUT8);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
+
+            VariableInfo vi32 = vd2.variableInfo("r");
+            assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
+                    vi32.staticValues().toString());
+            // FIXME !
+            assertEquals("0-2-0:list, 0-2-0:set", vi32.linkedVariables().toString());
+
+            // FIXME we should never link to list!!!
+            VariableInfo vi2Set = vd2.variableInfo("set");
+            assertEquals("0-2-0:list, 0-2-0:r", vi2Set.linkedVariables().toString());
+
+            assertFalse(vi2Set.isModified());
+            assertEquals("0-2-0:list, 0-2-0:r", vi2Set.linkedVariables().toString());
+            VariableInfo vi2List = vd2.variableInfo("list");
+            assertFalse(vi2List.isModified());
+        }
+        {
+            Statement s4 = method.methodBody().statements().get(4);
+            VariableData vd4 = VariableDataImpl.of(s4);
+
+            VariableInfo vi4R = vd4.variableInfo("r");
+            assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
+                    vi4R.staticValues().toString());
+            assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2",
+                    vi4R.linkedVariables().toString());
+
+            // FIXME we should never link to list!!!
+            VariableInfo vi4Set = vd4.variableInfo("set");
+            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+
+            assertTrue(vi4Set.isModified());
+            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+            VariableInfo vi4List = vd4.variableInfo("list");
+            assertFalse(vi4List.isModified());
         }
     }
 }

@@ -141,7 +141,7 @@ public class TestLinkModificationArea extends CommonTest {
             VariableInfo viRv = vd0.variableInfo(getT.fullyQualifiedName());
             assertEquals("E=r.a.t", viRv.staticValues().toString());
             // not recursive! we don't need the transitive completion here
-            assertEquals("*-4-0:a, -1-:t", viRv.linkedVariables().toString());
+            assertEquals("*-4-0:a, *-4-1:r, -1-:t", viRv.linkedVariables().toString());
         }
     }
 
@@ -213,7 +213,7 @@ public class TestLinkModificationArea extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viRv = vd0.variableInfo(getA.fullyQualifiedName());
             assertEquals("E=r.a", viRv.staticValues().toString());
-            assertEquals("*M-2-0M|*-0:r", viRv.linkedVariables().toString());
+            assertEquals("-1-:a, *M-2-0M|*-0:r", viRv.linkedVariables().toString());
         }
     }
 
@@ -308,24 +308,25 @@ public class TestLinkModificationArea extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viA = vd0.variableInfo("aa");
             assertEquals("E=r.a", viA.staticValues().toString());
-            assertEquals("*M-2-0M|*-0:r", viA.linkedVariables().toString());
+            assertEquals("-1-:a, *M-2-0M|*-0:r", viA.linkedVariables().toString());
 
             VariableInfo viR = vd0.variableInfo(r);
-            assertEquals("0M-2-*M|0-*:aa", viR.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:a, 0M-2-*M|0-*:aa", viR.linkedVariables().toString());
         }
         {
             Statement s1 = modifyA.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo viA = vd1.variableInfo("aa");
             assertEquals("E=r.a", viA.staticValues().toString());
-            assertEquals("*M-2-0M|*-0:r", viA.linkedVariables().toString());
+            assertEquals("-1-:a, *M-2-0M|*-0:r", viA.linkedVariables().toString());
 
             VariableInfo viB = vd1.variableInfo("bb");
             assertEquals("E=r.b", viB.staticValues().toString());
-            assertEquals("*M-2-0M|*-1:r", viB.linkedVariables().toString());
+            assertEquals("-1-:b, *M-2-0M|*-1:r", viB.linkedVariables().toString());
 
             VariableInfo viR = vd1.variableInfo(r);
-            assertEquals("0M-2-*M|0-*:aa, 0M-2-*M|1-*:bb", viR.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:a, 0M-2-*M|0-*:aa, 0M-2-*M|1-*:b, 0M-2-*M|1-*:bb",
+                    viR.linkedVariables().toString());
         }
         {
             Statement s2 = modifyA.methodBody().statements().get(2);

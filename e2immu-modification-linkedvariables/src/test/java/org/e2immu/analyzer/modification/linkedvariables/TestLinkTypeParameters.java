@@ -1,8 +1,14 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
@@ -11,8 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.EMPTY;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_METHOD;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -93,6 +98,10 @@ public class TestLinkTypeParameters extends CommonTest {
         return methodInfo.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString();
     }
 
+    private static String lvs(MethodInfo methodInfo, int i) {
+        return methodInfo.parameters().get(i).analysis().getOrDefault(LINKED_VARIABLES_PARAMETER, EMPTY).toString();
+    }
+
 
     @Language("java")
     public static final String INPUT2 = """
@@ -110,6 +119,24 @@ public class TestLinkTypeParameters extends CommonTest {
                 }
             
                 record R1<F, G>(SetOnce<Pair<F, G>> setOncePair) {
+                }
+            
+                static <X, Y> boolean bothNotNull1(Pair<X, Y> pair) {
+                    X x = pair.f;
+                    Y y = pair.g();
+                    return x != null && y != null;
+                }
+            
+                static <X, Y> boolean bothNotNull2(R<X, Y> r) {
+                    X x = r.pair.f;
+                    Y y = r.pair().g();
+                    return x != null && y != null;
+                }
+    
+                static <X, Y> boolean bothNotNull3(R<X, Y> r) {
+                    X x = r.pair.f();
+                    Y y = r.pair().g;
+                    return x != null && y != null;
                 }
             
                 static <X, Y> Pair<X, Y> copy(Pair<X, Y> pair) {
@@ -145,20 +172,28 @@ public class TestLinkTypeParameters extends CommonTest {
                 }
             
                 static <X, Y> R<Y, X> reverse5(R<X, Y> r) {
+                    return new R<>(new Pair<>(r.pair().g(), r.pair().f()));
+                }
+            
+                static <X, Y> R<Y, X> reverse6(R<X, Y> r) {
                     Pair<Y, X> yxPair = new Pair<>(r.pair.g, r.pair.f);
                     return new R<>(yxPair);
                 }
             
-                static <X, Y> R<Y, X> reverse6(R<X, Y> r) {
+                static <X, Y> R<Y, X> reverse7(R<X, Y> r) {
                     return new R(new Pair(r.pair.g, r.pair.f));
                 }
             
-                static <X, Y> R<Y, X> reverse7(X x, Y y) {
+                static <X, Y> R<Y, X> reverse8(X x, Y y) {
                     return new R<>(new Pair<>(y, x));
                 }
             
-                static <X, Y> R<Y, X> reverse8(R<X, Y> r1, R<X, Y> r2) {
+                static <X, Y> R<Y, X> reverse9(R<X, Y> r1, R<X, Y> r2) {
                     return new R<>(new Pair<>(r2.pair.g, r1.pair.f));
+                }
+            
+                static <X, Y> R<Y, X> reverse10(R<X, Y> r1, R<X, Y> r2) {
+                    return new R<>(new Pair<>(r2.pair().g(), r1.pair().f()));
                 }
             }
             """;
@@ -173,6 +208,24 @@ public class TestLinkTypeParameters extends CommonTest {
 
         // ... no analyzer yet
         assertTrue(R.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+
+        MethodInfo bnn1 = X.findUniqueMethod("bothNotNull1", 1);
+        {
+            Statement s0 = bnn1.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo vi0X = vd0.variableInfo("x");
+            assertEquals("-1-:f, *-4-0:pair", vi0X.linkedVariables().toString());
+        }
+        {
+            Statement s1 = bnn1.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+            VariableInfo vi1Y = vd1.variableInfo("y");
+            assertEquals("E=pair.g", vi1Y.staticValues().toString());
+            Variable pairG = ((VariableExpression) vi1Y.staticValues().expression()).variable();
+            assertTrue(vd1.isKnown(pairG.fullyQualifiedName()));
+
+            assertEquals("-1-:g, *-4-1:pair", vi1Y.linkedVariables().toString());
+        }
 
         MethodInfo copy = X.findUniqueMethod("copy", 1);
         assertEquals("0-4-*:f, 1-4-*:g, 0;1-4-*:pair", lvs(copy));
@@ -190,15 +243,55 @@ public class TestLinkTypeParameters extends CommonTest {
         assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair", lvs(reverse));
 
         MethodInfo reverse2 = X.findUniqueMethod("reverse2", 1);
-        // FIXME links to f, g missing
-        assertEquals("0-4-*:g,0;1-4-*:pair,1-4-*:f", lvs(reverse2));
+        assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair", lvs(reverse2));
 
         MethodInfo reverse3 = X.findUniqueMethod("reverse3", 1);
-        assertEquals("0-4-*:g,0;1-4-*:pair,1-4-*:f", lvs(reverse3));
+        assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair, 0;1-4-2:r", lvs(reverse3));
+        {
+            Statement s0 = reverse3.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
 
-        // FIXME links to R missing
+            // r.pair
+            VariableInfo vi0Rpair = vd0.variableInfo("a.b.X.R.pair#a.b.X.reverse3(a.b.X.R<X,Y>):0:r");
+            assertEquals("0-4-*:f, 1-4-*:g, *M-2-2M|*-0:r", vi0Rpair.linkedVariables().toString());
+
+            // return variable
+            VariableInfo vi0Rv = vd0.variableInfo(reverse3.fullyQualifiedName());
+            assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair, 0;1-4-2:r", vi0Rv.linkedVariables().toString());
+
+            // r -- TODO why are links to f and g missing?
+            VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().get(0));
+            assertEquals("2M-2-*M|0-*:pair", vi0R.linkedVariables().toString());
+        }
+
         MethodInfo reverse4 = X.findUniqueMethod("reverse4", 1);
-        assertEquals("0,1-2-0,1:pair,0-4-*:g,1-4-*:f, link to r", lvs(reverse4));
+        assertEquals("1-4-*:f, 0-4-*:g, 0,1-2-0,1:pair, 0M,1M-2-2M,2M:r", lvs(reverse4));
+        assertEquals("2M-2-*M|0-*:pair", lvs(reverse4, 0));
+
+        MethodInfo reverse5 = X.findUniqueMethod("reverse5", 1);
+        assertEquals("1-4-*:f, 0-4-*:g, 0,1-2-0,1:pair, 0,1-2-0,1:r", lvs(reverse5));
+        assertEquals("2M-2-*M|0-*:pair", lvs(reverse5, 0));
+
+        MethodInfo reverse6 = X.findUniqueMethod("reverse6", 1);
+        assertEquals("1-4-*:f, 0-4-*:g, 0,1-4-1,0:pair, 0,1-4-2,2:r", lvs(reverse6));
+        assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", lvs(reverse6, 0));
+
+        MethodInfo reverse7 = X.findUniqueMethod("reverse7", 1);
+        assertEquals("0;1-4-0;1:f, 0;1-4-0;1:g, 0;1-2-0;1:pair, 0;1M-2-2M:r", lvs(reverse7));
+        assertEquals("2M-2-*M|0-*:pair", lvs(reverse7, 0));
+
+        MethodInfo reverse8 = X.findUniqueMethod("reverse8", 2);
+        assertEquals("1-4-*:x, 0-4-*:y", lvs(reverse8));
+        assertEquals("", lvs(reverse8, 0));
+
+        MethodInfo reverse9 = X.findUniqueMethod("reverse9", 2);
+        assertEquals("1-4-*:f, 0-4-*:g, 1-4-*:pair, 0-4-*:pair, 1-4-2:r1, 0-4-2:r2", lvs(reverse9));
+        assertEquals("2M-2-*M|0-*:pair", lvs(reverse9, 0));
+        assertEquals("2M-2-*M|0-*:pair", lvs(reverse9, 1));
+
+        MethodInfo reverse10 = X.findUniqueMethod("reverse10", 2);
+        assertEquals("1-4-*:f, 0-4-*:g, 1-4-*:pair, 0-4-*:pair, 1-4-*:r1, 0-4-*:r2", lvs(reverse10));
+        assertEquals("2M-2-*M|0-*:pair", lvs(reverse10, 0));
     }
 
 }
