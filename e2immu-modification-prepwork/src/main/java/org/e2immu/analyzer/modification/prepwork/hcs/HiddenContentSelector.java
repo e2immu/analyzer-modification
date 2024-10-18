@@ -235,6 +235,9 @@ public class HiddenContentSelector implements Value {
         return map.keySet().size() == 1 && map.entrySet().stream().findFirst().orElseThrow().getValue().isAll();
     }
 
+    public boolean containsAll() {
+        return map.values().stream().anyMatch(Indices::isAll);
+    }
      /*
      The hidden content selector's hct indices (the keys in the map) are computed with respect to 'this'.
      They map to indices (the values in the map) which exist in 'from'.

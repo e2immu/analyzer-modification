@@ -41,7 +41,6 @@ public class LinkHelper {
     private final GenericsHelper genericsHelper;
     private final AnalysisHelper analysisHelper;
 
-    private final MethodInfo currentMethod;
     private final TypeInfo currentPrimaryType;
     private final MethodInfo methodInfo;
     private final HiddenContentTypes hiddenContentTypes;
@@ -55,7 +54,6 @@ public class LinkHelper {
         this.runtime = runtime;
         this.analysisHelper = analysisHelper;
         this.genericsHelper = genericsHelper;
-        this.currentMethod = currentMethod;
         this.currentPrimaryType = currentMethod.primaryType();
         this.hiddenContentTypes = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         this.methodInfo = methodInfo;
@@ -715,11 +713,11 @@ public class LinkHelper {
 
                 // NOTE: this type of filtering occurs in 'linkedVariablesOfParameter' as well
                 Set<Map.Entry<Integer, Indices>> entrySet;
-                if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
+             //   if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
                     entrySet = hiddenContentSelectorOfTarget.getMap().entrySet();
-                } else {
-                    entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
-                }
+              //  } else {
+              //      entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
+              //  }
                 for (Map.Entry<Integer, Indices> entry : entrySet) {
                     Indices indicesInTargetWrtMethod = entry.getValue();
 
@@ -801,7 +799,7 @@ public class LinkHelper {
             modificationAreaTarget = IndicesImpl.NO_MODIFICATION_INDICES;
         } else {
             modificationAreaSource = ALL_INDICES;
-            if (hiddenContentSelectorOfTarget.isOnlyAll() && indexOfDirectlyLinkedField != null) {
+            if (hiddenContentSelectorOfTarget.containsAll() && indexOfDirectlyLinkedField != null) {
                 modificationAreaTarget = new IndicesImpl(indexOfDirectlyLinkedField);
             } else {
                 modificationAreaTarget = ALL_INDICES;

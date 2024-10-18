@@ -175,11 +175,13 @@ public class TestStaticValuesRecord extends CommonTest {
         List<Info> ao = prepWork(X);
         analyzer.doPrimaryType(X, ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
+
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
 
         VariableData vd0 = VariableDataImpl.of(rLvc);
         VariableInfo rVi0 = vd0.variableInfo(r);
+        assertEquals("0M-2-*M|0-*:in", rVi0.linkedVariables().toString());
         assertEquals("Type a.b.X.R E=new R(in,3) this.n=3, this.set=in", rVi0.staticValues().toString());
 
         {
@@ -187,6 +189,59 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(sLvc);
             VariableInfo sVi1 = vd1.variableInfo("s");
             assertEquals("0M-2-*M|0-*:in, -1-:r", sVi1.linkedVariables().toString());
+            assertEquals(rVi0.staticValues(), sVi1.staticValues());
+        }
+
+        ReturnStatement rs = (ReturnStatement) method.methodBody().statements().get(2);
+        {
+            VariableData vd2 = VariableDataImpl.of(rs);
+            VariableInfo rVi2 = vd2.variableInfo(r);
+            assertEquals(rVi0.staticValues(), rVi2.staticValues());
+
+            VariableInfo rvVi2 = vd2.variableInfo(method.fullyQualifiedName());
+            assertEquals("-1-:n", rvVi2.linkedVariables().toString());
+            assertEquals("E=3", rvVi2.staticValues().toString());
+        }
+        StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+        assertEquals("E=3", methodSv.toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT3B = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                record R<T>(Set<T> set, int n) {}
+                static <T> T method(Set<T> in) {
+                    R<T> r = new R<>(in, 3);
+                    R<T> s = r;
+                    return s.n;
+                }
+            }
+            """;
+
+    @DisplayName("values in record, extra indirection; type parameter")
+    @Test
+    public void test3b() {
+        TypeInfo X = javaInspector.parse(INPUT3B);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+
+        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+        LocalVariable r = rLvc.localVariable();
+
+        VariableData vd0 = VariableDataImpl.of(rLvc);
+        VariableInfo rVi0 = vd0.variableInfo(r);
+        assertEquals("0,1M-2-0,*M|0-*:in", rVi0.linkedVariables().toString());
+        assertEquals("Type a.b.X.R<T> E=new R<>(in,3) this.n=3, this.set=in", rVi0.staticValues().toString());
+
+        {
+            LocalVariableCreation sLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(sLvc);
+            VariableInfo sVi1 = vd1.variableInfo("s");
+            assertEquals("0,1M-2-0,*M|0-*:in, -1-:r", sVi1.linkedVariables().toString());
             assertEquals(rVi0.staticValues(), sVi1.staticValues());
         }
 
@@ -470,7 +525,7 @@ public class TestStaticValuesRecord extends CommonTest {
             }
             """;
 
-    @DisplayName("")
+    @DisplayName("pack and unpack, with local variables")
     @Test
     public void test8() {
         TypeInfo X = javaInspector.parse(INPUT8);
@@ -482,19 +537,17 @@ public class TestStaticValuesRecord extends CommonTest {
             Statement s2 = method.methodBody().statements().get(2);
             VariableData vd2 = VariableDataImpl.of(s2);
 
-            VariableInfo vi32 = vd2.variableInfo("r");
+            VariableInfo vi2r = vd2.variableInfo("r");
             assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
-                    vi32.staticValues().toString());
-            // FIXME !
-            assertEquals("0-2-0:list, 0-2-0:set", vi32.linkedVariables().toString());
+                    vi2r.staticValues().toString());
+            assertEquals("0-2-0|1-*:list, 0-2-0|0-*:set", vi2r.linkedVariables().toString());
 
-            // FIXME we should never link to list!!!
             VariableInfo vi2Set = vd2.variableInfo("set");
-            assertEquals("0-2-0:list, 0-2-0:r", vi2Set.linkedVariables().toString());
-
+            assertEquals("0-2-0|*-0:r", vi2Set.linkedVariables().toString());
             assertFalse(vi2Set.isModified());
-            assertEquals("0-2-0:list, 0-2-0:r", vi2Set.linkedVariables().toString());
+
             VariableInfo vi2List = vd2.variableInfo("list");
+            assertEquals("0-2-0|*-1:r", vi2List.linkedVariables().toString());
             assertFalse(vi2List.isModified());
         }
         {
@@ -514,6 +567,69 @@ public class TestStaticValuesRecord extends CommonTest {
             assertTrue(vi4Set.isModified());
             assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
             VariableInfo vi4List = vd4.variableInfo("list");
+            assertFalse(vi4List.isModified());
+        }
+    }
+
+    @Language("java")
+    private static final String INPUT9 = """
+            package a.b;
+            import java.util.ArrayList;
+            import java.util.HashSet;
+            import java.util.List;
+            import java.util.Set;
+            class X {
+                record R<T>(Set<T> s, List<T> l) {}
+                static <T> void method(Set<T> set, List<T> list, T t) {
+                    R<T> r = new R<>(set, list);
+                    Set<T> set2 = r.s;
+                    set2.add(t); // assert that set has been modified, but not list
+                }
+            }
+            """;
+
+    @DisplayName("pack and unpack, with parameters")
+    @Test
+    public void test9() {
+        TypeInfo X = javaInspector.parse(INPUT9);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo method = X.findUniqueMethod("method", 3);
+        {
+            Statement s0 = method.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+
+            VariableInfo vi2r = vd0.variableInfo("r");
+            assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
+                    vi2r.staticValues().toString());
+            assertEquals("0-2-0|1-*:list, 0-2-0|0-*:set", vi2r.linkedVariables().toString());
+
+            VariableInfo vi2Set = vd0.variableInfo("set");
+            assertEquals("0-2-0|*-0:r", vi2Set.linkedVariables().toString());
+            assertFalse(vi2Set.isModified());
+
+            VariableInfo vi2List = vd0.variableInfo("list");
+            assertEquals("0-2-0|*-1:r", vi2List.linkedVariables().toString());
+            assertFalse(vi2List.isModified());
+        }
+        {
+            Statement s2 = method.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
+
+            VariableInfo vi4R = vd2.variableInfo("r");
+            assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
+                    vi4R.staticValues().toString());
+            assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
+                    vi4R.linkedVariables().toString());
+
+            // FIXME we should never link to list!!!
+            VariableInfo vi4Set = vd2.variableInfo("set");
+            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+
+            assertTrue(vi4Set.isModified());
+            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+            VariableInfo vi4List = vd2.variableInfo("list");
             assertFalse(vi4List.isModified());
         }
     }
