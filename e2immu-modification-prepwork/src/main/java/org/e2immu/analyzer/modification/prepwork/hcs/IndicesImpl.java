@@ -20,7 +20,6 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
 
     public IndicesImpl {
         assert set != null && !set.isEmpty() && (set.size() == 1 || set instanceof TreeSet);
-        assert set.size() == 1 || !set.contains(IndexImpl.ALL_INDEX);
     }
 
     public IndicesImpl(int i) {

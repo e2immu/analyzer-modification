@@ -104,7 +104,8 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
                     boolean intersect = maSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
                     conflicted |= !intersect;
                 } else {
-                    // see TestWeightedGraph15B, start in s
+                    // see TestWeightedGraph15B, start in s; x->* y->*
+                    assert entry.getValue().to().isAll() && map.values().stream().allMatch(l -> l.to().isAll());
                     if (!this.modificationAreaSource.isAll() && modificationAreaTarget.isAll()
                         && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
                         maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
