@@ -238,6 +238,11 @@ public class LVImpl implements LV {
         return links.map().size() == 1 && links.map().values().stream().findFirst().orElseThrow().to().isAll();
     }
 
+    @Override
+    public boolean theirsContainsAll() {
+        return links.map().values().stream().anyMatch(l -> l.to().isAll());
+    }
+
     /*
     modifications travel the -4- links ONLY when the link is *M--4--xx
      */

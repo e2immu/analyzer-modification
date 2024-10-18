@@ -16,6 +16,8 @@ public interface LV extends Comparable<LV> {
 
     boolean theirsIsAll();
 
+    boolean theirsContainsAll();
+
     /*
                     modifications travel the -4- links ONLY when the link is *M--4--xx
                      */

@@ -47,7 +47,7 @@ public class TestWeightedGraph15D extends CommonWG {
         LV linkAR = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i0, false))));
         assertEquals("*-4-0", linkAR.toString());
         LV linkBR = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i2, false))));
-        assertEquals("*-4-0", linkAR.toString());
+        assertEquals("*-4-2", linkBR.toString());
         LV linkRS = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i1, false))));
         assertEquals("*-4-1", linkRS.toString());
 

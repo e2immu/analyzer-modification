@@ -157,6 +157,9 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         return new ShortestPathImpl(variableIndex, variables, edges, linkMap);
     }
 
+    /*
+    FIXME remove links going into *
+     */
     @Override
     public WeightedGraph copyForModification() {
         WeightedGraphImpl wg = new WeightedGraphImpl(cache);
@@ -164,7 +167,7 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
             Node newNode = new Node(v);
             newNode.dependsOn = node.dependsOn == null ? Map.of() :
                     node.dependsOn.entrySet().stream()
-                            .filter(e -> !e.getValue().theirsIsAll())
+                            .filter(e -> !e.getValue().theirsContainsAll())
                             .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
             wg.nodeMap.put(v, newNode);
         });

@@ -20,6 +20,7 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.parsers.java.ast.Type;
 
 import java.util.List;
 import java.util.Map;
@@ -547,7 +548,7 @@ public class TestStaticValuesRecord extends CommonTest {
             assertFalse(vi2Set.isModified());
 
             VariableInfo vi2List = vd2.variableInfo("list");
-            assertEquals("0-2-0|*-1:r", vi2List.linkedVariables().toString());
+            assertEquals("*M,0-2-2M,0|*-1:r", vi2List.linkedVariables().toString());
             assertFalse(vi2List.isModified());
         }
         {
@@ -557,16 +558,17 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi4R = vd4.variableInfo("r");
             assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
                     vi4R.staticValues().toString());
-            assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
+            assertEquals("0,2M-2-0,*M|1-*:list, 1M-2-*M|0-*:s, 0,1M-2-0,*M|0-*:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
                     vi4R.linkedVariables().toString());
 
-            // FIXME we should never link to list!!!
             VariableInfo vi4Set = vd4.variableInfo("set");
-            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+            // should never link to 'list'!!
+            assertEquals("*M,0-2-1M,0|*-0:r, -2-:s, -2-:set2, 0-4-*:t", vi4Set.linkedVariables().toString());
 
             assertTrue(vi4Set.isModified());
-            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+
             VariableInfo vi4List = vd4.variableInfo("list");
+            assertEquals("*M,0-2-2M,0|*-1:r", vi4List.linkedVariables().toString());
             assertFalse(vi4List.isModified());
         }
     }
@@ -592,6 +594,11 @@ public class TestStaticValuesRecord extends CommonTest {
     @Test
     public void test9() {
         TypeInfo X = javaInspector.parse(INPUT9);
+        internTest9(X);
+        assertTrue(X.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+    }
+
+    private void internTest9(TypeInfo X) {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
@@ -608,11 +615,11 @@ public class TestStaticValuesRecord extends CommonTest {
             assertEquals("0,2M-2-0,*M|1-*:list, 0,1M-2-0,*M|0-*:set", vi2r.linkedVariables().toString());
 
             VariableInfo vi2Set = vd0.variableInfo(set);
-            assertEquals("0-2-0|*-0:r", vi2Set.linkedVariables().toString());
+            assertEquals("*M,0-2-1M,0|*-0:r", vi2Set.linkedVariables().toString());
             assertFalse(vi2Set.isModified());
 
             VariableInfo vi2List = vd0.variableInfo(list);
-            assertEquals("*M,0-2-1M,0|*-0:r", vi2List.linkedVariables().toString());
+            assertEquals("*M,0-2-2M,0|*-1:r", vi2List.linkedVariables().toString());
             assertFalse(vi2List.isModified());
         }
         {
@@ -622,16 +629,25 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableInfo vi4R = vd2.variableInfo("r");
             assertEquals("Type a.b.X.R<T> E=new R<>(set,list) this.l=list, this.s=set",
                     vi4R.staticValues().toString());
-            assertEquals("0-2-0:list, 1M-2-*M|0-*:s, 0-2-0:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
+            assertEquals("0,2M-2-0,*M|1-*:list, 1M-2-*M|0-*:s, 0,1M-2-0,*M|0-*:set, 1M-2-*M|0-*:set2, 1M-4-*M:t",
                     vi4R.linkedVariables().toString());
 
             VariableInfo vi4Set = vd2.variableInfo(set);
-            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
-
+            assertEquals("*M,0-2-1M,0|*-0:r, -2-:s, -2-:set2, 0-4-*:t", vi4Set.linkedVariables().toString());
             assertTrue(vi4Set.isModified());
-            assertEquals("0-2-0:list, 0-2-0:r", vi4Set.linkedVariables().toString());
+
             VariableInfo vi4List = vd2.variableInfo(list);
+            assertEquals("*M,0-2-2M,0|*-1:r", vi4List.linkedVariables().toString());
             assertFalse(vi4List.isModified());
         }
+    }
+
+    @DisplayName("pack and unpack, with parameters, R immutable HC")
+    @Test
+    public void test9b() {
+        TypeInfo X = javaInspector.parse(INPUT9);
+        TypeInfo R = X.findSubType("R");
+        R.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
+        internTest9(X);
     }
 }

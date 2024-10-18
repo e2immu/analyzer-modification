@@ -65,7 +65,6 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
     public String toString(int hc) {
         List<String> from = new ArrayList<>();
         List<String> to = new ArrayList<>();
-        int countAll = 0;
         for (Map.Entry<Indices, Link> e : map().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             boolean mutable = e.getValue().mutable();
             boolean fromIsAll = e.getKey().isAll();
@@ -77,10 +76,8 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
             if (!(fromIsAll && toIsAll)) {
                 from.add(f);
                 to.add(t);
-                countAll += (fromIsAll || toIsAll) ? 1 : 0;
             } // else: ignore self-referencing links; rely on the other hidden content
         }
-        assert countAll <= 1;
         assert from.size() == to.size();
 
         String modArea;
@@ -106,9 +103,9 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
     public DijkstraShortestPath.Accept next(Function<Integer, String> nodePrinter, int from, int to,
                                             DijkstraShortestPath.Connection current) {
         DijkstraShortestPath.Accept a = internalNext(current);
-        LOGGER.debug("Accept {} -> {} ______ {} -> {} ----> {}: {}",
-                current, nodePrinter.apply(from),
-                this, nodePrinter.apply(to),
+        LOGGER.debug("Current best to {} = {}; go to {} -> {} ? {}: {}",
+                nodePrinter.apply(from),
+                current, nodePrinter.apply(to), this,
                 a.accept(), a.next());
         return a;
     }
@@ -120,12 +117,14 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
         if (this == NO_LINKS) {
             return new DijkstraShortestPath.Accept(true, current);
         }
-        boolean conflicted = false;
+        //  boolean conflicted = false;
         LinksImpl currentLink = (LinksImpl) current;
 
         Indices maTarget = currentLink.modificationAreaTarget;
         Indices maSource = this.modificationAreaSource;
-
+        if (maTarget.haveValue() && maSource.haveValue() && !maSource.intersectionNonEmpty(maTarget)) {
+            return new DijkstraShortestPath.Accept(false, null);
+        }
         Map<Indices, Link> res = new HashMap<>();
         for (Map.Entry<Indices, Link> entry : currentLink.map.entrySet()) {
             Indices middle = entry.getValue().to();
@@ -133,10 +132,7 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
             Link link = this.map.get(middle);
             if (link != null) {
                 boolean fromAllToAll = entry.getKey().equals(ALL_INDICES) && link.to().equals(ALL_INDICES);
-                if (fromAllToAll) {
-                    boolean intersect = maSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
-                    conflicted |= !intersect;
-                } else {
+                if (!fromAllToAll) {
                     boolean mutable = !middleIsAll && entry.getValue().mutable() && link.mutable();
                     Link newLink = mutable == link.mutable() ? link : new LinkImpl(link.to(), false);
                     res.merge(entry.getKey(), newLink, Link::merge);
@@ -155,29 +151,25 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
                         && currentLink.modificationAreaSource.isAll() && !currentLink.modificationAreaTarget.isAll()) {
                         maTarget = currentLink.modificationAreaTarget.prepend(this.modificationAreaTarget);
                     }
-                } else if (!middleIsAll) {
-                    boolean intersect = maSource.intersectionNonEmpty(currentLink.modificationAreaTarget());
-                    conflicted |= !intersect;
-                } else {
+                } else if (middleIsAll) {
                     // see TestWeightedGraph15B, start in s; x->* y->*
-                    if (entry.getValue().to().isAll() && map.values().stream().allMatch(l -> l.to().isAll())) {
-                        if (!this.modificationAreaSource.isAll() && modificationAreaTarget.isAll()
-                            && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
-                            maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
-                            maTarget = ALL_INDICES;
-                        }
-                        boolean mutable = entry.getValue().mutable();
-                        LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
-                        res.merge(entry.getKey(), newLInk, Link::merge);
+                    //  if (middleIsAll && map.values().stream().allMatch(l -> l.to().isAll())) {
+                    if (!this.modificationAreaSource.isAll() && modificationAreaTarget.isAll()
+                        && !currentLink.modificationAreaSource.isAll() && ((LinksImpl) current).modificationAreaTarget.isAll()) {
+                        maSource = this.modificationAreaSource.prepend(currentLink.modificationAreaSource);
+                        maTarget = ALL_INDICES;
                     }
+                    boolean mutable = entry.getValue().mutable();
+                    LinkImpl newLInk = new LinkImpl(ALL_INDICES, mutable);
+                    res.merge(entry.getKey(), newLInk, Link::merge);
+                    //  }
                 }
             }
         }
         if (res.isEmpty()) {
             boolean allowNoConnection = !maSource.isNoModification()
                                         && !currentLink.modificationAreaTarget.isNoModification();
-            boolean accept = allowNoConnection && !conflicted;
-            return new DijkstraShortestPath.Accept(accept, null);
+            return new DijkstraShortestPath.Accept(allowNoConnection, null);
         }
         LinksImpl next = new LinksImpl(res, maSource, maTarget);
         return new DijkstraShortestPath.Accept(true, next);
