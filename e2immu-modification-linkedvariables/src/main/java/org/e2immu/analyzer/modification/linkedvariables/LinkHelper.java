@@ -105,85 +105,74 @@ public class LinkHelper {
                                                        ParameterizedType concreteParameterTypeIn,
                                                        LinkedVariables linkedVariablesOfParameter,
                                                        HiddenContentSelector hcsSource) {
-        Map<Variable, LV> map = new HashMap<>();
         ParameterizedType concreteParameterType = ensureTypeParameters(concreteParameterTypeIn);
 
         Integer index = hiddenContentTypes.indexOfOrNull(formalParameterType);
         if (index != null && formalParameterType.parameters().isEmpty()) {
-            if (concreteParameterType.parameters().isEmpty()) {
-                linkedVariablesOfParameter.stream().forEach(e -> {
-                    Variable variable = e.getKey();
-                    LV lv = e.getValue();
-                    Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, concreteParameterType);
-                    if (!immutable.isImmutable()) {
-                        boolean m = immutable.isMutable();
-                        Indices indices = new IndicesImpl(Set.of(new IndexImpl(List.of(index))));
-                        // FIXME what to do with the current link's (lv) info? modification areas?
-                        Links links = new LinksImpl(Map.of(indices, new LinkImpl(ALL_INDICES, m)));
-                        boolean independentHc = lv.isCommonHC();
-                        LV newLv = independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
-                        map.put(variable, newLv);
-                    }
-                });
-            } else {
-                // we have type parameters in the concrete type --- must link into those
-                HiddenContentTypes newHiddenContentTypes = concreteParameterType.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+            if (!concreteParameterType.parameters().isEmpty()) {
+                // recursion at the level of the type parameters
+                HiddenContentTypes newHiddenContentTypes = concreteParameterType.typeInfo().analysis()
+                        .getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
                 ParameterizedType newParameterMethodType = concreteParameterType.typeInfo().asParameterizedType();
-                HiddenContentSelector newHcsSource = HiddenContentSelector.selectAll(newHiddenContentTypes, newParameterMethodType);
+                HiddenContentSelector newHcsSource = HiddenContentSelector.selectAll(newHiddenContentTypes,
+                        newParameterMethodType);
                 LinkedVariables recursive = linkedVariablesOfParameter(newHiddenContentTypes,
                         newParameterMethodType, concreteParameterType, linkedVariablesOfParameter, newHcsSource);
                 return recursive.map(lv -> lv.prefixMine(index));
             }
-        } else {
-            Map<Indices, HiddenContentSelector.IndicesAndType> targetData = hcsSource
-                    .translateHcs(runtime, genericsHelper, formalParameterType, concreteParameterType);
-            linkedVariablesOfParameter.stream().forEach(e -> {
-                LV newLv;
-                LV lv = e.getValue();
-                if (targetData != null && !targetData.isEmpty()) {
-                    Map<Indices, Link> linkMap = new HashMap<>();
-                    Collection<Indices> targetDataKeys;
-                    // NOTE: this type of filter occurs in 'continueLinkedVariables' as well
-                    if (lv.haveLinks()) {
-                        targetDataKeys = lv.links().map().keySet().stream().filter(targetData::containsKey).toList();
-                    } else {
-                        targetDataKeys = targetData.keySet();
-                    }
-                    for (Indices iInHctSource : targetDataKeys) {
-                        HiddenContentSelector.IndicesAndType value = targetData.get(iInHctSource);
-                        Indices iInHctTarget = lv.haveLinks() && lv.theirsIsAll() ? ALL_INDICES : value.indices();
-                        ParameterizedType type = value.type();
-                        assert type != null;
-                        Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, type);
-                        if (immutable.isImmutable()) {
-                            continue;
-                        }
-                        boolean mutable = immutable.isMutable();
-                        assert iInHctTarget != null;
-                        linkMap.put(iInHctSource, new LinkImpl(iInHctTarget, mutable));
-                    }
-                    if (linkMap.isEmpty()) {
-                        newLv = createDependent(linkAllSameType(concreteParameterType));
-                    } else {
-                        Links links = new LinksImpl(Map.copyOf(linkMap));
-                        boolean independentHc = lv.isCommonHC();
-                        newLv = independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
-                    }
-                } else {
-                    Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, concreteParameterType);
-                    if (immutable != null && immutable.isImmutable()) {
-                        newLv = null;
-                    } else {
-                        newLv = createDependent(linkAllSameType(concreteParameterType));
-                    }
-                }
-                if (newLv != null) {
-                    Variable variable = e.getKey();
-                    map.put(variable, newLv);
-                }
-            });
         }
+
+        // the current formal type is not one of the hidden content types
+        Map<Indices, HiddenContentSelector.IndicesAndType> targetData = hcsSource
+                .translateHcs(runtime, genericsHelper, formalParameterType, concreteParameterType);
+        Map<Variable, LV> map = new HashMap<>();
+        linkedVariablesOfParameter.stream().forEach(e -> {
+            LV newLv = lvOfParameter(e, targetData, concreteParameterType);
+            if (newLv != null) {
+                map.put(e.getKey(), newLv);
+            }
+        });
         return LinkedVariablesImpl.of(map);
+    }
+
+    private LV lvOfParameter(Map.Entry<Variable, LV> e,
+                             Map<Indices, IndicesAndType> targetData,
+                             ParameterizedType concreteParameterType) {
+        LV lv = e.getValue();
+        if (targetData != null && !targetData.isEmpty()) {
+            Map<Indices, Link> linkMap = new HashMap<>();
+            Collection<Indices> targetDataKeys;
+            // NOTE: this type of filter occurs in 'continueLinkedVariables' as well
+            if (lv.haveLinks()) {
+                targetDataKeys = lv.links().map().keySet().stream().filter(targetData::containsKey).toList();
+            } else {
+                targetDataKeys = targetData.keySet();
+            }
+            for (Indices iInHctSource : targetDataKeys) {
+                IndicesAndType value = targetData.get(iInHctSource);
+                Indices iInHctTarget = lv.haveLinks() && lv.theirsIsAll() ? ALL_INDICES : value.indices();
+                ParameterizedType type = value.type();
+                assert type != null;
+                Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, type);
+                if (immutable.isImmutable()) {
+                    continue;
+                }
+                boolean mutable = immutable.isMutable();
+                assert iInHctTarget != null;
+                linkMap.put(iInHctSource, new LinkImpl(iInHctTarget, mutable));
+            }
+            if (linkMap.isEmpty()) {
+                return createDependent(linkAllSameType(concreteParameterType));
+            }
+            Links links = new LinksImpl(Map.copyOf(linkMap));
+            boolean independentHc = lv.isCommonHC();
+            return independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
+        }
+        Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, concreteParameterType);
+        if (immutable != null && immutable.isImmutable()) {
+            return null;
+        }
+        return createDependent(linkAllSameType(concreteParameterType));
     }
 
     private ParameterizedType ensureTypeParameters(ParameterizedType pt) {
@@ -444,7 +433,8 @@ public class LinkHelper {
     }
 
     public static Links linkAllSameType(ParameterizedType parameterizedType) {
-        TypeInfo typeInfo = parameterizedType.typeInfo();
+        TypeInfo typeInfo = parameterizedType.bestTypeInfo();
+        if (typeInfo == null) return LinksImpl.NO_LINKS;
         HiddenContentTypes hct = typeInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
         assert hct != null : "HCT not yet computed for " + typeInfo;
         if (hct.hasHiddenContent()) {
@@ -456,7 +446,7 @@ public class LinkHelper {
             }
             return new LinksImpl(Map.copyOf(map));
         }
-        return LinksImpl.NO_LINKS; // FIXME
+        return LinksImpl.NO_LINKS;
     }
 
     /*
@@ -713,11 +703,11 @@ public class LinkHelper {
 
                 // NOTE: this type of filtering occurs in 'linkedVariablesOfParameter' as well
                 Set<Map.Entry<Integer, Indices>> entrySet;
-             //   if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
-                    entrySet = hiddenContentSelectorOfTarget.getMap().entrySet();
-              //  } else {
-              //      entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
-              //  }
+                //   if (hiddenContentSelectorOfTarget.isOnlyAll() || !lv.haveLinks()) {
+                entrySet = hiddenContentSelectorOfTarget.getMap().entrySet();
+                //  } else {
+                //      entrySet = filter(lv.links().map().keySet(), hiddenContentSelectorOfTarget.getMap().entrySet());
+                //  }
                 for (Map.Entry<Integer, Indices> entry : entrySet) {
                     Indices indicesInTargetWrtMethod = entry.getValue();
 
