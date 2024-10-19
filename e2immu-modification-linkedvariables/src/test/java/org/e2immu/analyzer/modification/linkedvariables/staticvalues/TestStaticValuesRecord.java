@@ -26,8 +26,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.FINAL_FIELDS;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestStaticValuesRecord extends CommonTest {
@@ -595,7 +598,8 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test9() {
         TypeInfo X = javaInspector.parse(INPUT9);
         internTest9(X);
-        assertTrue(X.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+        TypeInfo R = X.findSubType("R");
+        assertSame(FINAL_FIELDS, R.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
     }
 
     private void internTest9(TypeInfo X) {
@@ -640,14 +644,5 @@ public class TestStaticValuesRecord extends CommonTest {
             assertEquals("*M,0-2-2M,0|*-1:r", vi4List.linkedVariables().toString());
             assertFalse(vi4List.isModified());
         }
-    }
-
-    @DisplayName("pack and unpack, with parameters, R immutable HC")
-    @Test
-    public void test9b() {
-        TypeInfo X = javaInspector.parse(INPUT9);
-        TypeInfo R = X.findSubType("R");
-        R.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
-        internTest9(X);
     }
 }

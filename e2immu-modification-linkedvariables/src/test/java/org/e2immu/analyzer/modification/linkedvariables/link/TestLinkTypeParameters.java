@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkTypeParameters extends CommonTest {
@@ -202,13 +204,15 @@ public class TestLinkTypeParameters extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
         TypeInfo R = X.findSubType("R");
         TypeInfo Pair = X.findSubType("Pair");
-        // ... no analyzer yet
-        assertTrue(R.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
-        assertTrue(Pair.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+
+        // override for this test
+        R.analysis().set(IMMUTABLE_TYPE, MUTABLE);
+        Pair.analysis().set(IMMUTABLE_TYPE, MUTABLE);
+
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo bnn1 = X.findUniqueMethod("bothNotNull1", 1);
         {
@@ -316,15 +320,15 @@ public class TestLinkTypeParameters extends CommonTest {
     @Test
     public void test2b() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        TypeInfo R = X.findSubType("R");
-        R.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
-        assertFalse(R.isExtensible());
-
-        TypeInfo Pair = X.findSubType("Pair");
-        Pair.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
-        assertFalse(Pair.isExtensible());
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+
+        TypeInfo R = X.findSubType("R");
+        assertFalse(R.isExtensible());
+        assertTrue(R.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isAtLeastImmutableHC());
+        TypeInfo Pair = X.findSubType("Pair");
+        assertFalse(Pair.isExtensible());
+        assertTrue(Pair.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isAtLeastImmutableHC());
 
         MethodInfo bnn1 = X.findUniqueMethod("bothNotNull1", 1);
         {

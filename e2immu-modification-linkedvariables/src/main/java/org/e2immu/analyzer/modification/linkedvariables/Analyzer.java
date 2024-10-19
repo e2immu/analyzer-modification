@@ -44,13 +44,14 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 public class Analyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Analyzer.class);
     private static final Logger LOGGER_GRAPH = LoggerFactory.getLogger("graph-algorithm");
-    
+
     private final Runtime runtime;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ExpressionAnalyzer expressionAnalyzer;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
     private final AnalysisHelper analysisHelper;
     private final GetSetHelper getSetHelper;
+    private final ComputeImmutable computeImmutable;
 
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
@@ -59,6 +60,7 @@ public class Analyzer {
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
         this.analysisHelper = new AnalysisHelper();
         this.getSetHelper = new GetSetHelper(runtime);
+        computeImmutable = new ComputeImmutable();
     }
 
     public void doMethod(MethodInfo methodInfo) {
@@ -454,6 +456,7 @@ public class Analyzer {
             } else if (info instanceof TypeInfo ti) {
                 LOGGER.info("Do type {}", ti);
                 fromNonFinalFieldToParameter(ti);
+                computeImmutable.go(ti);
             }
         }
     }
