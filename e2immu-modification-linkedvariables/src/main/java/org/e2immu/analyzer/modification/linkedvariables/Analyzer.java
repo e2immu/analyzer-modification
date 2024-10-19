@@ -332,25 +332,25 @@ public class Analyzer {
         if (statement instanceof LocalVariableCreation lvc) {
             lvc.localVariableStream().forEach(lv -> {
                 if (!lv.assignmentExpression().isEmpty()) {
-                    LinkEvaluation linkEvaluation = expressionAnalyzer.linkEvaluation(methodInfo, previous,
+                    EvaluationResult evaluationResult = expressionAnalyzer.linkEvaluation(methodInfo, previous,
                             stageOfPrevious, lv.assignmentExpression());
                     VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(lv);
-                    clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
-                    clcBuilder.addLinkEvaluation(linkEvaluation, vd);
-                    clcBuilder.addAssignment(vi.variable(), linkEvaluation.staticValues());
+                    clcBuilder.addLink(evaluationResult.linkedVariables(), vi);
+                    clcBuilder.addLinkEvaluation(evaluationResult, vd);
+                    clcBuilder.addAssignment(vi.variable(), evaluationResult.staticValues());
                 }
             });
         } else if (statement instanceof ExpressionAsStatement
                    || statement instanceof ReturnStatement
                    || statement instanceof IfElseStatement) {
-            LinkEvaluation linkEvaluation = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious,
+            EvaluationResult evaluationResult = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious,
                     statement.expression());
 
             if (statement instanceof ReturnStatement) {
                 ReturnVariable rv = new ReturnVariableImpl(methodInfo);
                 VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(rv);
-                clcBuilder.addLink(linkEvaluation.linkedVariables(), vi);
-                StaticValues sv = linkEvaluation.staticValues();
+                clcBuilder.addLink(evaluationResult.linkedVariables(), vi);
+                StaticValues sv = evaluationResult.staticValues();
                 // see TestStaticValuesAssignment: when returning this, we add the static values of the fields
                 if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
                     Map<Variable, Expression> map =
@@ -367,7 +367,7 @@ public class Analyzer {
                     clcBuilder.addAssignment(rv, sv);
                 }
             }
-            clcBuilder.addLinkEvaluation(linkEvaluation, vd);
+            clcBuilder.addLinkEvaluation(evaluationResult, vd);
         }
         clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index());
 

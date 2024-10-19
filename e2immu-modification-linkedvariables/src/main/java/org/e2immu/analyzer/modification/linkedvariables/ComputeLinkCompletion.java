@@ -30,7 +30,7 @@ import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableIn
 given a number of links, build a graph, and compute the shortest path between all combinations,
 to be stored in the VariableInfo objects.
  */
-public class ComputeLinkCompletion {
+class ComputeLinkCompletion {
     private final Cache cache = new GraphCacheImpl(100);
     private final Runtime runtime;
 
@@ -45,17 +45,17 @@ public class ComputeLinkCompletion {
 
         private final Map<Variable, List<StaticValues>> staticValues = new HashMap<>();
 
-        void addLinkEvaluation(LinkEvaluation linkEvaluation, VariableData destination) {
-            for (Map.Entry<Variable, LinkedVariables> entry : linkEvaluation.links().entrySet()) {
+        void addLinkEvaluation(EvaluationResult evaluationResult, VariableData destination) {
+            for (Map.Entry<Variable, LinkedVariables> entry : evaluationResult.links().entrySet()) {
                 VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
                 addLink(entry.getValue(), vi);
             }
-            for (Map.Entry<Variable, StaticValues> entry : linkEvaluation.assignments().entrySet()) {
+            for (Map.Entry<Variable, StaticValues> entry : evaluationResult.assignments().entrySet()) {
                 VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
                 addAssignment(vi.variable(), entry.getValue());
             }
-            this.modifiedInEval.addAll(linkEvaluation.modified());
-            this.modifiedFunctionalComponents.putAll(linkEvaluation.modifiedFunctionalComponents());
+            this.modifiedInEval.addAll(evaluationResult.modified());
+            this.modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents());
         }
 
         void addAssignment(Variable variable, StaticValues value) {

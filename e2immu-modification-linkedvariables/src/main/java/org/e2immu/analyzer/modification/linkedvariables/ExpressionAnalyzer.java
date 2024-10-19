@@ -45,7 +45,7 @@ import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 
-public class ExpressionAnalyzer {
+class ExpressionAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpressionAnalyzer.class);
 
     private final Runtime runtime;
@@ -60,10 +60,10 @@ public class ExpressionAnalyzer {
         this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
     }
 
-    public LinkEvaluation linkEvaluation(MethodInfo currentMethod,
-                                         VariableData variableDataPrevious,
-                                         Stage stageOfPrevious,
-                                         Expression expression) {
+    public EvaluationResult linkEvaluation(MethodInfo currentMethod,
+                                           VariableData variableDataPrevious,
+                                           Stage stageOfPrevious,
+                                           Expression expression) {
         return new Internal(currentMethod, variableDataPrevious, stageOfPrevious).eval(expression);
     }
 
@@ -78,11 +78,11 @@ public class ExpressionAnalyzer {
             this.stageOfPrevious = stageOfPrevious;
         }
 
-        LinkEvaluation eval(Expression expression) {
+        EvaluationResult eval(Expression expression) {
             return eval(expression, null);
         }
 
-        LinkEvaluation eval(Expression expression, ParameterizedType forwardType) {
+        EvaluationResult eval(Expression expression, ParameterizedType forwardType) {
             if (expression instanceof VariableExpression ve) {
                 Variable v = ve.variable();
                 LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, forwardType);
@@ -91,7 +91,7 @@ public class ExpressionAnalyzer {
                 Expression svExpression = inferStaticValues(ve);
                 StaticValues svs = StaticValuesImpl.of(svExpression);
                 StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, v);
-                LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 recursivelyCollectLinksToScopeVariables(v, builder);
                 return builder
                         .setStaticValues(svs.merge(svsVar))
@@ -99,8 +99,8 @@ public class ExpressionAnalyzer {
                         .build();
             }
             if (expression instanceof Assignment assignment) {
-                LinkEvaluation evalValue = eval(assignment.value());
-                LinkEvaluation.Builder builder = new LinkEvaluation.Builder()
+                EvaluationResult evalValue = eval(assignment.value());
+                EvaluationResult.Builder builder = new EvaluationResult.Builder()
                         .merge(assignment.variableTarget(), evalValue.linkedVariables())
                         .setLinkedVariables(evalValue.linkedVariables())
                         .merge(assignment.variableTarget(), evalValue.staticValues())
@@ -129,51 +129,51 @@ public class ExpressionAnalyzer {
             // direct assignment, if there is a pattern variable. empty otherwise
             if (expression instanceof InstanceOf io) {
                 if (io.patternVariable() != null) {
-                    LinkEvaluation evalValue = eval(io.expression());
-                    return new LinkEvaluation.Builder()
+                    EvaluationResult evalValue = eval(io.expression());
+                    return new EvaluationResult.Builder()
                             .merge(io.patternVariable(), evalValue.linkedVariables())
                             .setLinkedVariables(evalValue.linkedVariables())
                             .build();
                 }
-                return LinkEvaluation.EMPTY;
+                return EvaluationResult.EMPTY;
             }
 
             // pass-through
             if (expression instanceof Cast c) {
-                LinkEvaluation evalValue = eval(c.expression(), c.parameterizedType());
-                return new LinkEvaluation.Builder().merge(evalValue).build();
+                EvaluationResult evalValue = eval(c.expression(), c.parameterizedType());
+                return new EvaluationResult.Builder().merge(evalValue).build();
             }
             if (expression instanceof EnclosedExpression c) {
-                LinkEvaluation evalValue = eval(c.expression());
-                return new LinkEvaluation.Builder().merge(evalValue).build();
+                EvaluationResult evalValue = eval(c.expression());
+                return new EvaluationResult.Builder().merge(evalValue).build();
             }
 
             // trivial aggregation
             if (expression instanceof ArrayInitializer ai) {
-                LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
-                List<LinkEvaluation> linkEvaluations = ai.expressions().stream().map(this::eval).toList();
-                linkEvaluations.forEach(builder::merge);
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                List<EvaluationResult> evaluationResults = ai.expressions().stream().map(this::eval).toList();
+                evaluationResults.forEach(builder::merge);
 
-                LinkedVariables reduced = linkEvaluations.stream().map(LinkEvaluation::linkedVariables)
+                LinkedVariables reduced = evaluationResults.stream().map(EvaluationResult::linkedVariables)
                         .reduce(EMPTY, LinkedVariables::merge);
                 return builder.setLinkedVariables(reduced).build();
             }
             if (expression instanceof InlineConditional ic) {
-                LinkEvaluation leCondition = eval(ic.condition());
-                LinkEvaluation leIfTrue = eval(ic.ifTrue());
-                LinkEvaluation leIfFalse = eval(ic.ifFalse());
-                LinkEvaluation.Builder b = new LinkEvaluation.Builder().merge(leCondition).merge(leIfTrue).merge(leIfFalse);
+                EvaluationResult leCondition = eval(ic.condition());
+                EvaluationResult leIfTrue = eval(ic.ifTrue());
+                EvaluationResult leIfFalse = eval(ic.ifFalse());
+                EvaluationResult.Builder b = new EvaluationResult.Builder().merge(leCondition).merge(leIfTrue).merge(leIfFalse);
                 LinkedVariables merge = leIfTrue.linkedVariables().merge(leIfFalse.linkedVariables());
                 return b.setLinkedVariables(merge).build();
             }
             if (expression instanceof ConstantExpression<?> ce) {
                 StaticValues sv = StaticValuesImpl.of(ce);
-                return new LinkEvaluation.Builder().setLinkedVariables(EMPTY).setStaticValues(sv).build();
+                return new EvaluationResult.Builder().setLinkedVariables(EMPTY).setStaticValues(sv).build();
             }
-            return LinkEvaluation.EMPTY;
+            return EvaluationResult.EMPTY;
         }
 
-        private void recursivelyCollectLinksToScopeVariables(Variable v, LinkEvaluation.Builder builder) {
+        private void recursivelyCollectLinksToScopeVariables(Variable v, EvaluationResult.Builder builder) {
             if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve && !(ve.variable() instanceof This)) {
                 Value.Immutable immutable = analysisHelper.typeImmutable(v.parameterizedType());
                 if (immutable.isImmutable()) return; // no point linking
@@ -265,7 +265,7 @@ public class ExpressionAnalyzer {
             return LinkedVariablesImpl.of(map);
         }
 
-        private void setStaticValuesForVariableHierarchy(Assignment assignment, LinkEvaluation evalValue, LinkEvaluation.Builder builder) {
+        private void setStaticValuesForVariableHierarchy(Assignment assignment, EvaluationResult evalValue, EvaluationResult.Builder builder) {
             // push values up in the variable hierarchy
             Variable v = assignment.variableTarget();
             Expression value = evalValue.staticValues().expression();
@@ -349,17 +349,17 @@ public class ExpressionAnalyzer {
             return ve;
         }
 
-        private LinkEvaluation linkEvaluationOfAnonymousClass(MethodInfo currentMethod, ConstructorCall cc) {
+        private EvaluationResult linkEvaluationOfAnonymousClass(MethodInfo currentMethod, ConstructorCall cc) {
             TypeInfo anonymousTypeInfo = cc.anonymousClass();
 
             MethodInfo sami = anonymousTypeImplementsFunctionalInterface(anonymousTypeInfo);
-            if (sami == null) return LinkEvaluation.EMPTY;
+            if (sami == null) return EvaluationResult.EMPTY;
 
             ParameterizedType cft = anonymousTypeInfo.interfacesImplemented().get(0);
             Value.Independent indepOfMethod = sami.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
             HiddenContentSelector hcsMethod = sami.analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
-            LinkEvaluation linkEvaluationObject = eval(cc.object());
-            LinkedVariables lvsObject = linkEvaluationObject.linkedVariables();
+            EvaluationResult evaluationResultObject = eval(cc.object());
+            LinkedVariables lvsObject = evaluationResultObject.linkedVariables();
             ParameterizedType concreteReturnType = sami.returnType();
             List<Value.Independent> independentOfParameters = sami.parameters().stream()
                     .map(pi -> pi.analysis().getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT))
@@ -375,7 +375,7 @@ public class ExpressionAnalyzer {
                     .toList();
             LinkedVariables lvs = linkHelperFunctional.functional(currentMethod.primaryType(), indepOfMethod, hcsMethod,
                     lvsObject, concreteReturnType, independentOfParameters, hcsParameters, parameterTypes, lvsParams, cft);
-            return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
+            return new EvaluationResult.Builder().setLinkedVariables(lvs).build();
         }
 
         private MethodInfo anonymousTypeImplementsFunctionalInterface(TypeInfo typeInfo) {
@@ -389,7 +389,7 @@ public class ExpressionAnalyzer {
             return methods.get(0);
         }
 
-        private LinkEvaluation linkEvaluationOfLambda(Lambda lambda) {
+        private EvaluationResult linkEvaluationOfLambda(Lambda lambda) {
             LinkHelperFunctional.LambdaResult lr = LinkHelperFunctional.lambdaLinking(runtime, lambda.methodInfo());
             LinkedVariables lvsBeforeRemove;
             if (lambda.methodInfo().isModifying()) {
@@ -398,7 +398,7 @@ public class ExpressionAnalyzer {
                 lvsBeforeRemove = lr.linkedToReturnValue();
             }
             LinkedVariables lvs = lvsBeforeRemove.remove(v -> removeFromLinkedVariables(lambda.methodInfo(), v));
-            return new LinkEvaluation.Builder().setLinkedVariables(lvs).build();
+            return new EvaluationResult.Builder().setLinkedVariables(lvs).build();
         }
 
         private boolean removeFromLinkedVariables(MethodInfo lambdaMethod, Variable v) {
@@ -413,8 +413,8 @@ public class ExpressionAnalyzer {
             return false;
         }
 
-        private LinkEvaluation linkEvaluationOfMethodReference(MethodInfo currentMethod, MethodReference mr) {
-            LinkEvaluation scopeResult = eval(mr.scope());
+        private EvaluationResult linkEvaluationOfMethodReference(MethodInfo currentMethod, MethodReference mr) {
+            EvaluationResult scopeResult = eval(mr.scope());
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mr.methodInfo());
             Value.Independent independentOfMethod = mr.methodInfo().analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
@@ -438,18 +438,18 @@ public class ExpressionAnalyzer {
                     independentOfMethod, hcsMethod, linkedVariablesOfObject,
                     concreteTypeOfReturnValue, independentOfParameters, hcsParameters, concreteParameterTypes,
                     List.of(linkedVariablesOfObject), concreteTypeOfReturnValue);
-            return new LinkEvaluation.Builder().merge(scopeResult).setLinkedVariables(lvs).build();
+            return new EvaluationResult.Builder().merge(scopeResult).setLinkedVariables(lvs).build();
         }
 
-        private LinkEvaluation linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
-            LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
-            List<LinkEvaluation> linkEvaluations = cc.parameterExpressions().stream().map(this::eval).toList();
-            linkEvaluations.forEach(builder::merge);
+        private EvaluationResult linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
+            EvaluationResult.Builder builder = new EvaluationResult.Builder();
+            List<EvaluationResult> evaluationResults = cc.parameterExpressions().stream().map(this::eval).toList();
+            evaluationResults.forEach(builder::merge);
 
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     cc.constructor());
             LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
-                    null, cc.parameterExpressions(), linkEvaluations);
+                    null, cc.parameterExpressions(), evaluationResults);
 
             Map<Variable, Expression> map = new HashMap<>();
             for (ParameterInfo pi : cc.constructor().parameters()) {
@@ -465,14 +465,14 @@ public class ExpressionAnalyzer {
                     .build();
         }
 
-        private LinkEvaluation linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc) {
-            LinkEvaluation.Builder builder = new LinkEvaluation.Builder();
+        private EvaluationResult linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc) {
+            EvaluationResult.Builder builder = new EvaluationResult.Builder();
             Expression object = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
 
-            LinkEvaluation leObject = eval(object);
+            EvaluationResult leObject = eval(object);
             builder.merge(leObject);
 
-            List<LinkEvaluation> leParams = mc.parameterExpressions().stream().map(this::eval).toList();
+            List<EvaluationResult> leParams = mc.parameterExpressions().stream().map(this::eval).toList();
             leParams.forEach(builder::merge);
 
             methodCallLinks(currentMethod, mc.withObject(object), builder, leObject, leParams);
@@ -482,8 +482,8 @@ public class ExpressionAnalyzer {
             return builder.build();
         }
 
-        private void methodCallStaticValue(MethodCall mc, LinkEvaluation.Builder builder, LinkEvaluation leObject,
-                                           List<LinkEvaluation> leParams) {
+        private void methodCallStaticValue(MethodCall mc, EvaluationResult.Builder builder, EvaluationResult leObject,
+                                           List<EvaluationResult> leParams) {
             StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
 
             // identity method
@@ -600,7 +600,7 @@ public class ExpressionAnalyzer {
             return svObjectValues;
         }
 
-        private StaticValues makeSvFromMethodCall(MethodCall mc, LinkEvaluation leObject, StaticValues svm) {
+        private StaticValues makeSvFromMethodCall(MethodCall mc, EvaluationResult leObject, StaticValues svm) {
             Map<Variable, Expression> map = new HashMap<>();
             for (Map.Entry<Variable, Expression> entry : svm.values().entrySet()) {
                 Variable variable;
@@ -626,7 +626,7 @@ public class ExpressionAnalyzer {
             return new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
         }
 
-        private void methodCallModified(MethodCall mc, Expression object, LinkEvaluation.Builder builder) {
+        private void methodCallModified(MethodCall mc, Expression object, EvaluationResult.Builder builder) {
             if (object instanceof VariableExpression ve) {
                 boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
                 if (ve.variable().parameterizedType().isFunctionalInterface()
@@ -849,18 +849,18 @@ public class ExpressionAnalyzer {
             return result;
         }
 
-        private void ensureNotModifying(MethodReference mr, LinkEvaluation.Builder builder) {
+        private void ensureNotModifying(MethodReference mr, EvaluationResult.Builder builder) {
             // TODO
         }
 
-        private void propagateModification(MethodReference mr, LinkEvaluation.Builder builder) {
+        private void propagateModification(MethodReference mr, EvaluationResult.Builder builder) {
             if (mr.scope() instanceof VariableExpression ve) {
                 markModified(ve.variable(), builder);
             }
         }
 
         // NOTE: there is a semi-duplicate in MethodAnalyzer (modification-prepwork)
-        private void markModified(Variable variable, LinkEvaluation.Builder builder) {
+        private void markModified(Variable variable, EvaluationResult.Builder builder) {
             TypeInfo typeInfo = variable.parameterizedType().typeInfo();
             boolean mutable = typeInfo != null && typeInfo.analysis()
                     .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
@@ -882,16 +882,16 @@ public class ExpressionAnalyzer {
 
         private void methodCallLinks(MethodInfo currentMethod,
                                      MethodCall mc,
-                                     LinkEvaluation.Builder builder,
-                                     LinkEvaluation leObject,
-                                     List<LinkEvaluation> leParams) {
+                                     EvaluationResult.Builder builder,
+                                     EvaluationResult leObject,
+                                     List<EvaluationResult> leParams) {
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
             ParameterizedType concreteReturnType = mc.concreteReturnType();
 
             List<LinkedVariables> linkedVariablesOfParameters = leParams.stream()
-                    .map(LinkEvaluation::linkedVariables).toList();
+                    .map(EvaluationResult::linkedVariables).toList();
 
             // from parameters to object
             LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,

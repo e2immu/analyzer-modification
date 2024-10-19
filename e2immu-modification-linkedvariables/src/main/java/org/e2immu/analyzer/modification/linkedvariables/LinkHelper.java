@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -34,7 +33,7 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 
-public class LinkHelper {
+class LinkHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(LinkHelper.class);
 
     private final Runtime runtime;
@@ -183,8 +182,8 @@ public class LinkHelper {
         return pt.withParameters(List.copyOf(parameters));
     }
 
-    public record FromParameters(LinkEvaluation.Builder intoObject,
-                                 LinkEvaluation.Builder intoResult,
+    public record FromParameters(EvaluationResult.Builder intoObject,
+                                 EvaluationResult.Builder intoResult,
                                  Map<Integer, Integer> correctionMap) {
     }
 
@@ -194,19 +193,19 @@ public class LinkHelper {
     public FromParameters linksInvolvingParameters(ParameterizedType objectPt,
                                                    ParameterizedType resultPt,
                                                    List<Expression> parameterExpressions,
-                                                   List<LinkEvaluation> linkedVariables) {
-        LinkEvaluation.Builder intoObjectBuilder = new LinkEvaluation.Builder();
-        LinkEvaluation.Builder intoResultBuilder = resultPt == null || resultPt.isVoid() ? null
-                : new LinkEvaluation.Builder();
+                                                   List<EvaluationResult> linkedVariables) {
+        EvaluationResult.Builder intoObjectBuilder = new EvaluationResult.Builder();
+        EvaluationResult.Builder intoResultBuilder = resultPt == null || resultPt.isVoid() ? null
+                : new EvaluationResult.Builder();
         Map<Integer, Integer> correctionMap = new HashMap<>();
         if (!methodInfo.parameters().isEmpty()) {
             boolean isFactoryMethod = methodInfo.isFactoryMethod();
             // links between object/return value and parameters
             for (ParameterInfo pi : methodInfo.parameters()) {
-                LinkEvaluation linkEvaluation = linkedVariables.get(pi.index());
+                EvaluationResult evaluationResult = linkedVariables.get(pi.index());
                 Expression parameterExpression = parameterExpressions.get(pi.index());
 
-                linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, linkEvaluation,
+                linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, evaluationResult,
                         isFactoryMethod, intoResultBuilder, intoObjectBuilder, correctionMap);
             }
             linksBetweenParameters(intoObjectBuilder, methodInfo, parameterExpressions, linkedVariables);
@@ -218,10 +217,10 @@ public class LinkHelper {
                                                ParameterizedType objectPt,
                                                ParameterizedType resultPt,
                                                Expression parameterExpression,
-                                               LinkEvaluation linkEvaluationOfParameter,
+                                               EvaluationResult evaluationResultOfParameter,
                                                boolean isFactoryMethod,
-                                               LinkEvaluation.Builder intoResultBuilder,
-                                               LinkEvaluation.Builder intoObjectBuilder,
+                                               EvaluationResult.Builder intoResultBuilder,
+                                               EvaluationResult.Builder intoObjectBuilder,
                                                Map<Integer, Integer> correctionMap) {
         Independent formalParameterIndependent = pi.analysis()
                 .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
@@ -232,7 +231,7 @@ public class LinkHelper {
         if (!formalParameterIndependent.isIndependent() || inResult) {
             ParameterizedType concreteParameterType = parameterExpression.parameterizedType();
             LinkedVariables parameterLvs;
-            LinkedVariables lvs = linkEvaluationOfParameter.linkedVariables();
+            LinkedVariables lvs = evaluationResultOfParameter.linkedVariables();
             if (inResult) {
                 /*
                 change the links of the parameter to the value of the return variable (see also MethodReference,
@@ -255,8 +254,8 @@ public class LinkHelper {
                 parameterLvs = linkedVariablesOfParameter(pi.parameterizedType(),
                         parameterExpression.parameterizedType(), lvs, hcsSource);
             }
-            LinkEvaluation.Builder builder = inResult ? intoResultBuilder : intoObjectBuilder;
-            linkEvaluationOfParameter.links().forEach((v, lvs1) -> {
+            EvaluationResult.Builder builder = inResult ? intoResultBuilder : intoObjectBuilder;
+            evaluationResultOfParameter.links().forEach((v, lvs1) -> {
                 lvs1.forEach(e -> {
                     if (!e.getValue().isStaticallyAssignedOrAssigned()) {
                         builder.merge(v, LinkedVariablesImpl.of(e.getKey(), e.getValue()));
@@ -329,10 +328,10 @@ public class LinkHelper {
         return null;
     }
 
-    public void linksBetweenParameters(LinkEvaluation.Builder builder,
+    public void linksBetweenParameters(EvaluationResult.Builder builder,
                                        MethodInfo methodInfo,
                                        List<Expression> parameterExpressions,
-                                       List<LinkEvaluation> linkedVariables) {
+                                       List<EvaluationResult> linkedVariables) {
         Map<ParameterInfo, LinkedVariables> crossLinks = translateLinksToParameters(methodInfo);
         if (crossLinks.isEmpty()) return;
         crossLinks.forEach((pi, lv) -> {
@@ -340,10 +339,10 @@ public class LinkHelper {
         });
     }
 
-    private void doCrossLinkOfParameter(LinkEvaluation.Builder builder,
+    private void doCrossLinkOfParameter(EvaluationResult.Builder builder,
                                         MethodInfo methodInfo,
                                         List<Expression> parameterExpressions,
-                                        List<LinkEvaluation> linkedVariables,
+                                        List<EvaluationResult> linkedVariables,
                                         ParameterInfo pi,
                                         LinkedVariables lv) {
         boolean sourceIsVarArgs = pi.isVarArgs();
@@ -362,10 +361,10 @@ public class LinkHelper {
         });
     }
 
-    private void doCrossLinkFromTo(LinkEvaluation.Builder builder,
+    private void doCrossLinkFromTo(EvaluationResult.Builder builder,
                                    MethodInfo methodInfo,
                                    List<Expression> parameterExpressions,
-                                   List<LinkEvaluation> linkedVariables,
+                                   List<EvaluationResult> linkedVariables,
                                    ParameterInfo pi,
                                    Map.Entry<Variable, LV> e,
                                    ParameterInfo target,
@@ -873,7 +872,7 @@ public class LinkHelper {
 
     public void crossLink(LinkedVariables linkedVariablesOfObject,
                           LinkedVariables linkedVariablesOfObjectFromParams,
-                          LinkEvaluation.Builder link) {
+                          EvaluationResult.Builder link) {
         linkedVariablesOfObject.stream().forEach(e ->
                 linkedVariablesOfObjectFromParams.stream().forEach(e2 -> {
                     Variable from = e.getKey();

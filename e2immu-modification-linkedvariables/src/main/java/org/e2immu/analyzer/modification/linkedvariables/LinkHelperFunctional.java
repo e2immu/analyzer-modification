@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class LinkHelperFunctional {
+class LinkHelperFunctional {
     private final Runtime runtime;
     private final AnalysisHelper analysisHelper;
 

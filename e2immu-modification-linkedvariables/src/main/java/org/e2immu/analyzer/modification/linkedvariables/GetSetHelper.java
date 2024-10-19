@@ -16,7 +16,7 @@ import java.util.Map;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.GET_SET_FIELD;
 
-public class GetSetHelper {
+class GetSetHelper {
     private final Runtime runtime;
 
     public GetSetHelper(Runtime runtime) {

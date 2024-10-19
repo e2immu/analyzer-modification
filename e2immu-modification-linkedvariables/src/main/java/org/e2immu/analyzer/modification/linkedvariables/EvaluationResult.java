@@ -10,9 +10,9 @@ import org.e2immu.language.cst.api.variable.Variable;
 
 import java.util.*;
 
-public class LinkEvaluation {
+class EvaluationResult {
 
-    public static final LinkEvaluation EMPTY = new Builder().build();
+    public static final EvaluationResult EMPTY = new Builder().build();
 
     private final LinkedVariables linkedVariables;
     // values accumulated as we evaluate the expression
@@ -25,12 +25,12 @@ public class LinkEvaluation {
     private final Set<Variable> modified;
     private final Map<FieldReference, Boolean> modifiedFunctionalComponents;
 
-    private LinkEvaluation(LinkedVariables linkedVariables,
-                           Map<Variable, LinkedVariables> links,
-                           Set<Variable> modified,
-                           StaticValues staticValues,
-                           Map<Variable, StaticValues> assignments,
-                           Map<FieldReference, Boolean> modifiedFunctionalComponents) {
+    private EvaluationResult(LinkedVariables linkedVariables,
+                             Map<Variable, LinkedVariables> links,
+                             Set<Variable> modified,
+                             StaticValues staticValues,
+                             Map<Variable, StaticValues> assignments,
+                             Map<FieldReference, Boolean> modifiedFunctionalComponents) {
         this.linkedVariables = linkedVariables;
         this.links = links;
         this.modified = modified;
@@ -52,14 +52,14 @@ public class LinkEvaluation {
         }
 
         @Fluent
-        public Builder merge(LinkEvaluation linkEvaluation) {
-            linkedVariables = linkEvaluation.linkedVariables;
-            staticValues = linkEvaluation.staticValues;
+        public Builder merge(EvaluationResult evaluationResult) {
+            linkedVariables = evaluationResult.linkedVariables;
+            staticValues = evaluationResult.staticValues;
 
-            linkEvaluation.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
-            linkEvaluation.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
-            modified.addAll(linkEvaluation.modified);
-            modifiedFunctionalComponents.putAll(linkEvaluation.modifiedFunctionalComponents);
+            evaluationResult.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
+            evaluationResult.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
+            modified.addAll(evaluationResult.modified);
+            modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents);
             return this;
         }
 
@@ -132,8 +132,8 @@ public class LinkEvaluation {
             return modifiedFunctionalComponents;
         }
 
-        LinkEvaluation build() {
-            return new LinkEvaluation(linkedVariables, Map.copyOf(links), Set.copyOf(modified),
+        EvaluationResult build() {
+            return new EvaluationResult(linkedVariables, Map.copyOf(links), Set.copyOf(modified),
                     staticValues, Map.copyOf(assignments), Map.copyOf(modifiedFunctionalComponents));
         }
     }
