@@ -4,12 +4,15 @@ import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.ForStatement;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.FieldReference;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -222,7 +225,7 @@ public class TestVariableData extends CommonTest {
                 private static final boolean WANT_PROGRESS = true;
                 public static short[] numbers;
                 private static int progressCounter;
-
+            
                 public static void run() {
                     int i, j, l;
                     short NUMNUMBERS = 10;
@@ -260,10 +263,58 @@ public class TestVariableData extends CommonTest {
         VariableData vd = VariableDataImpl.of(method1);
         assert vd != null;
 
-        ForStatement fs4 =(ForStatement) method1.methodBody().statements().get(4);
+        ForStatement fs4 = (ForStatement) method1.methodBody().statements().get(4);
         VariableData vd4 = VariableDataImpl.of(fs4);
         VariableInfo i4 = vd4.variableInfo("i");
         assertEquals("4-E, 4.0.0, 4:E, 4;E", i4.reads().toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.io.File;
+            import java.util.Vector;
+            
+            public class X {
+              public File method(String basename, String extension) {
+                File dir = getTemporaryDirectory();
+                File f;
+                synchronized (temps) {
+                  do f = new File(dir, basename + (int) (Math.random() * 999999) + extension);
+                  while (temps.contains(f) || f.exists());
+                  temps.addElement(f);
+                }
+                return f;
+              }
+            
+              private File tempDir;
+              private final Vector<File> temps = new Vector<>();
+            
+              public File getTemporaryDirectory() {
+                return tempDir;
+              }
+            }
+            """;
+
+    // get set first, otherwise they appear out of order
+    @DisplayName("accessors cause a variable to be created in the method calling them")
+    @Test
+    public void test6() {
+
+        TypeInfo typeInfo = javaInspector.parse(INPUT6);
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
+        analyzer.doPrimaryType(typeInfo);
+        MethodInfo getTemporaryDirectory = typeInfo.findUniqueMethod("getTemporaryDirectory", 0);
+        FieldInfo tempDir = getTemporaryDirectory.getSetField().field();
+        assertEquals("tempDir", tempDir.name());
+
+        MethodInfo method = typeInfo.findUniqueMethod("method", 2);
+        VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));
+        assert vd0 != null;
+
+        FieldReference frTempDir = runtime.newFieldReference(tempDir);
+        assertTrue(vd0.isKnown(frTempDir.fullyQualifiedName()));
     }
 
 }

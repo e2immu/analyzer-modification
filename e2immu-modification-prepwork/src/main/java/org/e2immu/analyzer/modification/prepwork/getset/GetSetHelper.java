@@ -36,67 +36,73 @@ public class GetSetHelper {
     - we're using a field to store the information, we should use field reference (see TestGetSet)
     - alternative packing systems: a map with string constants, getting values at fixed positions (see TestGetSet)
      */
-    public static void doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
-        if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.GET_SET_FIELD)) {
-            Value.FieldValue getSet;
-            if (!methodBody.isEmpty()) {
-                Statement s0 = methodBody.statements().get(0);
-                if (s0 instanceof ReturnStatement rs) {
-                    if (rs.expression() instanceof VariableExpression ve
-                        && ve.variable() instanceof FieldReference fr
-                        && fr.scopeIsRecursivelyThis()) {
-                        // return this.field;
-                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, -1);
-                    } else if (rs.expression() instanceof VariableExpression ve
-                               && ve.variable() instanceof DependentVariable dv
-                               && dv.arrayVariable() instanceof FieldReference fr
-                               && dv.indexVariable() instanceof ParameterInfo
-                               && fr.scopeIsRecursivelyThis()) {
-                        // return this.objects[param]
-                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, 0);
-                    } else if (rs.expression() instanceof MethodCall mc
-                               && overrideOf(mc.methodInfo(), LIST_GET)
-                               && mc.parameterExpressions().get(0) instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
-                               && mc.object() instanceof VariableExpression ve2
-                               && ve2.variable() instanceof FieldReference fr
-                               && fr.scopeIsRecursivelyThis()) {
-                        // return this.list.get(param);
-                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, 0);
-                    } else {
-                        getSet = null;
-                    }
-                } else if (checkSetMethod(methodBody) && s0 instanceof ExpressionAsStatement eas) {
-                    if (eas.expression() instanceof Assignment a
-                        && a.variableTarget() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
-                        && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
-                        // this.field = param
-                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, -1);
-                    } else if (eas.expression() instanceof Assignment a
-                               && a.variableTarget() instanceof DependentVariable dv
-                               && dv.arrayVariable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
-                               && dv.indexVariable() instanceof ParameterInfo
-                               && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
-                        // this.objects[i] = param
-                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, 0);
-                    } else if (eas.expression() instanceof MethodCall mc
-                               && overrideOf(mc.methodInfo(), LIST_SET)
-                               && mc.parameterExpressions().get(0) instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
-                               && mc.parameterExpressions().get(1) instanceof VariableExpression ve2 && ve2.variable() instanceof ParameterInfo
-                               && mc.object() instanceof VariableExpression ve3 && ve3.variable() instanceof FieldReference fr
-                               && fr.scopeIsRecursivelyThis()) {
-                        // this.list.set(i, object)
-                        getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, 0);
-                    } else {
-                        getSet = null;
-                    }
-                } else {
-                    getSet = null;
-                }
-                if (getSet != null) {
-                    methodInfo.analysis().set(PropertyImpl.GET_SET_FIELD, getSet);
-                }
-            }
+    public static boolean doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
+        Value.FieldValue currentGetSet = methodInfo.analysis().getOrNull(PropertyImpl.GET_SET_FIELD,
+                ValueImpl.GetSetValueImpl.class);
+        if (currentGetSet != null) {
+            return currentGetSet.field() != null;
         }
+        Value.FieldValue getSet;
+        if (methodBody.isEmpty()) {
+            return false;
+        }
+        Statement s0 = methodBody.statements().get(0);
+        if (s0 instanceof ReturnStatement rs) {
+            if (rs.expression() instanceof VariableExpression ve
+                && ve.variable() instanceof FieldReference fr
+                && fr.scopeIsRecursivelyThis()) {
+                // return this.field;
+                getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, -1);
+            } else if (rs.expression() instanceof VariableExpression ve
+                       && ve.variable() instanceof DependentVariable dv
+                       && dv.arrayVariable() instanceof FieldReference fr
+                       && dv.indexVariable() instanceof ParameterInfo
+                       && fr.scopeIsRecursivelyThis()) {
+                // return this.objects[param]
+                getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, 0);
+            } else if (rs.expression() instanceof MethodCall mc
+                       && overrideOf(mc.methodInfo(), LIST_GET)
+                       && mc.parameterExpressions().get(0) instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
+                       && mc.object() instanceof VariableExpression ve2
+                       && ve2.variable() instanceof FieldReference fr
+                       && fr.scopeIsRecursivelyThis()) {
+                // return this.list.get(param);
+                getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), false, 0);
+            } else {
+                getSet = null;
+            }
+        } else if (checkSetMethod(methodBody) && s0 instanceof ExpressionAsStatement eas) {
+            if (eas.expression() instanceof Assignment a
+                && a.variableTarget() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
+                && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
+                // this.field = param
+                getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, -1);
+            } else if (eas.expression() instanceof Assignment a
+                       && a.variableTarget() instanceof DependentVariable dv
+                       && dv.arrayVariable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
+                       && dv.indexVariable() instanceof ParameterInfo
+                       && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
+                // this.objects[i] = param
+                getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, 0);
+            } else if (eas.expression() instanceof MethodCall mc
+                       && overrideOf(mc.methodInfo(), LIST_SET)
+                       && mc.parameterExpressions().get(0) instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo
+                       && mc.parameterExpressions().get(1) instanceof VariableExpression ve2 && ve2.variable() instanceof ParameterInfo
+                       && mc.object() instanceof VariableExpression ve3 && ve3.variable() instanceof FieldReference fr
+                       && fr.scopeIsRecursivelyThis()) {
+                // this.list.set(i, object)
+                getSet = new ValueImpl.GetSetValueImpl(fr.fieldInfo(), true, 0);
+            } else {
+                getSet = null;
+            }
+        } else {
+            getSet = null;
+        }
+        if (getSet != null) {
+            methodInfo.analysis().set(PropertyImpl.GET_SET_FIELD, getSet);
+            return true;
+        }
+        return false;
     }
 
 

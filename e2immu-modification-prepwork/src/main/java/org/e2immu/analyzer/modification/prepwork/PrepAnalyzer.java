@@ -3,15 +3,14 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
+import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
-import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.expression.ConstructorCall;
 import org.e2immu.language.cst.api.expression.Lambda;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Block;
@@ -19,10 +18,9 @@ import org.e2immu.util.internal.graph.G;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
 import java.util.List;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 /*
@@ -61,7 +59,21 @@ public class PrepAnalyzer {
     }
 
     public List<Info> doPrimaryType(TypeInfo typeInfo) {
-        doType(typeInfo);
+        List<MethodInfo> gettersAndSetters = new LinkedList<>();
+        List<MethodInfo> otherConstructorsAndMethods = new LinkedList<>();
+
+        doType(typeInfo, gettersAndSetters, otherConstructorsAndMethods);
+
+        /* now do the methods: first getters and setters, then the others
+           why? because we must create variables in VariableData for each call to a getter
+           therefore, all getters need to be known before they are being used.
+
+           this is the most simple form of analysis order required here.
+           the "linkedvariables" analyzer requires a more complicated one, computed in the statements below.
+        */
+
+        gettersAndSetters.forEach(this::doMethod);
+        otherConstructorsAndMethods.forEach(this::doMethod);
 
         ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
         ccg.setRecursiveMethods();
@@ -72,21 +84,21 @@ public class PrepAnalyzer {
         return cao.go(cg);
     }
 
-    private void doType(TypeInfo typeInfo) {
+    private void doType(TypeInfo typeInfo, List<MethodInfo> gettersAndSetters, List<MethodInfo> otherConstructorsAndMethods) {
         LOGGER.debug("Do type {}", typeInfo);
         HiddenContentTypes hctType = computeHiddenContent.compute(typeInfo);
         typeInfo.analysis().set(HIDDEN_CONTENT_TYPES, hctType);
 
         // recurse
-        typeInfo.subTypes().forEach(this::doType);
+        typeInfo.subTypes().forEach(typeInfo1 -> doType(typeInfo1, gettersAndSetters, otherConstructorsAndMethods));
         typeInfo.constructorAndMethodStream().forEach(mi -> {
             mi.methodBody().visit(e -> {
                 if (e instanceof Lambda lambda) {
-                    doType(lambda.methodInfo().typeInfo());
+                    doType(lambda.methodInfo().typeInfo(), gettersAndSetters, otherConstructorsAndMethods);
                     return false;
                 }
                 if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
-                    doType(cc.anonymousClass());
+                    doType(cc.anonymousClass(), gettersAndSetters, otherConstructorsAndMethods);
                     return false;
                 }
                 return true;
@@ -95,7 +107,12 @@ public class PrepAnalyzer {
             mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
 
             computeHCS.doHiddenContentSelector(mi);
-            doMethod(mi);
+            boolean isGetSet = GetSetHelper.doGetSetAnalysis(mi, mi.methodBody());
+            if (isGetSet) {
+                gettersAndSetters.add(mi);
+            } else {
+                otherConstructorsAndMethods.add(mi);
+            }
         });
     }
 

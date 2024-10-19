@@ -149,7 +149,6 @@ public class MethodAnalyzer {
                 methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
             }
         } // else: empty
-        GetSetHelper.doGetSetAnalysis(methodInfo, methodBody);
     }
 
     private Map<String, VariableData> doBlocks(MethodInfo methodInfo,

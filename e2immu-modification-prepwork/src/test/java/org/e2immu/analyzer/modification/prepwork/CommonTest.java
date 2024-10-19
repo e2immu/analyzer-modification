@@ -40,6 +40,7 @@ public class CommonTest {
     @BeforeAll
     public static void beforeAll() {
         ((Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
+        ((Logger) LoggerFactory.getLogger(MethodAnalyzer.class)).setLevel(Level.DEBUG);
     }
 
     @BeforeEach
