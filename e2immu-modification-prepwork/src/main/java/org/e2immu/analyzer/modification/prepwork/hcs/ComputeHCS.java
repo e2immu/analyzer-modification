@@ -76,6 +76,7 @@ public class ComputeHCS {
     private MethodInfo overloadWithMostHiddenContent(MethodInfo methodInfo) {
         Set<MethodInfo> overrides = methodInfo.overrides();
         if (overrides.isEmpty()) return methodInfo;
+        overrides.forEach(mi -> doType(mi.typeInfo()));
         if (overrides.size() == 1) return overrides.stream().findFirst().orElseThrow();
         Map<MethodInfo, Integer> map = overrides.stream()
                 .collect(Collectors.toUnmodifiableMap(m -> m, this::countHiddenContent));
