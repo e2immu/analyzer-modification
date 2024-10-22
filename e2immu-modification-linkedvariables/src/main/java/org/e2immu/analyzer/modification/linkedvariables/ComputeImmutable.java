@@ -83,6 +83,7 @@ public class ComputeImmutable {
             }
             // exposed via the return variable
             if ((vi.variable() instanceof ReturnVariable || vi.variable() instanceof ParameterInfo)
+                && vi.linkedVariables() != null
                 && vi.linkedVariables().assignedOrDependentVariables()
                         .anyMatch(v -> v instanceof FieldReference fr && inHierarchy(typeInfo, fr.fieldInfo().owner()))) {
                 Immutable immutable = analysisHelper.typeImmutable(vi.variable().parameterizedType());

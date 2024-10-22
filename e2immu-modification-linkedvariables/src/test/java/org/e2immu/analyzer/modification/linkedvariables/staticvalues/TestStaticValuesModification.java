@@ -264,7 +264,10 @@ public class TestStaticValuesModification extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+
         TypeInfo R = X.findSubType("R");
+        assertTrue(R.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
+
         TypeInfo RI = X.findSubType("RI");
         {
             // computed

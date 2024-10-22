@@ -10,6 +10,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +21,7 @@ import java.util.List;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkConstructorInMethodCall extends CommonTest {
@@ -57,6 +59,8 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
+        testImmutable(X);
+
         TypeInfo exceptionThrown = X.findSubType("ExceptionThrown");
         {
             HiddenContentTypes exceptionThrownHct = exceptionThrown.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
@@ -70,7 +74,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
 
             Value.Immutable etImmutable = exceptionThrown.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE);
             assertTrue(etImmutable.isMutable());
-            assertSame(MUTABLE, etImmutable); // TODO for later, should be FINAL_FIELDS
+            assertSame(FINAL_FIELDS, etImmutable);
         }
 
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
@@ -97,7 +101,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Rv = vd1.variableInfo(withException.fullyQualifiedName());
                 assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(ee) this.exit=ee", vi1Rv.staticValues().toString());
-                assertEquals("0M-2-*M|0.0-*:e, 0M-2-*M|0-*:ee", vi1Rv.linkedVariables().toString());
+                assertEquals("0M-4-*M|0.0-*:e, 0M-4-*M|0-*:ee", vi1Rv.linkedVariables().toString());
             }
         }
     }
@@ -136,6 +140,8 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
+        testImmutable(X);
+
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
         MethodInfo ldConstructor = loopDataImpl.findConstructor(1);
         ParameterInfo ldConstructor0 = ldConstructor.parameters().get(0);
@@ -147,8 +153,22 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
             Statement s0 = withException.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Ee = vd0.variableInfo(withException.fullyQualifiedName());
-            assertEquals("0M-2-*M|0.0-*:e", vi0Ee.linkedVariables().toString());
+            assertEquals("0M-4-*M|0.0-*:e", vi0Ee.linkedVariables().toString());
         }
+    }
+
+    private void testImmutable(TypeInfo X) {
+        TypeInfo exception = javaInspector.compiledTypesManager().get(Exception.class);
+        assertTrue(exception.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isMutable());
+        TypeInfo exceptionThrown = X.findSubType("ExceptionThrown");
+        assertTrue(exceptionThrown.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isMutable());
+
+        TypeInfo exit = X.findSubType("Exit");
+        assertSame(IMMUTABLE_HC, exit.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+        TypeInfo loopData = X.findSubType("LoopData");
+        assertSame(IMMUTABLE_HC, loopData.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+        TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
+        assertSame(IMMUTABLE_HC, loopDataImpl.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
     }
 
 }

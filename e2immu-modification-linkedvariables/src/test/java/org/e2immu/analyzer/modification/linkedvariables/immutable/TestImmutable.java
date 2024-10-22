@@ -62,6 +62,63 @@ public class TestImmutable extends CommonTest {
         assertTrue(immutable(RM).isMutable());
     }
 
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            import org.e2immu.annotation.Modified;
+            class X {
+                interface I {}
+            
+                interface J extends Comparable<J> {}
+    
+                // modifying
+                interface K {
+                    @Modified
+                    void add(String s);
+                }
+    
+                // modifying, because K is
+                interface KK extends K {
+                    int get();
+                }
+    
+                interface L {
+                    int get();
+                }
+    
+                //modifying (implicit in abstract void methods)
+                interface M extends L {
+                    void set(int i);
+                }
+            }
+            """;
+
+    @DisplayName("interfaces")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
+
+        TypeInfo I = X.findSubType("I");
+        assertTrue(immutable(I).isImmutableHC());
+
+        TypeInfo J = X.findSubType("J");
+        assertTrue(immutable(J).isImmutableHC());
+
+        TypeInfo K = X.findSubType("K");
+        assertTrue(immutable(K).isMutable());
+
+        TypeInfo KK = X.findSubType("KK");
+        assertTrue(immutable(KK).isMutable());
+
+        TypeInfo L = X.findSubType("L");
+        assertTrue(immutable(L).isImmutableHC());
+
+        TypeInfo M = X.findSubType("L");
+        assertTrue(immutable(M).isMutable());
+    }
+
     private Value.Immutable immutable(TypeInfo r) {
         return r.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
     }
