@@ -75,6 +75,8 @@ public class ComputeCallGraph {
     Reason: we're already generating an edge from M into the anonymous type (B), from the anonymous type to the method (A)
      */
     private void go(TypeInfo typeInfo) {
+        builder.addVertex(typeInfo);
+
         typeInfo.subTypes().forEach(st -> {
             if (!st.isStatic()) {
                 builder.add(st, List.of(typeInfo)); // B

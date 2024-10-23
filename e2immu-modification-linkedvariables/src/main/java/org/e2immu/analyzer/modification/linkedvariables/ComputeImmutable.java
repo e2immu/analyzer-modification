@@ -11,6 +11,8 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
+import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +63,17 @@ public class ComputeImmutable {
             if (!poc.infoSet().contains(methodInfo)) {
                 if (!methodInfo.methodBody().isEmpty() && modifiesOrExposesField(typeInfo, methodInfo)) {
                     return false;
+                }
+                if (methodInfo.isModifying()) return false;
+                if (methodInfo.hasReturnValue()) {
+                    Value.Independent independentResult = methodInfo.analysis()
+                            .getOrDefault(PropertyImpl.INDEPENDENT_METHOD, ValueImpl.IndependentImpl.DEPENDENT);
+                    if (independentResult.isDependent()) return false;
+                }
+                for (ParameterInfo parameterInfo : methodInfo.parameters()) {
+                    Value.Independent independentParameter = parameterInfo.analysis()
+                            .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
+                    if (independentParameter.isDependent()) return false;
                 }
             }
         }
