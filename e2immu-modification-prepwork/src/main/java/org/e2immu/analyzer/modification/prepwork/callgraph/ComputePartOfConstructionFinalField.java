@@ -48,17 +48,19 @@ public class ComputePartOfConstructionFinalField {
         for (V<Info> v : callGraph.vertices()) {
             if (v.t() instanceof FieldInfo fieldInfo) {
                 boolean isFinal = fieldInfo.isPropertyFinal() || fieldInfo.access().isPrivate();
-                effectivelyFinalFieldMap.put(fieldInfo, isFinal);
-            } else if (v.t() instanceof MethodInfo methodInfo && !methodInfo.methodBody().isEmpty()) {
+                Boolean prev = effectivelyFinalFieldMap.put(fieldInfo, isFinal);
+                assert prev == null;
+
+                // edges from field to method
                 Map<V<Info>, Long> edges = callGraph.edges(v);
                 if (edges != null) {
                     for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
-                        if (entry.getKey().t() instanceof FieldInfo toField
-                            && notInConstructionOfSameStaticType(methodInfo, toField, partOfConstruction)) {
+                        if (entry.getKey().t() instanceof MethodInfo methodInfo
+                            && notInConstructionOfSameStaticType(methodInfo, fieldInfo, partOfConstruction)) {
                             // so methodInfo references toField... check whether that is an assignment, or simply a read
-                            boolean isAssigned = isAssigned(methodInfo, toField);
+                            boolean isAssigned = isAssigned(methodInfo, fieldInfo);
                             if (isAssigned) {
-                                effectivelyFinalFieldMap.put(toField, false);
+                                effectivelyFinalFieldMap.put(fieldInfo, false);
                             }
                         }
                     }
@@ -108,14 +110,14 @@ public class ComputePartOfConstructionFinalField {
             changes = false;
             for (V<Info> v : callGraph.vertices()) {
                 if (v.t() instanceof MethodInfo methodInfo) {
-                    if(methodInfo.isConstructor()) called.add(methodInfo);
+                    if (methodInfo.isConstructor()) called.add(methodInfo);
 
-                    boolean canBePartOfConstruction = !canBePartOfConstruction(methodInfo);
+                    boolean canBePartOfConstruction = canBePartOfConstruction(methodInfo);
                     Map<V<Info>, Long> edges = callGraph.edges(v);
                     if (edges != null) {
                         for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
                             if (entry.getKey().t() instanceof MethodInfo toMethod) {
-                                if(!canBePartOfConstruction) {
+                                if (!canBePartOfConstruction) {
                                     changes |= candidates.remove(toMethod);
                                 }
                                 called.add(toMethod);

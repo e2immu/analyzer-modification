@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
@@ -115,7 +116,7 @@ public class TestCallGraph extends CommonTest {
 
 
     @Language("java")
-    private static final String INPUT3 = """
+    static final String INPUT3 = """
             package a.b;
             import java.util.ArrayList;
             import java.util.List;
@@ -164,16 +165,5 @@ public class TestCallGraph extends CommonTest {
         assertEquals("""
                 [a.b.X.initList(int), a.b.X.print(), a.b.X.sleep(), a.b.X.X(int), a.b.X.list, a.b.X.rest(), a.b.X]\
                 """, analysisOrder.toString());
-
-        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-        cp.go(X, ccg.graph());
-
-        Value.SetOfInfo setOfInfo = X.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
-        assertNotNull(setOfInfo);
-        assertEquals("[a.b.X.X(int), a.b.X.initList(int)]",
-                setOfInfo.infoSet().stream().map(Object::toString).sorted().toList().toString());
-
-        FieldInfo list = X.getFieldByName("list", true);
-        assertSame(TRUE, list.analysis().getOrDefault(PropertyImpl.FINAL_FIELD, FALSE));
     }
 }

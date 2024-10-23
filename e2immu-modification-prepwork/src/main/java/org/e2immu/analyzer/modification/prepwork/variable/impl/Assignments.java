@@ -9,10 +9,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.statement.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 
 public class Assignments {
@@ -42,6 +39,19 @@ public class Assignments {
 
     public int size() {
         return assignmentIndices.length;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Assignments that)) return false;
+        return Objects.equals(indexOfDefinition, that.indexOfDefinition)
+               && Objects.deepEquals(assignmentIndices, that.assignmentIndices);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(indexOfDefinition, Arrays.hashCode(assignmentIndices));
     }
 
     @Override

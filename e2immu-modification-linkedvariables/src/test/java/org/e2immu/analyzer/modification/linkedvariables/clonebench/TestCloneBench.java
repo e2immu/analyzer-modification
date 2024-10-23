@@ -4,12 +4,6 @@ import ch.qos.logback.classic.Level;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.output.Formatter;
-import org.e2immu.language.cst.api.output.OutputBuilder;
-import org.e2immu.language.cst.api.output.Qualification;
-import org.e2immu.analyzer.shallow.analyzer.DecoratorImpl;
-import org.e2immu.language.cst.print.FormatterImpl;
-import org.e2immu.language.cst.print.FormattingOptionsImpl;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,19 +51,13 @@ public class TestCloneBench extends CommonTest {
     private void process(File javaFile, File outFile, int count) throws IOException {
         String input = Files.readString(javaFile.toPath());
         LOGGER.info("Start parsing #{}, {}, file of size {}", count, javaFile, input.length());
+
         TypeInfo typeInfo = javaInspector.parse(input);
         List<Info> analysisOrder = prepAnalyzer.doPrimaryType(typeInfo);
         analyzer.doPrimaryType(typeInfo, analysisOrder);
 
         String printed = printType(typeInfo);
         Files.writeString(outFile.toPath(), printed, StandardCharsets.UTF_8);
-    }
-
-    protected String printType(TypeInfo newType) {
-        Qualification.Decorator decorator = new DecoratorImpl(runtime);
-        OutputBuilder ob = newType.print(runtime.qualificationQualifyFromPrimaryType(decorator), true);
-        Formatter formatter = new FormatterImpl(runtime, new FormattingOptionsImpl.Builder().build());
-        return formatter.write(ob);
     }
 
     @Test
