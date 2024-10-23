@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;

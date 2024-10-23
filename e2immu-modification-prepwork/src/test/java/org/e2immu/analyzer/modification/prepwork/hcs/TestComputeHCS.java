@@ -181,7 +181,7 @@ public class TestComputeHCS extends CommonTest {
 
         MethodInfo CsetO = C.findUniqueMethod("setO", 1);
         HiddenContentTypes hctCsetO = chc.compute(hctC, CsetO);
-        assertEquals("C: - setO:", hctCsetO.toString());
+        assertEquals("C: - setO:Object", hctCsetO.toString());
         CsetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCgetO);
 
         HiddenContentSelector hcsCgetO = computeHCS.doHiddenContentSelector(CgetO);

@@ -40,11 +40,13 @@ public class PrepAnalyzer {
     private final MethodAnalyzer methodAnalyzer;
     private final ComputeHiddenContent computeHiddenContent;
     private final ComputeHCS computeHCS;
+    private final Runtime runtime;
 
     public PrepAnalyzer(Runtime runtime) {
         methodAnalyzer = new MethodAnalyzer(runtime);
         computeHiddenContent = new ComputeHiddenContent(runtime);
         computeHCS = new ComputeHCS(runtime);
+        this.runtime = runtime;
     }
 
     /*
@@ -75,7 +77,7 @@ public class PrepAnalyzer {
         gettersAndSetters.forEach(this::doMethod);
         otherConstructorsAndMethods.forEach(this::doMethod);
 
-        ComputeCallGraph ccg = new ComputeCallGraph(typeInfo);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, typeInfo);
         ccg.setRecursiveMethods();
         G<Info> cg = ccg.go().graph();
         ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();

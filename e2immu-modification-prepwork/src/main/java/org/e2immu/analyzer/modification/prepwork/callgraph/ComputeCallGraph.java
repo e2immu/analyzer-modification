@@ -7,6 +7,7 @@ import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
@@ -28,14 +29,15 @@ direction of arrow: I need you to exist first (I, from -> you, to)
  */
 public class ComputeCallGraph {
     public static final Property RECURSIVE_METHOD = new PropertyImpl("recursiveMethod", ValueImpl.BoolImpl.FALSE);
-
+    private final Runtime runtime;
     private final TypeInfo primaryType;
     private final Set<MethodInfo> recursive = new HashSet<>();
     private final G.Builder<Info> builder = new G.Builder<>(Long::sum);
 
     private G<Info> graph;
 
-    public ComputeCallGraph(TypeInfo primaryType) {
+    public ComputeCallGraph(Runtime runtime, TypeInfo primaryType) {
+        this.runtime = runtime;
         this.primaryType = primaryType;
     }
 
@@ -91,6 +93,9 @@ public class ComputeCallGraph {
         typeInfo.constructorAndMethodStream().forEach(mi -> {
             mi.exceptionTypes().forEach(pt -> addType(mi, pt));
             mi.parameters().forEach(pi -> addType(mi, pi.parameterizedType()));
+            if (mi.hasReturnValue()) {
+                addType(mi, mi.returnType()); // needed because of immutable computation in independent
+            }
 
             builder.add(typeInfo, List.of(mi)); // A
             Visitor visitor = new Visitor(mi);
@@ -200,14 +205,16 @@ public class ComputeCallGraph {
     }
 
     private void addType(Info from, ParameterizedType pt) {
-        TypeInfo best = pt.bestTypeInfo();
-        if (best != null) {
-            if (best != from && best.primaryType().equals(primaryType)) {
-                builder.add(from, List.of(best));
+        if (!from.typeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
+            TypeInfo best = pt.bestTypeInfo();
+            if (best != null) {
+                if (best != from && best.primaryType().equals(primaryType)) {
+                    builder.add(from, List.of(best));
+                }
+                for (ParameterizedType parameter : pt.parameters()) {
+                    addType(from, parameter);
+                }
             }
-            for (ParameterizedType parameter : pt.parameters()) {
-                addType(from, parameter);
-            }
-        }
+        } // else: avoid links to self, we want the type at the end
     }
 }

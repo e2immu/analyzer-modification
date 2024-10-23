@@ -124,4 +124,43 @@ public class TestImmutable extends CommonTest {
     private Value.Immutable immutable(TypeInfo r) {
         return r.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
     }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                record Pair<F, G>(F f, G g) {
+                }
+            
+                record R<F, G>(Pair<F, G> pair) {
+                    public R {
+                        assert pair != null;
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("type parameters in records")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
+
+        TypeInfo Pair = X.findSubType("Pair");
+        Value.Immutable immutablePair = immutable(Pair);
+        assertTrue(immutablePair.isImmutableHC(), "Have " + immutablePair);
+
+        TypeInfo R = X.findSubType("R");
+        MethodInfo pair = R.findUniqueMethod("pair", 0);
+        assertNotNull(pair.getSetField().field());
+        Value.Independent pairIndependent = pair.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
+                ValueImpl.IndependentImpl.DEPENDENT);
+        assertTrue(pairIndependent.isIndependentHc());
+
+        Value.Immutable immutableR = immutable(R);
+        assertTrue(immutableR.isImmutableHC(), "Have " + immutableR);
+    }
 }

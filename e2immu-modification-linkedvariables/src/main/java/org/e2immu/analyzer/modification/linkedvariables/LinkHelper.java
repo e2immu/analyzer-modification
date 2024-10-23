@@ -105,6 +105,10 @@ class LinkHelper {
                                                        LinkedVariables linkedVariablesOfParameter,
                                                        HiddenContentSelector hcsSource) {
         ParameterizedType concreteParameterType = ensureTypeParameters(concreteParameterTypeIn);
+        Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, concreteParameterType);
+        if (immutable != null && immutable.isImmutable()) {
+            return LinkedVariablesImpl.EMPTY;
+        }
 
         Integer index = hiddenContentTypes.indexOfOrNull(formalParameterType);
         if (index != null && formalParameterType.parameters().isEmpty()) {
@@ -166,10 +170,6 @@ class LinkHelper {
             Links links = new LinksImpl(Map.copyOf(linkMap));
             boolean independentHc = lv.isCommonHC();
             return independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
-        }
-        Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, concreteParameterType);
-        if (immutable != null && immutable.isImmutable()) {
-            return null;
         }
         return createDependent(linkAllSameType(concreteParameterType));
     }

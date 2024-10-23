@@ -38,9 +38,15 @@ public class CommonTest {
     protected final String[] extraClassPath;
     protected Analyzer analyzer;
     protected PrepAnalyzer prepAnalyzer;
+    protected final boolean storeErrorsInPVMap;
 
     protected CommonTest(String... extraClassPath) {
+        this(false, extraClassPath);
+    }
+
+    protected CommonTest(boolean storeErrorsInPVMap, String... extraClassPath) {
         this.extraClassPath = extraClassPath;
+        this.storeErrorsInPVMap = storeErrorsInPVMap;
     }
 
     @BeforeAll
@@ -83,7 +89,7 @@ public class CommonTest {
         List<TypeInfo> typesLoaded = javaInspector.compiledTypesManager().typesLoaded();
         assertTrue(typesLoaded.stream().anyMatch(ti -> "java.lang.Exception".equals(ti.fullyQualifiedName())));
         prepAnalyzer.initialize(typesLoaded);
-        analyzer = new Analyzer(runtime);
+        analyzer = new Analyzer(runtime, storeErrorsInPVMap);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {

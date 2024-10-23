@@ -90,11 +90,10 @@ public class HiddenContentTypes implements Value {
         Map<NamedType, Integer> t2i = new HashMap<>();
         for (Map.Entry<NamedType, Integer> entry : typeToIndexIn.entrySet()) {
             NamedType nt = entry.getKey();
-            if (!hctTypeInfo.typeToIndex.containsKey(nt)) {
-                int i = startOfMethodParameters + entry.getValue();
-                i2t.put(i, nt);
-                t2i.put(nt, i);
-            }
+            assert !hctTypeInfo.typeToIndex.containsKey(nt);
+            int i = startOfMethodParameters + entry.getValue();
+            i2t.put(i, nt);
+            t2i.put(nt, i);
         }
         indexToType = Map.copyOf(i2t);
         typeToIndex = Map.copyOf(t2i);
@@ -298,6 +297,10 @@ public class HiddenContentTypes implements Value {
         if (here != null) return here;
         if (hctTypeInfo != null) return hctTypeInfo.typeToIndex.get(namedType);
         throw new UnsupportedOperationException("Expected " + namedType + " to be known");
+    }
+
+    public boolean isKnown(NamedType namedType) {
+        return typeToIndex.containsKey(namedType);
     }
 
     public Integer indexOfOrNull(ParameterizedType type) {

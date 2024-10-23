@@ -55,8 +55,9 @@ public class Analyzer {
 
     private final List<Throwable> problemsRaised = new LinkedList<>();
     private final Map<String, Integer> histogram = new HashMap<>();
+    private final boolean storeErrorsInPVMap;
 
-    public Analyzer(Runtime runtime) {
+    public Analyzer(Runtime runtime, boolean storeErrorsInPVMap) {
         this.runtime = runtime;
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
         computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
@@ -64,6 +65,7 @@ public class Analyzer {
         this.analysisHelper = new AnalysisHelper();
         this.getSetHelper = new GetSetHelper(runtime);
         computeImmutable = new ComputeImmutable();
+        this.storeErrorsInPVMap = storeErrorsInPVMap;
     }
 
     public void doMethod(MethodInfo methodInfo) {
@@ -469,10 +471,14 @@ public class Analyzer {
                 histogram.merge(info.info(), 1, Integer::sum);
             } catch (Exception | AssertionError problem) {
                 LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
-                problemsRaised.add(problem);
-                String errorMessage = Objects.requireNonNull(problem.getMessage(), "<no message>");
-                String fullMessage = "ANALYZER ERROR: " + errorMessage;
-                info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
+                if (storeErrorsInPVMap) {
+                    problemsRaised.add(problem);
+                    String errorMessage = Objects.requireNonNull(problem.getMessage(), "<no message>");
+                    String fullMessage = "ANALYZER ERROR: " + errorMessage;
+                    info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
+                } else {
+                    throw problem;
+                }
             }
         }
     }

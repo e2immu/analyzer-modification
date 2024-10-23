@@ -53,7 +53,7 @@ public class TestCallGraph extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        ComputeCallGraph ccg = new ComputeCallGraph(X);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
                 a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.j, a.b.X->1->a.b.X.m1(), a.b.X->1->a.b.X.m2(), \
@@ -96,7 +96,7 @@ public class TestCallGraph extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        ComputeCallGraph ccg = new ComputeCallGraph(X);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
                 a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.method(java.util.List<String>), a.b.X.$1->1->a.b.X.$1.accept(String), \
@@ -149,7 +149,7 @@ public class TestCallGraph extends CommonTest {
     @Test
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
-        ComputeCallGraph ccg = new ComputeCallGraph(X);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
                 a.b.X->1->a.b.X.X(int), a.b.X->1->a.b.X.initList(int), a.b.X->1->a.b.X.list, a.b.X->1->a.b.X.print(), \

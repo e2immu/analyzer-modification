@@ -54,7 +54,7 @@ public class TestAnalysisOrder extends CommonTest {
     @Test
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        ComputeCallGraph ccg = new ComputeCallGraph(X);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
                 a.b.X->1->a.b.X.<init>(), a.b.X.K->1->a.b.X.K.add(String), \

@@ -11,6 +11,7 @@ import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.type.TypeParameter;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -28,18 +29,12 @@ public class ComputeHiddenContent {
         assert hcsTypeInfo != null : "For method " + methodInfo;
 
         Map<NamedType, Integer> typeToIndex = new HashMap<>();
-        int max = 0;
-        for (TypeParameter tp : methodInfo.typeParameters()) {
-            typeToIndex.put(tp, tp.getIndex());
-            max = Math.max(max, tp.getIndex());
-        }
+
         // are any of the parameter's type's a type parameter, not yet used in the fields? See resolve.Method_15
         for (ParameterInfo pi : methodInfo.parameters()) {
-            TypeParameter tp = pi.parameterizedType().typeParameter();
-            if (tp != null && tp.getOwner().isLeft() && !hcsTypeInfo.getTypeToIndex().containsKey(tp)) {
-                typeToIndex.put(tp, ++max);
-            }
+            addExtensible(pi.parameterizedType(), typeToIndex, null, nt -> !hcsTypeInfo.isKnown(nt));
         }
+
         return new HiddenContentTypes(hcsTypeInfo, methodInfo, typeToIndex);
     }
 
@@ -105,13 +100,13 @@ public class ComputeHiddenContent {
             Value.FieldValue fv = mi.getSetField();
             if (fv.field() != null) {
                 // record->accessors, all @GetSet marked methods cause a synthetic field
-                addExtensible(fv.field().type(), fromThis, cycleProtection);
+                addExtensible(fv.field().type(), fromThis, cycleProtection, nt -> true);
             }
         });
         if (!compiledCode) {
             for (FieldInfo f : typeInfo.fields()) {
                 if (!f.isSynthetic()) {
-                    addExtensible(f.type(), fromThis, cycleProtection);
+                    addExtensible(f.type(), fromThis, cycleProtection, nt -> true);
                 }
             }
         }
@@ -125,7 +120,8 @@ public class ComputeHiddenContent {
 
     IMPROVE:  we should not add types whose sole hidden content is already present?
      */
-    private void addExtensible(ParameterizedType type, Map<NamedType, Integer> fromThis, Set<TypeInfo> cycleProtection) {
+    private void addExtensible(ParameterizedType type, Map<NamedType, Integer> fromThis, Set<TypeInfo> cycleProtection,
+                               Predicate<NamedType> accept) {
         if (!type.isTypeParameter()) {
             TypeInfo bestType = Objects.requireNonNullElse(type.bestTypeInfo(), runtime.objectTypeInfo());
             boolean hasHiddenContent;
@@ -135,12 +131,12 @@ public class ComputeHiddenContent {
                 HiddenContentTypes hct = getOrCompute(bestType, cycleProtection);
                 hasHiddenContent = hct != null && hct.hasHiddenContent();
             }
-            if (hasHiddenContent) {
+            if (hasHiddenContent && accept.test(bestType)) {
                 int index = fromThis.size();
                 fromThis.putIfAbsent(bestType, index);
             }
             for (ParameterizedType pt : type.parameters()) {
-                addExtensible(pt, fromThis, cycleProtection);
+                addExtensible(pt, fromThis, cycleProtection, accept);
             }
         }
     }
