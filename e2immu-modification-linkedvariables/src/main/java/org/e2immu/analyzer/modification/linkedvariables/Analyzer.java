@@ -53,6 +53,9 @@ public class Analyzer {
     private final GetSetHelper getSetHelper;
     private final ComputeImmutable computeImmutable;
 
+    private final List<Throwable> problemsRaised = new LinkedList<>();
+    private final Map<String, Integer> histogram = new HashMap<>();
+
     public Analyzer(Runtime runtime) {
         this.runtime = runtime;
         expressionAnalyzer = new ExpressionAnalyzer(runtime);
@@ -448,15 +451,24 @@ public class Analyzer {
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
         Value.SetOfInfo partOfConstruction = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
         for (Info info : analysisOrder) {
-            if (info instanceof MethodInfo mi) {
-                doMethod(mi);
-                appendToFieldStaticValueMap(mi, svMap);
-            } else if (info instanceof FieldInfo fi) {
-                doField(fi, svMap.get(fi), partOfConstruction);
-            } else if (info instanceof TypeInfo ti) {
-                LOGGER.info("Do type {}", ti);
-                fromNonFinalFieldToParameter(ti);
-                computeImmutable.go(ti);
+            try {
+                if (info instanceof MethodInfo mi) {
+                    doMethod(mi);
+                    appendToFieldStaticValueMap(mi, svMap);
+                } else if (info instanceof FieldInfo fi) {
+                    doField(fi, svMap.get(fi), partOfConstruction);
+                } else if (info instanceof TypeInfo ti) {
+                    LOGGER.info("Do type {}", ti);
+                    fromNonFinalFieldToParameter(ti);
+                    computeImmutable.go(ti);
+                }
+                histogram.merge(info.info(), 1, Integer::sum);
+            } catch (Exception | AssertionError problem) {
+                LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
+                problemsRaised.add(problem);
+                String errorMessage = Objects.requireNonNull(problem.getMessage(), "<no message>");
+                String fullMessage = "ANALYZER ERROR: "+errorMessage;
+                info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
             }
         }
     }
@@ -525,5 +537,13 @@ public class Analyzer {
                 fieldInfo.analysis().set(MODIFIED_FIELD, TRUE);
             }
         }
+    }
+
+    public List<Throwable> getProblemsRaised() {
+        return List.copyOf(problemsRaised);
+    }
+
+    public Map<String, Integer> getHistogram() {
+        return Map.copyOf(histogram);
     }
 }
