@@ -473,7 +473,7 @@ public class Analyzer {
                 LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
                 if (storeErrorsInPVMap) {
                     problemsRaised.add(problem);
-                    String errorMessage = Objects.requireNonNull(problem.getMessage(), "<no message>");
+                    String errorMessage = Objects.requireNonNullElse(problem.getMessage(), "<no message>");
                     String fullMessage = "ANALYZER ERROR: " + errorMessage;
                     info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
                 } else {

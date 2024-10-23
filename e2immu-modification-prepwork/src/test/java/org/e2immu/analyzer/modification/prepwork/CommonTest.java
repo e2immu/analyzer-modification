@@ -19,15 +19,13 @@ public class CommonTest {
     protected JavaInspector javaInspector;
     protected Runtime runtime;
     protected final String[] extraClassPath;
-    protected final boolean loadAnnotatedAPIs;
 
     protected CommonTest() {
-        this(false, new String[]{});
+        this(new String[]{});
     }
 
-    protected CommonTest(boolean loadAnnotatedAPIs, String... extraClassPath) {
+    protected CommonTest(String... extraClassPath) {
         this.extraClassPath = extraClassPath;
-        this.loadAnnotatedAPIs = loadAnnotatedAPIs;
     }
 
     @BeforeAll

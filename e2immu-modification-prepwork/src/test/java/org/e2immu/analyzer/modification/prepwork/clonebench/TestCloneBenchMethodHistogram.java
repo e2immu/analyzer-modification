@@ -20,11 +20,11 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class TestCloneBench extends CommonTest {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBench.class);
+public class TestCloneBenchMethodHistogram extends CommonTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBenchMethodHistogram.class);
 
-    public TestCloneBench() {
-        super(true, "jmods/java.desktop.jmod",
+    public TestCloneBenchMethodHistogram() {
+        super("jmods/java.desktop.jmod",
                 "jmods/java.compiler.jmod",
                 "jmods/java.datatransfer.jmod",
                 "jmods/java.sql.jmod",
@@ -36,7 +36,6 @@ public class TestCloneBench extends CommonTest {
 
     public void process(String name, Map<String, Integer> methodHistogram) throws IOException {
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
-
 
         String directory = "../../testtransform/" + name + "/src/main/java/";
         File src = new File(directory);
