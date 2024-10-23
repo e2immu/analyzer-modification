@@ -101,24 +101,31 @@ public class ComputePartOfConstructionFinalField {
                 candidates.add(mi);
             }
         });
+        Set<MethodInfo> called = new HashSet<>();
+
         boolean changes = true;
         while (changes) {
             changes = false;
             for (V<Info> v : callGraph.vertices()) {
                 if (v.t() instanceof MethodInfo methodInfo) {
-                    if (!canBePartOfConstruction(methodInfo)) {
-                        Map<V<Info>, Long> edges = callGraph.edges(v);
-                        if (edges != null) {
-                            for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
-                                if (entry.getKey().t() instanceof MethodInfo toMethod) {
+                    if(methodInfo.isConstructor()) called.add(methodInfo);
+
+                    boolean canBePartOfConstruction = !canBePartOfConstruction(methodInfo);
+                    Map<V<Info>, Long> edges = callGraph.edges(v);
+                    if (edges != null) {
+                        for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
+                            if (entry.getKey().t() instanceof MethodInfo toMethod) {
+                                if(!canBePartOfConstruction) {
                                     changes |= candidates.remove(toMethod);
                                 }
+                                called.add(toMethod);
                             }
                         }
                     }
                 }
             }
         }
+        candidates.retainAll(called);
         return Set.copyOf(candidates);
     }
 

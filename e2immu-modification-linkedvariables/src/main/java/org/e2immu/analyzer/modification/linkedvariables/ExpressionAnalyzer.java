@@ -101,11 +101,17 @@ class ExpressionAnalyzer {
             if (expression instanceof Assignment assignment) {
                 EvaluationResult evalValue = eval(assignment.value());
                 EvaluationResult.Builder builder = new EvaluationResult.Builder()
+                        .merge(evalValue)
                         .merge(assignment.variableTarget(), evalValue.linkedVariables())
                         .setLinkedVariables(evalValue.linkedVariables())
                         .merge(assignment.variableTarget(), evalValue.staticValues())
                         .setStaticValues(evalValue.staticValues());
                 setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
+                if (assignment.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
+                    markModified(fr.scopeVariable(), builder);
+                } else if (assignment.variableTarget() instanceof DependentVariable dv && dv.arrayVariable() != null) {
+                    markModified(dv.arrayVariable(), builder);
+                }
                 return builder.build();
             }
             if (expression instanceof MethodCall mc) {
@@ -131,6 +137,7 @@ class ExpressionAnalyzer {
                 if (io.patternVariable() != null) {
                     EvaluationResult evalValue = eval(io.expression());
                     return new EvaluationResult.Builder()
+                            .merge(evalValue)
                             .merge(io.patternVariable(), evalValue.linkedVariables())
                             .setLinkedVariables(evalValue.linkedVariables())
                             .build();

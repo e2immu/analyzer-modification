@@ -237,6 +237,10 @@ public class Analyzer {
                         modifiedComponentsMethod.put(v, true);
                     }
                 }
+                if (modification && v instanceof FieldReference fr
+                    && !fr.fieldInfo().analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
+                    fr.fieldInfo().analysis().set(MODIFIED_FIELD, TRUE);
+                }
             }
             if (methodInfo.isConstructor()
                 && v instanceof FieldReference fr && fr.scopeIsThis() && fr.fieldInfo().isPropertyFinal()) {
@@ -467,7 +471,7 @@ public class Analyzer {
                 LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
                 problemsRaised.add(problem);
                 String errorMessage = Objects.requireNonNull(problem.getMessage(), "<no message>");
-                String fullMessage = "ANALYZER ERROR: "+errorMessage;
+                String fullMessage = "ANALYZER ERROR: " + errorMessage;
                 info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
             }
         }
