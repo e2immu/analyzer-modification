@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.EMPTY_PART_OF_CONSTRUCTION;
@@ -157,25 +158,49 @@ public class TestModificationField extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
-        List<Info> analysisOrder = prepWork(X);
+        List<Info> analysisOrder = prepAnalyzer.doPrimaryType(X);
+
+        String simpleOrder = analysisOrder.stream().map(i -> i.info() + ":" + i.simpleName()).sorted().collect(Collectors.joining(", "));
+        assertEquals("""
+                field:STATUS_FORMAT_ERROR, field:STATUS_OK, field:block, field:blockSize, field:in, field:loopCount, \
+                field:status, method:<init>, method:err, method:read, method:readBlock, method:readNetscapeExt, \
+                type:X""", simpleOrder);
+
         analyzer.doPrimaryType(X, analysisOrder);
 
         FieldInfo loopCount = X.getFieldByName("loopCount", true);
-        assertFalse(loopCount.isModified());
-
         FieldInfo blockSize = X.getFieldByName("blockSize", true);
-        assertFalse(blockSize.isModified());
+        FieldInfo status = X.getFieldByName("status", true);
+        FieldReference loopCountFr = runtime.newFieldReference(loopCount);
+        FieldReference blockSizeFr = runtime.newFieldReference(blockSize);
+        FieldReference statusFr = runtime.newFieldReference(status);
+
+        MethodInfo read = X.findUniqueMethod("read", 0);
+        {
+            VariableData vdLast = VariableDataImpl.of(read.methodBody().lastStatement());
+            VariableInfo viLastStatus = vdLast.variableInfo(statusFr);
+            assertEquals("D:-, A:[1.1.0]", viLastStatus.assignments().toString());
+        }
+
+        ValueImpl.VariableBooleanMapImpl mcm = read.analysis()
+                .getOrNull(PropertyImpl.MODIFIED_COMPONENTS_METHOD, ValueImpl.VariableBooleanMapImpl.class);
+        assertEquals("this.in=true, this.status=true", mcm.toString());
 
         MethodInfo readNetscapeExt = X.findUniqueMethod("readNetscapeExt", 0);
         Statement s00102 = readNetscapeExt.methodBody().statements().get(0).block().statements().get(1).block().statements().get(2);
         VariableData vds00102 = VariableDataImpl.of(s00102);
-        FieldReference loopCountFr = runtime.newFieldReference(loopCount);
         VariableInfo viLoopCount = vds00102.variableInfo(loopCountFr);
         assertEquals("D:-, A:[0.0.1.0.2]", viLoopCount.assignments().toString());
-        Statement last = readNetscapeExt.methodBody().lastStatement();
-        VariableInfo viLastLoopCount = VariableDataImpl.of(last).variableInfo(loopCountFr);
-        assertEquals(viLoopCount.assignments(), viLastLoopCount.assignments());
 
+        {
+            Statement last = readNetscapeExt.methodBody().lastStatement();
+            VariableInfo viLastLoopCount = VariableDataImpl.of(last).variableInfo(loopCountFr);
+            assertEquals(viLoopCount.assignments(), viLastLoopCount.assignments());
+            assertFalse(viLastLoopCount.isModified());
+
+            VariableInfo viLastBlockSize = VariableDataImpl.of(last).variableInfo(blockSizeFr);
+            assertFalse(viLastBlockSize.isModified());
+        }
         Value.SetOfInfo poc = X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION);
         assertFalse(poc.infoSet().contains(readNetscapeExt));
 
@@ -183,6 +208,11 @@ public class TestModificationField extends CommonTest {
         assertFalse(loopCount.isPropertyFinal());
         assertFalse(blockSize.isPropertyFinal());
 
-        LOGGER.info(printType(X));
+        assertFalse(loopCount.isModified());
+        assertFalse(blockSize.isModified());
+
+        String print = printType(X);
+        LOGGER.info(print);
+        assertFalse(print.contains("@Modified private int blockSize"));
     }
 }

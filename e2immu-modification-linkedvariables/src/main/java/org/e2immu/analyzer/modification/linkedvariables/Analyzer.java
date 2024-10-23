@@ -229,10 +229,10 @@ public class Analyzer {
                         EMPTY_PART_OF_CONSTRUCTION);
                 boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
                 boolean assignment = vi.assignments().size() > 0;
-                if ((modification || assignment)
-                    && !methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)
-                    && !set.infoSet().contains(methodInfo)) {
-                    methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
+                if ((modification || assignment) && !set.infoSet().contains(methodInfo)) {
+                    if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
+                        methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
+                    }
                     if (v instanceof FieldReference) {
                         modifiedComponentsMethod.put(v, true);
                     }

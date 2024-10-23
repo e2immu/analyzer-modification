@@ -642,14 +642,6 @@ class ExpressionAnalyzer {
                     builder.addModifiedFunctionalInterfaceComponent(fr, modifying);
                 } else if (modifying) {
                     markModified(ve.variable(), builder);
-                    Value.VariableBooleanMap map = mc.methodInfo().analysis().getOrDefault(MODIFIED_COMPONENTS_METHOD,
-                            ValueImpl.VariableBooleanMapImpl.EMPTY);
-                    map.map().keySet().forEach(v -> {
-                        if (v instanceof FieldReference fr) {
-                            FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), mc.object(), fr.parameterizedType());
-                            markModified(newFr, builder);
-                        }
-                    });
                 }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
@@ -866,7 +858,6 @@ class ExpressionAnalyzer {
             }
         }
 
-        // NOTE: there is a semi-duplicate in MethodAnalyzer (modification-prepwork)
         private void markModified(Variable variable, EvaluationResult.Builder builder) {
             TypeInfo typeInfo = variable.parameterizedType().typeInfo();
             boolean mutable = typeInfo != null && typeInfo.analysis()
