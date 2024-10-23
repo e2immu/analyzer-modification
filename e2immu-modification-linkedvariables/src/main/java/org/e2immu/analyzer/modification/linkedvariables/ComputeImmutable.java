@@ -10,6 +10,7 @@ import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -39,7 +40,13 @@ public class ComputeImmutable {
         TypeInfo parent = typeInfo.parentClass().typeInfo();
         Value.Immutable immutableParent = parent.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE);
         if (MUTABLE.equals(immutableParent)) return MUTABLE;
+        Value.Immutable worst = immutableParent;
 
+        for (ParameterizedType superType : typeInfo.interfacesImplemented()) {
+            Value.Immutable immutableSuper = superType.typeInfo().analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE);
+            if (MUTABLE.equals(immutableSuper)) return MUTABLE;
+            worst = worst.min(immutableSuper);
+        }
         boolean fieldsAssignableFromOutside = typeInfo.fields().stream()
                 .anyMatch(fi -> !fi.isPropertyFinal() && !fi.access().isPrivate());
         if (fieldsAssignableFromOutside) return MUTABLE;
@@ -48,13 +55,14 @@ public class ComputeImmutable {
         // are any of the fields exposed?
         boolean isImmutable = isImmutable(typeInfo);
 
-        if (isImmutable) {
+        if (isImmutable && worst.isAtLeastImmutableHC()) {
             HiddenContentTypes hct = typeInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
             assert hct != null;
             return hct.hasHiddenContent() ? IMMUTABLE_HC : IMMUTABLE;
         }
         boolean allFieldsFinal = typeInfo.fields().stream().allMatch(FieldInfo::isPropertyFinal);
-        return allFieldsFinal ? FINAL_FIELDS : MUTABLE;
+        Value.Immutable mine = allFieldsFinal ? FINAL_FIELDS : MUTABLE;
+        return mine.min(worst);
     }
 
     private boolean isImmutable(TypeInfo typeInfo) {

@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables.immutable;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.Info;
+import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -28,10 +29,10 @@ public class TestImmutable extends CommonTest {
             
                 // setter modifies field
                 static class M { int i; void setI(int i) { this.i = i; }}
-    
+            
                 // field is exposed
                 static class MF { final M m; MF(M m) { this.m = m; }}
-    
+            
                 // field is exposed through accessor
                 record RM(M m, int i) {}
             }
@@ -69,22 +70,22 @@ public class TestImmutable extends CommonTest {
                 interface I {}
             
                 interface J extends Comparable<J> {}
-    
+            
                 // modifying
                 interface K {
                     @Modified
                     void add(String s);
                 }
-    
+            
                 // modifying, because K is
                 interface KK extends K {
                     int get();
                 }
-    
+            
                 interface L {
                     int get();
                 }
-    
+            
                 //modifying (implicit in abstract void methods)
                 interface M extends L {
                     void set(int i);
@@ -114,7 +115,9 @@ public class TestImmutable extends CommonTest {
         TypeInfo L = X.findSubType("L");
         assertTrue(immutable(L).isImmutableHC());
 
-        TypeInfo M = X.findSubType("L");
+        TypeInfo M = X.findSubType("M");
+        MethodInfo mSet = M.findUniqueMethod("set", 1);
+        assertTrue(mSet.isModifying());
         assertTrue(immutable(M).isMutable());
     }
 
