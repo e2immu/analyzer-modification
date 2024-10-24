@@ -19,13 +19,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestCloneBenchTypeHistogram extends CommonTest {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBenchTypeHistogram.class);
+public class TestCloneBench extends CommonTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBench.class);
 
-    public TestCloneBenchTypeHistogram() {
+    public TestCloneBench() {
         super(true, "jmods/java.desktop.jmod",
                 "jmods/java.compiler.jmod",
                 "jmods/java.datatransfer.jmod",
@@ -36,7 +37,7 @@ public class TestCloneBenchTypeHistogram extends CommonTest {
                 "jmods/java.management.jmod");
     }
 
-    public void process(String name, AtomicInteger counter, Map<TypeInfo, Integer> typeHistogram) throws IOException {
+    public void process(String name, AtomicInteger counter, Map<MethodInfo, Integer> typeHistogram) throws IOException {
         String directory = "../../testarchive/" + name + "/src/main/java/";
         File src = new File(directory);
         assertTrue(src.isDirectory());
@@ -53,7 +54,7 @@ public class TestCloneBenchTypeHistogram extends CommonTest {
         }
     }
 
-    private void process(File javaFile, File outFile, int count, Map<TypeInfo, Integer> typeHistogram) throws IOException {
+    private void process(File javaFile, File outFile, int count, Map<MethodInfo, Integer> typeHistogram) throws IOException {
         String input = Files.readString(javaFile.toPath());
         LOGGER.info("Start parsing #{}, {}, file of size {}", count, javaFile, input.length());
 
@@ -69,7 +70,7 @@ public class TestCloneBenchTypeHistogram extends CommonTest {
                     MethodInfo mi = (MethodInfo) info;
                     mi.methodBody().visit(e -> {
                         if (e instanceof MethodCall mc && mc.methodInfo().typeInfo().primaryType() != typeInfo) {
-                            typeHistogram.merge(mc.methodInfo().typeInfo(), 1, Integer::sum);
+                            typeHistogram.merge(mc.methodInfo(), 1, Integer::sum);
                         }
                         return true;
                     });
@@ -82,7 +83,7 @@ public class TestCloneBenchTypeHistogram extends CommonTest {
     public void test() throws IOException {
         ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("graph-algorithm")).setLevel(Level.INFO);
         AtomicInteger counter = new AtomicInteger();
-        Map<TypeInfo, Integer> typeHistogram = new HashMap<>();
+        Map<MethodInfo, Integer> typeHistogram = new HashMap<>();
 
         for (String dir : DIRS) {
             process(dir, counter, typeHistogram);
@@ -96,11 +97,13 @@ public class TestCloneBenchTypeHistogram extends CommonTest {
                 typeHistogram.entrySet().stream()
                         .sorted((e1, e2) -> e2.getValue() - e1.getValue())
                         .map(e -> {
-                            boolean alreadyDone = e.getKey().analysis()
-                                    .getOrDefault(PropertyImpl.SHALLOW_ANALYZER, ValueImpl.BoolImpl.FALSE).isTrue();
-                            LOGGER.info("{} {}", e.getValue(), e.getKey() + "  " + (alreadyDone ? "" : "ADD TO A-API"));
+                            MethodInfo method = e.getKey();
+                            Stream<MethodInfo> stream = Stream.concat(Stream.of(method), method.overrides().stream());
+                            boolean alreadyDone = stream.anyMatch(mi -> mi.analysis()
+                                    .getOrDefault(PropertyImpl.ANNOTATED_API, ValueImpl.BoolImpl.FALSE).isTrue());
+                            LOGGER.info("{} {}", e.getValue(), method + "  " + (alreadyDone ? "" : "ADD TO A-API"));
                             if (!alreadyDone) {
-                                return e.getKey().primaryType();
+                                return method.primaryType();
                             }
                             return null;
                         }).filter(Objects::nonNull).distinct().toList();
