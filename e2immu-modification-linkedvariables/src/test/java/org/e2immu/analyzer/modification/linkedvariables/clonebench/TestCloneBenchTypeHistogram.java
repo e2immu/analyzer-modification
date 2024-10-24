@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.clonebench;
 
 import ch.qos.logback.classic.Level;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
+import org.e2immu.analyzer.shallow.analyzer.Composer;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -16,9 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -91,13 +90,23 @@ public class TestCloneBenchTypeHistogram extends CommonTest {
 
         int numErrors = analyzer.getProblemsRaised().size();
         LOGGER.info("JDK calls:");
-        typeHistogram.entrySet().stream()
-                .sorted((e1, e2) -> e2.getValue() - e1.getValue())
-                .forEach(e -> {
-                    boolean alreadyDone = e.getKey().analysis()
-                            .getOrDefault(PropertyImpl.SHALLOW_ANALYZER, ValueImpl.BoolImpl.FALSE).isTrue();
-                    LOGGER.info("{} {}", e.getValue(), e.getKey() + "  " + (alreadyDone ? "" : "ADD TO A-API"));
-                });
+        Composer composer = new Composer(javaInspector.runtime(),
+                "org.e2immu.analyzer.shallow.aapi.java", w -> w.access().isPublic());
+        List<TypeInfo> toCompose =
+                typeHistogram.entrySet().stream()
+                        .sorted((e1, e2) -> e2.getValue() - e1.getValue())
+                        .map(e -> {
+                            boolean alreadyDone = e.getKey().analysis()
+                                    .getOrDefault(PropertyImpl.SHALLOW_ANALYZER, ValueImpl.BoolImpl.FALSE).isTrue();
+                            LOGGER.info("{} {}", e.getValue(), e.getKey() + "  " + (alreadyDone ? "" : "ADD TO A-API"));
+                            if (!alreadyDone) {
+                                return e.getKey().primaryType();
+                            }
+                            return null;
+                        }).filter(Objects::nonNull).distinct().toList();
+        Collection<TypeInfo> aapiTypes = composer.compose(toCompose);
+        composer.write(aapiTypes, "build/aapis");
+
         assertEquals(0, numErrors, "Found " + numErrors + " errors parsing " + counter.get()
                                    + " files. Histogram: " + analyzer.getHistogram());
     }
