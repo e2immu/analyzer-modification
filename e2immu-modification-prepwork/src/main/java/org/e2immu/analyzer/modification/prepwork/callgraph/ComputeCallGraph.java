@@ -103,6 +103,7 @@ public class ComputeCallGraph {
         });
         typeInfo.fields().forEach(fi -> {
             addType(fi, fi.type());
+            builder.addVertex(fi);
             builder.add(typeInfo, List.of(fi)); // A
             if (fi.initializer() != null && !fi.initializer().isEmpty()) {
                 Visitor visitor = new Visitor(fi);

@@ -46,7 +46,7 @@ public class LinkedVariablesCodec {
             HCS_PARAMETER.key(), HCS_PARAMETER,
             PART_OF_CONSTRUCTION.key(), PART_OF_CONSTRUCTION);
 
-    class P implements Codec.PropertyProvider {
+    static class P implements Codec.PropertyProvider {
         @Override
         public Property get(String propertyName) {
             Property inMap = PROPERTY_MAP.get(propertyName);
@@ -55,7 +55,7 @@ public class LinkedVariablesCodec {
         }
     }
 
-    class D implements Codec.DecoderProvider {
+    static class D implements Codec.DecoderProvider {
 
         @Override
         public BiFunction<Codec.DI, Codec.EncodedValue, Value> decoder(Class<? extends Value> clazz) {
