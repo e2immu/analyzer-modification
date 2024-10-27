@@ -2,6 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables.link;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -22,6 +24,9 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 import java.util.List;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
@@ -162,7 +167,7 @@ public class TestLinkBasics extends CommonTest {
             class X {
                 final static class M { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
                 static class ME { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
-    
+            
                 static <T> List<T> copy(List<T> list) {
                     return new ArrayList<>(list);
                 }
@@ -186,8 +191,11 @@ public class TestLinkBasics extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo methodInfo = X.findUniqueMethod("copy", 1);
-        LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
-                LinkedVariablesImpl.EMPTY);
+        assertEquals(" - 0=T, 1=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
+                HiddenContentTypes.NO_VALUE).detailedSortedTypes());
+        assertEquals("0=0,1=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
+
+        LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LINKED_VARIABLES_METHOD, LinkedVariablesImpl.EMPTY);
         assertEquals("0-4-0:list", lvRv.toString());
 
         TypeInfo M = X.findSubType("M");
@@ -197,7 +205,7 @@ public class TestLinkBasics extends CommonTest {
 
         MethodInfo methodInfoM = X.findUniqueMethod("copyM", 1);
         assertSame(M, methodInfoM.returnType().parameters().get(0).typeInfo());
-        LinkedVariables lvRvM = methodInfoM.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        LinkedVariables lvRvM = methodInfoM.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         // for this to be correct, M must be modifying
         assertEquals("0M-4-0M:list", lvRvM.toString());
@@ -206,14 +214,14 @@ public class TestLinkBasics extends CommonTest {
         assertTrue(ME.isExtensible());
         MethodInfo methodInfoME = X.findUniqueMethod("copyME", 1);
         assertSame(ME, methodInfoME.returnType().parameters().get(0).typeInfo());
-        LinkedVariables lvRvME = methodInfoME.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        LinkedVariables lvRvME = methodInfoME.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         // for this to be correct, M must be modifying
         assertEquals("0M-4-0M:list", lvRvME.toString());
 
         MethodInfo methodInfoS = X.findUniqueMethod("copyS", 1);
         assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().get(0).typeInfo());
-        LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         assertTrue(lvRvS.isEmpty());
     }
@@ -226,7 +234,7 @@ public class TestLinkBasics extends CommonTest {
             class X {
                 final static class M { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
                 static class ME { int i; int getI() { return i; } void setI(int i) { this.i = i; } }
-    
+            
                 static <T> List<T> listAdd(List<T> list, T t) {
                     List<T> l = list.subList(0, 10);
                     l.add(t);
@@ -291,7 +299,7 @@ public class TestLinkBasics extends CommonTest {
                 LinkedVariablesImpl.class);
         assertEquals("*-4-0:list", lvP1.toString());
 
-        LinkedVariables lvMethod = listAdd.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        LinkedVariables lvMethod = listAdd.analysis().getOrNull(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.class);
         assertEquals("0-2-0:list, 0-4-*:t", lvMethod.toString());
 
@@ -307,19 +315,19 @@ public class TestLinkBasics extends CommonTest {
 
         {
             MethodInfo listAddM = X.findUniqueMethod("listAddM", 2);
-            LinkedVariables lvMethod2 = listAddM.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+            LinkedVariables lvMethod2 = listAddM.analysis().getOrNull(LINKED_VARIABLES_METHOD,
                     LinkedVariablesImpl.class);
             assertEquals("0M-2-0M:list, 0M-4-*M:t", lvMethod2.toString());
         }
         {
             MethodInfo listAddME = X.findUniqueMethod("listAddME", 2);
-            LinkedVariables lvMethod2 = listAddME.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+            LinkedVariables lvMethod2 = listAddME.analysis().getOrNull(LINKED_VARIABLES_METHOD,
                     LinkedVariablesImpl.class);
             assertEquals("0M-2-0M:list, 0M-4-*M:t", lvMethod2.toString());
         }
         {
             MethodInfo listAdd3 = X.findUniqueMethod("listAdd3", 2);
-            LinkedVariables lvMethod3 = listAdd3.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+            LinkedVariables lvMethod3 = listAdd3.analysis().getOrNull(LINKED_VARIABLES_METHOD,
                     LinkedVariablesImpl.class);
             assertEquals("-2-:list", lvMethod3.toString());
         }

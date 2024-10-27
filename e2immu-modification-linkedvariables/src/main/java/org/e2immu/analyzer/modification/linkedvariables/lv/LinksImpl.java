@@ -200,8 +200,9 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
         Map<Indices, Link> res = new HashMap<>();
         map.forEach((thisFrom, thisTo) -> {
             Link link = links.map().get(thisTo.to());
-            assert link != null;
-            res.put(thisFrom, link);
+            if (link != null) {
+                res.put(thisFrom, link);
+            } // else: see Collections.addAll (TestLinkBasics,3); the * of Collection in this.map has no equivalent in links.map
         });
         return new LinksImpl(res, modificationAreaSource, links.modificationAreaTarget());
     }

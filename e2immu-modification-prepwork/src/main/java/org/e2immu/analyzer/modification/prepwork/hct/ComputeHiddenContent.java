@@ -30,6 +30,12 @@ public class ComputeHiddenContent {
 
         Map<NamedType, Integer> typeToIndex = new HashMap<>();
 
+        Set<TypeParameter> methodTypeParametersInParameters = methodInfo.parameters().stream()
+                .flatMap(pi -> typeParameterStream(pi.parameterizedType()))
+                .filter(TypeParameter::isMethodTypeParameter)
+                .collect(Collectors.toUnmodifiableSet());
+        methodTypeParametersInParameters.forEach(tp -> typeToIndex.put(tp, tp.getIndex()));
+
         // are any of the parameter's type's a type parameter, not yet used in the fields? See resolve.Method_15
         for (ParameterInfo pi : methodInfo.parameters()) {
             addExtensible(pi.parameterizedType(), typeToIndex, null, nt -> !hcsTypeInfo.isKnown(nt));

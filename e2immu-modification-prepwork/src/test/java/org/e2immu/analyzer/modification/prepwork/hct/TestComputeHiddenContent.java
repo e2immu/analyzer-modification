@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.hct;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.language.cst.api.analysis.Codec;
+import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyProviderImpl;
@@ -248,5 +249,29 @@ public class TestComputeHiddenContent extends CommonTest {
         assertEquals("0=DoubleConsumer, 1=OfDouble", hctSliceSpliteratorOfDouble.detailedSortedTypes());
         assertEquals("DoubleConsumer=0, OfDouble=1, T_CONS=0, T_SPLITR=1", hctSliceSpliteratorOfDouble.detailedSortedTypeToIndex());
         SliceSpliteratorOfDouble.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliteratorOfDouble);
+    }
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            import java.util.Collection;
+            class X {
+                static <T> void add2(Collection<T> ts, T t1, T t2) {
+                    ts.add(t1);
+                    ts.add(t2);
+                }
+            }
+            """;
+
+    @DisplayName("hct of static method with type parameters")
+    @Test
+    public void test3() {
+        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
+        TypeInfo X = javaInspector.parse(INPUT3);
+        HiddenContentTypes hct = chc.compute(X);
+        assertEquals("", hct.detailedSortedTypes());
+        MethodInfo add2 = X.findUniqueMethod("add2", 3);
+        HiddenContentTypes hctMethod = chc.compute(hct, add2);
+        assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
     }
 }

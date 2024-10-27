@@ -26,31 +26,29 @@ public class LVImpl implements LV {
     private static final int I_HC = 4;
     private static final int I_DEPENDENT = 2;
 
-    public static final LV LINK_INITIAL_DELAY = new LVImpl(-2, NO_LINKS, "<initial delay>", null);
-    public static final LV LINK_DELAYED = new LVImpl(-1, NO_LINKS, "<delayed>", null);
-    public static final LV LINK_STATICALLY_ASSIGNED = new LVImpl(0, NO_LINKS, "-0-", DEPENDENT);
-    public static final LV LINK_ASSIGNED = new LVImpl(1, NO_LINKS, "-1-", DEPENDENT);
-    public static final LV LINK_DEPENDENT = new LVImpl(I_DEPENDENT, NO_LINKS, "-2-", DEPENDENT);
+    public static final LV LINK_INITIAL_DELAY = new LVImpl(-2, NO_LINKS, "<initial delay>");
+    public static final LV LINK_DELAYED = new LVImpl(-1, NO_LINKS, "<delayed>");
+    public static final LV LINK_STATICALLY_ASSIGNED = new LVImpl(0, NO_LINKS, "-0-");
+    public static final LV LINK_ASSIGNED = new LVImpl(1, NO_LINKS, "-1-");
+    public static final LV LINK_DEPENDENT = new LVImpl(I_DEPENDENT, NO_LINKS, "-2-");
 
     // do not use for equality! Use LV.isCommonHC()
-    public static final LV LINK_COMMON_HC = new LVImpl(I_HC, NO_LINKS, "-4-", INDEPENDENT_HC);
-    public static final LV LINK_INDEPENDENT = new LVImpl(5, NO_LINKS, "-5-", INDEPENDENT);
+    public static final LV LINK_COMMON_HC = new LVImpl(I_HC, NO_LINKS, "-4-");
+    public static final LV LINK_INDEPENDENT = new LVImpl(5, NO_LINKS, "-5-");
 
     private final int value;
     private final Links links;
     private final String label;
-    private final Value.Independent correspondingIndependent;
 
-    private LVImpl(int value, Links links, String label, Value.Independent correspondingIndependent) {
+    private LVImpl(int value, Links links, String label) {
         this.value = value;
         this.links = links;
         this.label = Objects.requireNonNull(label);
         assert !label.isBlank();
-        this.correspondingIndependent = correspondingIndependent;
     }
 
     public static LV delay(CausesOfDelay someDelay) {
-        return new LVImpl(I_DELAY, NO_LINKS, "delay", INDEPENDENT_DELAYED);
+        return new LVImpl(I_DELAY, NO_LINKS, "delay");
     }
 
     @Override
@@ -98,11 +96,11 @@ public class LVImpl implements LV {
 
     public static LV createHC(Links links) {
         Links newLinks = links.ensureNoModification();
-        return new LVImpl(I_HC, newLinks, createLabel(newLinks, I_HC), INDEPENDENT);
+        return new LVImpl(I_HC, newLinks, createLabel(newLinks, I_HC));
     }
 
     public static LV createDependent(Links links) {
-        return new LVImpl(I_DEPENDENT, links, createLabel(links, I_DEPENDENT), INDEPENDENT);
+        return new LVImpl(I_DEPENDENT, links, createLabel(links, I_DEPENDENT));
     }
 
     @Override
@@ -139,7 +137,7 @@ public class LVImpl implements LV {
         if (!links.map().isEmpty() && !other.links().map().isEmpty()) {
             // IMPORTANT: the union only "compacts" on the "to" side for now, see Linking_1A.f9m()
             Links union = union(other.links());
-            return new LVImpl(value, union, createLabel(union, value), correspondingIndependent);
+            return new LVImpl(value, union, createLabel(union, value));
         }
         return this;
     }
@@ -189,11 +187,6 @@ public class LVImpl implements LV {
     @Override
     public int compareTo(LV o) {
         return value - o.value();
-    }
-
-    public Value.Independent toIndependent() {
-        // no correction for the "M" links in independent_hc down to dependent!
-        return correspondingIndependent;
     }
 
     @Override
