@@ -2,19 +2,26 @@ package org.e2immu.analyzer.modification.linkedvariables.link;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -111,6 +118,19 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     @Test
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
+
+        TypeInfo typeInfo = javaInspector.compiledTypesManager().get(ArrayList.class);
+        TypeInfo collectionTypeInfo = javaInspector.compiledTypesManager().get(Collection.class);
+        MethodInfo methodInfo = typeInfo.findConstructor(collectionTypeInfo);
+        assertEquals("java.util.ArrayList.<init>(java.util.Collection<? extends E>)", methodInfo.fullyQualifiedName());
+        HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
+        assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
+
+        ParameterInfo p0 = methodInfo.parameters().get(0);
+        HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
+        assertEquals("0=0,1=*", paramHcs.detailed());
+
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 

@@ -35,7 +35,7 @@ public class ComputeHiddenContent {
             addExtensible(pi.parameterizedType(), typeToIndex, null, nt -> !hcsTypeInfo.isKnown(nt));
         }
 
-        return new HiddenContentTypes(hcsTypeInfo, methodInfo, typeToIndex);
+        return new HiddenContentTypes(hcsTypeInfo, methodInfo, typeToIndex, true);
     }
 
     public HiddenContentTypes compute(TypeInfo typeInfo) {

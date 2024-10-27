@@ -60,7 +60,7 @@ public class HiddenContentTypes implements Value {
         TypeInfo methodType = methodInfo.typeInfo();
         HiddenContentTypes hctType = methodType.analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () -> of(methodType));
         assert hctType.typeInfo == methodType : "Problem with HCT of " + methodInfo;
-        return new HiddenContentTypes(hctType, methodInfo, typeToIndex);
+        return new HiddenContentTypes(hctType, methodInfo, typeToIndex, true);
     }
 
     private HiddenContentTypes(TypeInfo typeInfo, boolean typeIsExtensible,
@@ -78,7 +78,8 @@ public class HiddenContentTypes implements Value {
 
     HiddenContentTypes(HiddenContentTypes hctTypeInfo,
                        MethodInfo methodInfo,
-                       Map<NamedType, Integer> typeToIndexIn) {
+                       Map<NamedType, Integer> typeToIndexIn,
+                       boolean addStartOfMethodParameters) {
         this.typeIsExtensible = hctTypeInfo.typeIsExtensible;
         this.hctTypeInfo = hctTypeInfo;
         this.typeInfo = hctTypeInfo.typeInfo;
@@ -91,7 +92,7 @@ public class HiddenContentTypes implements Value {
         for (Map.Entry<NamedType, Integer> entry : typeToIndexIn.entrySet()) {
             NamedType nt = entry.getKey();
             assert !hctTypeInfo.typeToIndex.containsKey(nt);
-            int i = startOfMethodParameters + entry.getValue();
+            int i = (addStartOfMethodParameters ? startOfMethodParameters : 0) + entry.getValue();
             i2t.put(i, nt);
             t2i.put(nt, i);
         }
@@ -158,7 +159,7 @@ public class HiddenContentTypes implements Value {
         if (context.methodBeforeType()) {
             HiddenContentTypes hctType = currentType.typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
                     () -> of(currentType.typeInfo()));
-            return new HiddenContentTypes(hctType, context.currentMethod(), typeToIndex);
+            return new HiddenContentTypes(hctType, context.currentMethod(), typeToIndex, false);
         }
         Map<Integer, NamedType> indexToType = typeToIndex.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
