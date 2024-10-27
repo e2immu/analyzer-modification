@@ -154,14 +154,6 @@ public class HiddenContentSelector implements Value {
         return false;
     }
 
-    public HiddenContentSelector correct(Map<Integer, Integer> mapMethodHCTIndexToTypeHCTIndex) {
-        Map<Integer, Indices> newMap = map.entrySet().stream().collect(Collectors.toUnmodifiableMap(
-                e -> mapMethodHCTIndexToTypeHCTIndex.getOrDefault(e.getKey(), e.getKey()),
-                Map.Entry::getValue, (i1, i2) -> i1));
-        return new HiddenContentSelector(hiddenContentTypes, newMap);
-    }
-
-
     /*
      Take in a type, and return the hidden content components of this type, with respect to the hidden content types
      of the current type or method.

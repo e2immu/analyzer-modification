@@ -20,6 +20,8 @@ import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.Either;
 import org.e2immu.util.internal.util.ListUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -31,6 +33,8 @@ given a number of links, build a graph, and compute the shortest path between al
 to be stored in the VariableInfo objects.
  */
 class ComputeLinkCompletion {
+    private static final Logger LOGGER = LoggerFactory.getLogger("graph-algorithm");
+
     private final Cache cache = new GraphCacheImpl(100);
     private final Runtime runtime;
 
@@ -203,6 +207,8 @@ class ComputeLinkCompletion {
                             }
                         });
             }
+            LOGGER.debug("WG: {}", weightedGraph);
+
             // ensure that all variables known at this stage, are present
             variableData.variableInfoStream(stage).forEach(vi -> weightedGraph.addNode(vi.variable(), Map.of()));
 

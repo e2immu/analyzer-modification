@@ -21,11 +21,14 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
@@ -186,6 +189,7 @@ public class TestLinkBasics extends CommonTest {
     @DisplayName("return new ArrayList<>(list)")
     @Test
     public void test4() {
+        testArrayListConstructor();
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
@@ -194,6 +198,8 @@ public class TestLinkBasics extends CommonTest {
         assertEquals(" - 0=T, 1=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
         assertEquals("0=0,1=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
+        ParameterInfo p0 = methodInfo.parameters().get(0);
+        assertEquals("0=0,1=*", p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
 
         LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LINKED_VARIABLES_METHOD, LinkedVariablesImpl.EMPTY);
         assertEquals("0-4-0:list", lvRv.toString());
@@ -226,6 +232,22 @@ public class TestLinkBasics extends CommonTest {
         assertTrue(lvRvS.isEmpty());
     }
 
+    // copied from TestJavaUtil, to ensure that the encoding/decoding did its job properly
+    private void testArrayListConstructor() {
+        TypeInfo typeInfo = javaInspector.compiledTypesManager().get(ArrayList.class);
+        TypeInfo collectionTypeInfo = javaInspector.compiledTypesManager().get(Collection.class);
+        MethodInfo methodInfo = typeInfo.findConstructor(collectionTypeInfo);
+        assertEquals("java.util.ArrayList.<init>(java.util.Collection<? extends E>)", methodInfo.fullyQualifiedName());
+        HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
+        assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
+        HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE);
+        assertEquals("X", methodHcs.detailed()); // constructor, no return value
+
+        ParameterInfo p0 = methodInfo.parameters().get(0);
+        HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
+        assertEquals("0=0,1=*", paramHcs.detailed());
+    }
 
     @Language("java")
     private static final String INPUT5 = """

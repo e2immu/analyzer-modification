@@ -157,9 +157,19 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         return new ShortestPathImpl(variableIndex, variables, edges, linkMap);
     }
 
-    /*
-    FIXME remove links going into *
-     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("\n");
+        nodeMap.forEach((v, node) -> {
+            sb.append(v).append(" --> ");
+            if (node.dependsOn == null) sb.append("null");
+            else sb.append(node.dependsOn.entrySet()
+                    .stream().map(e -> e.getKey() + ":" + e.getValue()).sorted()
+                    .collect(Collectors.joining(", "))).append("\n");
+        });
+        return sb.toString();
+    }
+
     @Override
     public WeightedGraph copyForModification() {
         WeightedGraphImpl wg = new WeightedGraphImpl(cache);

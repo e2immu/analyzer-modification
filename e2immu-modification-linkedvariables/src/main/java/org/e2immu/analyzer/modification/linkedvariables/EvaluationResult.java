@@ -136,6 +136,18 @@ class EvaluationResult {
             return new EvaluationResult(linkedVariables, Map.copyOf(links), Set.copyOf(modified),
                     staticValues, Map.copyOf(assignments), Map.copyOf(modifiedFunctionalComponents));
         }
+
+        @Override
+        public String toString() {
+            return "Builder{" +
+                   "linkedVariables=" + linkedVariables +
+                   ", staticValues=" + staticValues +
+                   ", links=" + links +
+                   ", assignments=" + assignments +
+                   ", modified=" + modified +
+                   ", modifiedFunctionalComponents=" + modifiedFunctionalComponents +
+                   '}';
+        }
     }
 
     public LinkedVariables linkedVariables() {

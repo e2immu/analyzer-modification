@@ -422,8 +422,6 @@ class ExpressionAnalyzer {
 
         private EvaluationResult linkEvaluationOfMethodReference(MethodInfo currentMethod, MethodReference mr) {
             EvaluationResult scopeResult = eval(mr.scope());
-            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
-                    mr.methodInfo());
             Value.Independent independentOfMethod = mr.methodInfo().analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
             HiddenContentSelector hcsMethod = mr.methodInfo().analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
             assert hcsMethod != null : "Have no hidden content selector computed for " + mr.methodInfo();
@@ -457,6 +455,7 @@ class ExpressionAnalyzer {
                     cc.constructor());
             LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
                     null, cc.parameterExpressions(), evaluationResults);
+            LOGGER.debug("links involving parameters: {}", from);
 
             Map<Variable, Expression> map = new HashMap<>();
             for (ParameterInfo pi : cc.constructor().parameters()) {
@@ -906,32 +905,11 @@ class ExpressionAnalyzer {
             // from object to return value
             LinkedVariables lvsResult1 = objectType == null ? EMPTY
                     : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, leObject.linkedVariables(),
-                    linkedVariablesOfParameters, concreteReturnType, Map.of());
+                    linkedVariablesOfParameters, concreteReturnType);
 
             // merge from param to object and from object to return value
             LinkedVariables lvsResult2 = fp.intoResult() == null ? lvsResult1
                     : lvsResult1.merge(fp.intoResult().linkedVariablesOfExpression());
-
-            // copy in the results of in between parameters
-        /*    Map<Variable, LV> map = new HashMap<>();
-            lvsResult2.stream().forEach(e -> {
-                LinkedVariables lvs = builder.getLinkedVariablesOf(e.getKey());
-                map.put(e.getKey(), e.getValue());
-                if (lvs != null) {
-                    lvs.stream().forEach(e2 -> {
-                        boolean skipAllToAll = e2.getValue().isCommonHC() && e.getValue().isCommonHC()
-                                               && !e2.getKey().equals(e.getKey())
-                                               && e.getValue().mineIsAll() && e2.getValue().theirsIsAll();
-                        if (!skipAllToAll) {
-                            LV follow = LinkHelper.follow(e2.getValue(), e.getValue());
-                            if (follow != null) {
-                                map.put(e2.getKey(), follow);
-                            }
-                        }
-                    });
-                }
-            });
-            LinkedVariables lvsResult = LinkedVariablesImpl.of(map);*/
             builder.setLinkedVariables(lvsResult2);
         }
     }
