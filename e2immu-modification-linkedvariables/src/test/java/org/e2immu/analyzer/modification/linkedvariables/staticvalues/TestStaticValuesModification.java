@@ -299,11 +299,12 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s0 = setAdd.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0r = vd0.variableInfo(setAdd0);
+                // we expect to see a modification on r.set (via ExpressionAnalyzer,markModified)
                 assertTrue(vi0r.isModified());
                 // we expect the r.set variable to exist (see MethodAnalyzer.Visitor.beforeExpression,MC.)
                 assertEquals("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                         vd0.knownVariableNamesToString());
-                // we expect to see a modification on r.set (via ExpressionAnalyzer,markModified)
+                // we expect to see a modification on r.set (via ExpressionAnalyzer.propagateMethodComponents)
                 VariableInfo vi0rSet = vd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
                 assertTrue(vi0rSet.isModified());
             }

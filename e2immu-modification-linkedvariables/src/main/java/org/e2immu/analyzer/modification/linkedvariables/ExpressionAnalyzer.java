@@ -641,6 +641,7 @@ class ExpressionAnalyzer {
                     builder.addModifiedFunctionalInterfaceComponent(fr, modifying);
                 } else if (modifying) {
                     markModified(ve.variable(), builder);
+                    propagateMethodComponents(mc, builder);
                 }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
@@ -667,6 +668,22 @@ class ExpressionAnalyzer {
                         markModified(ve2.variable(), builder);
                     }
                 });
+            }
+        }
+
+        private void propagateMethodComponents(MethodCall mc, EvaluationResult.Builder builder) {
+            VariableBooleanMap modifiedComponents = mc.methodInfo().analysis().getOrNull(MODIFIED_COMPONENTS_METHOD,
+                    ValueImpl.VariableBooleanMapImpl.class);
+            if (modifiedComponents != null
+                && mc.object() instanceof VariableExpression ve
+                // we must check for 'this', to eliminate simple assignments
+                && !(ve.variable() instanceof This)) {
+                for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
+                    This thisInSv = runtime.newThis(mc.object().parameterizedType().typeInfo().asParameterizedType());
+                    TranslationMap tm = runtime.newTranslationMapBuilder().put(thisInSv, ve.variable()).build();
+                    Variable v = tm.translateVariable(entry.getKey());
+                    markModified(v, builder);
+                }
             }
         }
 

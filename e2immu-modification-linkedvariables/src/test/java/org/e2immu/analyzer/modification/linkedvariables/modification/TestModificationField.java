@@ -187,6 +187,12 @@ public class TestModificationField extends CommonTest {
         assertEquals("this.in=true, this.status=true", mcm.toString());
 
         MethodInfo readNetscapeExt = X.findUniqueMethod("readNetscapeExt", 0);
+        {
+            Statement s000 = readNetscapeExt.methodBody().statements().get(0).block().statements().get(0);
+            VariableData vd000 = VariableDataImpl.of(s000);
+            VariableInfo viBlockSize = vd000.variableInfo(blockSizeFr);
+            assertFalse(viBlockSize.isModified()); // it is assigned, not modified!!
+        }
         Statement s00102 = readNetscapeExt.methodBody().statements().get(0).block().statements().get(1).block().statements().get(2);
         VariableData vds00102 = VariableDataImpl.of(s00102);
         VariableInfo viLoopCount = vds00102.variableInfo(loopCountFr);

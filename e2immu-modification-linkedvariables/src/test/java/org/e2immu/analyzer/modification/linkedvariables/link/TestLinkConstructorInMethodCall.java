@@ -120,7 +120,8 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Rv = vd1.variableInfo(withException.fullyQualifiedName());
                 assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(ee) this.exit=ee", vi1Rv.staticValues().toString());
-                assertEquals("0M-4-*M|0.0-*:e, 0M-4-*M|0-*:ee", vi1Rv.linkedVariables().toString());
+                assertEquals("0M-4-*M:e, 0M-4-*M:ee", vi1Rv.linkedVariables().toString());
+                // modification areas missing because 4-links: "0M-4-*M|0.0-*:e, 0M-4-*M|0-*:ee"
             }
         }
     }
@@ -174,7 +175,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
             VariableInfo vi0Rv = vd0.variableInfo(withException.fullyQualifiedName());
             assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(new ExceptionThrown(e)) this.exit=new ExceptionThrown(e)",
                     vi0Rv.staticValues().toString());
-            assertEquals("0M-4-*M|0.0-*:e", vi0Rv.linkedVariables().toString());
+            assertEquals("0M-4-*M:e", vi0Rv.linkedVariables().toString()); // |0.0-*:e is missing, because 4-link
         }
     }
 
