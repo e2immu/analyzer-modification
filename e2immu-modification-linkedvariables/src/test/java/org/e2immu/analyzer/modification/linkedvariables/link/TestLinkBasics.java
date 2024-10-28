@@ -229,7 +229,13 @@ public class TestLinkBasics extends CommonTest {
         assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().get(0).typeInfo());
         LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
-        assertTrue(lvRvS.isEmpty());
+
+        assertEquals(" - 0=List", methodInfoS.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
+                HiddenContentTypes.NO_VALUE).detailedSortedTypes());
+        assertEquals("0=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
+        ParameterInfo p0S = methodInfoS.parameters().get(0);
+        assertEquals("0=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
+        assertEquals("-4-:list", lvRvS.toString());
     }
 
     // copied from TestJavaUtil, to ensure that the encoding/decoding did its job properly

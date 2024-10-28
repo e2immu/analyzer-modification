@@ -119,8 +119,11 @@ public class TestWriteAnalysis extends CommonTest {
     private static final String JSON2 = """
             [
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"immutableType":2,"partOfConstructionType":["C<init>(0)"]}, "subs":[
-             {"name": "SR(0)", "data":{"hc":{"0":"Tjava.util.Set","1":"Tjava.util.List","M":2},"immutableType":1}, "subs":[
-              {"name": "C<init>(0)", "data":{"independentMethod":2,"modifiedComponentsMethod":{"Fa.b.X.R.i":true,"Fa.b.X.R.list":true,"Fa.b.X.R.set":true},"modifiedMethod":1}, "subs":[
+             {"name": "SR(0)", "data":{"hc":{"0":"Tjava.util.Set","1":"Tjava.util.List","M":2},"immutableType":1,"partOfConstructionType":["C<init>(0)"]}, "subs":[
+              {"name": "Fset(0)", "data":{"finalField":1}},
+              {"name": "Fi(1)", "data":{"finalField":1}},
+              {"name": "Flist(2)", "data":{"finalField":1}},
+              {"name": "C<init>(0)", "data":{"independentMethod":2}, "subs":[
                {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]}}},
                {"name": "Pi(1)", "data":{"independentParameter":2}},
                {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]}}}]},

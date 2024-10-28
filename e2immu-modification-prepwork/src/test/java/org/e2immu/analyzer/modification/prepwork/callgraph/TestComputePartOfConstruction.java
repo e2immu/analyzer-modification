@@ -4,12 +4,19 @@ import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.FieldInfo;
+import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.e2immu.util.internal.graph.G;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.EMPTY_PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
@@ -19,7 +26,7 @@ public class TestComputePartOfConstruction extends CommonTest {
 
     @DisplayName("part of construction of CallGraph test 3")
     @Test
-    public void test3b() {
+    public void test1() {
         TypeInfo X = javaInspector.parse(TestCallGraph.INPUT3);
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.doPrimaryType(X);
@@ -32,4 +39,52 @@ public class TestComputePartOfConstruction extends CommonTest {
         FieldInfo list = X.getFieldByName("list", true);
         assertSame(TRUE, list.analysis().getOrDefault(PropertyImpl.FINAL_FIELD, FALSE));
     }
+
+
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            class X {
+                interface Exit { }
+            
+                record ExceptionThrown(Exception exception) implements Exit { }
+            
+                interface LoopData {
+                    LoopData withException(Exception e);
+                }
+            
+                static class LoopDataImpl {
+                    private Exit exit;
+                    LoopDataImpl(Exit exit) {
+                        this.exit = exit;
+                    }
+            
+                    @Override
+                    public LoopData withException(Exception e) {
+                        Exit ee = new ExceptionThrown(e);
+                        return new LoopDataImpl(ee);
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("final field")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+
+        TypeInfo exceptionThrown = X.findSubType("ExceptionThrown");
+        assertEquals("SetOfInfoImpl[infoSet=[a.b.X.ExceptionThrown.<init>(Exception)]]",
+                exceptionThrown.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).toString());
+
+        TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
+        assertEquals("SetOfInfoImpl[infoSet=[a.b.X.LoopDataImpl.LoopDataImpl(a.b.X.Exit)]]",
+                loopDataImpl.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).toString());
+
+        FieldInfo exit = loopDataImpl.getFieldByName("exit", true);
+        assertTrue(exit.isPropertyFinal());
+    }
+
 }

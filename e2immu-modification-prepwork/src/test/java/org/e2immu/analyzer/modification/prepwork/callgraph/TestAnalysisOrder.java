@@ -52,7 +52,7 @@ public class TestAnalysisOrder extends CommonTest {
 
     @DisplayName("interfaces")
     @Test
-    public void test4() {
+    public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
