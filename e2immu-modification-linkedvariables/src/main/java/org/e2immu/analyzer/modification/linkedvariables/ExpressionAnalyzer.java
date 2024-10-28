@@ -563,7 +563,7 @@ class ExpressionAnalyzer {
                 VariableInfo rv = vd.variableInfo(mc.methodInfo().fullyQualifiedName());
                 StaticValues sv = rv.staticValues();
                 LOGGER.debug("return value: {}", sv);
-                if (sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
+                if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
                     // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
                     return staticValuesInCaseOfABuilder(cc, existingMap);
                 }

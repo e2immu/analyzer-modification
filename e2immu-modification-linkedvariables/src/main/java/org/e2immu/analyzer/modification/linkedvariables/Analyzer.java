@@ -384,40 +384,46 @@ public class Analyzer {
 
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
-            vd.variableInfoContainerStream().forEach(vic -> {
-                if (vic.hasMerge()) {
-                    Variable variable = vic.variable();
-                    VariableInfoImpl merge = (VariableInfoImpl) vic.best();
-
-                    LinkedVariables reducedLv = computeLinkedVariablesMerge(lastOfEachSubBlock, variable, vd);
-                    merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-                    merge.setLinkedVariables(reducedLv);
-
-                    StaticValues reducedSv = computeStaticValuesMerge(lastOfEachSubBlock, variable);
-                    merge.staticValuesSet(reducedSv);
-
-                    if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
-                        boolean modified = lastOfEachSubBlock.values().stream()
-                                .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
-                                .filter(Objects::nonNull)
-                                .map(VariableInfoContainer::best)
-                                .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
-                        merge.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+            if (!lastOfEachSubBlock.isEmpty()) {
+                vd.variableInfoContainerStream().forEach(vic -> {
+                    if (vic.hasMerge()) {
+                        mergeBlocks(vic, lastOfEachSubBlock, vd);
                     }
-                    if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
-                        Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()
-                                .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
-                                .filter(Objects::nonNull)
-                                .map(VariableInfoContainer::best)
-                                .flatMap(vi -> vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, ValueImpl.VariableBooleanMapImpl.EMPTY).map().entrySet().stream())
-                                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue,
-                                        (b1, b2) -> b1 || b2)); // TODO is this the correct merge function?
-                        merge.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(map));
-                    }
-                }
-            });
+                });
+            }
         }
         return vd;
+    }
+
+    private static void mergeBlocks(VariableInfoContainer vic, Map<String, VariableData> lastOfEachSubBlock, VariableData vd) {
+        Variable variable = vic.variable();
+        VariableInfoImpl merge = (VariableInfoImpl) vic.best();
+
+        LinkedVariables reducedLv = computeLinkedVariablesMerge(lastOfEachSubBlock, variable, vd);
+        merge.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+        merge.setLinkedVariables(reducedLv);
+
+        StaticValues reducedSv = computeStaticValuesMerge(lastOfEachSubBlock, variable);
+        merge.staticValuesSet(reducedSv);
+
+        if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
+            boolean modified = lastOfEachSubBlock.values().stream()
+                    .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                    .filter(Objects::nonNull)
+                    .map(VariableInfoContainer::best)
+                    .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
+            merge.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+        }
+        if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
+            Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()
+                    .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                    .filter(Objects::nonNull)
+                    .map(VariableInfoContainer::best)
+                    .flatMap(vi -> vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, ValueImpl.VariableBooleanMapImpl.EMPTY).map().entrySet().stream())
+                    .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue,
+                            (b1, b2) -> b1 || b2)); // TODO is this the correct merge function?
+            merge.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(map));
+        }
     }
 
     private static StaticValues computeStaticValuesMerge(Map<String, VariableData> lastOfEachSubBlock, Variable variable) {

@@ -224,26 +224,24 @@ class ComputeLinkCompletion {
                 Map<Variable, LV> links = shortestPath.links(variable, null);
 
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
-                assert vic != null : "Do not know " + variable;
-                if (!vic.has(stage)) {
-                    throw new UnsupportedOperationException("We should make an entry at this stage?");
-                }
-                VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
-                LinkedVariables linkedVariables = LinkedVariablesImpl.of(links).remove(Set.of(variable));
-                vii.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
-                if (links.isEmpty()) {
-                    vii.setLinkedVariables(LinkedVariablesImpl.EMPTY);
-                } else {
-                    vii.setLinkedVariables(linkedVariables);
-                }
-                if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
-                    boolean isModified = modifying.contains(variable);
-                    vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
-                }
-                Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
-                if (mfiComponents != null && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
-                    vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(mfiComponents));
-                }
+                if (vic != null && vic.has(stage)) {
+                    VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
+                    LinkedVariables linkedVariables = LinkedVariablesImpl.of(links).remove(Set.of(variable));
+                    vii.initializeLinkedVariables(LinkedVariablesImpl.NOT_YET_SET);
+                    if (links.isEmpty()) {
+                        vii.setLinkedVariables(LinkedVariablesImpl.EMPTY);
+                    } else {
+                        vii.setLinkedVariables(linkedVariables);
+                    }
+                    if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
+                        boolean isModified = modifying.contains(variable);
+                        vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                    }
+                    Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
+                    if (mfiComponents != null && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
+                        vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(mfiComponents));
+                    }
+                } // is possible: artificially created break variable (see e.g. TestBreakVariable)
             }
         }
 
