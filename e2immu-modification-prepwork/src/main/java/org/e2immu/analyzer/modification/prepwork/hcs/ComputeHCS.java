@@ -39,9 +39,12 @@ public class ComputeHCS {
         typeInfo.subTypes().forEach(this::doType);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
             HiddenContentTypes hctMethod = mi.analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () -> chc.compute(hctType, mi));
-            if (!mi.isConstructor()) {
-                mi.analysis().getOrCreate(HCS_METHOD, () -> HiddenContentSelector.selectAll(hctMethod, mi.returnType()));
-            }
+            mi.analysis().getOrCreate(HCS_METHOD, () -> {
+                if (mi.isConstructor()) {
+                    return HiddenContentSelector.selectAll(hctType, typeInfo.asParameterizedType());
+                }
+                return HiddenContentSelector.selectAll(hctMethod, mi.returnType());
+            });
             for (ParameterInfo pi : mi.parameters()) {
                 pi.analysis().getOrCreate(HCS_PARAMETER, () ->
                         HiddenContentSelector.selectAll(hctMethod, pi.parameterizedType()));

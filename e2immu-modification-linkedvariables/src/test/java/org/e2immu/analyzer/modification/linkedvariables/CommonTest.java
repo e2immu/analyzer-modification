@@ -94,7 +94,7 @@ public class CommonTest {
 
     protected List<Info> prepWork(TypeInfo typeInfo) {
         List<TypeInfo> typesLoaded = javaInspector.compiledTypesManager().typesLoaded();
-        assertTrue(typesLoaded.stream().anyMatch(ti -> "java.lang.Exception".equals(ti.fullyQualifiedName())));
+        assertTrue(typesLoaded.stream().anyMatch(ti -> "java.util.ArrayList".equals(ti.fullyQualifiedName())));
         prepAnalyzer.initialize(typesLoaded);
 
         return prepAnalyzer.doPrimaryType(typeInfo);

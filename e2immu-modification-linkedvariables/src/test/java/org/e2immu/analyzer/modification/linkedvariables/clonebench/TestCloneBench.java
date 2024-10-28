@@ -85,7 +85,11 @@ public class TestCloneBench extends CommonTest {
     private static final String[] DIRS = {"bubblesort_for_withunit", "collections_layered",
             "dowhile_pure_compiles", "dowhile_pure_selected_withunit",
             "foreach_pure_compiles", "foreach_selection1_withunit",
-            "fors_pure_compiles", "fors_pure_selected_withunit"
+            "fors_pure_compiles", "fors_pure_selected_withunit",
+            "switch_fors_compiles", "switch_fors_selected_withunit",
+            "switch_pure_compiles", "switch_pure_selected_withunit",
+            "try_pure_compiles", "try_wr_compiles",
+            "while_pure_compiles", "while_pure_selected_withunit"
     };
 
     @Test
