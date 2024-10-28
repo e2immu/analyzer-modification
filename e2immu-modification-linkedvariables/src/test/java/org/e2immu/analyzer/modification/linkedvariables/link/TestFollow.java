@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.linkedvariables.clonebench;
+package org.e2immu.analyzer.modification.linkedvariables.link;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.language.cst.api.info.Info;
@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-public class TestX extends CommonTest {
+public class TestFollow extends CommonTest {
     @Language("java")
     private static final String INPUT1 = """
             import java.io.File;

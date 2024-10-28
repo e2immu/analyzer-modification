@@ -194,7 +194,7 @@ public class HiddenContentSelector implements Value {
                             ? ALL_INDICES : new IndicesImpl(e.getValue())
             ));
         }
-        if (type.typeInfo() != null && !haveArrays) {
+        if (type.typeInfo() != null) {
             recursivelyCollectHiddenContentParameters(hiddenContentTypes, type, new Stack<>(), map);
         }
         return new HiddenContentSelector(hiddenContentTypes, Map.copyOf(map));
@@ -254,7 +254,11 @@ public class HiddenContentSelector implements Value {
     public Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
                                                      GenericsHelper genericsHelper,
                                                      ParameterizedType from,
-                                                     ParameterizedType to) {
+                                                     ParameterizedType to,
+                                                     boolean allowVarargs) {
+        if (allowVarargs && from.arrays() == to.arrays() + 1) {
+            return translateHcs(runtime, genericsHelper, from.copyWithOneFewerArrays(), to, false);
+        }
         assert from.isAssignableFrom(runtime, to);
 
         if (isNone() || to.isTypeOfNullConstant()) return Map.of();
@@ -341,6 +345,8 @@ public class HiddenContentSelector implements Value {
                                    ParameterizedType from,
                                    ParameterizedType to) {
         int atPos = index.list().get(pos);
+        TypeInfo bestTo = to.bestTypeInfo();
+
         if (pos == index.list().size() - 1) {
             // the last entry
             assert from.typeInfo() != null;
@@ -348,7 +354,7 @@ public class HiddenContentSelector implements Value {
             assert atPos >= 0;
             assert atPos < formalFrom.parameters().size() : "Has been picked up in parent method";
             assert formalFrom.parameters().get(atPos).equals(ptFrom);
-            if (formalFrom.typeInfo() == to.typeInfo()) {
+            if (formalFrom.typeInfo() == bestTo) {
                 ParameterizedType concrete;
                 if (atPos >= to.parameters().size()) {
                     // type parameters are missing, we'd expect <> so that they get filled in automatically
@@ -358,17 +364,17 @@ public class HiddenContentSelector implements Value {
                 }
                 return new IndicesAndType(new IndicesImpl(Set.of(index)), concrete);
             }
-            ParameterizedType formalTo = to.typeInfo().asParameterizedType();
+            ParameterizedType formalTo = bestTo.asParameterizedType();
             Map<NamedType, ParameterizedType> map1;
             if (formalFrom.isAssignableFrom(runtime, formalTo)) {
-                map1 = genericsHelper.mapInTermsOfParametersOfSuperType(to.typeInfo(), formalFrom);
+                map1 = genericsHelper.mapInTermsOfParametersOfSuperType(bestTo, formalFrom);
             } else {
                 map1 = genericsHelper.mapInTermsOfParametersOfSubType(from.typeInfo(), formalTo);
             }
             assert map1 != null;
             ParameterizedType ptTo = map1.get(ptFrom.namedType());
             assert ptTo != null;
-            HiddenContentTypes hct = to.typeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+            HiddenContentTypes hct = bestTo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
             int iTo = hct.indexOf(ptTo);
             Index indexTo = index.replaceLast(iTo);
             Indices indicesTo = new IndicesImpl(Set.of(indexTo));
@@ -377,7 +383,7 @@ public class HiddenContentSelector implements Value {
             assert concreteTypeTo != null;
             return new IndicesAndType(indicesTo, concreteTypeTo);
         }
-        if (from.typeInfo() == to.typeInfo()) {
+        if (from.typeInfo() == bestTo) {
             ParameterizedType inFrom = from.parameters().get(atPos);
             ParameterizedType inTo = to.parameters().get(atPos);
             return findAll(runtime, genericsHelper, index, pos + 1, ptFrom, inFrom, inTo);

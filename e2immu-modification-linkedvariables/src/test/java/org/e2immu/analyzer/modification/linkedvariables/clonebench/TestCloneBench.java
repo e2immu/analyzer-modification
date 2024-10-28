@@ -100,7 +100,7 @@ public class TestCloneBench extends CommonTest {
             process(dir, counter, typeHistogram);
         }
 
-        LOGGER.info("JDK calls:");
+        LOGGER.warn("JDK calls:");
         Composer composer = new Composer(javaInspector.runtime(),
                 "org.e2immu.analyzer.shallow.aapi.java", w -> w.access().isPublic());
         List<TypeInfo> toCompose =
@@ -111,7 +111,7 @@ public class TestCloneBench extends CommonTest {
                             Stream<MethodInfo> stream = Stream.concat(Stream.of(method), method.overrides().stream());
                             boolean alreadyDone = stream.anyMatch(mi -> mi.analysis()
                                     .getOrDefault(PropertyImpl.ANNOTATED_API, ValueImpl.BoolImpl.FALSE).isTrue());
-                            LOGGER.info("{} {}", e.getValue(), method + "  " + (alreadyDone ? "" : "ADD TO A-API"));
+                            LOGGER.warn("{} {}", e.getValue(), method + "  " + (alreadyDone ? "" : "ADD TO A-API"));
                             if (!alreadyDone) {
                                 return method.primaryType();
                             }
@@ -123,7 +123,7 @@ public class TestCloneBench extends CommonTest {
         Map<String, Integer> problemHistogram = analyzer.getProblemsRaised().stream()
                 .collect(Collectors.toUnmodifiableMap(t -> t == null || t.getMessage() == null ? "?" : t.getMessage(), t -> 1, Integer::sum));
         problemHistogram.entrySet().stream().sorted((e1, e2) -> e2.getValue() - e1.getValue()).forEach(e -> {
-            LOGGER.info("Error freq {}: {}", e.getValue(), e.getKey());
+            LOGGER.warn("Error freq {}: {}", e.getValue(), e.getKey());
         });
         int numErrors = analyzer.getProblemsRaised().size();
         assertEquals(0, numErrors, "Found " + numErrors + " errors parsing " + counter.get()

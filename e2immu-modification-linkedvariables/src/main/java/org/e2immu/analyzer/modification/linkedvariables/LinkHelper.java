@@ -92,9 +92,10 @@ class LinkHelper {
     private LinkedVariables linkedVariablesOfParameter(ParameterizedType formalParameterType,
                                                        ParameterizedType concreteParameterType,
                                                        LinkedVariables linkedVariablesOfParameter,
-                                                       HiddenContentSelector hcsSource) {
+                                                       HiddenContentSelector hcsSource,
+                                                       boolean allowVarargs) {
         LinkedVariables res = linkedVariablesOfParameter(hiddenContentTypes, formalParameterType, concreteParameterType,
-                linkedVariablesOfParameter, hcsSource);
+                linkedVariablesOfParameter, hcsSource, allowVarargs);
         LOGGER.debug("LV of parameter {}; {}; {}; {} = {}", formalParameterType, concreteParameterType,
                 linkedVariablesOfParameter, hcsSource, res);
         return res;
@@ -105,7 +106,8 @@ class LinkHelper {
                                                        ParameterizedType formalParameterType,
                                                        ParameterizedType concreteParameterTypeIn,
                                                        LinkedVariables linkedVariablesOfParameter,
-                                                       HiddenContentSelector hcsSource) {
+                                                       HiddenContentSelector hcsSource,
+                                                       boolean allowVarargs) {
         ParameterizedType concreteParameterType = ensureTypeParameters(concreteParameterTypeIn);
         Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, concreteParameterType);
         if (immutable != null && immutable.isImmutable()) {
@@ -117,7 +119,7 @@ class LinkHelper {
             && concreteParameterType.arrays() == formalParameterType.arrays()) {
             // see TestRecursiveCall
             return linkedVariablesOfParameter(hiddenContentTypes, formalParameterType.copyWithOneFewerArrays(),
-                    concreteParameterType.copyWithOneFewerArrays(), linkedVariablesOfParameter, hcsSource);
+                    concreteParameterType.copyWithOneFewerArrays(), linkedVariablesOfParameter, hcsSource, allowVarargs);
         }
         if (index != null && formalParameterType.parameters().isEmpty()) {
             if (!concreteParameterType.parameters().isEmpty()) {
@@ -128,14 +130,15 @@ class LinkHelper {
                 HiddenContentSelector newHcsSource = HiddenContentSelector.selectAll(newHiddenContentTypes,
                         newParameterMethodType);
                 LinkedVariables recursive = linkedVariablesOfParameter(newHiddenContentTypes,
-                        newParameterMethodType, concreteParameterType, linkedVariablesOfParameter, newHcsSource);
+                        newParameterMethodType, concreteParameterType, linkedVariablesOfParameter, newHcsSource,
+                        allowVarargs);
                 return recursive.map(lv -> lv.prefixMine(index));
             }
         }
 
         // the current formal type is not one of the hidden content types
         Map<Indices, HiddenContentSelector.IndicesAndType> targetData = hcsSource
-                .translateHcs(runtime, genericsHelper, formalParameterType, concreteParameterType);
+                .translateHcs(runtime, genericsHelper, formalParameterType, concreteParameterType, allowVarargs);
         Map<Variable, LV> map = new HashMap<>();
         linkedVariablesOfParameter.stream().forEach(e -> {
             LV newLv = lvOfParameter(e, targetData, concreteParameterType);
@@ -249,7 +252,7 @@ class LinkHelper {
                 computation of links when modified is true)
                  */
                 LinkedVariables returnValueLvs = linkedVariablesOfParameter(pi.parameterizedType(),
-                        parameterExpression.parameterizedType(), lvs, hcsSource);
+                        parameterExpression.parameterizedType(), lvs, hcsSource, pi.isVarArgs());
                 LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
                         .map(Map.Entry::getValue).findFirst().orElse(null);
                 if (valueOfReturnValue != null) {
@@ -263,7 +266,7 @@ class LinkHelper {
                 }
             } else {
                 parameterLvs = linkedVariablesOfParameter(pi.parameterizedType(),
-                        parameterExpression.parameterizedType(), lvs, hcsSource);
+                        parameterExpression.parameterizedType(), lvs, hcsSource, pi.isVarArgs());
             }
             EvaluationResult.Builder builder = inResult ? intoResultBuilder : intoObjectBuilder;
             evaluationResultOfParameter.links().forEach((v, lvs1) -> lvs1.forEach(e -> {
@@ -326,7 +329,7 @@ class LinkHelper {
         }
         if (!mutable.isImmutable()) {
             // object -> parameter (rather than the other way around)
-            return linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, false,
+            return linkedVariables(this.hcsSource, pt, methodPt, this.hcsSource, parameterLvs, pi.isVarArgs(),
                     formalParameterIndependent, concreteParameterType, pi.parameterizedType(), hcsTarget,
                     true, indexToDirectlyLinkedField);
         }
@@ -356,7 +359,7 @@ class LinkHelper {
         ParameterizedType sourceType = parameterExpressions.get(pi.index()).parameterizedType();
         LinkedVariables sourceLvs = linkedVariablesOfParameter(pi.parameterizedType(),
                 parameterExpressions.get(pi.index()).parameterizedType(),
-                linkedVariables.get(pi.index()).linkedVariables(), hcsSource);
+                linkedVariables.get(pi.index()).linkedVariables(), hcsSource, sourceIsVarArgs);
 
         lv.stream().forEach(e -> {
             ParameterInfo target = (ParameterInfo) e.getKey();
@@ -387,7 +390,7 @@ class LinkHelper {
 
                 LinkedVariables targetLinkedVariables = linkedVariablesOfParameter(target.parameterizedType(),
                         parameterExpressions.get(i).parameterizedType(),
-                        linkedVariables.get(i).linkedVariables(), hcsSource);
+                        linkedVariables.get(i).linkedVariables(), hcsSource, pi.isVarArgs());
 
                 Independent independentDv = level.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC
                         : ValueImpl.IndependentImpl.DEPENDENT;
@@ -581,7 +584,7 @@ class LinkHelper {
         if (lvFunctional != null) return lvFunctional;
 
         Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
-                () -> hcsSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType);
+                () -> hcsSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType, sourceIsVarArgs);
 
         Value.Immutable immutableOfFormalSource;
         if (sourceType.typeInfo() != null) {
@@ -679,7 +682,7 @@ class LinkHelper {
                                                     boolean reverse,
                                                     Integer indexOfDirectlyLinkedField) {
         Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget = hiddenContentSelectorOfTarget
-                .translateHcs(runtime, genericsHelper, methodTargetType, targetType);
+                .translateHcs(runtime, genericsHelper, methodTargetType, targetType, sourceIsVarArgs);
         LOGGER.debug("Linked variables: hcs method to hcs target: {}", hctMethodToHcsTarget);
         LOGGER.debug("Linked variables: hcs source: {}, target: {}", hiddenContentSelectorOfSource, hiddenContentSelectorOfTarget);
         Value.Independent correctedIndependent = correctIndependent(immutableOfFormalSource, transferIndependent,
@@ -749,7 +752,9 @@ class LinkHelper {
                         continue;
                     }
                     Indices indicesInSourceWrtType = indicesAndType.indices();
-                    assert indicesInSourceWrtType != null;
+                    if (indicesInSourceWrtType == null) {
+                        continue; // see TestVarargs,3
+                    }
 
                     // TODO this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
                     Indices indicesInTargetWrtType = (lv.theirsIsAll()
