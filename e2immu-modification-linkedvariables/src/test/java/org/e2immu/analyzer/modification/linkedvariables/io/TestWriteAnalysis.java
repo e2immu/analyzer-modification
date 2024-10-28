@@ -55,7 +55,7 @@ public class TestWriteAnalysis extends CommonTest {
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"immutableType":2,"partOfConstructionType":["C<init>(0)"]}, "subs":[
              {"name": "Fn(0)", "data":{"finalField":1}},
              {"name": "Fi(1)", "data":{"finalField":1}},
-             {"name": "C<init>(0)", "data":{"getSetField":["Fn(0)",true],"independentMethod":2}, "sub":
+             {"name": "C<init>(0)", "data":{"getSetField":["Fn(0)",true],"hc":{"0":"Tjava.lang.Object"},"independentMethod":2}, "sub":
               {"name": "Pn(0)", "data":{"independentParameter":2}}},
              {"name": "MgetI(0)", "data":{"getSetField":["Fi(1)",false],"independentMethod":2}},
              {"name": "MgetN(1)", "data":{"getSetField":["Fn(0)",false],"independentMethod":2}}]}
@@ -123,14 +123,14 @@ public class TestWriteAnalysis extends CommonTest {
               {"name": "Fset(0)", "data":{"finalField":1}},
               {"name": "Fi(1)", "data":{"finalField":1}},
               {"name": "Flist(2)", "data":{"finalField":1}},
-              {"name": "C<init>(0)", "data":{"independentMethod":2}, "subs":[
+              {"name": "C<init>(0)", "data":{"hc":{"2":"Tjava.lang.Object","M":2},"independentMethod":2}, "subs":[
                {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]}}},
                {"name": "Pi(1)", "data":{"independentParameter":2}},
                {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]}}}]},
               {"name": "Mset(0)", "data":{"getSetField":["Fset(0)",false],"hcsMethod":{"0":[[-1]]}}},
               {"name": "Mi(1)", "data":{"getSetField":["Fi(1)",false],"independentMethod":2}},
               {"name": "Mlist(2)", "data":{"getSetField":["Flist(2)",false],"hcsMethod":{"1":[[-1]]}}}]},
-             {"name": "C<init>(0)", "data":{"independentMethod":2}},
+             {"name": "C<init>(0)", "data":{"hc":{"0":"Tjava.lang.Object"},"independentMethod":2}},
              {"name": "MsetAdd(0)", "data":{"hc":{"0":"Ta.b.X.R"},"independentMethod":2}, "sub":
               {"name": "Pr(0)", "data":{"hcsParameter":{"0":[[-1]]},"independentParameter":2,"modifiedComponentsParameter":{"Fa.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r":true},"modifiedParameter":1}}},
              {"name": "Mmethod(1)", "data":{"independentMethod":2}}]}

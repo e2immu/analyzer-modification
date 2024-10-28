@@ -176,7 +176,7 @@ public class TestComputeHCS extends CommonTest {
 
         MethodInfo CgetO = C.findUniqueMethod("getO", 0);
         HiddenContentTypes hctCgetO = chc.compute(hctC, CgetO);
-        assertEquals("C: - getO:", hctCgetO.toString());
+        assertEquals("C: - getO:Object", hctCgetO.toString());
         CgetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCgetO);
 
         MethodInfo CsetO = C.findUniqueMethod("setO", 1);
@@ -185,7 +185,7 @@ public class TestComputeHCS extends CommonTest {
         CsetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCgetO);
 
         HiddenContentSelector hcsCgetO = computeHCS.doHiddenContentSelector(CgetO);
-        assertEquals("X", hcsCgetO.detailed());
+        assertEquals("0=*", hcsCgetO.detailed());
         HiddenContentSelector hcsCSetO0 = CsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("X", hcsCSetO0.detailed());
 
@@ -206,7 +206,7 @@ public class TestComputeHCS extends CommonTest {
 
         // We go via the override...
         HiddenContentSelector hcsCOgetO = computeHCS.doHiddenContentSelector(COgetO);
-        assertEquals("X", hcsCOgetO.detailed());
+        assertEquals("0=*", hcsCOgetO.detailed());
         HiddenContentSelector hcsCOSetO0 = COsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
         assertEquals("X", hcsCOSetO0.detailed());
     }
@@ -494,10 +494,15 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=0", hcsXFormal.detailed());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctRConstructor, formalR);
-        assertEquals("0=0,1=1,2=2", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=1,2=2,3=3", hcsFormalViaConstructor.detailed());
 
         Map<Indices, IndicesAndType> t = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, formalR, formalR);
-        assertEquals("0=IndicesAndType[indices=0, type=Type param T], 1=IndicesAndType[indices=1, type=Type java.util.Set<E>], 2=IndicesAndType[indices=2, type=Type java.util.List<E>]", MapUtil.nice(t));
+        assertEquals("""
+                0=IndicesAndType[indices=0, type=Type param T], \
+                1=IndicesAndType[indices=1, type=Type java.util.Set<E>], \
+                2=IndicesAndType[indices=2, type=Type java.util.List<E>], \
+                3=IndicesAndType[indices=3, type=Type Object]\
+                """, MapUtil.nice(t));
     }
 
 
@@ -533,22 +538,23 @@ public class TestComputeHCS extends CommonTest {
         MethodInfo LLC = LL.findConstructor(2);
         ParameterizedType LLpt = LL.asParameterizedType();
         HiddenContentTypes hctLLC = LLC.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=T, 1=LL - ", hctLLC.detailedSortedTypes());
+        assertEquals("0=T, 1=LL - 2=Object", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*,2=2", hcsFormalViaConstructor.detailed());
 
         This thisVar = runtime.newThis(LLpt);
         assertSame(LLpt, thisVar.parameterizedType());
         assertEquals("Type a.b.X.LL<T>", LLpt.toString());
         Map<Indices, ParameterizedType> map = hcsFormalViaConstructor.extract(runtime, thisVar.parameterizedType());
-        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(map));
+        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T, 2=Type Object", MapUtil.nice(map));
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
 
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, LLpt, LLpt);
         assertEquals("""
                 *=IndicesAndType[indices=*, type=Type a.b.X.LL<T>], \
-                0=IndicesAndType[indices=0, type=Type param T]\
+                0=IndicesAndType[indices=0, type=Type param T], \
+                2=IndicesAndType[indices=2, type=Type Object]\
                 """, MapUtil.nice(translate));
     }
 
@@ -596,27 +602,28 @@ public class TestComputeHCS extends CommonTest {
         MethodInfo LLC = LL.findConstructor(2);
         ParameterizedType LLpt = LL.asParameterizedType();
         HiddenContentTypes hctLLC = LLC.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=T, 1=L - ", hctLLC.detailedSortedTypes());
+        assertEquals("0=T, 1=L - 2=Object", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*,2=2", hcsFormalViaConstructor.detailed());
 
         ParameterizedType Lpt = L.asParameterizedType();
         assertEquals("Type a.b.X.L<T>", Lpt.toString());
         assertEquals("Type a.b.X.LL<T>", LLpt.toString());
 
         Map<Indices, ParameterizedType> mapLL = hcsFormalViaConstructor.extract(runtime, LLpt);
-        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(mapLL));
+        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T, 2=Type Object", MapUtil.nice(mapLL));
 
         Map<Indices, ParameterizedType> mapL = hcsFormalViaConstructor.extract(runtime, Lpt);
-        assertEquals("*=Type a.b.X.L<T>, 0=Type param T", MapUtil.nice(mapL));
+        assertEquals("*=Type a.b.X.L<T>, 0=Type param T, 2=Type Object", MapUtil.nice(mapL));
 
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
         assertTrue(Lpt.isAssignableFrom(runtime, LLpt));
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, Lpt, LLpt);
         assertEquals("""
                 *=IndicesAndType[indices=*, type=Type a.b.X.LL<T>], \
-                0=IndicesAndType[indices=0, type=Type param T]\
+                0=IndicesAndType[indices=0, type=Type param T], \
+                2=IndicesAndType[indices=2, type=Type Object]\
                 """, MapUtil.nice(translate));
     }
 

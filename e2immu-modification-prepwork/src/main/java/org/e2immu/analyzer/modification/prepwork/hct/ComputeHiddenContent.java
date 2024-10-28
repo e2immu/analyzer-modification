@@ -9,6 +9,7 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.type.TypeParameter;
+import org.e2immu.language.cst.api.variable.Variable;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -30,16 +31,19 @@ public class ComputeHiddenContent {
 
         Map<NamedType, Integer> typeToIndex = new HashMap<>();
 
-        Set<TypeParameter> methodTypeParametersInParameters = methodInfo.parameters().stream()
-                .flatMap(pi -> typeParameterStream(pi.parameterizedType()))
+        Stream<ParameterizedType> parameterTypeStream = methodInfo.parameters().stream().map(Variable::parameterizedType);
+        Stream<ParameterizedType> methodTypeStream =Stream.of( methodInfo.returnType());
+        Set<TypeParameter> methodTypeParameters = Stream.concat(parameterTypeStream, methodTypeStream)
+                .flatMap(this::typeParameterStream)
                 .filter(TypeParameter::isMethodTypeParameter)
                 .collect(Collectors.toUnmodifiableSet());
-        methodTypeParametersInParameters.forEach(tp -> typeToIndex.put(tp, tp.getIndex()));
+        methodTypeParameters.forEach(tp -> typeToIndex.put(tp, tp.getIndex()));
 
         // are any of the parameter's type's a type parameter, not yet used in the fields? See resolve.Method_15
         for (ParameterInfo pi : methodInfo.parameters()) {
             addExtensible(pi.parameterizedType(), typeToIndex, null, nt -> !hcsTypeInfo.isKnown(nt));
         }
+        addExtensible(methodInfo.returnType(), typeToIndex, null, nt -> !hcsTypeInfo.isKnown(nt));
 
         return new HiddenContentTypes(hcsTypeInfo, methodInfo, typeToIndex, true);
     }
