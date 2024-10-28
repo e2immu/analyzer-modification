@@ -4,8 +4,6 @@ import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +15,7 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DE
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-public class TestX extends CommonTest {
+public class TestNeedMethodReturnTypeInHCT extends CommonTest {
 
     @Language("java")
     private static final String INPUT1 = """
@@ -58,7 +56,7 @@ public class TestX extends CommonTest {
             }
             """;
 
-    @DisplayName("empty block causes issues")
+    @DisplayName("fails when method return type is not in method HCT")
     @Test
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);

@@ -274,4 +274,30 @@ public class TestComputeHiddenContent extends CommonTest {
         HiddenContentTypes hctMethod = chc.compute(hct, add2);
         assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
     }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import java.util.Collection;
+            class X {
+                static <T> void add2(Collection<T> ts, T[] tArray, int[] intArray) {
+                    for (int i=0; i<intArray.length; i++) {
+                        ts.add(tArray[intArray[i]]);
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("hct of static method with type parameters and arrays")
+    @Test
+    public void test4() {
+        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
+        TypeInfo X = javaInspector.parse(INPUT3);
+        HiddenContentTypes hct = chc.compute(X);
+        assertEquals("", hct.detailedSortedTypes());
+        MethodInfo add2 = X.findUniqueMethod("add2", 3);
+        HiddenContentTypes hctMethod = chc.compute(hct, add2);
+        assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
+    }
 }

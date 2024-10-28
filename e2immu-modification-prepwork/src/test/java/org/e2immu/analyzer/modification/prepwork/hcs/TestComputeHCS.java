@@ -697,4 +697,40 @@ public class TestComputeHCS extends CommonTest {
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, Lpt, LLpt);
         assertEquals("*=IndicesAndType[indices=*, type=Type a.b.X.LL], 0=IndicesAndType[indices=0, type=Type Object]", MapUtil.nice(translate));
     }
+
+
+
+    @Language("java")
+    private static final String INPUT10 = """
+            package a.b;
+            import java.util.Collection;
+            class X {
+                static <T> void add(Collection<T> ts, T[] tArray, int[] intArray) {
+                    for (int i=0; i<intArray.length; i++) {
+                        ts.add(tArray[intArray[i]]);
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("hcs of static method with type parameters and arrays")
+    @Test
+    public void test10() {
+        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
+        TypeInfo X = javaInspector.parse(INPUT10);
+        HiddenContentTypes hct = chc.compute(X);
+        assertEquals("", hct.detailedSortedTypes());
+        MethodInfo add = X.findUniqueMethod("add", 3);
+        HiddenContentTypes hctMethod = chc.compute(hct, add);
+        assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
+
+        ParameterInfo ts = add.parameters().get(0);
+        assertEquals("0=0,1=*", HiddenContentSelector.selectAll(hctMethod, ts.parameterizedType()).detailed());
+
+        ParameterInfo tArray = add.parameters().get(1);
+        assertEquals("0=0",  HiddenContentSelector.selectAll(hctMethod, tArray.parameterizedType()).detailed());
+
+        ParameterInfo intArray = add.parameters().get(2);
+        assertEquals("X",  HiddenContentSelector.selectAll(hctMethod, intArray.parameterizedType()).detailed());
+    }
 }

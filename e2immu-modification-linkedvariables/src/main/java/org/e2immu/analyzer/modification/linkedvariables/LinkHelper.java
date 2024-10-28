@@ -113,6 +113,12 @@ class LinkHelper {
         }
 
         Integer index = hiddenContentTypes.indexOfOrNull(formalParameterType);
+        if (index != null && formalParameterType.arrays() > 0
+            && concreteParameterType.arrays() == formalParameterType.arrays()) {
+            // see TestRecursiveCall
+            return linkedVariablesOfParameter(hiddenContentTypes, formalParameterType.copyWithOneFewerArrays(),
+                    concreteParameterType.copyWithOneFewerArrays(), linkedVariablesOfParameter, hcsSource);
+        }
         if (index != null && formalParameterType.parameters().isEmpty()) {
             if (!concreteParameterType.parameters().isEmpty()) {
                 // recursion at the level of the type parameters

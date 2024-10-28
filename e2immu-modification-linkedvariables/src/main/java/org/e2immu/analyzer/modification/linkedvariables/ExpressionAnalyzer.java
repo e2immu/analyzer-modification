@@ -875,8 +875,9 @@ class ExpressionAnalyzer {
         }
 
         private void markModified(Variable variable, EvaluationResult.Builder builder) {
-            TypeInfo typeInfo = variable.parameterizedType().typeInfo();
-            boolean mutable = typeInfo != null && typeInfo.analysis()
+            ParameterizedType type = variable.parameterizedType();
+            TypeInfo typeInfo = type.typeInfo();
+            boolean mutable = type.arrays() > 0 || typeInfo != null && typeInfo.analysis()
                     .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
             if (mutable || isSyntheticObjectUsedInMethodComponentModification(variable)) {
                 builder.addModified(variable);
