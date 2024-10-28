@@ -70,20 +70,29 @@ public class TestCloneBench extends CommonTest {
         analysisOrder.stream().filter(info -> info instanceof MethodInfo)
                 .forEach(info -> {
                     MethodInfo mi = (MethodInfo) info;
-                    mi.methodBody().visit(e -> {
-                        if (e instanceof MethodCall mc && mc.methodInfo().typeInfo().primaryType() != typeInfo) {
-                            typeHistogram.merge(mc.methodInfo(), 1, Integer::sum);
-                        }
-                        return true;
-                    });
+                    if (!mi.isAbstract() && !mi.isSyntheticConstructor()) {
+                        assertNotNull(mi.methodBody(), "For method " + mi);
+                        mi.methodBody().visit(e -> {
+                            if (e instanceof MethodCall mc && mc.methodInfo().typeInfo().primaryType() != typeInfo) {
+                                typeHistogram.merge(mc.methodInfo(), 1, Integer::sum);
+                            }
+                            return true;
+                        });
+                    }
                 });
     }
 
-    private static final String[] DIRS = {"dowhile_pure_compiles", "fors_pure_compiles", "bubblesort_for_withunit"};
+    private static final String[] DIRS = {"bubblesort_for_withunit", "collections_layered",
+            "dowhile_pure_compiles", "dowhile_pure_selected_withunit",
+            "foreach_pure_compiles", "foreach_selection1_withunit",
+            "fors_pure_compiles", "fors_pure_selected_withunit"
+    };
 
     @Test
     public void test() throws IOException {
-        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("graph-algorithm")).setLevel(Level.INFO);
+        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);
+        ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger("graph-algorithm")).setLevel(Level.WARN);
+
         AtomicInteger counter = new AtomicInteger();
         Map<MethodInfo, Integer> typeHistogram = new HashMap<>();
 

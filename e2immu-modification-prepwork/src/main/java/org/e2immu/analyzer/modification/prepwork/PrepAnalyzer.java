@@ -116,6 +116,21 @@ public class PrepAnalyzer {
                 otherConstructorsAndMethods.add(mi);
             }
         });
+        typeInfo.fields().forEach(fi -> {
+            if(fi.initializer() != null) {
+                fi.initializer().visit(e -> {
+                    if (e instanceof Lambda lambda) {
+                        doType(lambda.methodInfo().typeInfo(), gettersAndSetters, otherConstructorsAndMethods);
+                        return false;
+                    }
+                    if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
+                        doType(cc.anonymousClass(), gettersAndSetters, otherConstructorsAndMethods);
+                        return false;
+                    }
+                    return true;
+                });
+            }
+        });
     }
 
     public void initialize(List<TypeInfo> typesLoaded) {

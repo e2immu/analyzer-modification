@@ -254,7 +254,7 @@ class LinkHelper {
                         .map(Map.Entry::getValue).findFirst().orElse(null);
                 if (valueOfReturnValue != null) {
                     Map<Variable, LV> map = returnValueLvs.stream().collect(Collectors.toMap(Map.Entry::getKey,
-                            e -> Objects.requireNonNull(follow(valueOfReturnValue, e.getValue()))));
+                            e -> follow(valueOfReturnValue, e.getValue())));
                     parameterLvs = LinkedVariablesImpl.of(map);
                     formalParameterIndependent = valueOfReturnValue.isCommonHC() ? ValueImpl.IndependentImpl.INDEPENDENT_HC :
                             ValueImpl.IndependentImpl.DEPENDENT;
@@ -930,20 +930,14 @@ class LinkHelper {
                 return LVImpl.createHC(toLv.links().theirsToTheirs(fromLv.links()));
             }
             if (toLvTheirsIsAll && fromLvTheirsIsAll) {
-                return null;
+                throw new UnsupportedOperationException();
             }
             return LVImpl.createHC(fromLv.links().mineToTheirs(toLv.links()));
         }
-        if (fromLv.isDependent()) {
-            assert !fromLvHaveLinks && toLv.isCommonHC();
-            return null;
+        if (fromLv.isDependent() == toLv.isDependent()) {
+            return fromLv;
         }
-        if (toLv.isDependent()) {
-            assert !toLvHaveLinks && fromLv.isCommonHC();
-            return null;
-        }
-        throw new UnsupportedOperationException("?");
+        throw new UnsupportedOperationException();
     }
-
 }
 
