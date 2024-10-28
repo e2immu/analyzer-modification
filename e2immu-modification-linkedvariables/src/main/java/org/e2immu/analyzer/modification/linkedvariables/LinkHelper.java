@@ -205,9 +205,10 @@ class LinkHelper {
             for (ParameterInfo pi : methodInfo.parameters()) {
                 EvaluationResult evaluationResult = linkedVariables.get(pi.index());
                 Expression parameterExpression = parameterExpressions.get(pi.index());
-
-                linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, evaluationResult,
-                        isFactoryMethod, intoResultBuilder, intoObjectBuilder);
+                if (!evaluationResult.linkedVariables().isEmpty()) {
+                    linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, evaluationResult,
+                            isFactoryMethod, intoResultBuilder, intoObjectBuilder);
+                } // else: see e.g. link.TestArrayInitializer
             }
             linksBetweenParameters(intoObjectBuilder, methodInfo, parameterExpressions, linkedVariables);
         }
