@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,7 +60,8 @@ public class TestCloneBench extends CommonTest {
         LOGGER.info("Start parsing #{}, {}, file of size {}", count, javaFile, input.length());
 
         TypeInfo typeInfo = javaInspector.parse(input);
-        List<Info> analysisOrder = prepAnalyzer.doPrimaryType(typeInfo);
+
+        List<Info> analysisOrder = prepWork(typeInfo);
         analyzer.doPrimaryType(typeInfo, analysisOrder);
 
         String printed = printType(typeInfo);
@@ -89,7 +91,6 @@ public class TestCloneBench extends CommonTest {
             process(dir, counter, typeHistogram);
         }
 
-        int numErrors = analyzer.getProblemsRaised().size();
         LOGGER.info("JDK calls:");
         Composer composer = new Composer(javaInspector.runtime(),
                 "org.e2immu.analyzer.shallow.aapi.java", w -> w.access().isPublic());
@@ -110,6 +111,12 @@ public class TestCloneBench extends CommonTest {
         Collection<TypeInfo> aapiTypes = composer.compose(toCompose);
         composer.write(aapiTypes, "build/aapis");
 
+        Map<String, Integer> problemHistogram = analyzer.getProblemsRaised().stream()
+                .collect(Collectors.toUnmodifiableMap(t -> t == null || t.getMessage() == null ? "?" : t.getMessage(), t -> 1, Integer::sum));
+        problemHistogram.entrySet().stream().sorted((e1, e2) -> e2.getValue() - e1.getValue()).forEach(e -> {
+            LOGGER.info("Error freq {}: {}", e.getValue(), e.getKey());
+        });
+        int numErrors = analyzer.getProblemsRaised().size();
         assertEquals(0, numErrors, "Found " + numErrors + " errors parsing " + counter.get()
                                    + " files. Histogram: " + analyzer.getHistogram());
     }

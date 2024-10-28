@@ -90,13 +90,15 @@ public class CommonTest {
         javaInspector.parse(true);
         runtime = javaInspector.runtime();
         prepAnalyzer = new PrepAnalyzer(runtime);
-        List<TypeInfo> typesLoaded = javaInspector.compiledTypesManager().typesLoaded();
-        assertTrue(typesLoaded.stream().anyMatch(ti -> "java.lang.Exception".equals(ti.fullyQualifiedName())));
-        prepAnalyzer.initialize(typesLoaded);
+
         analyzer = new Analyzer(runtime, storeErrorsInPVMap);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {
+        List<TypeInfo> typesLoaded = javaInspector.compiledTypesManager().typesLoaded();
+        assertTrue(typesLoaded.stream().anyMatch(ti -> "java.lang.Exception".equals(ti.fullyQualifiedName())));
+        prepAnalyzer.initialize(typesLoaded);
+
         return prepAnalyzer.doPrimaryType(typeInfo);
     }
 
