@@ -233,6 +233,10 @@ class LinkHelper {
             LinkedVariables parameterLvs;
             LinkedVariables lvs = evaluationResultOfParameter.linkedVariables();
             if (inResult) {
+                if (pi.index() == 0 && methodInfo.isIdentity()) {
+                    intoResultBuilder.setLinkedVariables(lvs);
+                    return;
+                }
                 /*
                 change the links of the parameter to the value of the return variable (see also MethodReference,
                 computation of links when modified is true)
@@ -329,7 +333,7 @@ class LinkHelper {
         Map<ParameterInfo, LinkedVariables> crossLinks = translateLinksToParameters(methodInfo);
         if (crossLinks.isEmpty()) return;
         crossLinks.forEach((pi, lv) ->
-            doCrossLinkOfParameter(builder, methodInfo, parameterExpressions, linkedVariables, pi, lv));
+                doCrossLinkOfParameter(builder, methodInfo, parameterExpressions, linkedVariables, pi, lv));
     }
 
     private void doCrossLinkOfParameter(EvaluationResult.Builder builder,
@@ -726,14 +730,18 @@ class LinkHelper {
                     entry:0->0
                      */
                     Indices indicesInSourceWrtMethod = hiddenContentSelectorOfSource.getMap().get(entry.getKey());
-                    assert indicesInSourceWrtMethod != null;
+                    if (indicesInSourceWrtMethod == null) {
+                        continue;
+                    }
                     assert hctMethodToHctSource != null;
                     HiddenContentSelector.IndicesAndType indicesAndType = hctMethodToHctSource.get(indicesInSourceWrtMethod);
-                    assert indicesAndType != null;
+                    if (indicesAndType == null) {
+                        continue;
+                    }
                     Indices indicesInSourceWrtType = indicesAndType.indices();
                     assert indicesInSourceWrtType != null;
 
-                    // FIXME this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
+                    // TODO this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
                     Indices indicesInTargetWrtType = (lv.theirsIsAll()
                                                       && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()
                                                       && reverse) ? ALL_INDICES : targetIndices;

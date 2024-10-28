@@ -354,6 +354,9 @@ public class TestLinkModificationArea extends CommonTest {
                 }
                 static class M { int i; int get() { return i; } void set(int i) { this.i = i; }}
                 record R(M a) {}
+                static M getADirectly(R r ) {
+                    return r.a;
+                }
                 static M getA(R r) {
                     return nonNull(r.a);
                 }
@@ -376,13 +379,21 @@ public class TestLinkModificationArea extends CommonTest {
         HiddenContentTypes hctR = R.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=M", hctR.detailedSortedTypes());
 
+        MethodInfo getADirectly = X.findUniqueMethod("getADirectly", 1);
+        {
+            Statement s0 = getADirectly.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            VariableInfo viRv = vd0.variableInfo(getADirectly.fullyQualifiedName());
+            assertEquals("E=r.a", viRv.staticValues().toString());
+            assertEquals("-1-:a, *M-2-0M|*-0:r", viRv.linkedVariables().toString());
+        }
         MethodInfo getA = X.findUniqueMethod("getA", 1);
         {
             Statement s0 = getA.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viRv = vd0.variableInfo(getA.fullyQualifiedName());
             assertEquals("E=r.a", viRv.staticValues().toString());
-            assertEquals("*M-2-0M|*-0:r,-1-:a", viRv.linkedVariables().toString());
+            assertEquals("-1-:a, *M-2-0M|*-0:r", viRv.linkedVariables().toString());
         }
     }
 
