@@ -213,7 +213,7 @@ public class Analyzer {
                     && !pi.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_PARAMETER)) {
                     pi.analysis().set(MODIFIED_FI_COMPONENTS_PARAMETER, mfi);
                 }
-            } else if (v instanceof ReturnVariable) {
+            } else if (v instanceof ReturnVariable && methodInfo.hasReturnValue()) {
                 LinkedVariables linkedVariables = vi.linkedVariables();
                 if (linkedVariables != null) {
                     LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);

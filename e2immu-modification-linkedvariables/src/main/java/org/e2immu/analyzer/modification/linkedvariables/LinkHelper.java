@@ -580,6 +580,9 @@ class LinkHelper {
         if (sourceType.typeInfo() != null) {
             ParameterizedType formalSource = sourceType.typeInfo().asParameterizedType();
             immutableOfFormalSource = analysisHelper.typeImmutable(currentPrimaryType, formalSource);
+            if (immutableOfFormalSource.isImmutable()) {
+                return LinkedVariablesImpl.EMPTY;
+            }
         } else {
             immutableOfFormalSource = immutableOfSource;
         }
