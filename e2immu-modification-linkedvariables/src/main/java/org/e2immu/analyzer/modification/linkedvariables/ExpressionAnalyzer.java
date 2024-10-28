@@ -281,7 +281,7 @@ class ExpressionAnalyzer {
                 while (true) {
                     if (v instanceof DependentVariable dv) {
                         This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()); // irrelevant which type
-                        Variable indexed = runtime.newDependentVariable(thisVar, value.parameterizedType(), dv.indexVariable());
+                        Variable indexed = runtime.newDependentVariable(thisVar, value.parameterizedType(), dv.indexExpression());
                         StaticValues newSv = new StaticValuesImpl(null, null, Map.of(indexed, value));
                         builder.merge(dv.arrayVariable(), newSv);
                         v = dv.arrayVariable();
