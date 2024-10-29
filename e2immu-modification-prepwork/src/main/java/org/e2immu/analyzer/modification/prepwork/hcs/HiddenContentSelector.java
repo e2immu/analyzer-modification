@@ -265,7 +265,9 @@ public class HiddenContentSelector implements Value {
             } else {
                 iat = findAll(runtime, genericsHelper, entry1.getKey(), entry1.getValue(), from, to);
             }
-            result.put(entry1.getKey(), iat);
+            if (iat != null) {
+                result.put(entry1.getKey(), iat);
+            }
         }
         return Map.copyOf(result);
     }
@@ -317,6 +319,7 @@ public class HiddenContentSelector implements Value {
         // it does not matter with which index we start
         Index index = indices.set().stream().findFirst().orElseThrow();
         IndicesAndType res = findAll(runtime, genericsHelper, index, 0, ptInFrom, from, to);
+        if (res == null) return null;
         // but once we have found it, we must make sure that we return all occurrences
         assert res.indices.set().size() == 1;
         assert res.type != null;
@@ -368,8 +371,12 @@ public class HiddenContentSelector implements Value {
             Indices indicesTo = new IndicesImpl(Set.of(indexTo));
             Map<NamedType, ParameterizedType> map2 = to.initialTypeParameterMap();
             ParameterizedType concreteTypeTo = map2.get(ptTo.namedType());
-            assert concreteTypeTo != null;
-            return new IndicesAndType(indicesTo, concreteTypeTo);
+            if (concreteTypeTo != null) {
+                return new IndicesAndType(indicesTo, concreteTypeTo);
+            }
+            // concrete = Properties ~ HashTable<Object,Object> ~ Map<K, V> there are no explicit hidden content types in Properties
+            // See TestTypeParameterChoices
+            return null;
         }
         if (from.typeInfo() == bestTo) {
             ParameterizedType inFrom = from.parameters().get(atPos);
