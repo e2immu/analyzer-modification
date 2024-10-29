@@ -59,4 +59,28 @@ public class TestVarargs extends CommonTest {
         List<Info> ao = prepWork(B);
         analyzer.doPrimaryType(B, ao);
     }
+
+    @Language("java")
+    private static final String INPUT2 = """
+             import java.io.IOException;
+             import java.nio.file.Files;
+             import java.nio.file.Path;
+             import java.util.stream.Stream;
+            
+             public class Slf4jEffort {
+               private Stream<Path> getProjectsStream(Path root) throws IOException {
+                 try (Stream<Path> s = Files.walk(root)) {
+                   return s.filter(Files::isRegularFile);
+                 }
+               }
+            }
+            """;
+
+    @DisplayName("method reference causes index out of bounds")
+    @Test
+    public void test2() {
+        TypeInfo B = javaInspector.parse(INPUT2);
+        List<Info> ao = prepWork(B);
+        analyzer.doPrimaryType(B, ao);
+    }
 }

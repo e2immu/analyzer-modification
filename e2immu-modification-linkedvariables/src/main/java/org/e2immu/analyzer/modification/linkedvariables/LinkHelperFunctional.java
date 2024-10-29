@@ -50,15 +50,17 @@ class LinkHelperFunctional {
             int index = Math.min(hcsParameters.size() - 1, i);
             Value.Independent independent = independentOfParameter.get(index);
             HiddenContentSelector hcs = hcsParameters.get(index);
-            LinkedVariables linkedVariables = linkedVariablesOfParameters.get(index);
-            LinkedVariables lvsParameter;
-            if (linkedVariables == LinkedVariablesImpl.NOT_YET_SET) {
-                lvsParameter = linkedVariables;
-            } else {
-                lvsParameter = functional(currentPrimaryTYpe, independent, hcs, linkedVariables, expressionType,
-                        concreteFunctionalType);
-            }
-            lvs = lvs.merge(lvsParameter);
+            if (index < linkedVariablesOfParameters.size()) {
+                LinkedVariables linkedVariables = linkedVariablesOfParameters.get(index);
+                LinkedVariables lvsParameter;
+                if (linkedVariables == LinkedVariablesImpl.NOT_YET_SET) {
+                    lvsParameter = linkedVariables;
+                } else {
+                    lvsParameter = functional(currentPrimaryTYpe, independent, hcs, linkedVariables, expressionType,
+                            concreteFunctionalType);
+                }
+                lvs = lvs.merge(lvsParameter);
+            }// else: varargs
             i++;
         }
         return lvs;
@@ -165,7 +167,7 @@ class LinkHelperFunctional {
 
         for (ParameterInfo pi : concreteMethod.parameters()) {
             VariableInfoContainer vic = VariableDataImpl.of(lastStatement).variableInfoContainerOrNull(pi.fullyQualifiedName());
-            if(vic != null) {
+            if (vic != null) {
                 VariableInfo vi = vic.best();
                 LinkedVariables lv = vi.linkedVariables();
                 result.add(lv);
@@ -174,11 +176,11 @@ class LinkHelperFunctional {
         if (concreteMethod.hasReturnValue()) {
             ReturnVariable returnVariable = new ReturnVariableImpl(concreteMethod);
             VariableInfo vi = VariableDataImpl.of(lastStatement).variableInfo(returnVariable.fullyQualifiedName());
-          //  if (concreteMethod.parameters().isEmpty()) {
-                return new LambdaResult(result, vi.linkedVariables());
-          //  }
+            //  if (concreteMethod.parameters().isEmpty()) {
+            return new LambdaResult(result, vi.linkedVariables());
+            //  }
             // link to the input types rather than the output type, see also HCT.mapMethodToTypeIndices
-           // Map<Indices, Indices> correctionMap = new HashMap<>();
+            // Map<Indices, Indices> correctionMap = new HashMap<>();
           /*  // FIXME 1??
             correctionMap.put(new IndicesImpl(1), new IndicesImpl(0));
             LinkedVariables corrected = vi.linkedVariables().map(lv -> lv.correctTo(correctionMap));
