@@ -223,7 +223,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1Td = vd1.variableInfo("td");
-            assertEquals("*M-2-2M:b", vi1Td.linkedVariables().toString());
+            assertEquals("-2-:b", vi1Td.linkedVariables().toString());
             assertEquals("Type a.b.X.TryDataImpl this.throwingFunction=this::body, variables[0]=i",
                     vi1Td.staticValues().toString());
         }

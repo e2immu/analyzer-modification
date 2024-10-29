@@ -235,7 +235,7 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
         ParameterInfo p0S = methodInfoS.parameters().get(0);
         assertEquals("0=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
-        assertEquals("-4-:list", lvRvS.toString());
+        assertEquals("", lvRvS.toString());
     }
 
     // copied from TestJavaUtil, to ensure that the encoding/decoding did its job properly
@@ -248,7 +248,7 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
         assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
         HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE);
-        assertEquals("X", methodHcs.detailed()); // constructor, no return value
+        assertEquals("0=0", methodHcs.detailed());
 
         ParameterInfo p0 = methodInfo.parameters().get(0);
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
@@ -292,55 +292,55 @@ public class TestLinkBasics extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT5);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+        {
+            MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
 
-        MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
+            Statement s0 = listAdd.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+            assertNotNull(vd0);
+            VariableInfo vi0 = vd0.variableInfo("l");
+            assertEquals("0-2-0:list", vi0.linkedVariables().toString());
 
-        Statement s0 = listAdd.methodBody().statements().get(0);
-        VariableData vd0 = VariableDataImpl.of(s0);
-        assertNotNull(vd0);
-        VariableInfo vi0 = vd0.variableInfo("l");
-        assertEquals("0-2-0:list", vi0.linkedVariables().toString());
+            Statement s1 = listAdd.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+            ParameterInfo listAdd0 = listAdd.parameters().get(0);
+            ParameterInfo t1 = listAdd.parameters().get(1);
 
-        Statement s1 = listAdd.methodBody().statements().get(1);
-        VariableData vd1 = VariableDataImpl.of(s1);
-        ParameterInfo listAdd0 = listAdd.parameters().get(0);
-        ParameterInfo t1 = listAdd.parameters().get(1);
+            VariableInfo vi1 = vd1.variableInfo("l");
+            assertEquals("0-2-0:list, 0-4-*:t", vi1.linkedVariables().toString());
+            assertSame(TRUE, vi1.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
 
-        VariableInfo vi1 = vd1.variableInfo("l");
-        assertEquals("0-2-0:list, 0-4-*:t", vi1.linkedVariables().toString());
-        assertSame(TRUE, vi1.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            // this one can only be computed through the graph algorithm
+            VariableInfo vi1p0 = vd1.variableInfo(listAdd0);
+            assertEquals("0-2-0:l, 0-4-*:t", vi1p0.linkedVariables().toString());
+            // propagation of @Modified via graph
+            assertTrue(vi1p0.isModified());
 
-        // this one can only be computed through the graph algorithm
-        VariableInfo vi1p0 = vd1.variableInfo(listAdd0);
-        assertEquals("0-2-0:l, 0-4-*:t", vi1p0.linkedVariables().toString());
-        // propagation of @Modified via graph
-        assertSame(TRUE, vi1p0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            VariableInfo vi1p1 = vd1.variableInfo(t1);
+            assertEquals("*-4-0:l, *-4-0:list", vi1p1.linkedVariables().toString());
 
-        VariableInfo vi1p1 = vd1.variableInfo(t1);
-        assertEquals("*-4-0:l, *-4-0:list", vi1p1.linkedVariables().toString());
+            // in the parameter's list, the local variable has been filtered out
+            LinkedVariables lvP0 = listAdd0.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                    LinkedVariablesImpl.class);
+            assertEquals("0-4-*:t", lvP0.toString());
+            LinkedVariables lvP1 = t1.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
+                    LinkedVariablesImpl.class);
+            assertEquals("*-4-0:list", lvP1.toString());
 
-        // in the parameter's list, the local variable has been filtered out
-        LinkedVariables lvP0 = listAdd0.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
-                LinkedVariablesImpl.class);
-        assertEquals("0-4-*:t", lvP0.toString());
-        LinkedVariables lvP1 = t1.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
-                LinkedVariablesImpl.class);
-        assertEquals("*-4-0:list", lvP1.toString());
+            LinkedVariables lvMethod = listAdd.analysis().getOrNull(LINKED_VARIABLES_METHOD,
+                    LinkedVariablesImpl.class);
+            assertEquals("0-2-0:list, 0-4-*:t", lvMethod.toString());
 
-        LinkedVariables lvMethod = listAdd.analysis().getOrNull(LINKED_VARIABLES_METHOD,
-                LinkedVariablesImpl.class);
-        assertEquals("0-2-0:list, 0-4-*:t", lvMethod.toString());
+            Statement s2 = listAdd.methodBody().statements().get(2);
+            VariableData vd2 = VariableDataImpl.of(s2);
 
-        Statement s2 = listAdd.methodBody().statements().get(2);
-        VariableData vd2 = VariableDataImpl.of(s2);
-
-        VariableInfo vi2l = vd2.variableInfo("l");
-        assertSame(TRUE, vi2l.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-        VariableInfo vi2p0 = vd2.variableInfo(listAdd0);
-        assertSame(TRUE, vi2p0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
-        // and propagation to the parameter itself
-        assertSame(TRUE, listAdd0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
-
+            VariableInfo vi2l = vd2.variableInfo("l");
+            assertSame(TRUE, vi2l.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            VariableInfo vi2p0 = vd2.variableInfo(listAdd0);
+            assertSame(TRUE, vi2p0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            // and propagation to the parameter itself
+            assertSame(TRUE, listAdd0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+        }
         {
             MethodInfo listAddM = X.findUniqueMethod("listAddM", 2);
             LinkedVariables lvMethod2 = listAddM.analysis().getOrNull(LINKED_VARIABLES_METHOD,

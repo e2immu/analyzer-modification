@@ -1,12 +1,10 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
-import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Link;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
-import org.e2immu.language.cst.api.analysis.Value;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,7 +13,6 @@ import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 /*
 initial delay: value can still become statically_assigned
@@ -234,19 +231,6 @@ public class LVImpl implements LV {
     @Override
     public boolean theirsContainsAll() {
         return links.map().values().stream().anyMatch(l -> l.to().isAll());
-    }
-
-    /*
-    modifications travel the -4- links ONLY when the link is *M--4--xx
-     */
-    @Override
-    public boolean allowModified() {
-        if (value != I_HC) return true;
-        if (links.map().size() == 1) {
-            Map.Entry<Indices, Link> entry = links.map().entrySet().stream().findFirst().orElseThrow();
-            return entry.getValue().mutable() && ALL_INDICES.equals(entry.getKey());
-        }
-        return false;
     }
 
     @Override

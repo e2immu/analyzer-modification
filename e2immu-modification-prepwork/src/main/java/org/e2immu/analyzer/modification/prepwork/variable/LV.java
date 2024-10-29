@@ -18,11 +18,6 @@ public interface LV extends Comparable<LV> {
 
     boolean theirsContainsAll();
 
-    /*
-                    modifications travel the -4- links ONLY when the link is *M--4--xx
-                     */
-    boolean allowModified();
-
     LV correctTo(Map<Indices, Indices> correctionMap);
 
     LV prefixMine(int index);

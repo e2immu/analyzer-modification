@@ -495,15 +495,14 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=0", hcsXFormal.detailed());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctRConstructor, formalR);
-        assertEquals("0=0,1=1,2=2,3=3", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=1,2=2", hcsFormalViaConstructor.detailed());
 
         Map<Indices, IndicesAndType> t = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, formalR,
                 formalR, false);
         assertEquals("""
                 0=IndicesAndType[indices=0, type=Type param T], \
                 1=IndicesAndType[indices=1, type=Type java.util.Set<E>], \
-                2=IndicesAndType[indices=2, type=Type java.util.List<E>], \
-                3=IndicesAndType[indices=3, type=Type Object]\
+                2=IndicesAndType[indices=2, type=Type java.util.List<E>]\
                 """, MapUtil.nice(t));
     }
 
@@ -543,21 +542,20 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=T, 1=LL - 2=Object", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*,2=2", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
 
         This thisVar = runtime.newThis(LLpt);
         assertSame(LLpt, thisVar.parameterizedType());
         assertEquals("Type a.b.X.LL<T>", LLpt.toString());
         Map<Indices, ParameterizedType> map = hcsFormalViaConstructor.extract(runtime, thisVar.parameterizedType());
-        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T, 2=Type Object", MapUtil.nice(map));
+        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(map));
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
 
         Map<Indices, IndicesAndType> translate = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, LLpt,
                 LLpt, false);
         assertEquals("""
                 *=IndicesAndType[indices=*, type=Type a.b.X.LL<T>], \
-                0=IndicesAndType[indices=0, type=Type param T], \
-                2=IndicesAndType[indices=2, type=Type Object]\
+                0=IndicesAndType[indices=0, type=Type param T]\
                 """, MapUtil.nice(translate));
     }
 
@@ -608,17 +606,17 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=T, 1=L - 2=Object", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*,2=2", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
 
         ParameterizedType Lpt = L.asParameterizedType();
         assertEquals("Type a.b.X.L<T>", Lpt.toString());
         assertEquals("Type a.b.X.LL<T>", LLpt.toString());
 
         Map<Indices, ParameterizedType> mapLL = hcsFormalViaConstructor.extract(runtime, LLpt);
-        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T, 2=Type Object", MapUtil.nice(mapLL));
+        assertEquals("*=Type a.b.X.LL<T>, 0=Type param T", MapUtil.nice(mapLL));
 
         Map<Indices, ParameterizedType> mapL = hcsFormalViaConstructor.extract(runtime, Lpt);
-        assertEquals("*=Type a.b.X.L<T>, 0=Type param T, 2=Type Object", MapUtil.nice(mapL));
+        assertEquals("*=Type a.b.X.L<T>, 0=Type param T", MapUtil.nice(mapL));
 
         GenericsHelper genericsHelper = new GenericsHelperImpl(runtime);
         assertTrue(Lpt.isAssignableFrom(runtime, LLpt));
@@ -626,8 +624,7 @@ public class TestComputeHCS extends CommonTest {
                 LLpt, false);
         assertEquals("""
                 *=IndicesAndType[indices=*, type=Type a.b.X.LL<T>], \
-                0=IndicesAndType[indices=0, type=Type param T], \
-                2=IndicesAndType[indices=2, type=Type Object]\
+                0=IndicesAndType[indices=0, type=Type param T]\
                 """, MapUtil.nice(translate));
     }
 

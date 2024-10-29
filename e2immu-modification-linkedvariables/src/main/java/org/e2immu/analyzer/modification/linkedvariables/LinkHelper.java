@@ -173,8 +173,10 @@ class LinkHelper {
                 }
                 boolean mutable = immutable.isMutable();
                 assert iInHctTarget != null;
-                Link prev = linkMap.put(iInHctSource, new LinkImpl(iInHctTarget, mutable));
-                assert prev == null;
+                if (!(iInHctSource.isAll() && iInHctTarget.isAll())) {
+                    Link prev = linkMap.put(iInHctSource, new LinkImpl(iInHctTarget, mutable));
+                    assert prev == null;
+                }
             }
             if (linkMap.isEmpty()) {
                 return createDependent(linkAllSameType(concreteParameterType));
@@ -768,8 +770,10 @@ class LinkHelper {
                     }
                     assert correctedIndicesInTargetWrtType != null;
                     // see TestLinkToReturnValueMap,1(copy8) for an example of merging
-                    linkMap.merge(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable),
-                            Link::merge);
+                    if (!(correctedIndicesInTargetWrtType.isAll() && indicesInSourceWrtType.isAll())) {
+                        linkMap.merge(correctedIndicesInTargetWrtType, new LinkImpl(indicesInSourceWrtType, mutable),
+                                Link::merge);
+                    }
                 }
 
                 boolean createDependentLink = immutable.isMutable() && isDependent(transferIndependent,

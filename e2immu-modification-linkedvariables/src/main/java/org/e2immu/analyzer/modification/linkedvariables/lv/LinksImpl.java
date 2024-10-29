@@ -41,6 +41,10 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
     // and its modification areas must be NO_MODIFICATION_INDICES
     public static final Links NO_LINKS = new LinksImpl(Map.of(), ALL_INDICES, ALL_INDICES);
 
+    public LinksImpl {
+        assert map.entrySet().stream().noneMatch(e -> e.getKey().isAll() && e.getValue().to().isAll());
+    }
+
     public LinksImpl(int from, int to, boolean isHc) {
         this(Map.of(from == ALL ? ALL_INDICES : new IndicesImpl(Set.of(new IndexImpl(List.of(from)))),
                         new LinkImpl(new IndicesImpl(Set.of(new IndexImpl(List.of(to)))), false)),
@@ -67,16 +71,12 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
         List<String> to = new ArrayList<>();
         for (Map.Entry<Indices, Link> e : map().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
             boolean mutable = e.getValue().mutable();
-            boolean fromIsAll = e.getKey().isAll();
             String f = indexToString(e.getKey()) + (mutable ? "M" : "");
+            from.add(f);
             Indices i = e.getValue().to();
             assert i != null;
-            boolean toIsAll = i.isAll();
             String t = indexToString(i) + (mutable ? "M" : "");
-            if (!(fromIsAll && toIsAll)) {
-                from.add(f);
-                to.add(t);
-            } // else: ignore self-referencing links; rely on the other hidden content
+            to.add(t);
         }
         assert from.size() == to.size();
 

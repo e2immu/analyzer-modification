@@ -129,7 +129,7 @@ public class HiddenContentSelector implements Value {
     public int hashCode() {
         return Objects.hash(hiddenContentTypes, map);
     }
-    
+
     public boolean selectArrayElement(int arrays) {
         if (map.size() == 1) {
             Indices indices = map.values().stream().findFirst().orElseThrow();
