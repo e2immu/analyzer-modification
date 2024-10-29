@@ -576,9 +576,10 @@ class LinkHelper {
         if (sourceLvs.isEmpty() || transferIndependent.isIndependent()) {
             return LinkedVariablesImpl.EMPTY;
         }
-        assert !(hiddenContentSelectorOfTarget.isNone() && transferIndependent.isIndependentHc())
-                : "Impossible to have no knowledge of hidden content, and INDEPENDENT_HC";
-
+        if (hiddenContentSelectorOfTarget.isNone() && transferIndependent.isIndependentHc()) {
+            LOGGER.warn("Impossible to have no knowledge of hidden content, and INDEPENDENT_HC: {}", methodInfo);
+            return LinkedVariablesImpl.EMPTY;
+        }
         Value.Immutable immutableOfSource = analysisHelper.typeImmutable(currentPrimaryType, sourceType);
 
         // RULE 3: immutable -> no link
