@@ -2,6 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables.link;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -11,6 +13,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -41,7 +45,7 @@ public class TestLinkFunctional extends CommonTest {
                 static Integer m2(Supplier<Integer> supplier) {
                     return supplier.get();
                 }
-    
+            
                 static N m3(Supplier<N> supplier) {
                     return supplier.get();
                 }
@@ -86,7 +90,7 @@ public class TestLinkFunctional extends CommonTest {
                 static Stream<M> m3(Stream<M> stream) {
                     return stream.filter(m -> m.i == 3);
                 }
-            
+            /*
                 static Optional<M> m4(Stream<M> stream) {
                     return stream.filter(m -> m.i == 3).findFirst();
                 }
@@ -105,7 +109,7 @@ public class TestLinkFunctional extends CommonTest {
             
                 static Integer m8(Stream<Integer> stream) {
                     return stream.filter(i -> i == 3).findFirst().orElseThrow();
-                }
+                }*/
             }
             """;
 
@@ -114,10 +118,30 @@ public class TestLinkFunctional extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+
+        TypeInfo stream = javaInspector.compiledTypesManager().get(Stream.class);
+        HiddenContentTypes hctStream = stream.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=T, 1=Stream", hctStream.detailedSortedTypes());
+        MethodInfo filter = stream.findUniqueMethod("filter", 1);
+        assertEquals("java.util.stream.Stream.filter(java.util.function.Predicate<? super T>)", filter.fullyQualifiedName());
+        HiddenContentTypes hctFilter = filter.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=T, 1=Stream - 2=Predicate", hctFilter.detailedSortedTypes());
+        HiddenContentSelector hcsFilter = filter.analysis().getOrDefault(HiddenContentSelector.HCS_METHOD, HiddenContentSelector.NONE);
+        assertEquals("0=0,1=*,2=2", hcsFilter.detailed());
+
+        MethodInfo test = (MethodInfo) analysisOrder.stream()
+                .filter(i -> "a.b.X.$1.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
+        HiddenContentTypes hctTest = test.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=Stream, 1=M - ", hctTest.detailedSortedTypes());
 
         MethodInfo m3 = X.findUniqueMethod("m3", 1);
-        assertEquals("*M-4-0M:supplier", lvs(m3));
+        HiddenContentTypes hctM3 = m3.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals(" - 0=Stream, 1=M", hctM3.detailedSortedTypes());
+
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        // link to T which gets modifying M, and predicate (also modifying)
+        assertEquals("0M-2-0M:stream", lvs(m3));
     }
 
     @Language("java")

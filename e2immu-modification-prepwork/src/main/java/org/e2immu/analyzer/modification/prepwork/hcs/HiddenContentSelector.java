@@ -5,13 +5,11 @@ import org.e2immu.analyzer.modification.prepwork.variable.Index;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.type.ParameterizedTypeImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 
 import java.util.*;
@@ -73,25 +71,13 @@ public class HiddenContentSelector implements Value {
             Indices indices = IndicesImpl.decode(codec, context, entry.getValue());
             intIndices.put(i, indices);
         }
-        HiddenContentTypes hct;
-        if (context.methodBeforeType()) {
-            MethodInfo methodInfo = context.currentMethod();
-            hct = methodInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
-                    () -> HiddenContentTypes.of(methodInfo, Map.of()));
-        } else {
-            hct = context.currentType().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        }
+        HiddenContentTypes hct = context.currentType().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
         assert hct != null;
         return new HiddenContentSelector(hct, Map.copyOf(intIndices));
     }
 
     public HiddenContentTypes hiddenContentTypes() {
         return hiddenContentTypes;
-    }
-
-    // for testing
-    public static HiddenContentSelector selectTypeParameter(HiddenContentTypes hiddenContentTypes, int i) {
-        return new HiddenContentSelector(hiddenContentTypes, Map.of(i, new IndicesImpl(i)));
     }
 
     @Override
@@ -143,8 +129,7 @@ public class HiddenContentSelector implements Value {
     public int hashCode() {
         return Objects.hash(hiddenContentTypes, map);
     }
-
-
+    
     public boolean selectArrayElement(int arrays) {
         if (map.size() == 1) {
             Indices indices = map.values().stream().findFirst().orElseThrow();
@@ -299,7 +284,10 @@ public class HiddenContentSelector implements Value {
         if (i.isAll()) return type;
         ParameterizedType inFormal = i.findInFormal(runtime, type);
         if (inFormal == null) {
-            return hiddenContentTypes.typeByIndex(i.single()).asParameterizedType();
+            NamedType namedType = hiddenContentTypes.typeByIndex(i.single());
+            assert namedType != null : type + " has no index " + i + " in " + hiddenContentTypes.detailedSortedTypes()
+                                       + " of " + hiddenContentTypes.getTypeInfo();
+            return namedType.asParameterizedType();
         }
         return inFormal;
     }
