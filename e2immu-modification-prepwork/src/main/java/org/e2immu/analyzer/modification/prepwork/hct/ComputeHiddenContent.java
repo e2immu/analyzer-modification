@@ -36,6 +36,7 @@ public class ComputeHiddenContent {
         Set<TypeParameter> methodTypeParameters = Stream.concat(parameterTypeStream, methodTypeStream)
                 .flatMap(this::typeParameterStream)
                 .filter(TypeParameter::isMethodTypeParameter)
+                .filter(tp -> !hcsTypeInfo.isKnown(tp))
                 .collect(Collectors.toUnmodifiableSet());
         methodTypeParameters.forEach(tp -> typeToIndex.put(tp, tp.getIndex()));
 
