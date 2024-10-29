@@ -659,12 +659,14 @@ class ExpressionAnalyzer {
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
                 if (pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue()) {
-                    // TODO deal with varargs
-                    Expression pe = mc.parameterExpressions().get(pi.index());
-                    if (pe instanceof VariableExpression ve) {
-                        markModified(ve.variable(), builder);
-                    } else if (pe instanceof MethodReference mr) {
-                        propagateModification(mr, builder);
+                    if (pi.isVarArgs()) {
+                        for (int i = mc.methodInfo().parameters().size() - 1; i < mc.parameterExpressions().size(); i++) {
+                            Expression pe = mc.parameterExpressions().get(i);
+                            handleModifiedParameter(builder, pe);
+                        }
+                    } else {
+                        Expression pe = mc.parameterExpressions().get(pi.index());
+                        handleModifiedParameter(builder, pe);
                     }
                 }
                 propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi, (e, mapValue) -> {
@@ -681,6 +683,14 @@ class ExpressionAnalyzer {
                         markModified(ve2.variable(), builder);
                     }
                 });
+            }
+        }
+
+        private void handleModifiedParameter(EvaluationResult.Builder builder, Expression pe) {
+            if (pe instanceof VariableExpression ve) {
+                markModified(ve.variable(), builder);
+            } else if (pe instanceof MethodReference mr) {
+                propagateModification(mr, builder);
             }
         }
 

@@ -164,24 +164,25 @@ class LinkHelperFunctional {
         List<LinkedVariables> result = new ArrayList<>(concreteMethod.parameters().size() + 1);
 
         for (ParameterInfo pi : concreteMethod.parameters()) {
-            VariableInfo vi = VariableDataImpl.of(lastStatement).variableInfo(pi.fullyQualifiedName());
-            LinkedVariables lv = vi.linkedVariables();
-            //.remove(v -> FIXME not yet implemented
-            // !evaluationContext.acceptForVariableAccessReport(v, concreteMethod.typeInfo()));
-            result.add(lv);
+            VariableInfoContainer vic = VariableDataImpl.of(lastStatement).variableInfoContainerOrNull(pi.fullyQualifiedName());
+            if(vic != null) {
+                VariableInfo vi = vic.best();
+                LinkedVariables lv = vi.linkedVariables();
+                result.add(lv);
+            }
         }
         if (concreteMethod.hasReturnValue()) {
             ReturnVariable returnVariable = new ReturnVariableImpl(concreteMethod);
             VariableInfo vi = VariableDataImpl.of(lastStatement).variableInfo(returnVariable.fullyQualifiedName());
-            if (concreteMethod.parameters().isEmpty()) {
+          //  if (concreteMethod.parameters().isEmpty()) {
                 return new LambdaResult(result, vi.linkedVariables());
-            }
+          //  }
             // link to the input types rather than the output type, see also HCT.mapMethodToTypeIndices
-            Map<Indices, Indices> correctionMap = new HashMap<>();
-            // FIXME 1??
+           // Map<Indices, Indices> correctionMap = new HashMap<>();
+          /*  // FIXME 1??
             correctionMap.put(new IndicesImpl(1), new IndicesImpl(0));
             LinkedVariables corrected = vi.linkedVariables().map(lv -> lv.correctTo(correctionMap));
-            return new LambdaResult(result, corrected);
+            return new LambdaResult(result, corrected);*/// throw new UnsupportedOperationException();
         }
         return new LambdaResult(result, LinkedVariablesImpl.EMPTY);
     }

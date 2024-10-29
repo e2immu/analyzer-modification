@@ -93,7 +93,6 @@ public class TestCloneBench extends CommonTest {
             "while_pure_compiles", "while_pure_selected_withunit"
     };
 
-    @Disabled
     @Test
     public void test() throws IOException {
         ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);

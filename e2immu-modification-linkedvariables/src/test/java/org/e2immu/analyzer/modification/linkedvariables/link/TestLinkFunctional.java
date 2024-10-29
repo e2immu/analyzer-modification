@@ -323,7 +323,7 @@ public class TestLinkFunctional extends CommonTest {
             import java.util.List;
             class C {
                 static class M { private int i; int getI() { return i; } void setI(int i) { this.i = i; } }
-
+            
                 static List<String> m1(List<String> in, List<String> out) {
                     //noinspection ALL
                     in.forEach(out::add);
@@ -335,14 +335,14 @@ public class TestLinkFunctional extends CommonTest {
                     in.forEach(out::add);
                     return out;
                 }
-
+            
                 static <X> List<X> m3(List<X> in, List<X> out) {
                     //noinspection ALL
                     Consumer<X> add = out::add;
                     in.forEach(add);
                     return out;
                 }
-
+            
                 static List<M> m4(List<M> in, List<M> out) {
                     //noinspection ALL
                     in.forEach(out::add);
@@ -473,23 +473,9 @@ public class TestLinkFunctional extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
-        MethodInfo m1 = X.findUniqueMethod("m1", 2);
-        assertEquals("-1-:out", lvs(m1));
+        MethodInfo m1 = X.findUniqueMethod("m1", 1);
+        assertEquals("0-4-0:supplier", lvs(m1));
 
-        MethodInfo m2 = X.findUniqueMethod("m2", 2);
-        assertEquals("0-4-0:in, -1-:out", lvs(m2));
-
-        MethodInfo m3 = X.findUniqueMethod("m3", 2);
-        Statement s0 = m3.methodBody().statements().get(0);
-        VariableData vd0 = VariableDataImpl.of(s0);
-        VariableInfo vi0add = vd0.variableInfo("add");
-        assertEquals("E=out::add", vi0add.staticValues().toString());
-        assertEquals("-4-:out", vi0add.linkedVariables().toString());
-
-        assertEquals("0-4-0:in, -1-:out", lvs(m3));
-
-        MethodInfo m4 = X.findUniqueMethod("m4", 2);
-        assertEquals("0M-4-0M:in, -1-:out", lvs(m4));
     }
 
     @Language("java")

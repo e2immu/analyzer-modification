@@ -213,13 +213,17 @@ class LinkHelper {
         if (!methodInfo.parameters().isEmpty()) {
             boolean isFactoryMethod = methodInfo.isFactoryMethod();
             // links between object/return value and parameters
-            for (ParameterInfo pi : methodInfo.parameters()) {
+            int i = 0;
+            int nMinusOne = methodInfo.parameters().size() - 1;
+            for (Expression parameterExpression : parameterExpressions) {
+                ParameterInfo pi = methodInfo.parameters().get(Math.min(nMinusOne, i));
+                if (pi.index() >= linkedVariables.size()) continue; // varargs
                 EvaluationResult evaluationResult = linkedVariables.get(pi.index());
-                Expression parameterExpression = parameterExpressions.get(pi.index());
                 if (!evaluationResult.linkedVariables().isEmpty()) {
                     linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, evaluationResult,
                             isFactoryMethod, intoResultBuilder, intoObjectBuilder);
                 } // else: see e.g. link.TestArrayInitializer
+                ++i;
             }
             linksBetweenParameters(intoObjectBuilder, methodInfo, parameterExpressions, linkedVariables);
         }
