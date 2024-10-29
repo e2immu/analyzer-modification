@@ -42,7 +42,14 @@ public record LinksImpl(Map<Indices, Link> map, Indices modificationAreaSource,
     public static final Links NO_LINKS = new LinksImpl(Map.of(), ALL_INDICES, ALL_INDICES);
 
     public LinksImpl {
-        assert map.entrySet().stream().noneMatch(e -> e.getKey().isAll() && e.getValue().to().isAll());
+        assert map.entrySet().stream().noneMatch(e -> {
+            Indices from = e.getKey();
+            assert from != null;
+            assert e.getValue() != null;
+            Indices to = e.getValue().to();
+            assert to != null;
+            return from.isAll() && to.isAll();
+        });
     }
 
     public LinksImpl(int from, int to, boolean isHc) {

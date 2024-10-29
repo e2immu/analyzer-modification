@@ -5,15 +5,18 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -90,9 +93,13 @@ public class TestLinkFunctional extends CommonTest {
                 static Stream<M> m3(Stream<M> stream) {
                     return stream.filter(m -> m.i == 3);
                 }
-            /*
+            
                 static Optional<M> m4(Stream<M> stream) {
                     return stream.filter(m -> m.i == 3).findFirst();
+                }
+            
+                static <T> Optional<T> m4b(Stream<T> stream) {
+                    return stream.filter(t -> t != null).findFirst();
                 }
             
                 static M m5(Stream<M> stream) {
@@ -109,7 +116,7 @@ public class TestLinkFunctional extends CommonTest {
             
                 static Integer m8(Stream<Integer> stream) {
                     return stream.filter(i -> i == 3).findFirst().orElseThrow();
-                }*/
+                }
             }
             """;
 
@@ -142,6 +149,24 @@ public class TestLinkFunctional extends CommonTest {
 
         // link to T which gets modifying M, and predicate (also modifying)
         assertEquals("0M-2-0M:stream", lvs(m3));
+
+        MethodInfo m4 = X.findUniqueMethod("m4", 1);
+        assertEquals("0M-4-0M:stream", lvs(m4));
+
+        MethodInfo m4b = X.findUniqueMethod("m4b", 1);
+        assertEquals("0-4-0:stream", lvs(m4b));
+
+        MethodInfo m5 = X.findUniqueMethod("m5", 1);
+        assertEquals("*M-4-0M:stream", lvs(m5));
+
+        MethodInfo m6 = X.findUniqueMethod("m6", 1);
+        assertEquals("-2-:stream", lvs(m6));
+
+        MethodInfo m7 = X.findUniqueMethod("m7", 1);
+        assertEquals("", lvs(m7));
+
+        MethodInfo m8 = X.findUniqueMethod("m8", 1);
+        assertEquals("", lvs(m8));
     }
 
     @Language("java")
@@ -187,95 +212,219 @@ public class TestLinkFunctional extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo mPredicate = X.findUniqueMethod("mPredicate", 2);
+        assertEquals("", lvs(mPredicate));
+
+        MethodInfo m9 = X.findUniqueMethod("m9", 2);
+        assertEquals("0-2-0:stream", lvs(m9));
+
+        MethodInfo m9b = X.findUniqueMethod("m9b", 2);
+        assertEquals("0-2-0:stream", lvs(m9b));
+
+        MethodInfo m10 = X.findUniqueMethod("m10", 2);
+        assertEquals("0-4-0:stream", lvs(m10));
+
+        MethodInfo m11 = X.findUniqueMethod("m11", 2);
+        assertEquals("*-4-0:stream", lvs(m11));
     }
 
     @Language("java")
     private static final String INPUT4 = """
             package a.b;
             import java.util.stream.Stream;
-            import java.util.Optional;
-            class X {
+            import java.util.function.Function;
+            class P {
                 static class M { private int i; int getI() { return i; } void setI(int i) { this.i = i; } }
             
-                static <X, Y> Stream<Y> m12(Stream<X> stream, Function<X, Y> function) {
+                static <X, Y> Stream<Y> m1(Stream<X> stream, Function<X, Y> function) {
                     //noinspection ALL
                     return stream.map(x -> function.apply(x));
                 }
             
-                static <X, Y> Stream<Y> m12b(Stream<X> stream, Function<X, Y> function) {
+                static <Y> Stream<Y> m2(Stream<M> stream, Function<M, Y> function) {
+                    //noinspection ALL
+                    return stream.map(x -> function.apply(x));
+                }
+            
+                static <X, Y> Stream<Y> m3(Stream<X> stream, Function<X, Y> function) {
                     //noinspection ALL
                     Function<X, Y> f = x -> function.apply(x);
                     return stream.map(f);
                 }
             
-                static <X, Y> Stream<Y> m13(Stream<X> stream, Function<X, Y> function) {
+                static <X> Stream<M> m4(Stream<X> stream, Function<X, M> function) {
+                    //noinspection ALL
+                    Function<X, M> f = x -> function.apply(x);
+                    return stream.map(f);
+                }
+            
+                static <X, Y> Stream<Y> m5(Stream<X> stream, Function<X, Y> function) {
                     //noinspection ALL
                     return stream.map(function::apply);
                 }
             
-                static List<String> m14(List<String> in, List<String> out) {
+                static Stream<M> m6(Stream<M> stream, Function<M, M> function) {
+                    //noinspection ALL
+                    return stream.map(function::apply);
+                }
+            
+                static Stream<M> m7(Stream<M> stream, Function<M, M> function) {
+                    return stream.map(function);
+                }
+            }
+            """;
+
+    @DisplayName("function basics")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        List<Info> analysisOrder = prepWork(X);
+
+        TypeInfo function = javaInspector.compiledTypesManager().get(Function.class);
+        assertEquals("0=T, 1=R", function.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+                HiddenContentTypes.class).detailedSortedTypes());
+        MethodInfo m1 = X.findUniqueMethod("m1", 2);
+        assertEquals(" - 0=X, 1=Y, 2=Stream, 3=Function", m1.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+                HiddenContentTypes.class).detailedSortedTypes());
+        assertEquals("1=0,2=*", m1.analysis().getOrNull(HiddenContentSelector.HCS_METHOD,
+                HiddenContentSelector.class).detailed());
+
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        // there is no means of connecting X to Y at this point (not without knowledge of Function!)
+        // the result of the method is of type Stream<T>, so it cannot link to the hidden content of Function.
+        // Should we assume that Function<X, Y> holds fields of type Y, so that we can link 0-4-1:function??
+        assertEquals("-2-:stream", lvs(m1));
+
+        MethodInfo m2 = X.findUniqueMethod("m2", 2);
+        assertEquals("-2-:stream", lvs(m2));
+
+        MethodInfo m3 = X.findUniqueMethod("m3", 2);
+        assertEquals("-2-:stream", lvs(m3));
+
+        MethodInfo m4 = X.findUniqueMethod("m4", 2);
+        assertEquals("-2-:stream", lvs(m4));
+
+        MethodInfo m5 = X.findUniqueMethod("m5", 2);
+        assertEquals("-2-:stream", lvs(m5));
+
+        MethodInfo m6 = X.findUniqueMethod("m6", 2);
+        assertEquals("-2-:stream", lvs(m6));
+
+        MethodInfo m7 = X.findUniqueMethod("m7", 2);
+        assertEquals("-2-:stream", lvs(m7));
+    }
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            import java.util.function.Consumer;
+            import java.util.List;
+            class C {
+                static class M { private int i; int getI() { return i; } void setI(int i) { this.i = i; } }
+
+                static List<String> m1(List<String> in, List<String> out) {
                     //noinspection ALL
                     in.forEach(out::add);
                     return out;
                 }
             
-                static <X> List<X> m15(List<X> in, List<X> out) {
+                static <X> List<X> m2(List<X> in, List<X> out) {
                     //noinspection ALL
                     in.forEach(out::add);
                     return out;
                 }
-            
-                /*
-                    static <X> List<X> m15b(List<X> in, List<X> out) {
-                        //noinspection ALL
-                        Consumer<X> add = out::add;
-                        in.forEach(add);
-                        return out;
-                    }
-                */
-                static List<M> m16(List<M> in, List<M> out) {
+
+                static <X> List<X> m3(List<X> in, List<X> out) {
+                    //noinspection ALL
+                    Consumer<X> add = out::add;
+                    in.forEach(add);
+                    return out;
+                }
+
+                static List<M> m4(List<M> in, List<M> out) {
                     //noinspection ALL
                     in.forEach(out::add);
                     return out;
                 }
+            }
+            """;
+
+    @DisplayName("forEach basics")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo m1 = X.findUniqueMethod("m1", 2);
+        assertEquals("-1-:out", lvs(m1));
+
+        MethodInfo m2 = X.findUniqueMethod("m2", 2);
+        assertEquals("0-4-0:in, -1-:out", lvs(m2));
+
+        MethodInfo m3 = X.findUniqueMethod("m3", 2);
+        Statement s0 = m3.methodBody().statements().get(0);
+        VariableData vd0 = VariableDataImpl.of(s0);
+        VariableInfo vi0add = vd0.variableInfo("add");
+        assertEquals("E=out::add", vi0add.staticValues().toString());
+        assertEquals("-4-:out", vi0add.linkedVariables().toString());
+
+        assertEquals("0-4-0:in, -1-:out", lvs(m3));
+
+        MethodInfo m4 = X.findUniqueMethod("m4", 2);
+        assertEquals("0M-4-0M:in, -1-:out", lvs(m4));
+    }
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.util.function.Supplier;
+            import java.util.function.IntFunction;
+            import java.util.stream.IntStream;
+            import java.util.stream.Stream;
+            import java.util.List;
+            class X {
+                static class M { private int i; int getI() { return i; } void setI(int i) { this.i = i; } }
             
-                static <X> Stream<X> m17(Supplier<X> supplier) {
+                static <X> Stream<X> m1(Supplier<X> supplier) {
                     return IntStream.of(3).mapToObj(i -> supplier.get());
                 }
             
-                static <X> Stream<X> m17b(Supplier<X> supplier) {
+                static <X> Stream<X> m2(Supplier<X> supplier) {
                     IntFunction<X> f = i -> supplier.get();
                     return IntStream.of(3).mapToObj(f);
                 }
             
-                static Stream<M> m18(Supplier<M> supplier) {
+                static Stream<M> m3(Supplier<M> supplier) {
                     return IntStream.of(3).mapToObj(i -> supplier.get());
                 }
             
-                static <X> Stream<X> m19(List<X> list) {
+                static <X> Stream<X> m4(List<X> list) {
                     //noinspection ALL
                     return IntStream.of(3).mapToObj(i -> list.get(i));
                 }
             
-                static Stream<M> m20(List<M> list) {
+                static Stream<M> m5(List<M> list) {
                     //noinspection ALL
                     return IntStream.of(3).mapToObj(i -> list.get(i));
                 }
             
-                static <X> Stream<X> m21(List<X> list) {
+                static <X> Stream<X> m6(List<X> list) {
                     return IntStream.of(3).mapToObj(list::get);
                 }
             
-                static Stream<M> m22(List<M> list) {
+                static Stream<M> m7(List<M> list) {
                     return IntStream.of(3).mapToObj(list::get);
                 }
             
-                static Stream<M> m22b(List<M> list) {
+                static Stream<M> m8(List<M> list) {
                     IntFunction<M> get = list::get;
                     return IntStream.of(3).mapToObj(get);
                 }
             
-                static <X> Stream<X> m23(List<X> list) {
+                static <X> Stream<X> m9(List<X> list) {
                     return IntStream.of(3).mapToObj(new IntFunction<X>() {
                         @Override
                         public X apply(int value) {
@@ -284,7 +433,7 @@ public class TestLinkFunctional extends CommonTest {
                     });
                 }
             
-                static <X> Stream<X> m23b(List<X> list) {
+                static <X> Stream<X> m10(List<X> list) {
                     IntFunction<X> f = new IntFunction<>() {
                         @Override
                         public X apply(int value) {
@@ -295,7 +444,7 @@ public class TestLinkFunctional extends CommonTest {
                     return intStream.mapToObj(f);
                 }
             
-                static <X> Stream<X> m23c(List<X> list) {
+                static <X> Stream<X> m11(List<X> list) {
                     IntFunction<X> f = new IntFunction<>() {
                         @Override
                         public X apply(int value) {
@@ -305,7 +454,7 @@ public class TestLinkFunctional extends CommonTest {
                     return IntStream.of(3).mapToObj(f);
                 }
             
-                static Stream<M> m24(List<M> list) {
+                static Stream<M> m12(List<M> list) {
                     return IntStream.of(3).mapToObj(new IntFunction<M>() {
                         @Override
                         public M apply(int value) {
@@ -314,7 +463,42 @@ public class TestLinkFunctional extends CommonTest {
                     });
                 }
             
-            
+            }
+            """;
+
+    @DisplayName("around IntStream")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+
+        MethodInfo m1 = X.findUniqueMethod("m1", 2);
+        assertEquals("-1-:out", lvs(m1));
+
+        MethodInfo m2 = X.findUniqueMethod("m2", 2);
+        assertEquals("0-4-0:in, -1-:out", lvs(m2));
+
+        MethodInfo m3 = X.findUniqueMethod("m3", 2);
+        Statement s0 = m3.methodBody().statements().get(0);
+        VariableData vd0 = VariableDataImpl.of(s0);
+        VariableInfo vi0add = vd0.variableInfo("add");
+        assertEquals("E=out::add", vi0add.staticValues().toString());
+        assertEquals("-4-:out", vi0add.linkedVariables().toString());
+
+        assertEquals("0-4-0:in, -1-:out", lvs(m3));
+
+        MethodInfo m4 = X.findUniqueMethod("m4", 2);
+        assertEquals("0M-4-0M:in, -1-:out", lvs(m4));
+    }
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import java.util.stream.Stream;
+            import java.util.Optional;
+            class X {
+                static class M { private int i; int getI() { return i; } void setI(int i) { this.i = i; } }            
                 // We're contracting the anonymous type's method (the SAM) to be @NotModified.
                 // As a consequence, we'll prevent creating an inlined method, because that
                 // inlined method will link xx to selector (see m27).

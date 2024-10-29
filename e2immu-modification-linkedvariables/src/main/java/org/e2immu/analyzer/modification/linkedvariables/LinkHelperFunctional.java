@@ -81,8 +81,10 @@ class LinkHelperFunctional {
                     Indices indices = new IndicesImpl(hctIndex);
                     // see e.g. Linking_1A,f9m(): we correct 0 to 0;1, and 1 to 0;1
                     Indices corrected = indices.allOccurrencesOf(runtime, concreteFunctionalType);
-                    Link link = new LinkImpl(indices, mutable.isMutable());
-                    correctedMap.put(corrected, link);
+                    if (corrected != null) {
+                        Link link = new LinkImpl(indices, mutable.isMutable());
+                        correctedMap.put(corrected, link);
+                    }
                 }
                 Links links = new LinksImpl(correctedMap);
                 LV lv = independentHC ? LVImpl.createHC(links) : LVImpl.createDependent(links);

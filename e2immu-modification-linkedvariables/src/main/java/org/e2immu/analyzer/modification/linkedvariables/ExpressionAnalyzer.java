@@ -269,6 +269,16 @@ class ExpressionAnalyzer {
 
                 }
             }
+            // adding existing linked variables is in general not necessary.
+            // we do add them in case of functional interfaces, see TestLinkFunctional,5(m3)
+            // because method LinkHelperFunctional expects them
+            if (v.parameterizedType().isFunctionalInterface() &&
+                variableDataPrevious != null && variableDataPrevious.isKnown(v.fullyQualifiedName())) {
+                VariableInfo viPrev = variableDataPrevious.variableInfo(v, stageOfPrevious);
+                viPrev.linkedVariables().stream()
+                        .filter(e -> !(e.getKey() instanceof This))
+                        .forEach(e -> map.put(e.getKey(), e.getValue()));
+            }
             return LinkedVariablesImpl.of(map);
         }
 
@@ -443,7 +453,10 @@ class ExpressionAnalyzer {
                     independentOfMethod, hcsMethod, linkedVariablesOfObject,
                     concreteTypeOfReturnValue, independentOfParameters, hcsParameters, concreteParameterTypes,
                     List.of(linkedVariablesOfObject), concreteTypeOfReturnValue);
-            return new EvaluationResult.Builder().merge(scopeResult).setLinkedVariables(lvs).build();
+            return new EvaluationResult.Builder().merge(scopeResult)
+                    .setLinkedVariables(lvs)
+                    .setStaticValues(StaticValuesImpl.of(mr))
+                    .build();
         }
 
         private EvaluationResult linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
