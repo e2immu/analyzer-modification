@@ -556,6 +556,12 @@ public class MethodAnalyzer {
                 if (a.variableTarget() instanceof DependentVariable dv) {
                     dv.indexExpression().visit(this);
                     dv.arrayExpression().visit(this);
+                    if(dv.arrayVariable() != null) {
+                        markRead(dv.arrayVariable());
+                    }
+                    if(dv.indexVariable() != null) {
+                        markRead(dv.indexVariable());
+                    }
                 } else if (a.variableTarget() instanceof FieldReference fr) {
                     fr.scope().visit(this);
                 }

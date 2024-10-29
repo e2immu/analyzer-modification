@@ -84,14 +84,14 @@ class ExpressionAnalyzer {
 
         EvaluationResult eval(Expression expression, ParameterizedType forwardType) {
             if (expression instanceof VariableExpression ve) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 Variable v = ve.variable();
-                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, forwardType);
+                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, forwardType, builder);
                 // do we have a static value for 'v'? this static value can be in the current evaluation forward (NYI)
                 // or in the previous statement
                 Expression svExpression = inferStaticValues(ve);
                 StaticValues svs = StaticValuesImpl.of(svExpression);
                 StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, v);
-                EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 recursivelyCollectLinksToScopeVariables(v, builder);
                 return builder
                         .setStaticValues(svs.merge(svsVar))
@@ -100,9 +100,13 @@ class ExpressionAnalyzer {
             }
             if (expression instanceof Assignment assignment) {
                 EvaluationResult evalValue = eval(assignment.value());
+                EvaluationResult evalTarget = eval(assignment.target());
+
                 EvaluationResult.Builder builder = new EvaluationResult.Builder()
                         .merge(evalValue)
+                        .merge(evalTarget)
                         .merge(assignment.variableTarget(), evalValue.linkedVariables())
+                        .merge(assignment.variableTarget(), evalTarget.linkedVariables())
                         .setLinkedVariables(evalValue.linkedVariables())
                         .merge(assignment.variableTarget(), evalValue.staticValues())
                         .setStaticValues(evalValue.staticValues());
@@ -203,19 +207,38 @@ class ExpressionAnalyzer {
             }
         }
 
-        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve, Variable v, ParameterizedType forwardType) {
+        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve, Variable v,
+                                                                    ParameterizedType forwardType,
+                                                                    EvaluationResult.Builder builder) {
             Map<Variable, LV> map = new HashMap<>();
             map.put(v, LVImpl.LINK_ASSIGNED);
             Variable dependentVariable;
             ParameterizedType fieldType;
             int fieldIndex;
-            if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression sv
-                && !(sv.variable() instanceof This)) {
-                dependentVariable = fr.scopeVariable();
-                fieldIndex = fr.fieldInfo().indexInType();
-                fieldType = fr.fieldInfo().type();
+            if (v instanceof FieldReference fr) {
+                EvaluationResult scope = eval(fr.scope());
+                if (fr.scope() instanceof VariableExpression sv
+                    && !(sv.variable() instanceof This)) {
+                    dependentVariable = fr.scopeVariable();
+                    builder.merge(dependentVariable, scope.linkedVariables());
+                    fieldIndex = fr.fieldInfo().indexInType();
+                    fieldType = fr.fieldInfo().type();
+                } else {
+                    dependentVariable = null;
+                    fieldIndex = -1; // irrelevant
+                    fieldType = null;
+                }
             } else if (v instanceof DependentVariable dv) {
+                EvaluationResult array = eval(dv.arrayExpression());
+                EvaluationResult index = eval(dv.indexExpression());
+                builder.merge(array).merge(index);
                 dependentVariable = dv.arrayVariable();
+                if (dependentVariable != null) {
+                    builder.merge(dv.arrayVariable(), array.linkedVariables());
+                }
+                if (dv.indexVariable() != null) {
+                    builder.merge(dv.indexVariable(), index.linkedVariables());
+                }
                 fieldIndex = 0;
                 fieldType = dv.arrayVariable().parameterizedType().copyWithOneFewerArrays();
             } else {
@@ -414,7 +437,8 @@ class ExpressionAnalyzer {
             } else {
                 lvsBeforeRemove = lr.linkedToReturnValue();
             }
-            LinkedVariables lvs = lvsBeforeRemove.remove(v -> removeFromLinkedVariables(lambda.methodInfo(), v));
+            LinkedVariables lvs = lvsBeforeRemove == null ? EMPTY
+                    : lvsBeforeRemove.remove(v -> removeFromLinkedVariables(lambda.methodInfo(), v));
             return new EvaluationResult.Builder().setLinkedVariables(lvs).build();
         }
 
