@@ -314,7 +314,11 @@ public class HiddenContentSelector implements Value {
                                    ParameterizedType to) {
         Integer single = indices.single();
         if (single != null && single >= from.typeInfo().asParameterizedType().parameters().size()) {
-            return new IndicesAndType(indices, hiddenContentTypes.typeByIndex(single).asParameterizedType());
+            NamedType namedType = hiddenContentTypes.typeByIndex(single);
+            if (namedType == null) {
+                return null; // see TestNullInHCSFindAll
+            }
+            return new IndicesAndType(indices, namedType.asParameterizedType());
         }
         // it does not matter with which index we start
         Index index = indices.set().stream().findFirst().orElseThrow();
@@ -365,8 +369,12 @@ public class HiddenContentSelector implements Value {
             assert map1 != null;
             ParameterizedType ptTo = map1.get(ptFrom.namedType());
             assert ptTo != null;
-            HiddenContentTypes hct = bestTo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-            int iTo = hct.indexOf(ptTo);
+            HiddenContentTypes hct = bestTo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+            assert hct != null : "No HCT for " + bestTo;
+            Integer iTo = hct.indexOf(ptTo);
+            if (iTo == null) {
+                return null; // see TestConsumer
+            }
             Index indexTo = index.replaceLast(iTo);
             Indices indicesTo = new IndicesImpl(Set.of(indexTo));
             Map<NamedType, ParameterizedType> map2 = to.initialTypeParameterMap();

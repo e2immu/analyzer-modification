@@ -217,8 +217,7 @@ class LinkHelper {
             int nMinusOne = methodInfo.parameters().size() - 1;
             for (Expression parameterExpression : parameterExpressions) {
                 ParameterInfo pi = methodInfo.parameters().get(Math.min(nMinusOne, i));
-                if (pi.index() >= linkedVariables.size()) continue; // varargs
-                EvaluationResult evaluationResult = linkedVariables.get(pi.index());
+                EvaluationResult evaluationResult = linkedVariables.get(i);
                 if (!evaluationResult.linkedVariables().isEmpty()) {
                     linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, evaluationResult,
                             isFactoryMethod, intoResultBuilder, intoObjectBuilder);
@@ -417,8 +416,9 @@ class LinkHelper {
         LinkedVariables lvMethod = pi.methodInfo().analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         LV lv = lvMethod.stream().filter(e -> e.getKey() == pi).map(Map.Entry::getValue).findFirst().orElse(null);
-        assert !pi.methodInfo().isIdentity() || pi.index() != 0 || lv != null
-                : "We must have a value for @Identity methods and the first parameter";
+        if (pi.methodInfo().isIdentity() && pi.index() == 0) {
+            return LinkedVariablesImpl.of(pi, LINK_ASSIGNED);
+        }
         if (lv == null) return LinkedVariablesImpl.EMPTY;
         ReturnVariable rv = new ReturnVariableImpl(pi.methodInfo());
         LV reverse = lv.reverse(); // we must link towards to result!!!
@@ -716,9 +716,7 @@ class LinkHelper {
             LV lv = e.getValue();
             assert lv.lt(LINK_INDEPENDENT);
 
-            if (immutable.isImmutable()) {
-                throw new UnsupportedOperationException("we should not get here");
-            }
+            assert !immutable.isImmutable();
 
             if (hiddenContentSelectorOfTarget.isNone()) {
                 LV prev = newLinked.put(e.getKey(), LINK_DEPENDENT);
@@ -735,7 +733,9 @@ class LinkHelper {
                     Indices indicesInTargetWrtMethod = entry.getValue();
 
                     HiddenContentSelector.IndicesAndType targetAndType = hctMethodToHcsTarget.get(indicesInTargetWrtMethod);
-                    assert targetAndType != null;
+                    if (targetAndType == null) {
+                        continue; // see TestConsumer
+                    }
                     ParameterizedType type = targetAndType.type();
                     assert type != null;
                     Indices targetIndices = targetAndType.indices();

@@ -123,7 +123,7 @@ public class TestWriteAnalysis extends CommonTest {
               {"name": "Fset(0)", "data":{"finalField":1}},
               {"name": "Fi(1)", "data":{"finalField":1}},
               {"name": "Flist(2)", "data":{"finalField":1}},
-              {"name": "C<init>(0)", "data":{"hc":{"2":"Tjava.lang.Object","M":2},"independentMethod":2}, "subs":[
+              {"name": "C<init>(0)", "data":{"hc":{"2":"Tjava.lang.Object","M":2},"hcsMethod":{"0":[[0]],"1":[[1]]},"independentMethod":2}, "subs":[
                {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]}}},
                {"name": "Pi(1)", "data":{"independentParameter":2}},
                {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]}}}]},

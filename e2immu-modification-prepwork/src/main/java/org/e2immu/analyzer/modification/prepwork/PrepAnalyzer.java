@@ -89,6 +89,7 @@ public class PrepAnalyzer {
     private void doType(TypeInfo typeInfo, List<MethodInfo> gettersAndSetters, List<MethodInfo> otherConstructorsAndMethods) {
         LOGGER.debug("Do type {}", typeInfo);
         HiddenContentTypes hctType = computeHiddenContent.compute(typeInfo);
+        assert !typeInfo.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES);
         typeInfo.analysis().set(HIDDEN_CONTENT_TYPES, hctType);
 
         // recurse
@@ -97,11 +98,22 @@ public class PrepAnalyzer {
             mi.methodBody().visit(e -> {
                 if (e instanceof Lambda lambda) {
                     doType(lambda.methodInfo().typeInfo(), gettersAndSetters, otherConstructorsAndMethods);
-                    return false;
+                    return false; // otherwise, we'll go inside the body again
                 }
-                if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
-                    doType(cc.anonymousClass(), gettersAndSetters, otherConstructorsAndMethods);
-                    return false;
+                if (e instanceof ConstructorCall cc) {
+                    if (cc.anonymousClass() != null) {
+                        doType(cc.anonymousClass(), gettersAndSetters, otherConstructorsAndMethods);
+                    }
+                    if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
+                        // synthetic array constructors are not stored listed in typeInfo.constructorAndMethodStream()
+                        HiddenContentTypes hctConstructorType = cc.constructor().typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                                () -> computeHiddenContent.compute(cc.constructor().typeInfo()));
+                        HiddenContentTypes hctMethod = computeHiddenContent.compute(hctConstructorType, cc.constructor());
+                        assert !cc.constructor().analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES);
+                        cc.constructor().analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
+                        computeHCS.doHiddenContentSelector(cc.constructor());
+                        // not adding it to "otherConstructorsAndMethods"
+                    }
                 }
                 return true;
             });
@@ -117,7 +129,7 @@ public class PrepAnalyzer {
             }
         });
         typeInfo.fields().forEach(fi -> {
-            if(fi.initializer() != null) {
+            if (fi.initializer() != null) {
                 fi.initializer().visit(e -> {
                     if (e instanceof Lambda lambda) {
                         doType(lambda.methodInfo().typeInfo(), gettersAndSetters, otherConstructorsAndMethods);

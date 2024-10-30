@@ -59,11 +59,15 @@ public class ComputeHCS {
                 .getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
         assert hctOverride != null : "No HCT for " + overrideWithMostHiddenContent;
         HiddenContentSelector hcs;
-        if (!methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD) && !methodInfo.isConstructor()) {
-            hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
+        if (!methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD)) {
+            if (methodInfo.isConstructor()) {
+                hcs = HiddenContentSelector.selectAll(hctOverride, methodInfo.typeInfo().asParameterizedType());
+            } else {
+                hcs = HiddenContentSelector.selectAll(hctOverride, returnType);
+            }
             methodInfo.analysis().set(HCS_METHOD, hcs);
         } else {
-            hcs = null;
+            hcs = methodInfo.analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
         }
         methodInfo.parameters().forEach(pi -> {
             if (!pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER)) {

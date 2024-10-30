@@ -71,8 +71,9 @@ public class Analyzer {
     public void doMethod(MethodInfo methodInfo) {
         LOGGER.info("Do method {}", methodInfo);
 
-        assert methodInfo.isConstructor() || methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD);
-        assert methodInfo.parameters().stream().allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER));
+        assert methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD) : "Method without HCS: " + methodInfo;
+        assert methodInfo.parameters().stream().allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER))
+                : "Method with a parameter without HCS: " + methodInfo;
 
         if (methodInfo.isAbstract()) {
             shallowMethodAnalyzer.analyze(methodInfo);

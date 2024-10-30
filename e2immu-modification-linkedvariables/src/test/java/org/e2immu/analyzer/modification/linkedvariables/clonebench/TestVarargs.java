@@ -83,4 +83,65 @@ public class TestVarargs extends CommonTest {
         List<Info> ao = prepWork(B);
         analyzer.doPrimaryType(B, ao);
     }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            import java.nio.ByteBuffer;
+            import java.util.Formatter;
+            
+            public class Hex {
+              /**
+               * Format a buffer to show the buffer in a table with 16 bytes per row, hex values and ascii
+               * values are shown.
+               *
+               * @param data the buffer
+               * @return a String with the formatted data
+               */
+              public static String format(ByteBuffer data) {
+                if (data == null) return "";
+                ByteBuffer bb = data.duplicate();
+                try (Formatter f = new Formatter()) {
+                  StringBuilder ascii = new StringBuilder(30);
+                  StringBuilder hex = new StringBuilder(30);
+                  for (int rover = 0; bb.hasRemaining(); rover += 16) {
+                    ascii.setLength(0);
+                    hex.setLength(0);
+                    for (int g = 0; g < 2 && bb.hasRemaining(); g++) {
+                      hex.append(' ');
+                      ascii.append("  ");
+                      for (int i = 0; i < 8 && bb.hasRemaining(); i++) {
+                        byte c = bb.get();
+                        hex.append(' ');
+                        hex.append(toHex(c));
+                        if (c < ' ' || c > 0x7E) c = '.';
+                        ascii.append((char) c);
+                      }
+                    }
+                    f.format("0x%04x%-50s%s%n", rover, hex, ascii);
+                  }
+                  return f.toString();
+                }
+              }
+            
+              static final char[] HEX = {
+                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+              };
+            
+              public static String toHex(byte b) {
+                char low = HEX[b & 0xF];
+                char high = HEX[(b & 0xF0) >> 4];
+                return new String(new char[] {high, low});
+              }
+            }
+            """;
+
+    @DisplayName("link to parameter")
+    @Test
+    public void test3() {
+        TypeInfo B = javaInspector.parse(INPUT3);
+        List<Info> ao = prepWork(B);
+        analyzer.doPrimaryType(B, ao);
+    }
+
 }
