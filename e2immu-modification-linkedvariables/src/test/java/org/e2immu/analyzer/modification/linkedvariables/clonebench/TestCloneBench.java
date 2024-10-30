@@ -123,7 +123,7 @@ public class TestCloneBench extends CommonTest {
                             return null;
                         }).filter(Objects::nonNull).distinct().toList();
         Collection<TypeInfo> aapiTypes = composer.compose(toCompose);
-        composer.write(aapiTypes, "build/aapis");
+        composer.write(aapiTypes, "build/aapis", () -> null);
 
         Map<String, Integer> problemHistogram = analyzer.getProblemsRaised().stream()
                 .collect(Collectors.toUnmodifiableMap(t -> t == null || t.getMessage() == null ? "?" : t.getMessage(), t -> 1, Integer::sum));
