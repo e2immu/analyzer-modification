@@ -23,20 +23,22 @@ public class PrepWorkCodec {
     private final Codec.TypeProvider typeProvider;
     private final Codec.DecoderProvider decoderProvider;
     private final Codec.PropertyProvider propertyProvider;
+    private final Runtime runtime;
 
     public PrepWorkCodec(Runtime runtime) {
         this.typeProvider = fqn -> runtime.getFullyQualified(fqn, true);
         decoderProvider = new D();
         this.propertyProvider = new P();
+        this.runtime = runtime;
     }
 
     public Codec codec() {
-        return new C();
+        return new C(runtime);
     }
 
     class C extends CodecImpl {
-        public C() {
-            super(propertyProvider, decoderProvider, typeProvider);
+        public C(Runtime runtime) {
+            super(runtime, propertyProvider, decoderProvider, typeProvider);
         }
     }
 

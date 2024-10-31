@@ -23,11 +23,13 @@ public class LinkedVariablesCodec {
     private final Codec.TypeProvider typeProvider;
     private final Codec.DecoderProvider decoderProvider;
     private final Codec.PropertyProvider propertyProvider;
+    private final Runtime runtime;
 
     public LinkedVariablesCodec(Runtime runtime) {
         this.typeProvider = fqn -> runtime.getFullyQualified(fqn, true);
         decoderProvider = new D();
         this.propertyProvider = new P();
+        this.runtime = runtime;
     }
 
     public Codec codec() {
@@ -36,7 +38,7 @@ public class LinkedVariablesCodec {
 
     class C extends CodecImpl {
         public C() {
-            super(propertyProvider, decoderProvider, typeProvider);
+            super(runtime, propertyProvider, decoderProvider, typeProvider);
         }
     }
 

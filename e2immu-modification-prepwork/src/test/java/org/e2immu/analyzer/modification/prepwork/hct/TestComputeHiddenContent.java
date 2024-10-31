@@ -30,7 +30,8 @@ public class TestComputeHiddenContent extends CommonTest {
         HiddenContentTypes hctList = chc.compute(list);
         assertEquals("0=E", hctList.detailedSortedTypes());
 
-        Codec codec = new CodecImpl(PropertyProviderImpl::get, null, null); // we don't have to decode
+        Codec codec = new CodecImpl(javaInspector.runtime(), PropertyProviderImpl::get, null,
+                null); // we don't have to decode
         Codec.Context context = new CodecImpl.ContextImpl();
         Codec.EncodedValue ev = hctList.encode(codec, context);
         assertEquals("{\"0\":\"PE:0\",\"E\":true,\"M\":1}", ev.toString());
