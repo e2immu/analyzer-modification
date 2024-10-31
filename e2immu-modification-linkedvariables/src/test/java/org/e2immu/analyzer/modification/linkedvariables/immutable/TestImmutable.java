@@ -163,4 +163,83 @@ public class TestImmutable extends CommonTest {
         Value.Immutable immutableR = immutable(R);
         assertTrue(immutableR.isImmutableHC(), "Have " + immutableR);
     }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+        package a.b;
+        public class X {
+            public interface Exit {
+            }
+        
+            public static class Break implements Exit {
+                private final int level;
+        
+                public Break(int level) {
+                    this.level = level;
+                }
+            }
+        
+            public static class Continue implements Exit {
+                private final int level;
+        
+                public Continue(int level) {
+                    this.level = level;
+                }
+        
+                public int level() {
+                    return level;
+                }
+            }
+        
+            public static class Return implements Exit {
+                private final Object value;
+        
+                public Return(Object value) {
+                    this.value = value;
+                }
+        
+                public Object value() {
+                    return value;
+                }
+            }
+        
+            public static class ExceptionThrown implements Exit {
+                private final Exception exception;
+        
+                public ExceptionThrown(Exception exception) {
+                    this.exception = exception;
+                }
+        
+                public Exception exception() {
+                    return exception;
+                }
+            }
+        }
+        """;
+
+    @DisplayName("only one is @FinalFields")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        List<Info> ao = prepWork(X);
+        analyzer.doPrimaryType(X, ao);
+
+        TypeInfo Continue = X.findSubType("Continue");
+        Value.Immutable immutableContinue = immutable(Continue);
+        assertTrue(immutableContinue.isImmutableHC(), "Have " + immutableContinue);
+
+        TypeInfo Break = X.findSubType("Continue");
+        Value.Immutable immutableBreak = immutable(Break);
+        assertTrue(immutableBreak.isImmutableHC(), "Have " + immutableBreak);
+
+        TypeInfo Return = X.findSubType("Return");
+        Value.Immutable immutableReturn = immutable(Return);
+        assertTrue(immutableReturn.isImmutableHC(), "Have " + immutableReturn);
+
+        TypeInfo exceptionThrown = X.findSubType("ExceptionThrown");
+        Value.Immutable immutableEt = immutable(exceptionThrown);
+        assertTrue(immutableEt.isFinalFields(), "Have " + immutableEt);
+    }
+
 }

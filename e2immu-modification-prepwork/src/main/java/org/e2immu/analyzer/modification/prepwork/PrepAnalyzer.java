@@ -88,9 +88,8 @@ public class PrepAnalyzer {
 
     private void doType(TypeInfo typeInfo, List<MethodInfo> gettersAndSetters, List<MethodInfo> otherConstructorsAndMethods) {
         LOGGER.debug("Do type {}", typeInfo);
-        HiddenContentTypes hctType = computeHiddenContent.compute(typeInfo);
-        assert !typeInfo.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES);
-        typeInfo.analysis().set(HIDDEN_CONTENT_TYPES, hctType);
+        HiddenContentTypes hctType = typeInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () ->
+                computeHiddenContent.compute(typeInfo));
 
         // recurse
         typeInfo.subTypes().forEach(typeInfo1 -> doType(typeInfo1, gettersAndSetters, otherConstructorsAndMethods));
@@ -117,9 +116,10 @@ public class PrepAnalyzer {
                 }
                 return true;
             });
-            HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, mi);
-            mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
-
+            if (!mi.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) {
+                HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, mi);
+                mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
+            }
             computeHCS.doHiddenContentSelector(mi);
             boolean isGetSet = GetSetHelper.doGetSetAnalysis(mi, mi.methodBody());
             if (isGetSet) {

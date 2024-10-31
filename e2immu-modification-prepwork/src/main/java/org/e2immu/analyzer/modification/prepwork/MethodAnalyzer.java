@@ -556,10 +556,10 @@ public class MethodAnalyzer {
                 if (a.variableTarget() instanceof DependentVariable dv) {
                     dv.indexExpression().visit(this);
                     dv.arrayExpression().visit(this);
-                    if(dv.arrayVariable() != null) {
+                    if (dv.arrayVariable() != null) {
                         markRead(dv.arrayVariable());
                     }
-                    if(dv.indexVariable() != null) {
+                    if (dv.indexVariable() != null) {
                         markRead(dv.indexVariable());
                     }
                 } else if (a.variableTarget() instanceof FieldReference fr) {
@@ -592,10 +592,12 @@ public class MethodAnalyzer {
             Value.FieldValue getSet = mc.methodInfo().getSetField();
             if (getSet.field() != null && !getSet.setter()) {
                 Variable object;
-                if (mc.object() instanceof VariableExpression ve) {
+
+                Expression unwrappedObject = unwrap(mc.object());
+                if (unwrappedObject instanceof VariableExpression ve) {
                     object = ve.variable();
                     markRead(object);
-                } else if (mc.object() instanceof MethodCall mc2) {
+                } else if (unwrappedObject instanceof MethodCall mc2) {
                     object = markGetterRecursion(mc2);
                 } else {
                     object = null;
@@ -608,6 +610,15 @@ public class MethodAnalyzer {
                 }
             }
             return null;
+        }
+
+        // see TestCast,2
+        private Expression unwrap(Expression object) {
+            if (object instanceof EnclosedExpression ee) return unwrap(ee.inner());
+            if (object instanceof Cast cast && cast.expression() instanceof VariableExpression ve) {
+                return unwrap(ve);
+            }
+            return object;
         }
 
         private void markRead(Variable variable) {

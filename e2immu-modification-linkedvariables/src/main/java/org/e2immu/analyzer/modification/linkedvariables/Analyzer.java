@@ -321,7 +321,7 @@ public class Analyzer {
         for (Statement statement : block.statements()) {
             try {
                 previous = doStatement(methodInfo, statement, previous, first);
-            } catch (RuntimeException re) {
+            } catch (Throwable re) {
                 LOGGER.error("Have error analyzing statement {}, {}, in method {}",
                         statement, statement.source(), methodInfo);
                 throw re;
