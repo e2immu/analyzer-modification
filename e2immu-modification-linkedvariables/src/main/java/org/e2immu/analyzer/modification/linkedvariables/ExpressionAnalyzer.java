@@ -576,17 +576,11 @@ class ExpressionAnalyzer {
 
             // and if we have a return value and our object is variable, copy from the object into the return value
             // adjusting for the object
-            if (mc.methodInfo().hasReturnValue()
-                && mc.object() instanceof VariableExpression veObject && variableDataPrevious != null) {
-                VariableInfoContainer vicObject = variableDataPrevious.variableInfoContainerOrNull(veObject.variable().fullyQualifiedName());
-                if (vicObject != null) {
-                    VariableInfo viObject = vicObject.best(stageOfPrevious);
-                    StaticValues svObject = viObject.staticValues();
-
-                    Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
-                    StaticValues sv = new StaticValuesImpl(svm.type(), null, svObjectValues);
-                    builder.setStaticValues(sv);
-                }
+            if (mc.methodInfo().hasReturnValue()) {
+                StaticValues svObject = leObject.staticValues();
+                Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
+                StaticValues sv = new StaticValuesImpl(svm.type(), null, svObjectValues);
+                builder.setStaticValues(sv);
             }
         }
 
