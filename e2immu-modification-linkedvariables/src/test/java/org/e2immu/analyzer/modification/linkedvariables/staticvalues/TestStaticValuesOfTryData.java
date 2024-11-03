@@ -9,6 +9,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.cst.impl.variable.FieldReferenceImpl;
 import org.e2immu.language.cst.impl.variable.ThisImpl;
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
@@ -51,9 +51,9 @@ public class TestStaticValuesOfTryData extends CommonTest {
             class X {
                 private final List<Integer> list = new ArrayList<>();
             
-                public int method(int i) {
+                public int method(int i, List<Integer> list2) {
                     // after this statement, 'b' holds static values 'i' for variables[0], and 'this::body' for 'bodyThrowingFunction'.
-                    TryDataImpl.Builder b = new TryDataImpl.Builder().set(0, i).body(this::body);
+                    TryDataImpl.Builder b = new TryDataImpl.Builder().set(0, i).set(1, list2).body(this::body);
             
                     // after this statement, 'td' holds static values 'i' for variables[0], and 'this::body' for 'throwingFunction'.
                     TryDataImpl td = b.build();
@@ -72,8 +72,10 @@ public class TestStaticValuesOfTryData extends CommonTest {
             
                 private TryData body(TryData td) {
                     int i = (int) td.get(0);
+                    List<Integer> list2 = (List<Integer>) td.get(1);
                     if (i < 0) throw new IllegalArgumentException();
                     list.add(i);
+                    list2.remove(i);
                     return td.with(0, -i);
                 }
             
@@ -200,18 +202,44 @@ public class TestStaticValuesOfTryData extends CommonTest {
         testBuilderBody(builder);
         testBuilderBuild(builder);
         testXRun(X);
+        testBody(X);
         testXMethod(X);
     }
 
+    private void testBody(TypeInfo X) {
+        MethodInfo body = X.findUniqueMethod("body", 1);
+
+        {
+            Statement s1 = body.methodBody().statements().get(1);
+            VariableData vd1 = VariableDataImpl.of(s1);
+
+            VariableInfo vi1List2 = vd1.variableInfo("list2");
+            assertEquals("E=td.variables[1]", vi1List2.staticValues().toString());
+        }
+        {
+            Statement sLast = body.methodBody().lastStatement();
+            VariableData vdLast = VariableDataImpl.of(sLast);
+
+            VariableInfo viLastList2 = vdLast.variableInfo("list2");
+            assertEquals("E=td.variables[1]", viLastList2.staticValues().toString());
+            assertTrue(viLastList2.isModified());
+        }
+        ParameterInfo body0 = body.parameters().get(0);
+        assertEquals("""
+                td.variables=true, td.variables[0]=true, td.variables[1]=true\
+                """, body0.analysis().getOrNull(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
+    }
+
     private static void testXMethod(TypeInfo X) {
-        MethodInfo method = X.findUniqueMethod("method", 1);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        ParameterInfo method1 = method.parameters().get(1);
         {
             Statement s0 = method.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0B = vd0.variableInfo("b");
             assertEquals("", vi0B.linkedVariables().toString());
-            assertEquals("E=new Builder() this.bodyThrowingFunction=this::body, variables[0]=i",
+            assertEquals("E=new Builder() this.bodyThrowingFunction=this::body, variables[0]=i, variables[1]=list2",
                     vi0B.staticValues().toString());
 
             VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X.asParameterizedType()));
@@ -224,7 +252,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi1Td = vd1.variableInfo("td");
             assertEquals("-2-:b", vi1Td.linkedVariables().toString());
-            assertEquals("Type a.b.X.TryDataImpl this.throwingFunction=this::body, variables[0]=i",
+            assertEquals("Type a.b.X.TryDataImpl this.throwingFunction=this::body, variables[0]=i, variables[1]=list2",
                     vi1Td.staticValues().toString());
         }
         {
@@ -234,7 +262,10 @@ public class TestStaticValuesOfTryData extends CommonTest {
             VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X.asParameterizedType()));
             assertEquals("", vi2This.linkedVariables().toString());
             assertTrue(vi2This.isModified());
+            VariableInfo vi2Method1 = vd2.variableInfo(method1);
+            assertTrue(vi2Method1.isModified()); // propagation via MODIFIED_COMPONENTS_PARAMETER
         }
+        assertTrue(method1.isModified());
     }
 
     private static void testGetSet(TypeInfo tryData, TypeInfo tryDataImpl) {

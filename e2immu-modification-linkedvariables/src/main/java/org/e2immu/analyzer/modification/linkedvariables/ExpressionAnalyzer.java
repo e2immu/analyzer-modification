@@ -5,7 +5,6 @@ import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -907,7 +906,7 @@ class ExpressionAnalyzer {
         }
 
         private void propagateModification(MethodReference mr, EvaluationResult.Builder builder) {
-            if (mr.scope() instanceof VariableExpression ve) {
+            if (mr.methodInfo().isModifying() && mr.scope() instanceof VariableExpression ve) {
                 markModified(ve.variable(), builder);
             }
         }
