@@ -53,12 +53,12 @@ public class TestWriteAnalysis extends CommonTest {
     private static final String JSON1 = """
             [
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"immutableType":2,"partOfConstructionType":["C<init>(0)"]}, "subs":[
-             {"name": "Fn(0)", "data":{"finalField":1}},
+             {"name": "Fn(0)", "data":{"finalField":1,"staticValuesField":["",["variableExpression",["P",["Ta.b.X","C<init>(0)","Pn(0)"]]],[]]}},
              {"name": "Fi(1)", "data":{"finalField":1}},
-             {"name": "C<init>(0)", "data":{"getSetField":["Fn(0)",true],"hc":{"0":"Tjava.lang.Object"},"independentMethod":2}, "sub":
-              {"name": "Pn(0)", "data":{"independentParameter":2}}},
-             {"name": "MgetI(0)", "data":{"getSetField":["Fi(1)",false],"independentMethod":2}},
-             {"name": "MgetN(1)", "data":{"getSetField":["Fn(0)",false],"independentMethod":2}}]}
+             {"name": "C<init>(0)", "data":{"getSetField":["Fn(0)",true],"hc":{"0":"Tjava.lang.Object"},"independentMethod":2,"staticValuesMethod":["",[],[["F",["Ta.b.X","Fn(0)"]],["variableExpression",["P",["Ta.b.X","C<init>(0)","Pn(0)"]]]]]}, "sub":
+              {"name": "Pn(0)", "data":{"independentParameter":2,"staticValuesParameter":["",["variableExpression",["F",["Ta.b.X","Fn(0)"]]],[]]}}},
+             {"name": "MgetI(0)", "data":{"getSetField":["Fi(1)",false],"independentMethod":2,"staticValuesMethod":["",["variableExpression",["F",["Ta.b.X","Fi(1)"]]],[]]}},
+             {"name": "MgetN(1)", "data":{"getSetField":["Fn(0)",false],"independentMethod":2,"staticValuesMethod":["",["variableExpression",["F",["Ta.b.X","Fn(0)"]]],[]]}}]}
             ]
             """;
 
@@ -120,19 +120,19 @@ public class TestWriteAnalysis extends CommonTest {
             [
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"immutableType":2,"partOfConstructionType":["C<init>(0)"]}, "subs":[
              {"name": "SR(0)", "data":{"hc":{"0":"Tjava.util.Set","1":"Tjava.util.List","M":2},"immutableType":1,"partOfConstructionType":["C<init>(0)"]}, "subs":[
-              {"name": "Fset(0)", "data":{"finalField":1}},
-              {"name": "Fi(1)", "data":{"finalField":1}},
-              {"name": "Flist(2)", "data":{"finalField":1}},
-              {"name": "C<init>(0)", "data":{"hc":{"2":"Tjava.lang.Object","M":2},"hcsMethod":{"0":[[0]],"1":[[1]]},"independentMethod":2}, "subs":[
-               {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]}}},
-               {"name": "Pi(1)", "data":{"independentParameter":2}},
-               {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]}}}]},
-              {"name": "Mset(0)", "data":{"getSetField":["Fset(0)",false],"hcsMethod":{"0":[[-1]]}}},
-              {"name": "Mi(1)", "data":{"getSetField":["Fi(1)",false],"independentMethod":2}},
-              {"name": "Mlist(2)", "data":{"getSetField":["Flist(2)",false],"hcsMethod":{"1":[[-1]]}}}]},
+              {"name": "Fset(0)", "data":{"finalField":1,"staticValuesField":["",["variableExpression",["P",["Ta.b.X","SR(0)","C<init>(0)","Pset(0)"]]],[]]}},
+              {"name": "Fi(1)", "data":{"finalField":1,"staticValuesField":["",["variableExpression",["P",["Ta.b.X","SR(0)","C<init>(0)","Pi(1)"]]],[]]}},
+              {"name": "Flist(2)", "data":{"finalField":1,"staticValuesField":["",["variableExpression",["P",["Ta.b.X","SR(0)","C<init>(0)","Plist(2)"]]],[]]}},
+              {"name": "C<init>(0)", "data":{"hc":{"2":"Tjava.lang.Object","M":2},"hcsMethod":{"0":[[0]],"1":[[1]]},"independentMethod":2,"staticValuesMethod":["",[],[["F",["Ta.b.X","SR(0)","Fi(1)"]],["variableExpression",["P",["Ta.b.X","SR(0)","C<init>(0)","Pi(1)"]]],["F",["Ta.b.X","SR(0)","Flist(2)"]],["variableExpression",["P",["Ta.b.X","SR(0)","C<init>(0)","Plist(2)"]]],["F",["Ta.b.X","SR(0)","Fset(0)"]],["variableExpression",["P",["Ta.b.X","SR(0)","C<init>(0)","Pset(0)"]]]]]}, "subs":[
+               {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]},"staticValuesParameter":["",["variableExpression",["F",["Ta.b.X","SR(0)","Fset(0)"]]],[]]}},
+               {"name": "Pi(1)", "data":{"independentParameter":2,"staticValuesParameter":["",["variableExpression",["F",["Ta.b.X","SR(0)","Fi(1)"]]],[]]}},
+               {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]},"staticValuesParameter":["",["variableExpression",["F",["Ta.b.X","SR(0)","Flist(2)"]]],[]]}}]},
+              {"name": "Mset(0)", "data":{"getSetField":["Fset(0)",false],"hcsMethod":{"0":[[-1]]},"staticValuesMethod":["",["variableExpression",["F",["Ta.b.X","SR(0)","Fset(0)"]]],[]]}},
+              {"name": "Mi(1)", "data":{"getSetField":["Fi(1)",false],"independentMethod":2,"staticValuesMethod":["",["variableExpression",["F",["Ta.b.X","SR(0)","Fi(1)"]]],[]]}},
+              {"name": "Mlist(2)", "data":{"getSetField":["Flist(2)",false],"hcsMethod":{"1":[[-1]]},"staticValuesMethod":["",["variableExpression",["F",["Ta.b.X","SR(0)","Flist(2)"]]],[]]}}]},
              {"name": "C<init>(0)", "data":{"hc":{"0":"Tjava.lang.Object"},"independentMethod":2}},
              {"name": "MsetAdd(0)", "data":{"hc":{"0":"Ta.b.X.R"},"independentMethod":2}, "sub":
-              {"name": "Pr(0)", "data":{"hcsParameter":{"0":[[-1]]},"independentParameter":2,"modifiedComponentsParameter":{"Fa.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r":true},"modifiedParameter":1}}},
+              {"name": "Pr(0)", "data":{"hcsParameter":{"0":[[-1]]},"independentParameter":2,"modifiedComponentsParameter":{["F",["Ta.b.X","SR(0)","Fset(0)"],["variableExpression",["P",["Ta.b.X","MsetAdd(0)","Pr(0)"]]]]:true},"modifiedParameter":1}}},
              {"name": "Mmethod(1)", "data":{"independentMethod":2}}]}
             ]
             """;

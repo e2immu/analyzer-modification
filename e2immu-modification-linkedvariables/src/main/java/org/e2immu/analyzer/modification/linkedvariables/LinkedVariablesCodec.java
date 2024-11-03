@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.analysis.Codec;
@@ -13,6 +14,7 @@ import org.e2immu.language.cst.io.CodecImpl;
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
@@ -46,7 +48,10 @@ public class LinkedVariablesCodec {
             HIDDEN_CONTENT_TYPES.key(), HIDDEN_CONTENT_TYPES,
             HCS_METHOD.key(), HCS_METHOD,
             HCS_PARAMETER.key(), HCS_PARAMETER,
-            PART_OF_CONSTRUCTION.key(), PART_OF_CONSTRUCTION);
+            PART_OF_CONSTRUCTION.key(), PART_OF_CONSTRUCTION,
+            STATIC_VALUES_PARAMETER.key(), STATIC_VALUES_PARAMETER,
+            STATIC_VALUES_METHOD.key(), STATIC_VALUES_METHOD,
+            STATIC_VALUES_FIELD.key(), STATIC_VALUES_FIELD);
 
     static class P implements Codec.PropertyProvider {
         @Override
@@ -66,6 +71,9 @@ public class LinkedVariablesCodec {
             }
             if (HiddenContentSelector.class.equals(clazz)) {
                 return (di, ev) -> HiddenContentSelector.decode(di.codec(), di.context(), ev);
+            }
+            if (StaticValuesImpl.class.equals(clazz)) {
+                return (di, ev) -> StaticValuesImpl.decode(di.codec(), di.context(), ev);
             }
             // part of construction uses "set of info", which is in ValueImpl.
             return ValueImpl.decoder(clazz);

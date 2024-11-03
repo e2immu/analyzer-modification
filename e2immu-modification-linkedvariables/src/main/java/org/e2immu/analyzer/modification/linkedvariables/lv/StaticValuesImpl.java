@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables.lv;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.type.ParameterizedType;
@@ -11,6 +12,7 @@ import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -34,7 +36,26 @@ public record StaticValuesImpl(ParameterizedType type,
 
     @Override
     public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
-        return null;
+        if(isEmpty()) return null;
+        Codec.EncodedValue encodedType = codec.encodeType(context, type);
+        Codec.EncodedValue encodedExpression = codec.encodeExpression(context, expression);
+        Map<Codec.EncodedValue, Codec.EncodedValue> mapOfEncoded = values.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        e -> codec.encodeVariable(context, e.getKey()),
+                        e -> codec.encodeExpression(context, e.getValue())));
+        Codec.EncodedValue encodedMap = codec.encodeMapAsList(context, mapOfEncoded);
+        return codec.encodeList(context, List.of(encodedType, encodedExpression, encodedMap));
+    }
+
+    public static Value decode(Codec codec, Codec.Context context, Codec.EncodedValue ev) {
+        List<Codec.EncodedValue> list = codec.decodeList(context, ev);
+        ParameterizedType type = codec.decodeType(context, list.get(0));
+        Expression expression = codec.decodeExpression(context, list.get(1));
+        Map<Codec.EncodedValue, Codec.EncodedValue> mapOfDecoded = codec.decodeMapAsList(context, list.get(2));
+        Map<Variable, Expression> values = mapOfDecoded.entrySet().stream().collect(Collectors.toUnmodifiableMap(
+                e -> codec.decodeVariable(context, e.getKey()),
+                e -> codec.decodeExpression(context, e.getValue())));
+        return new StaticValuesImpl(type, expression, values);
     }
 
     @Override
