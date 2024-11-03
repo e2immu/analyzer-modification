@@ -37,8 +37,8 @@ public class TestWriteAnalysis extends CommonTest {
     @Language("java")
     private static final String OUTPUT1 = """
             package a.b;
-            import org.e2immu.annotation.Immutable;
             import org.e2immu.annotation.Final;
+            import org.e2immu.annotation.Immutable;
             @Immutable(hc = true)
             public class X {
                 @Final private int n;
@@ -96,8 +96,8 @@ public class TestWriteAnalysis extends CommonTest {
     private static final String OUTPUT2 = """
             package a.b;
             import java.util.*;
-            import org.e2immu.annotation.Modified;
             import org.e2immu.annotation.Immutable;
+            import org.e2immu.annotation.Modified;
             @Immutable(hc = true)
             class X {
                 record R(Set<Integer> set, int i, List<String> list) {

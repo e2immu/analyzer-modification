@@ -595,16 +595,13 @@ class ExpressionAnalyzer {
             // case for builder()
             Map<Variable, Expression> existingMap = svObject == null ? Map.of() : svObject.values();
 
-            if (!mc.methodInfo().methodBody().isEmpty()) {
-                VariableData vd = VariableDataImpl.of(mc.methodInfo().methodBody().lastStatement());
-                VariableInfo rv = vd.variableInfo(mc.methodInfo().fullyQualifiedName());
-                StaticValues sv = rv.staticValues();
-                LOGGER.debug("return value: {}", sv);
-                if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
-                    // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
-                    return staticValuesInCaseOfABuilder(cc, existingMap);
-                }
+            StaticValues sv = mc.methodInfo().analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+            LOGGER.debug("return value: {}", sv);
+            if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
+                // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
+                return staticValuesInCaseOfABuilder(cc, existingMap);
             }
+
             return existingMap;
         }
 
