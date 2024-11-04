@@ -419,7 +419,7 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(bLvc);
             VariableInfo bVi0 = vd0.variableInfo(b);
             // code of ExpressionAnalyzer.methodCallStaticValue
-            assertEquals("E=new Builder() this.function=String::length, variables[0]=\"a\"", bVi0.staticValues().toString());
+            assertEquals("this.function=String::length, variables[0]=\"a\"", bVi0.staticValues().toString());
         }
         {
             LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(1);

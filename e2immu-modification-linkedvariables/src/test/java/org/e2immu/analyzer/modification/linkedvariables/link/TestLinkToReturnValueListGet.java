@@ -69,21 +69,22 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
-        assertEquals("*-4-0:list, -1-:list[i]", viRv.linkedVariables().toString());
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *-4-0:list", viRv.linkedVariables().toString());
 
         assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY));
 
         MethodInfo listGet2 = X.findUniqueMethod("get2", 2);
-        assertEquals("*M-4-0M:list", listGet2.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        assertEquals("*-2-0:_synthetic_list, -1-:_synthetic_list[i], *M-4-0M:list",
+                listGet2.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
 
         MethodInfo listGet3 = X.findUniqueMethod("get3", 2);
-        assertEquals("", listGet3.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        assertEquals("-1-:_synthetic_list[i]", listGet3.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
 
         MethodInfo listGet4 = X.findUniqueMethod("get4", 2);
-        assertEquals("*-4-0:list", listGet4.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *-4-0:list", listGet4.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY).toString());
     }
 
@@ -134,7 +135,32 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
-        testLinks(X);
+        testLinks2(X);
+    }
+
+    private void testLinks2(TypeInfo X) {
+        MethodInfo listGet = X.findUniqueMethod("get", 2);
+
+        Statement s0 = listGet.methodBody().statements().get(0);
+        VariableData vd0 = VariableDataImpl.of(s0);
+        assertNotNull(vd0);
+        VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
+        assertEquals("*-4-0:list", viRv.linkedVariables().toString());
+
+        assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY));
+
+        MethodInfo listGet2 = X.findUniqueMethod("get2", 2);
+        assertEquals("*M-4-0M:list", listGet2.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
+
+        MethodInfo listGet3 = X.findUniqueMethod("get3", 2);
+        assertEquals("", listGet3.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
+
+        MethodInfo listGet4 = X.findUniqueMethod("get4", 2);
+        assertEquals("*-4-0:list", listGet4.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
     }
 
 
@@ -169,7 +195,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
-        testLinks(X);
+        testLinks2(X);
     }
 
 
@@ -204,7 +230,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
-        testLinks(X);
+        testLinks2(X);
     }
 
 }

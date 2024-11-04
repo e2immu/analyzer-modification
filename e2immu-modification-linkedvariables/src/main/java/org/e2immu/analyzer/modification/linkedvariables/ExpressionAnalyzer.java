@@ -152,8 +152,7 @@ class ExpressionAnalyzer {
                 return eval(c.expression(), c.parameterizedType());
             }
             if (expression instanceof EnclosedExpression c) {
-                EvaluationResult evalValue = eval(c.expression());
-                return new EvaluationResult.Builder().merge(evalValue).build();
+                return eval(c.expression());
             }
 
             // trivial aggregation
@@ -652,7 +651,7 @@ class ExpressionAnalyzer {
                 expression = leObject.staticValues().expression();
                 map.putAll(leObject.staticValues().values());
             } else {
-                expression = mc.object();
+                expression = null;
             }
             return new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
         }

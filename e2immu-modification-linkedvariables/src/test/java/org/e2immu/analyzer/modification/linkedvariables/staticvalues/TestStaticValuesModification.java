@@ -317,7 +317,7 @@ public class TestStaticValuesModification extends CommonTest {
             Statement s2 = method.methodBody().statements().get(2);
             VariableData vd2 = VariableDataImpl.of(s2);
             VariableInfo vi2B = vd2.variableInfo("b");
-            assertEquals("E=new Builder() this.intSet=s, this.stringList=l", vi2B.staticValues().toString());
+            assertEquals("this.intSet=s, this.stringList=l", vi2B.staticValues().toString());
 
             {   // setAdd(r)  it should modify r.set
                 Statement s4 = method.methodBody().statements().get(4);
@@ -470,7 +470,7 @@ public class TestStaticValuesModification extends CommonTest {
             Statement s1 = method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Ri = vd1.variableInfo("r");
-            assertEquals("E=new RI(objects) objects[0]=set", vi1Ri.staticValues().toString());
+            assertEquals("objects[0]=set", vi1Ri.staticValues().toString());
             assertTrue(method0.isModified());
         }
 
@@ -515,7 +515,7 @@ public class TestStaticValuesModification extends CommonTest {
                 assertFalse(vi2set.isModified());
 
                 VariableInfo vi2r = vd2.variableInfo("r");
-                assertEquals("Type a.b.X.RI E=r objects[0]=set, this.objects=objects", vi2r.staticValues().toString());
+                assertEquals("Type a.b.X.RI E=new RI(objects) objects[0]=set, this.objects=objects", vi2r.staticValues().toString());
             }
             { // modify2(r, 0)
                 Statement s3 = method2.methodBody().statements().get(3);

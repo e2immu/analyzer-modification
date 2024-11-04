@@ -9,6 +9,8 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestGetSet extends CommonTest {
@@ -315,10 +317,179 @@ public class TestGetSet extends CommonTest {
         {
             VariableData vdLast = VariableDataImpl.of(getInt.methodBody().lastStatement());
             assertEquals("""
-                   a.b.X.getInt(int), a.b.X.getInt(int):0:index, a.b.X.intList, a.b.X.this, \
-                   java.util.List.list#a.b.X.intList, \
-                   java.util.List.list#a.b.X.intList[a.b.X.getInt(int):0:index]\
-                   """, vdLast.knownVariableNamesToString());
+                    a.b.X.getInt(int), a.b.X.getInt(int):0:index, a.b.X.intList, a.b.X.this, \
+                    java.util.List._synthetic_list#a.b.X.intList, \
+                    java.util.List._synthetic_list#a.b.X.intList[a.b.X.getInt(int):0:index]\
+                    """, vdLast.knownVariableNamesToString());
         }
     }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.util.List;
+            class X {
+                final static class M {
+                    private int i;
+                    public int getI() { return i; }
+                    public void setI(int i) { this.i = i; }
+                }
+                static <T> T get(List<T> list, int i) {
+                    return list.subList(0, 10).get(i);
+                }
+            }
+            """;
+
+    @DisplayName("return list.subList(0, 10).get(index)")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo get = X.findUniqueMethod("get", 2);
+        VariableData vdLast = VariableDataImpl.of(get.methodBody().lastStatement());
+        assertEquals("a.b.X.get(java.util.List<T>,int), a.b.X.get(java.util.List<T>,int):0:list, a.b.X.get(java.util.List<T>,int):1:i",
+                vdLast.knownVariableNamesToString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import java.util.HashMap;import java.util.List;
+            import java.util.Map;
+            class X {
+                static <T, S> T get(List<T> list, Map<T, List<S>> stringMap) {
+                    Map<T, S> resultMap = new HashMap<>();
+                    for(T t: list) {
+                        List<S> list = stringMap.get(t);
+                        if(!list.isEmpty()) {
+                            S s = list.get(0);
+                            resultMap.put(t, s);
+                        }
+                    }
+                    if(!resultMap.isEmpty()) {
+                        return resultMap.entrySet().stream().findFirst().orElseThrow().getKey();
+                    }
+                    return null;
+                }
+            }
+            """;
+
+    @DisplayName("get/set variable should disappear after merge")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo get = X.findUniqueMethod("get", 2);
+
+        Statement s1 = get.methodBody().statements().get(1);
+        Statement s101 = s1.block().statements().get(1);
+        Statement s10101 = s101.block().statements().get(1);
+
+        VariableData vd10101 = VariableDataImpl.of(s10101);
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
+                list, resultMap, s, t\
+                """, vd10101.knownVariableNamesToString());
+
+        VariableData vd101 = VariableDataImpl.of(s101);
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                list, resultMap, t\
+                """, vd101.knownVariableNamesToString());
+
+        VariableData vd1 = VariableDataImpl.of(s1);
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                resultMap, t\
+                """, vd1.knownVariableNamesToString());
+
+        VariableData vdLast = VariableDataImpl.of(get.methodBody().lastStatement());
+        assertEquals("""
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                        resultMap\
+                        """,
+                vdLast.knownVariableNamesToString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT8 = """
+            package a.b;
+            import java.util.*;
+            class X {
+                static <T, S> T get(List<T> listIn, Map<T, List<S>> stringMap) {
+                    Map<T, S> resultMap = new HashMap<>();
+                    List<T> list = new ArrayList<>(listIn);
+                    for(T t: list) {
+                        List<S> list = stringMap.get(t);
+                        if(!list.isEmpty()) {
+                            S s = list.get(0);
+                            resultMap.put(t, s);
+                        }
+                    }
+                    if(!resultMap.isEmpty()) {
+                        return resultMap.entrySet().stream().findFirst().orElseThrow().getKey();
+                    }
+                    return null;
+                }
+            }
+            """;
+
+    @DisplayName("get/set variable should disappear after merge; list is local")
+    @Test
+    public void test8() {
+        TypeInfo X = javaInspector.parse(INPUT8);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo get = X.findUniqueMethod("get", 2);
+
+        Statement s1 = get.methodBody().statements().get(2);
+        Statement s101 = s1.block().statements().get(1);
+        Statement s10101 = s101.block().statements().get(1);
+
+        VariableData vd10101 = VariableDataImpl.of(s10101);
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
+                list, resultMap, s, t\
+                """, vd10101.knownVariableNamesToString());
+
+        VariableData vd101 = VariableDataImpl.of(s101);
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                list, resultMap, t\
+                """, vd101.knownVariableNamesToString());
+
+        VariableData vd1 = VariableDataImpl.of(s1);
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                resultMap, t\
+                """, vd1.knownVariableNamesToString());
+
+        VariableData vdLast = VariableDataImpl.of(get.methodBody().lastStatement());
+        assertEquals("""
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                        resultMap\
+                        """,
+                vdLast.knownVariableNamesToString());
+    }
+
 }

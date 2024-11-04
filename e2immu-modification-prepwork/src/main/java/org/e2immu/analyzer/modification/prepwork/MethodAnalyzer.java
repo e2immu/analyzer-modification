@@ -143,12 +143,17 @@ public class MethodAnalyzer {
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
         InternalVariables iv = new InternalVariables(rv);
-        VariableData lastOfMainBlock = doBlock(methodInfo, methodBody, null, iv);
-        if (lastOfMainBlock != null) {
-            if (!methodInfo.analysis().haveAnalyzedValueFor(VariableDataImpl.VARIABLE_DATA)) {
-                methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
-            }
-        } // else: empty
+        try {
+            VariableData lastOfMainBlock = doBlock(methodInfo, methodBody, null, iv);
+            if (lastOfMainBlock != null) {
+                if (!methodInfo.analysis().haveAnalyzedValueFor(VariableDataImpl.VARIABLE_DATA)) {
+                    methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
+                }
+            } // else: empty
+        } catch (Throwable t) {
+            LOGGER.error("Caught exception in method {}", methodInfo);
+            throw t;
+        }
     }
 
     private Map<String, VariableData> doBlocks(MethodInfo methodInfo,
@@ -178,8 +183,13 @@ public class MethodAnalyzer {
         VariableData previous = vdOfParent;
         boolean first = true;
         for (Statement statement : block.statements()) {
-            previous = doStatement(methodInfo, statement, previous, first, iv);
-            if (first) first = false;
+            try {
+                previous = doStatement(methodInfo, statement, previous, first, iv);
+                if (first) first = false;
+            } catch (Throwable t) {
+                LOGGER.error("Caught exception in statement {}", statement.source());
+                throw t;
+            }
         }
         return previous;
     }
@@ -411,7 +421,14 @@ public class MethodAnalyzer {
     }
 
     private boolean copyToMerge(String index, VariableInfo vi) {
-        return !(vi.variable() instanceof LocalVariable) || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
+        return !isLocal(vi.variable()) || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
+    }
+
+    private static boolean isLocal(Variable v) {
+        return v instanceof LocalVariable
+               || v instanceof FieldReference fr && isLocal(fr.scopeVariable())
+               || v instanceof DependentVariable dv
+                  && (isLocal(dv.arrayVariable()) || isLocal(dv.indexVariable()));
     }
 
     private VariableInfoContainer initialVariable(String index, Variable v, ReadWriteData readWriteData,
@@ -572,8 +589,9 @@ public class MethodAnalyzer {
                 Value.FieldValue getSet = mc.methodInfo().getSetField();
                 if (getSet.field() != null && !getSet.setter()) {
                     // getter
-                    markGetterRecursion(mc);
-                    return false; // and getters do not have modified components
+                    if (markGetterRecursion(mc) != null) {
+                        return false; // and getters do not have modified components
+                    }
                 }
                 // also, simply ensure that modified component variables exist
                 Value.VariableBooleanMap modifiedComponents = mc.methodInfo().analysis()
@@ -606,7 +624,7 @@ public class MethodAnalyzer {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object),
                             getSet.field().type());
                     markRead(fr);
-                    if(!mc.parameterExpressions().isEmpty()) {
+                    if (!mc.parameterExpressions().isEmpty()) {
                         assert mc.methodInfo().parameters().get(0).parameterizedType().isInt();
                         DependentVariable dv = runtime.newDependentVariable(runtime.newVariableExpression(fr),
                                 mc.parameterExpressions().get(0));
