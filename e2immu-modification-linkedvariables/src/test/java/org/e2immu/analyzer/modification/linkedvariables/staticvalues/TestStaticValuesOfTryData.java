@@ -7,9 +7,9 @@ import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.cst.impl.variable.FieldReferenceImpl;
 import org.e2immu.language.cst.impl.variable.ThisImpl;
@@ -24,7 +24,7 @@ import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelecto
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COMPONENTS_PARAMETER;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /*
@@ -184,6 +184,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT);
+
         List<Info> analysisOrder = prepWork(X);
 
         TypeInfo exception = javaInspector.compiledTypesManager().get(Exception.class);
@@ -209,12 +210,46 @@ public class TestStaticValuesOfTryData extends CommonTest {
     private void testBody(TypeInfo X) {
         MethodInfo body = X.findUniqueMethod("body", 1);
 
+        {   //  int i = (int) td.get(0);
+            Statement s0 = body.methodBody().statements().get(0);
+            VariableData vd0 = VariableDataImpl.of(s0);
+
+            VariableInfo vi0i = vd0.variableInfo("i");
+            // FIXME aarghhh!
+            assertEquals("*-4-2:td, *-2-0:variables", vi0i.linkedVariables().toString());
+
+            assertEquals("E=td.variables[0]", vi0i.staticValues().toString());
+        }
         {
             Statement s1 = body.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1List2 = vd1.variableInfo("list2");
+            // FIXME aarghhh!
+            assertEquals("-1-:i, *-4-2:td, -1-:variables", vi1List2.linkedVariables().toString());
+
             assertEquals("E=td.variables[1]", vi1List2.staticValues().toString());
+        }
+        {
+            Statement s3 = body.methodBody().statements().get(3);
+            VariableData vd3 = VariableDataImpl.of(s3);
+
+            VariableInfo vi3i = vd3.variableInfo("i");
+            assertEquals("-1-:list2, *-4-2:td, -1-:variables", vi3i.linkedVariables().toString());
+            assertFalse(vi3i.isModified());
+        }
+        {
+            Statement s4 = body.methodBody().statements().get(4);
+
+            TypeInfo typeInfo = javaInspector.compiledTypesManager().get(List.class);
+            MethodInfo methodInfo = typeInfo.findUniqueMethod("remove", runtime.intTypeInfo());
+            if (s4.expression() instanceof MethodCall mc) {
+                assertSame(methodInfo, mc.methodInfo());
+            } else fail();
+            VariableData vd4 = VariableDataImpl.of(s4);
+            VariableInfo vi4i = vd4.variableInfo("i");
+            assertEquals("-1-:list2, *-4-2:td, -1-:variables", vi4i.linkedVariables().toString());
+            assertFalse(vi4i.isModified());
         }
         {
             Statement sLast = body.methodBody().lastStatement();
@@ -225,9 +260,8 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertTrue(viLastList2.isModified());
         }
         ParameterInfo body0 = body.parameters().get(0);
-        assertEquals("""
-                td.variables=true, td.variables[0]=true, td.variables[1]=true\
-                """, body0.analysis().getOrNull(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
+        assertEquals("td.variables=true, td.variables[1]=true", body0.analysis()
+                .getOrNull(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
     }
 
     private static void testXMethod(TypeInfo X) {

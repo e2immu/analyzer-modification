@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiConsumer;
 
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
@@ -659,6 +658,10 @@ class ExpressionAnalyzer {
             return new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
         }
 
+        private interface PropagateData {
+            void accept(Expression mapKey, boolean mapValue, Map<Variable, Expression> svMap);
+        }
+
         private void methodCallModified(MethodCall mc, Expression object, EvaluationResult.Builder builder) {
             if (object instanceof VariableExpression ve) {
                 boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
@@ -683,16 +686,25 @@ class ExpressionAnalyzer {
                         handleModifiedParameter(builder, pe);
                     }
                 }
-                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi, (e, mapValue) -> {
+                /*
+                When a method has been passed on, and that method turns out to be modifying, we make the method
+                reference scope modified as well. If that scope was 'this', the current method will become modifying too.
+                On top of that, if the parameters of this method have modified components, we check if we have
+                a value for these components, so that we can propagate their modification too.
+                 */
+                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi, (e, mapValue, map) -> {
                     if (e instanceof MethodReference mr) {
                         if (mapValue) {
-                            propagateModification(mr, builder);
+                            propagateModificationOfObject(mr, builder);
+                            for (ParameterInfo mrPi : mr.methodInfo().parameters()) {
+                                propagateModificationOfParameter(builder, pi, map, mrPi);
+                            }
                         } else {
                             ensureNotModifying(mr, builder);
                         }
                     }
                 });
-                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, pi, (e, mapValue) -> {
+                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, pi, (e, mapValue, map) -> {
                     if (e instanceof VariableExpression ve2 && mapValue) {
                         markModified(ve2.variable(), builder);
                     }
@@ -700,11 +712,35 @@ class ExpressionAnalyzer {
             }
         }
 
+        private void propagateModificationOfParameter(EvaluationResult.Builder builder,
+                                                      ParameterInfo pi,
+                                                      Map<Variable, Expression> map,
+                                                      ParameterInfo mrPi) {
+            VariableBooleanMap modComp = mrPi.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+                    ValueImpl.VariableBooleanMapImpl.EMPTY);
+            if (!modComp.isEmpty()) {
+                TranslationMap tm = runtime.newTranslationMapBuilder()
+                        .put(mrPi, runtime.newThis(pi.parameterizedType()))
+                        .build();
+                for (Map.Entry<Variable, Boolean> entry : modComp.map().entrySet()) {
+                    if (entry.getValue()) {
+                        // modified component
+                        Variable translated = tm.translateVariable(entry.getKey());
+                        Expression value = map.get(translated);
+                        if (value instanceof VariableExpression ve) {
+                            markModified(ve.variable(), builder);
+                        }
+                        LOGGER.debug("Have translated variable {}", translated);
+                    }
+                }
+            }
+        }
+
         private void handleModifiedParameter(EvaluationResult.Builder builder, Expression pe) {
             if (pe instanceof VariableExpression ve) {
                 markModified(ve.variable(), builder);
             } else if (pe instanceof MethodReference mr) {
-                propagateModification(mr, builder);
+                propagateModificationOfObject(mr, builder);
             }
         }
 
@@ -735,7 +771,7 @@ class ExpressionAnalyzer {
         private void propagateComponents(Property property,
                                          MethodCall mc,
                                          ParameterInfo pi,
-                                         BiConsumer<Expression, Boolean> consumer) {
+                                         PropagateData consumer) {
             VariableBooleanMap modifiedComponents = pi.analysis().getOrNull(property,
                     ValueImpl.VariableBooleanMapImpl.class);
             if (modifiedComponents != null) {
@@ -758,7 +794,7 @@ class ExpressionAnalyzer {
                         Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
                                 completedMap);
                         Expression e = augmented.get(key);
-                        consumer.accept(e, entry.getValue());
+                        consumer.accept(e, entry.getValue(), augmented);
                     }
                 }
             }
@@ -905,7 +941,7 @@ class ExpressionAnalyzer {
             // TODO
         }
 
-        private void propagateModification(MethodReference mr, EvaluationResult.Builder builder) {
+        private void propagateModificationOfObject(MethodReference mr, EvaluationResult.Builder builder) {
             if (mr.methodInfo().isModifying() && mr.scope() instanceof VariableExpression ve) {
                 markModified(ve.variable(), builder);
             }
