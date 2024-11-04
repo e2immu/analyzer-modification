@@ -606,6 +606,12 @@ public class MethodAnalyzer {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object),
                             getSet.field().type());
                     markRead(fr);
+                    if(!mc.parameterExpressions().isEmpty()) {
+                        assert mc.methodInfo().parameters().get(0).parameterizedType().isInt();
+                        DependentVariable dv = runtime.newDependentVariable(runtime.newVariableExpression(fr),
+                                mc.parameterExpressions().get(0));
+                        markRead(dv);
+                    }
                     return fr;
                 }
             }

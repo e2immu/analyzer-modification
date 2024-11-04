@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -9,6 +10,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImp
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -487,7 +489,8 @@ class LinkHelper {
    4/ independence is determined by the independence value of the method, and the independence value of the object 'a'
     */
 
-    public LinkedVariables linkedVariablesMethodCallObjectToReturnType(ParameterizedType objectType,
+    public LinkedVariables linkedVariablesMethodCallObjectToReturnType(MethodCall methodCall,
+                                                                       ParameterizedType objectType,
                                                                        LinkedVariables linkedVariablesOfObjectIn,
                                                                        List<LinkedVariables> linkedVariables,
                                                                        ParameterizedType returnType) {
@@ -524,18 +527,45 @@ class LinkHelper {
 
         Value.FieldValue getSetField = methodInfo.getSetField();
         if (getSetField.field() != null && !getSetField.setter()) {
-            Immutable immutable = analysisHelper.typeImmutable(getSetField.field().type());
-            if (immutable.isImmutable()) return lvs;
-            Map<Variable, LV> lvMap = new HashMap<>();
-            linkedVariablesOfObject.variablesAssigned().forEach(v -> {
-                FieldReference fr = runtime.newFieldReference(getSetField.field(),
-                        runtime.newVariableExpression(v), getSetField.field().type());
-                LV prev = lvMap.put(fr, LINK_ASSIGNED);
-                assert prev == null;
-            });
-            return LinkedVariablesImpl.of(lvMap).merge(lvs);
+            return handleGetter(methodCall, returnType, getSetField, lvs, linkedVariablesOfObject);
         }
         return lvs;
+    }
+
+    private LinkedVariables handleGetter(MethodCall methodCall,
+                                         ParameterizedType returnType,
+                                         FieldValue getSetField,
+                                         LinkedVariables lvs,
+                                         LinkedVariables linkedVariablesOfObject) {
+        Immutable immutable = analysisHelper.typeImmutable(getSetField.field().type());
+        if (immutable.isImmutable()) return lvs;
+        Map<Variable, LV> lvMap = new HashMap<>();
+        linkedVariablesOfObject.variablesAssigned().forEach(v -> {
+            FieldReference fr = runtime.newFieldReference(getSetField.field(),
+                    runtime.newVariableExpression(v), getSetField.field().type());
+            Variable variable;
+            if (methodCall.parameterExpressions().isEmpty()) {
+                variable = fr;
+            } else {
+                // indexing
+                variable = runtime.newDependentVariable(runtime.newVariableExpression(fr),
+                        methodCall.parameterExpressions().get(0));
+                Immutable immutableMethodReturnType = analysisHelper.typeImmutable(returnType);
+                if (!immutableMethodReturnType.isImmutable()) {
+                    LV lv;
+                    if (immutableMethodReturnType.isImmutableHC()) {
+                        lv = createHC(new LinksImpl(IndexImpl.ALL, 0, false));
+                    } else {
+                        lv = createDependent(new LinksImpl(IndexImpl.ALL, 0, false));
+                    }
+                    LV prev = lvMap.put(fr, lv);
+                    assert prev == null;
+                }
+            }
+            LV prev = lvMap.put(variable, LINK_ASSIGNED);
+            assert prev == null;
+        });
+        return LinkedVariablesImpl.of(lvMap).merge(lvs);
     }
 
     /**

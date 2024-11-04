@@ -69,7 +69,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
-        assertEquals("*-4-0:list", viRv.linkedVariables().toString());
+        assertEquals("*-4-0:list, -1-:list[i]", viRv.linkedVariables().toString());
 
         assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY));

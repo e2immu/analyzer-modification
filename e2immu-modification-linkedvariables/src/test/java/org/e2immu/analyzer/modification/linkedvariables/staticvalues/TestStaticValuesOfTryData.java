@@ -215,30 +215,28 @@ public class TestStaticValuesOfTryData extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0i = vd0.variableInfo("i");
-            // FIXME aarghhh!
-            assertEquals("*-4-2:td, *-2-0:variables", vi0i.linkedVariables().toString());
+            assertEquals("-1-:variables[0]", vi0i.linkedVariables().toString());
 
             assertEquals("E=td.variables[0]", vi0i.staticValues().toString());
         }
-        {
+        {   // List<Integer> list2 = (List<Integer>) td.get(1);
             Statement s1 = body.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1List2 = vd1.variableInfo("list2");
-            // FIXME aarghhh!
-            assertEquals("-1-:i, *-4-2:td, -1-:variables", vi1List2.linkedVariables().toString());
+            assertEquals("*M-4-2M:td, *-2-0:variables, -1-:variables[1]", vi1List2.linkedVariables().toString());
 
             assertEquals("E=td.variables[1]", vi1List2.staticValues().toString());
         }
-        {
+        {   // list.add(i);
             Statement s3 = body.methodBody().statements().get(3);
             VariableData vd3 = VariableDataImpl.of(s3);
 
             VariableInfo vi3i = vd3.variableInfo("i");
-            assertEquals("-1-:list2, *-4-2:td, -1-:variables", vi3i.linkedVariables().toString());
+            assertEquals("-1-:variables[0]", vi3i.linkedVariables().toString());
             assertFalse(vi3i.isModified());
         }
-        {
+        {   // list2.remove(i);
             Statement s4 = body.methodBody().statements().get(4);
 
             TypeInfo typeInfo = javaInspector.compiledTypesManager().get(List.class);
@@ -248,8 +246,13 @@ public class TestStaticValuesOfTryData extends CommonTest {
             } else fail();
             VariableData vd4 = VariableDataImpl.of(s4);
             VariableInfo vi4i = vd4.variableInfo("i");
-            assertEquals("-1-:list2, *-4-2:td, -1-:variables", vi4i.linkedVariables().toString());
+            assertEquals("-1-:variables[0]", vi4i.linkedVariables().toString());
+            assertEquals("E=td.variables[0]", vi4i.staticValues().toString());
             assertFalse(vi4i.isModified());
+
+            VariableInfo vi4List2 = vd4.variableInfo("list2");
+            assertEquals("*M-4-2M:td, *-2-0:variables, -1-:variables[1]", vi4List2.linkedVariables().toString());
+            assertEquals("E=td.variables[1]", vi4List2.staticValues().toString());
         }
         {
             Statement sLast = body.methodBody().lastStatement();

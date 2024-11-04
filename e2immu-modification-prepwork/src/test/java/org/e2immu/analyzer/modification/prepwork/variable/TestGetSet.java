@@ -9,8 +9,6 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestGetSet extends CommonTest {
@@ -236,6 +234,91 @@ public class TestGetSet extends CommonTest {
                             x, y\
                             """,
                     vd1.knownVariableNamesToString());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.function.Function;
+            class X {
+                interface R {
+                    @GetSet Function<String, Integer> function();
+                    @GetSet("variables") Object variable(int i);
+                }
+                record RI(Function<String,Integer> function, Object[] variables) implements R {
+                    Object variable(int i) { return variables[i]; }
+                }
+                static class Builder {
+                    Function<String,Integer> function;
+                    Object[] variables;
+                    Builder setFunction(Function<String, Integer> f) { function = f; return this; }
+                    Builder setVariable(int pos, Object value) { variables[pos]=value; return this; }
+                    R build() { return new RI(function, variables); }
+                }
+                Function<String, Integer> method(String s) {
+                    Builder b = new Builder().setFunction(String::length).setVariable(0, s);
+                    R r = b.build();
+                    return r.function();
+                }
+                // we see that this is an @Identity method!!
+                Object method2(String s) {
+                    Builder b = new Builder().setFunction(String::length).setVariable(0, s);
+                    R r = b.build();
+                    return r.variable(0);
+                }
+            }
+            """;
+
+    @DisplayName("array accessor, variable must exist")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo method2 = X.findUniqueMethod("method2", 1);
+        {
+            VariableData vd2 = VariableDataImpl.of(method2.methodBody().lastStatement());
+            assertEquals("""
+                    a.b.X.R.variables#r, a.b.X.R.variables#r[0], a.b.X.method2(String), a.b.X.method2(String):0:s, b, r\
+                    """, vd2.knownVariableNamesToString());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.List;import java.util.function.Function;
+            class X {
+                List<Integer> intList;
+            
+                Integer getInt(int index) {
+                    return intList.get(index);
+                }
+            }
+            """;
+
+    @DisplayName("list accessor")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo getInt = X.findUniqueMethod("getInt", 1);
+        assertEquals("a.b.X.intList", getInt.getSetField().field().fullyQualifiedName());
+        {
+            VariableData vdLast = VariableDataImpl.of(getInt.methodBody().lastStatement());
+            assertEquals("""
+                   a.b.X.getInt(int), a.b.X.getInt(int):0:index, a.b.X.intList, a.b.X.this, \
+                   java.util.List.list#a.b.X.intList, \
+                   java.util.List.list#a.b.X.intList[a.b.X.getInt(int):0:index]\
+                   """, vdLast.knownVariableNamesToString());
         }
     }
 }

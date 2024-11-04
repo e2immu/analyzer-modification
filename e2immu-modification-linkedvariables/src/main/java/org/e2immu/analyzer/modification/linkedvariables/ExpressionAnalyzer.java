@@ -117,7 +117,7 @@ class ExpressionAnalyzer {
                 return builder.build();
             }
             if (expression instanceof MethodCall mc) {
-                return linkEvaluationOfMethodCall(currentMethod, mc);
+                return linkEvaluationOfMethodCall(currentMethod, mc, forwardType);
             }
             if (expression instanceof ConstructorCall cc) {
                 if (cc.constructor() != null) {
@@ -149,8 +149,7 @@ class ExpressionAnalyzer {
 
             // pass-through
             if (expression instanceof Cast c) {
-                EvaluationResult evalValue = eval(c.expression(), c.parameterizedType());
-                return new EvaluationResult.Builder().merge(evalValue).build();
+                return eval(c.expression(), c.parameterizedType());
             }
             if (expression instanceof EnclosedExpression c) {
                 EvaluationResult evalValue = eval(c.expression());
@@ -506,7 +505,7 @@ class ExpressionAnalyzer {
                     .build();
         }
 
-        private EvaluationResult linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc) {
+        private EvaluationResult linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc, ParameterizedType forwardType) {
             EvaluationResult.Builder builder = new EvaluationResult.Builder();
             Expression object = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
 
@@ -516,7 +515,7 @@ class ExpressionAnalyzer {
             List<EvaluationResult> leParams = mc.parameterExpressions().stream().map(this::eval).toList();
             leParams.forEach(builder::merge);
 
-            methodCallLinks(currentMethod, mc.withObject(object), builder, leObject, leParams);
+            methodCallLinks(currentMethod, mc.withObject(object), builder, leObject, leParams, forwardType);
             methodCallModified(mc, object, builder);
             methodCallStaticValue(mc, builder, leObject, leParams);
 
@@ -869,7 +868,9 @@ class ExpressionAnalyzer {
             if (accessor != null && !accessor.overrides().isEmpty()) {
                 MethodInfo override = accessor.overrides().stream().findFirst().orElseThrow();
                 FieldInfo fieldOfOverride = accessorOf(override);
-                if (fieldOfOverride != null) return fieldOfOverride;
+                if (fieldOfOverride != null) {
+                    return fieldOfOverride;
+                }
             }
             String fieldName = fieldInfo.name();
             // see TestStaticValuesAssignment,3 for an example where this returns a field in a supertype (RI.set -> R.set)
@@ -972,11 +973,12 @@ class ExpressionAnalyzer {
                                      MethodCall mc,
                                      EvaluationResult.Builder builder,
                                      EvaluationResult leObject,
-                                     List<EvaluationResult> leParams) {
+                                     List<EvaluationResult> leParams,
+                                     ParameterizedType forwardType) {
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
-            ParameterizedType concreteReturnType = mc.concreteReturnType();
+            ParameterizedType concreteReturnType = forwardType == null ? mc.concreteReturnType(): forwardType;
 
             List<LinkedVariables> linkedVariablesOfParameters = leParams.stream()
                     .map(EvaluationResult::linkedVariables).toList();
@@ -995,7 +997,7 @@ class ExpressionAnalyzer {
 
             // from object to return value
             LinkedVariables lvsResult1 = objectType == null ? EMPTY
-                    : linkHelper.linkedVariablesMethodCallObjectToReturnType(objectType, leObject.linkedVariables(),
+                    : linkHelper.linkedVariablesMethodCallObjectToReturnType(mc, objectType, leObject.linkedVariables(),
                     linkedVariablesOfParameters, concreteReturnType);
 
             // merge from param to object and from object to return value
