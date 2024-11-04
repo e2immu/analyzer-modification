@@ -361,9 +361,9 @@ public class TestGetSet extends CommonTest {
             import java.util.HashMap;import java.util.List;
             import java.util.Map;
             class X {
-                static <T, S> T get(List<T> list, Map<T, List<S>> stringMap) {
+                static <T, S> T get(List<T> listIn, Map<T, List<S>> stringMap) {
                     Map<T, S> resultMap = new HashMap<>();
-                    for(T t: list) {
+                    for(T t: listIn) {
                         List<S> list = stringMap.get(t);
                         if(!list.isEmpty()) {
                             S s = list.get(0);
@@ -393,22 +393,29 @@ public class TestGetSet extends CommonTest {
 
         VariableData vd10101 = VariableDataImpl.of(s10101);
         assertEquals("""
-                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
                 java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
                 list, resultMap, s, t\
                 """, vd10101.knownVariableNamesToString());
+        VariableInfo vi101010list = vd10101.variableInfo("list");
+        assertEquals("D:1.0.0, A:[1.0.0]", vi101010list.assignments().toString());
+
+        VariableInfo vi101010syntheticList = vd10101.variableInfo("java.util.List._synthetic_list#list");
+        assertEquals("D:1.0.1.0.0, A:[]", vi101010syntheticList.assignments().toString());
+        VariableInfo vi101010syntheticList0 = vd10101.variableInfo("java.util.List._synthetic_list#list[0]");
+        assertEquals("D:1.0.1.0.0, A:[]", vi101010syntheticList0.assignments().toString());
 
         VariableData vd101 = VariableDataImpl.of(s101);
         assertEquals("""
-                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
                 list, resultMap, t\
                 """, vd101.knownVariableNamesToString());
 
         VariableData vd1 = VariableDataImpl.of(s1);
         assertEquals("""
-                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
                 resultMap, t\
                 """, vd1.knownVariableNamesToString());
@@ -416,7 +423,7 @@ public class TestGetSet extends CommonTest {
         VariableData vdLast = VariableDataImpl.of(get.methodBody().lastStatement());
         assertEquals("""
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
-                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
                         resultMap\
                         """,
@@ -429,13 +436,13 @@ public class TestGetSet extends CommonTest {
             package a.b;
             import java.util.*;
             class X {
-                static <T, S> T get(List<T> listIn, Map<T, List<S>> stringMap) {
+                static <T, S> T get(List<T> listA, Map<T, List<S>> stringMap) {
                     Map<T, S> resultMap = new HashMap<>();
-                    List<T> list = new ArrayList<>(listIn);
-                    for(T t: list) {
-                        List<S> list = stringMap.get(t);
-                        if(!list.isEmpty()) {
-                            S s = list.get(0);
+                    List<T> listB = new ArrayList<>(listA);
+                    for(T t: listB) {
+                        List<S> listC = stringMap.get(t);
+                        if(!listC.isEmpty()) {
+                            S s = listC.get(0);
                             resultMap.put(t, s);
                         }
                     }
@@ -462,32 +469,32 @@ public class TestGetSet extends CommonTest {
 
         VariableData vd10101 = VariableDataImpl.of(s10101);
         assertEquals("""
-                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
-                list, resultMap, s, t\
+                java.util.List._synthetic_list#listC, java.util.List._synthetic_list#listC[0], \
+                listB, listC, resultMap, s, t\
                 """, vd10101.knownVariableNamesToString());
 
         VariableData vd101 = VariableDataImpl.of(s101);
         assertEquals("""
-                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                list, resultMap, t\
+                listB, listC, resultMap, t\
                 """, vd101.knownVariableNamesToString());
 
         VariableData vd1 = VariableDataImpl.of(s1);
         assertEquals("""
-                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                resultMap, t\
+                listB, resultMap, t\
                 """, vd1.knownVariableNamesToString());
 
         VariableData vdLast = VariableDataImpl.of(get.methodBody().lastStatement());
         assertEquals("""
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
-                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:list, \
+                        a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                        resultMap\
+                        listB, resultMap\
                         """,
                 vdLast.knownVariableNamesToString());
     }

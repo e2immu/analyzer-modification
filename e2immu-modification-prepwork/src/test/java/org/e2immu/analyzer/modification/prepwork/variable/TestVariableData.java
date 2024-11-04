@@ -234,9 +234,9 @@ public class TestVariableData extends CommonTest {
                     for (i = 0; i < NUMNUMBERS; i++) {
                         numbers[i] = (short) (NUMNUMBERS - 1 - i);
                     }
-                    for (i = 0; i < NUMNUMBERS; i++) {
-                        for (j = 0; j < NUMNUMBERS - i - 1; j++) {
-                            if (numbers[j] > numbers[j + 1]) {
+                    for (i = 0; i < NUMNUMBERS; i++) { // 5
+                        for (j = 0; j < NUMNUMBERS - i - 1; j++) { // 5.0.0
+                            if (numbers[j] > numbers[j + 1]) { // 5.0.0.0.0
                                 short temp = numbers[j];
                                 numbers[j] = numbers[j + 1];
                                 numbers[j + 1] = temp;

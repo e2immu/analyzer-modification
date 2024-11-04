@@ -105,6 +105,7 @@ public class MethodAnalyzer {
 
     private record ReadWriteData(VariableData previous,
                                  Map<Variable, String> seenFirstTime,
+                                 Map<Variable, String> accessorSeenFirstTime,
                                  Map<Variable, List<String>> read,
                                  Map<Variable, List<String>> assigned,
                                  Map<Variable, String> restrictToScope) {
@@ -235,6 +236,20 @@ public class MethodAnalyzer {
             }
         });
 
+        readWriteData.accessorSeenFirstTime
+                .entrySet().stream().filter(e -> !vdi.isKnown(e.getKey().fullyQualifiedName()))
+                .forEach(e -> {
+                    String i = e.getValue();
+                    Variable v = e.getKey();
+                    Assignments firstAssigned = new Assignments(i);
+                    VariableInfoImpl initial = new VariableInfoImpl(v, firstAssigned, Reads.NOT_YET_READ);
+                    Reads reads = new Reads(i);
+                    VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial), reads);
+                    VariableInfoContainer vic = new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
+                            Either.right(initial), eval, false);
+                    vdi.put(v, vic);
+                });
+
         iv.handleStatement(index, statement);
 
         if (statement instanceof SwitchStatementOldStyle oss) {
@@ -358,8 +373,11 @@ public class MethodAnalyzer {
             String subIndex = entry.getKey();
             VariableData vd = entry.getValue();
             vd.variableInfoStream().forEach(vi -> {
-                if (copyToMerge(index, vi) && iv.acceptLimitedScope(vi.variable(), index)) {
-                    map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
+                VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
+                if(vic == null || vic.hasMerge()) {
+                    if (copyToMerge(index, vi) && iv.acceptLimitedScope(vi.variable(), index)) {
+                        map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
+                    }
                 }
             });
         }
@@ -493,7 +511,8 @@ public class MethodAnalyzer {
         }
         Expression expression = statement.expression();
         if (expression != null && !expression.isEmpty()) expression.visit(v.withIndex(index));
-        return new ReadWriteData(previous, v.seenFirstTime, v.read, v.assigned, v.restrictToScope);
+        return new ReadWriteData(previous, v.seenFirstTime, v.accessorSeenFirstTime, v.read, v.assigned,
+                v.restrictToScope);
     }
 
     private static void handleLvc(LocalVariableCreation lvc, Visitor v) {
@@ -519,6 +538,7 @@ public class MethodAnalyzer {
         final Map<Variable, List<String>> read = new HashMap<>();
         final Map<Variable, List<String>> assigned = new HashMap<>();
         final Map<Variable, String> seenFirstTime = new HashMap<>();
+        final Map<Variable, String> accessorSeenFirstTime = new HashMap<>();
         final Map<Variable, String> restrictToScope = new HashMap<>();
         final Set<String> knownVariableNames;
         final Statement statement;
@@ -623,12 +643,15 @@ public class MethodAnalyzer {
                 if (object != null) {
                     FieldReference fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object),
                             getSet.field().type());
-                    markRead(fr);
+                    accessorSeenFirstTime.put(fr, index);
+                    markRead(fr.scope());
                     if (!mc.parameterExpressions().isEmpty()) {
                         assert mc.methodInfo().parameters().get(0).parameterizedType().isInt();
+                        Expression indexExpression = mc.parameterExpressions().get(0);
                         DependentVariable dv = runtime.newDependentVariable(runtime.newVariableExpression(fr),
-                                mc.parameterExpressions().get(0));
-                        markRead(dv);
+                                indexExpression);
+                        accessorSeenFirstTime.put(dv, index);
+                        markRead(indexExpression);
                     }
                     return fr;
                 }
@@ -647,6 +670,15 @@ public class MethodAnalyzer {
 
         private void markRead(Variable variable) {
             variable.variableStreamDescend().forEach(v -> {
+                read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
+                if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
+                    seenFirstTime.put(v, index);
+                }
+            });
+        }
+
+        private void markRead(Expression expression) {
+            expression.variableStreamDescend().forEach(v -> {
                 read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
                 if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
                     seenFirstTime.put(v, index);
