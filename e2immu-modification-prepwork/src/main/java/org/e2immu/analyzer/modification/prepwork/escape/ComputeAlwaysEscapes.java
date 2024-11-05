@@ -12,20 +12,25 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 public class ComputeAlwaysEscapes {
 
     private enum Escape {
-        ALWAYS, MAYBE, NO;
+        ALWAYS, BREAK, MAYBE, NO;
 
         Escape and(Escape other) {
-            if (this == Escape.ALWAYS && other == Escape.ALWAYS) {
-                return Escape.ALWAYS;
+            if (this == ALWAYS && other == ALWAYS) {
+                return ALWAYS;
             }
-            if (this == Escape.ALWAYS || other == Escape.ALWAYS || this == Escape.MAYBE || other == Escape.MAYBE) {
-                return Escape.MAYBE;
+            if (this == BREAK || other == BREAK) {
+                return BREAK;
             }
-            return Escape.NO;
+            if (this == MAYBE || other == MAYBE) {
+                return MAYBE;
+            }
+            return NO;
         }
+
         Escape or(Escape other) {
-            if(this == ALWAYS || other == ALWAYS) return ALWAYS;
-            if(this == MAYBE || other == MAYBE) return MAYBE;
+            if (this == ALWAYS || other == ALWAYS) return ALWAYS;
+            if (this == BREAK || other == BREAK) return BREAK;
+            if (this == MAYBE || other == MAYBE) return MAYBE;
             return NO;
         }
     }
@@ -63,8 +68,8 @@ public class ComputeAlwaysEscapes {
         }
         if (statement instanceof ThrowStatement || statement instanceof ReturnStatement) {
             escape = Escape.ALWAYS;
-        } else if (statement instanceof BreakOrContinueStatement) {
-            escape = Escape.MAYBE;
+        } else if (statement instanceof BreakStatement) {
+            escape = Escape.BREAK;
         } else if (statement instanceof IfElseStatement ifElse) {
             Escape e1 = alwaysEscapes(ifElse.block());
             Escape e2 = alwaysEscapes(ifElse.elseBlock());
