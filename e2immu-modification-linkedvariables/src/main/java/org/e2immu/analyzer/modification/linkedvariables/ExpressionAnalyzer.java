@@ -718,12 +718,14 @@ class ExpressionAnalyzer {
                     ValueImpl.VariableBooleanMapImpl.EMPTY);
             if (!modComp.isEmpty()) {
                 TranslationMap tm = runtime.newTranslationMapBuilder()
+                        .setRecurseIntoScopeVariables(true)
                         .put(mrPi, runtime.newThis(pi.parameterizedType()))
                         .build();
                 for (Map.Entry<Variable, Boolean> entry : modComp.map().entrySet()) {
                     if (entry.getValue()) {
                         // modified component
-                        Variable translated = tm.translateVariable(entry.getKey());
+                        Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
+                        Variable translated = ((VariableExpression) translatedVe).variable();
                         Expression value = map.get(translated);
                         if (value instanceof VariableExpression ve) {
                             markModified(ve.variable(), builder);
@@ -751,8 +753,10 @@ class ExpressionAnalyzer {
                 && !(ve.variable() instanceof This)) {
                 for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                     This thisInSv = runtime.newThis(mc.object().parameterizedType().typeInfo().asParameterizedType());
-                    TranslationMap tm = runtime.newTranslationMapBuilder().put(thisInSv, ve.variable()).build();
-                    Variable v = tm.translateVariable(entry.getKey());
+                    TranslationMap tm = runtime.newTranslationMapBuilder()
+                            .setRecurseIntoScopeVariables(true).put(thisInSv, ve.variable()).build();
+                    Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
+                    Variable v = ((VariableExpression) translatedVe).variable();
                     markModified(v, builder);
                 }
             }
@@ -779,15 +783,16 @@ class ExpressionAnalyzer {
                     for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                         This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo().asParameterizedType());
                         // go from r.function to this.function, which is what we have in the StaticValues.values() map
-                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder().put(pi, thisInSv);
+                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder()
+                                .setRecurseIntoScopeVariables(true).put(pi, thisInSv);
                         for (ParameterInfo pi2 : mc.methodInfo().parameters()) {
                             if (pi != pi2) {
                                 tmb.put(runtime.newVariableExpression(pi2), mc.parameterExpressions().get(pi2.index()));
                             }
                         }
                         TranslationMap tm = tmb.build();
-                        runtime.newTranslationMapBuilder().put(pi, thisInSv).build();
-                        Variable key = tm.translateVariable(entry.getKey());
+                        Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
+                        Variable key = ((VariableExpression) translatedVe).variable();
                         Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
                         Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
                                 completedMap);
@@ -977,7 +982,7 @@ class ExpressionAnalyzer {
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
-            ParameterizedType concreteReturnType = forwardType == null ? mc.concreteReturnType(): forwardType;
+            ParameterizedType concreteReturnType = forwardType == null ? mc.concreteReturnType() : forwardType;
 
             List<LinkedVariables> linkedVariablesOfParameters = leParams.stream()
                     .map(EvaluationResult::linkedVariables).toList();
