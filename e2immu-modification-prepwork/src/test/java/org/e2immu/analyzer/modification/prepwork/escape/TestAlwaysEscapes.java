@@ -57,7 +57,7 @@ public class TestAlwaysEscapes extends CommonTest {
             Statement s0 = method.methodBody().statements().get(0);
             Statement s000 = s0.block().statements().get(0);
             assertTrue(s000.alwaysEscapes());
-            Statement s010 = ((IfElseStatement)s0).elseBlock().statements().get(0);
+            Statement s010 = ((IfElseStatement) s0).elseBlock().statements().get(0);
             assertTrue(s010.alwaysEscapes());
             assertTrue(s0.alwaysEscapes());
         }
@@ -67,7 +67,7 @@ public class TestAlwaysEscapes extends CommonTest {
             Statement s0 = method.methodBody().statements().get(0);
             Statement s000 = s0.block().statements().get(0);
             assertTrue(s000.alwaysEscapes());
-            Statement s010 = ((IfElseStatement)s0).elseBlock().statements().get(0);
+            Statement s010 = ((IfElseStatement) s0).elseBlock().statements().get(0);
             assertFalse(s010.alwaysEscapes());
             assertFalse(s0.alwaysEscapes());
         }
@@ -77,7 +77,7 @@ public class TestAlwaysEscapes extends CommonTest {
     @Language("java")
     private static final String INPUT2 = """
             package a.b;
-            class X {
+            abstract class X {
                 static int method1(String in) {
                     for(int i=0; ; i++) { }
                 }
@@ -86,6 +86,27 @@ public class TestAlwaysEscapes extends CommonTest {
                 }
                 static int method3(String in) {
                    for(int i=0; ; i++) { System.out.println("?"); return; }
+                }
+            
+                abstract int read();
+                abstract void write(int i);
+                void method4() {
+                    while (true) {
+                        int read = read();
+                        if (read == -1) {
+                            break;
+                        }
+                        write(read);
+                    }
+                }
+                void method5() {
+                    while (true) {
+                        int read = read();
+                        if (read == -1) {
+                            return;
+                        }
+                        write(read);
+                    }
                 }
             }
             """;
@@ -104,10 +125,26 @@ public class TestAlwaysEscapes extends CommonTest {
             MethodInfo method = X.findUniqueMethod("method2", 1);
             ComputeAlwaysEscapes.go(method);
             Statement s0 = method.methodBody().statements().get(0);
+            Statement s000 = s0.block().statements().get(0);
+            assertFalse(s000.alwaysEscapes());
             assertFalse(s0.alwaysEscapes());
         }
         {
             MethodInfo method = X.findUniqueMethod("method3", 1);
+            ComputeAlwaysEscapes.go(method);
+            Statement s0 = method.methodBody().statements().get(0);
+            assertTrue(s0.alwaysEscapes());
+        }
+        {
+            MethodInfo method = X.findUniqueMethod("method4", 0);
+            ComputeAlwaysEscapes.go(method);
+            Statement s0 = method.methodBody().statements().get(0);
+            Statement s001 = s0.block().statements().get(1);
+            assertFalse(s001.alwaysEscapes());
+            assertFalse(s0.alwaysEscapes());
+        }
+        {
+            MethodInfo method = X.findUniqueMethod("method5", 0);
             ComputeAlwaysEscapes.go(method);
             Statement s0 = method.methodBody().statements().get(0);
             assertTrue(s0.alwaysEscapes());
