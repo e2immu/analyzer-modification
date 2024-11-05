@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork;
 
+import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
 import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
@@ -32,7 +33,6 @@ public class MethodAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodAnalyzer.class);
 
     private final Runtime runtime;
-
     public MethodAnalyzer(Runtime runtime) {
         this.runtime = runtime;
     }
@@ -151,6 +151,9 @@ public class MethodAnalyzer {
                     methodInfo.analysis().set(VariableDataImpl.VARIABLE_DATA, lastOfMainBlock);
                 }
             } // else: empty
+
+            // always escapes
+            ComputeAlwaysEscapes.go(methodInfo);
         } catch (Throwable t) {
             LOGGER.error("Caught exception in method {}", methodInfo);
             throw t;
