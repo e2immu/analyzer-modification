@@ -151,4 +151,60 @@ public class TestAlwaysEscapes extends CommonTest {
         }
     }
 
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            abstract class X {
+                final Object object = new Object();
+                static String method1(String in) {
+                   synchronized (object) {
+                        System.out.println(in);
+                        return in;
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("synchronized with return")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        {
+            MethodInfo method = X.findUniqueMethod("method1", 1);
+            ComputeAlwaysEscapes.go(method);
+            Statement s0 = method.methodBody().statements().get(0);
+            assertTrue(s0.alwaysEscapes());
+        }
+    }
+
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            abstract class X {
+                final Object object = new Object();
+                static String method1(String in) {
+                   try {
+                        if(in.isEmpty()) System.out.println("empty");
+                        return in.toLowerCase();
+                   } finally {
+                        System.out.println(object);
+                   }
+                }
+            }
+            """;
+
+    @DisplayName("try-finally")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        {
+            MethodInfo method = X.findUniqueMethod("method1", 1);
+            ComputeAlwaysEscapes.go(method);
+            Statement s0 = method.methodBody().statements().get(0);
+            assertTrue(s0.alwaysEscapes());
+        }
+    }
 }

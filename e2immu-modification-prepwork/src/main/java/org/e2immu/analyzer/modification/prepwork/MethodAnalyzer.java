@@ -33,6 +33,7 @@ public class MethodAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodAnalyzer.class);
 
     private final Runtime runtime;
+
     public MethodAnalyzer(Runtime runtime) {
         this.runtime = runtime;
     }
@@ -153,7 +154,7 @@ public class MethodAnalyzer {
             } // else: empty
 
             // always escapes
-            ComputeAlwaysEscapes.go(methodInfo);
+            ComputeAlwaysEscapes.go(methodBody);
         } catch (Throwable t) {
             LOGGER.error("Caught exception in method {}", methodInfo);
             throw t;
@@ -377,7 +378,7 @@ public class MethodAnalyzer {
             VariableData vd = entry.getValue();
             vd.variableInfoStream().forEach(vi -> {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
-                if(vic == null || vic.hasMerge()) {
+                if (vic == null || vic.hasMerge()) {
                     if (copyToMerge(index, vi) && iv.acceptLimitedScope(vi.variable(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
@@ -570,6 +571,10 @@ public class MethodAnalyzer {
 
         @Override
         public boolean beforeExpression(Expression e) {
+            if (e instanceof Lambda) {
+                return false;
+            }
+            // constructor call does not visit its anonymous type!!
             if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
                 ++inNegative;
                 return true;

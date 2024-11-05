@@ -39,6 +39,10 @@ public class ComputeAlwaysEscapes {
         alwaysEscapes(methodInfo.methodBody());
     }
 
+    public static void go(Block methodBody) {
+        alwaysEscapes(methodBody);
+    }
+
     private static void alwaysEscapes(Expression expression) {
         if (expression != null) {
             expression.visit(e -> {
