@@ -1,7 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
-import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -9,9 +8,10 @@ import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
-import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -205,7 +205,7 @@ public class MethodAnalyzer {
                                      boolean first,
                                      InternalVariables iv) {
         String index = statement.source().index();
-        ReadWriteData readWriteData = analyzeEval(previous, index, statement, methodInfo, iv);
+        ReadWriteData readWriteData = analyzeEval(previous, index, statement, iv);
         VariableDataImpl vdi = new VariableDataImpl();
         boolean hasMerge = statement.hasSubBlocks();
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
@@ -464,8 +464,7 @@ public class MethodAnalyzer {
                 Either.right(initial), eval, hasMerge);
     }
 
-    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, MethodInfo currentMethod,
-                                      InternalVariables iv) {
+    private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, InternalVariables iv) {
         String index;
         if (statement.hasSubBlocks()) {
             String suffix = statement instanceof DoStatement ? EVAL_UPDATE : EVAL;
@@ -474,7 +473,7 @@ public class MethodAnalyzer {
             index = indexIn;
         }
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
-        Visitor v = new Visitor(index, knownVariableNames, statement, currentMethod);
+        Visitor v = new Visitor(index, knownVariableNames, statement);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assignedAdd(iv.rv);
             if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
@@ -546,13 +545,11 @@ public class MethodAnalyzer {
         final Map<Variable, String> restrictToScope = new HashMap<>();
         final Set<String> knownVariableNames;
         final Statement statement;
-        final MethodInfo currentMethod;
 
-        Visitor(String index, Set<String> knownVariableNames, Statement statement, MethodInfo currentMethod) {
+        Visitor(String index, Set<String> knownVariableNames, Statement statement) {
             this.index = index;
-            this.knownVariableNames = knownVariableNames;
+            this.knownVariableNames = Set.copyOf(knownVariableNames); // make sure we do not modify it
             this.statement = statement;
-            this.currentMethod = currentMethod;
         }
 
         public void assignedAdd(Variable variable) {
@@ -571,10 +568,29 @@ public class MethodAnalyzer {
 
         @Override
         public boolean beforeExpression(Expression e) {
-            if (e instanceof Lambda) {
+            if (e instanceof Lambda lambda) {
+                // we plan to catch all variables that we already know, but not to introduce NEW variables
+                handleAnonymousMethod(lambda.methodBody(), lambda.parameters(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
                 return false;
             }
-            // constructor call does not visit its anonymous type!!
+            if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
+                Set<FieldInfo> localFields = new HashSet<>(cc.anonymousClass().fields());
+                Set<TypeInfo> typeHierarchy = new HashSet<>();
+                typeHierarchy.add(cc.anonymousClass());
+                typeHierarchy.addAll(cc.anonymousClass().superTypesExcludingJavaLangObject());
+                typeHierarchy.add(runtime.objectTypeInfo());
+                cc.anonymousClass().superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
+                cc.anonymousClass().fields().forEach(f -> {
+                    if (f.initializer() != null && !f.initializer().isEmpty()) {
+                        Block block = runtime.newBlockBuilder()
+                                .addStatement(runtime.newExpressionAsStatement(f.initializer())).build();
+                        handleAnonymousMethod(block, List.of(), localFields, typeHierarchy);
+                    }
+                });
+                cc.anonymousClass().constructorAndMethodStream()
+                        .forEach(mi -> handleAnonymousMethod(mi.methodBody(), mi.parameters(), localFields, typeHierarchy));
+                return true; // so that the arguments get processed; the current visitor ignores the anonymous class
+            }
             if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
                 ++inNegative;
                 return true;
@@ -638,6 +654,28 @@ public class MethodAnalyzer {
                 });
             }
             return true;
+        }
+
+        private void handleAnonymousMethod(Block methodBody,
+                                           List<ParameterInfo> parameters,
+                                           Set<FieldInfo> localFields,
+                                           Set<TypeInfo> typeHierarchy) {
+            Set<Variable> definedInLambda = new HashSet<>(parameters);
+            methodBody.visit(v -> {
+                if (v instanceof Statement s) {
+                    if (v instanceof LocalVariableCreation lvc) {
+                        definedInLambda.addAll(lvc.newLocalVariables());
+                    } else if (!(v instanceof Block)) {
+                        Visitor sub = new Visitor(index, knownVariableNames, s);
+                        s.visit(sub);
+                        sub.read.keySet().stream()
+                                .filter(vv -> !(vv instanceof FieldReference fr && localFields.contains(fr.fieldInfo())))
+                                .filter(vv -> !(vv instanceof This thisVar && typeHierarchy.contains(thisVar.typeInfo())))
+                                .filter(vv -> !definedInLambda.contains(vv)).forEach(this::markRead);
+                    }
+                }
+                return true;
+            });
         }
 
         private Variable markGetterRecursion(MethodCall mc) {
