@@ -323,4 +323,59 @@ public class TestAssignmentsSwitch extends CommonTest {
         assertEquals("[3.0.0.0.0, 3.0.0.0.1, 3.0.0, 3.0.1, 3.0.2.0.1, 4]",
                 iVi.assignments().allIndicesStripStage().toString());
     }
+
+    @Language("java")
+    public static final String INPUT6 = """
+            package a.b;
+            class X {
+                 private String parse(String str) {
+                     final char[] trans2 = "bcdef".toCharArray();
+                     final char[] trans1 = "ghij".toCharArray();
+                     int index1 = 0;
+                     int index2 = 0;
+                     str = str.replaceAll("[\\n\\r]", "");
+                     char[] input = str.toCharArray();
+                     for (int i = 0; i < 20; i++) {
+                         switch(input[i]) {
+                             case '4':
+                                 input[i] = input[i + 1] = input[i + 4] = input[i + 5] = 'a';
+                                 break;
+                             case '1':
+                                 input[i] = trans1[index1++];
+                                 break;
+                             case '2':
+                                 input[i] = input[i + 4] = trans2[index2++];
+                                 break;
+                             case '3':
+                                 input[i] = input[i + 1] = (char) (trans2[index2++] - 'a' + 'A');
+                                 break;
+                             case '0':
+                                 input[i] = ' ';
+                                 break;
+                             default:
+                         }
+                     }
+                     return new String(input);
+                 }
+            }
+            """;
+
+    @DisplayName("increments in array indices")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        MethodInfo method = X.findUniqueMethod("parse", 1);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doMethod(method);
+        VariableData vdLast = VariableDataImpl.of(method.methodBody().lastStatement());
+        assertNotNull(vdLast);
+
+        VariableInfo index1Vi = vdLast.variableInfo("index1");
+        assertEquals("D:2, A:[2, 6.0.0.0.2]", index1Vi.assignments().toString());
+        assertEquals("6.0.0.0.2", index1Vi.reads().toString());
+
+        VariableInfo index2Vi = vdLast.variableInfo("index2");
+        assertEquals("D:3, A:[3, 6.0.0.0.4, 6.0.0.0.6]", index2Vi.assignments().toString());
+        assertEquals("6.0.0.0.4, 6.0.0.0.6", index2Vi.reads().toString());
+    }
 }
