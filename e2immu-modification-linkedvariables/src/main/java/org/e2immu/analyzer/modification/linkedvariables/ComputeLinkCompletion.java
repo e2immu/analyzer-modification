@@ -143,7 +143,7 @@ class ComputeLinkCompletion {
                     }
                     Map<Variable, Expression> newMap = Map.of(runtime.newFieldReference(svFieldInfo, svScope,
                             svFieldInfo.type()), expression);
-                    return (StaticValues) new StaticValuesImpl(null, null, newMap);
+                    return (StaticValues) new StaticValuesImpl(null, null, false, newMap);
                 }).filter(Objects::nonNull).toList();
                 Variable variable = ve.variable();
                 if (!newList.isEmpty()) {

@@ -251,7 +251,7 @@ public class Analyzer {
                 if (sv != null && sv.expression() instanceof VariableExpression ve
                     && ve.variable() instanceof ParameterInfo pi
                     && !pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
-                    StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), Map.of());
+                    StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), false, Map.of());
                     pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
                 }
             }
@@ -378,7 +378,7 @@ public class Analyzer {
                                     .filter(vi2 -> vi2.staticValues() != null && vi2.staticValues().expression() != null)
                                     .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi2 -> vi2.staticValues().expression()));
                     if (!map.isEmpty()) {
-                        clcBuilder.addAssignment(rv, new StaticValuesImpl(null, sv.expression(), map));
+                        clcBuilder.addAssignment(rv, new StaticValuesImpl(null, sv.expression(), false, map));
                     } else {
                         clcBuilder.addAssignment(rv, sv);
                     }

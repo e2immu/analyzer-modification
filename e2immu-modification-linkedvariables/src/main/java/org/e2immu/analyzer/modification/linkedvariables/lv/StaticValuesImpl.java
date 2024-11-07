@@ -19,14 +19,20 @@ import java.util.stream.Collectors;
 
 public record StaticValuesImpl(ParameterizedType type,
                                Expression expression,
+                               boolean multipleExpressions,
                                Map<Variable, Expression> values) implements StaticValues {
-    public static final StaticValues NONE = new StaticValuesImpl(null, null, Map.of());
+
+    public StaticValuesImpl {
+        assert !multipleExpressions || expression == null;
+    }
+
+    public static final StaticValues NONE = new StaticValuesImpl(null, null, false, Map.of());
     public static final Property STATIC_VALUES_METHOD = new PropertyImpl("staticValuesMethod", NONE);
     public static final Property STATIC_VALUES_FIELD = new PropertyImpl("staticValuesField", NONE);
     public static final Property STATIC_VALUES_PARAMETER = new PropertyImpl("staticValuesParameter", NONE);
 
     public static StaticValues of(Expression e) {
-        return new StaticValuesImpl(null, e, Map.of());
+        return new StaticValuesImpl(null, e, false, Map.of());
     }
 
     @Override
@@ -36,7 +42,7 @@ public record StaticValuesImpl(ParameterizedType type,
 
     @Override
     public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
-        if(isEmpty()) return null;
+        if (isEmpty()) return null;
         Codec.EncodedValue encodedType = codec.encodeType(context, type);
         Codec.EncodedValue encodedExpression = codec.encodeExpression(context, expression);
         Map<Codec.EncodedValue, Codec.EncodedValue> mapOfEncoded = values.entrySet().stream()
@@ -55,7 +61,7 @@ public record StaticValuesImpl(ParameterizedType type,
         Map<Variable, Expression> values = mapOfDecoded.entrySet().stream().collect(Collectors.toUnmodifiableMap(
                 e -> codec.decodeVariable(context, e.getKey()),
                 e -> codec.decodeExpression(context, e.getValue())));
-        return new StaticValuesImpl(type, expression, values);
+        return new StaticValuesImpl(type, expression, false, values);
     }
 
     @Override
@@ -64,7 +70,26 @@ public record StaticValuesImpl(ParameterizedType type,
         if (other == NONE) return this;
 
         ParameterizedType newType = type == null ? other.type() : type;
-        Expression newExpression = expression == null ? other.expression() : expression;
+        boolean newMultipleExpressions;
+        Expression newExpression;
+        Expression otherExpression = other.expression();
+        if (multipleExpressions || other.multipleExpressions()) {
+            newMultipleExpressions = true;
+            newExpression = null;
+        } else if (expression == null) {
+            newExpression = otherExpression;
+            newMultipleExpressions = false;
+        } else if (otherExpression == null) {
+            newExpression = expression;
+            newMultipleExpressions = false;
+        } else if (expression.equals(otherExpression)) {
+            newMultipleExpressions = false;
+            newExpression = expression;
+        } else {
+            newMultipleExpressions = true;
+            newExpression = null;
+        }
+
         Map<Variable, Expression> newMap;
         if (other.values().isEmpty()) newMap = values;
         else if (values.isEmpty()) newMap = other.values();
@@ -73,12 +98,12 @@ public record StaticValuesImpl(ParameterizedType type,
             other.values().forEach(map::putIfAbsent);
             newMap = Map.copyOf(map);
         }
-        return new StaticValuesImpl(newType, newExpression, newMap);
+        return new StaticValuesImpl(newType, newExpression, newMultipleExpressions, newMap);
     }
 
     @Override
     public StaticValues remove(Predicate<Variable> predicate) {
-        return new StaticValuesImpl(type, expression, values.entrySet().stream()
+        return new StaticValuesImpl(type, expression, multipleExpressions, values.entrySet().stream()
                 .filter(e -> !predicate.test(e.getKey()))
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue)));
     }

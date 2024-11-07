@@ -342,7 +342,7 @@ class ExpressionAnalyzer {
                     if (v instanceof DependentVariable dv) {
                         This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()); // irrelevant which type
                         Variable indexed = runtime.newDependentVariable(thisVar, value.parameterizedType(), dv.indexExpression());
-                        StaticValues newSv = new StaticValuesImpl(null, null, Map.of(indexed, value));
+                        StaticValues newSv = new StaticValuesImpl(null, null, false, Map.of(indexed, value));
                         builder.merge(dv.arrayVariable(), newSv);
                         v = dv.arrayVariable();
                         indexExpression = dv.indexExpression();
@@ -353,7 +353,7 @@ class ExpressionAnalyzer {
                         } else {
                             variable = fr;
                         }
-                        StaticValues newSv = new StaticValuesImpl(null, null, Map.of(variable, value));
+                        StaticValues newSv = new StaticValuesImpl(null, null, false, Map.of(variable, value));
                         builder.merge(fr.scopeVariable(), newSv);
                         v = fr.scopeVariable();
                     } else break;
@@ -528,7 +528,7 @@ class ExpressionAnalyzer {
                     map.put(fr, cc.parameterExpressions().get(pi.index()));
                 }
             }
-            StaticValues staticValues = new StaticValuesImpl(cc.parameterizedType(), cc, Map.copyOf(map));
+            StaticValues staticValues = new StaticValuesImpl(cc.parameterizedType(), cc, false, Map.copyOf(map));
             return builder
                     .setStaticValues(staticValues)
                     .setLinkedVariables(from.intoObject().linkedVariablesOfExpression())
@@ -606,7 +606,7 @@ class ExpressionAnalyzer {
             if (mc.methodInfo().hasReturnValue()) {
                 StaticValues svObject = leObject.staticValues();
                 Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
-                StaticValues sv = new StaticValuesImpl(svm.type(), null, svObjectValues);
+                StaticValues sv = new StaticValuesImpl(svm.type(), null, false, svObjectValues);
                 builder.setStaticValues(sv);
             }
         }
@@ -684,7 +684,7 @@ class ExpressionAnalyzer {
             } else {
                 expression = null;
             }
-            return new StaticValuesImpl(svm.type(), expression, Map.copyOf(map));
+            return new StaticValuesImpl(svm.type(), expression, false, Map.copyOf(map));
         }
 
         private interface PropagateData {

@@ -46,6 +46,8 @@ public interface StaticValues extends Value {
      */
     Expression expression();
 
+    boolean multipleExpressions();
+
     /*
     results of setters.
 

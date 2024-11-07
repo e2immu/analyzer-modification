@@ -51,7 +51,7 @@ class GetSetHelper {
         }
         VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
         Variable variable = getSet.createVariable(runtime, thisVe, indexOrNull);
-        return new StaticValuesImpl(null, runtime.newVariableExpression(variable), Map.of());
+        return new StaticValuesImpl(null, runtime.newVariableExpression(variable), false, Map.of());
     }
 
     private StaticValues setter(MethodInfo methodInfo, Value.FieldValue getSet) {
@@ -84,7 +84,8 @@ class GetSetHelper {
         } else {
             expression = null;
         }
-        return new StaticValuesImpl(null, expression, Map.of(target, runtime.newVariableExpression(valueParameter)));
+        return new StaticValuesImpl(null, expression, false,
+                Map.of(target, runtime.newVariableExpression(valueParameter)));
     }
 
 }
