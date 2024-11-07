@@ -163,7 +163,7 @@ class ExpressionAnalyzer {
 
                 LinkedVariables reduced = evaluationResults.stream().map(EvaluationResult::linkedVariables)
                         .reduce(EMPTY, LinkedVariables::merge);
-                return builder.setLinkedVariables(reduced).build();
+                return builder.setLinkedVariables(reduced).setStaticValues(NONE).build();
             }
             if (expression instanceof InlineConditional ic) {
                 EvaluationResult leCondition = eval(ic.condition());
@@ -177,7 +177,38 @@ class ExpressionAnalyzer {
                 StaticValues sv = StaticValuesImpl.of(ce);
                 return new EvaluationResult.Builder().setLinkedVariables(EMPTY).setStaticValues(sv).build();
             }
-            return EvaluationResult.EMPTY;
+            if (expression instanceof BinaryOperator bo) {
+                EvaluationResult lhs = eval(bo.lhs());
+                EvaluationResult rhs = eval(bo.rhs());
+                return new EvaluationResult.Builder().merge(lhs).merge(rhs)
+                        .setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+            }
+            if (expression instanceof UnaryOperator uo) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                builder.merge(eval(uo.expression())).setStaticValues(NONE).setLinkedVariables(EMPTY);
+                return builder.build();
+            }
+            if (expression instanceof ArrayLength al) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                builder.merge(eval(al.scope())).setStaticValues(NONE).setLinkedVariables(EMPTY);
+                return builder.build();
+            }
+            if (expression instanceof And and) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                and.expressions().forEach(e -> builder.merge(eval(e)));
+                return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+            }
+            if (expression instanceof Or or) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                or.expressions().forEach(e -> builder.merge(eval(e)));
+                return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+            }
+            if (expression == null
+                || expression instanceof EmptyExpression
+                || expression instanceof TypeExpression) {
+                return EvaluationResult.EMPTY;
+            }
+            throw new UnsupportedOperationException("expression " + expression.getClass());
         }
 
         private void recursivelyCollectLinksToScopeVariables(Variable v, EvaluationResult.Builder builder) {

@@ -8,6 +8,7 @@ import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -176,4 +177,94 @@ public class TestLinkArrays extends CommonTest {
         }
     }
 
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            class B {
+                static class M { private int i; public int get() { return i; } public void set(int i) { this.i = i; } }
+                public static M[][] transpose(M[][] a) {
+                    int m = a.length;
+                    int n = a[0].length;
+                    M[][] t = new M[n][m];
+                    for (int i = 0; i < m; i++) {
+                        for (int j = 0; j < n; j++) {
+                            t[j][i] = a[i][j];
+                        }
+                    }
+                    return t;
+                }
+            }
+            """;
+
+    @DisplayName("double array of mutable objects")
+    @Test
+    public void test4() {
+        TypeInfo B = javaInspector.parse(INPUT4);
+        List<Info> ao = prepWork(B);
+        analyzer.doPrimaryType(B, ao);
+        MethodInfo transpose = B.findUniqueMethod("transpose", 1);
+        ParameterInfo a = transpose.parameters().get(0);
+        {
+            VariableData vd = VariableDataImpl.of(transpose.methodBody().statements().get(0));
+            VariableInfo viA = vd.variableInfo(a);
+            assertEquals("", viA.linkedVariables().toString());
+            VariableInfo viM = vd.variableInfo("m");
+            assertEquals("", viM.linkedVariables().toString());
+        }
+        {
+            VariableData vd = VariableDataImpl.of(transpose.methodBody().statements().get(1));
+            assertEquals("a.b.B.transpose(a.b.B.M[][]):0:a, a.b.B.transpose(a.b.B.M[][]):0:a[0], m, n",
+                    vd.knownVariableNamesToString());
+            VariableInfo viN = vd.variableInfo("n");
+            assertEquals("", viN.linkedVariables().toString());
+
+            // FIXME should we already link a and a[0] ??
+            VariableInfo viA = vd.variableInfo(a);
+            assertEquals("", viA.linkedVariables().toString());
+            VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
+            assertEquals("", viA0.linkedVariables().toString());
+        }
+
+        {
+            VariableData vd = VariableDataImpl.of(transpose.methodBody().statements().get(2));
+            assertEquals("a.b.B.transpose(a.b.B.M[][]):0:a, a.b.B.transpose(a.b.B.M[][]):0:a[0], m, n, t",
+                    vd.knownVariableNamesToString());
+            VariableInfo viN = vd.variableInfo("n");
+            assertEquals("", viN.linkedVariables().toString());
+
+            VariableInfo viT = vd.variableInfo("t");
+            assertEquals("", viT.linkedVariables().toString());
+
+            VariableInfo viA = vd.variableInfo(a);
+            assertEquals("", viA.linkedVariables().toString());
+            VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
+            assertEquals("", viA0.linkedVariables().toString());
+        }
+        {
+            VariableData vd = VariableDataImpl.of(transpose.methodBody().statements().get(3).block()
+                    .statements().get(0).block().statements().get(0));
+            assertEquals("""
+                            a.b.B.transpose(a.b.B.M[][]):0:a, a.b.B.transpose(a.b.B.M[][]):0:a[0], \
+                            a.b.B.transpose(a.b.B.M[][]):0:a[i], a.b.B.transpose(a.b.B.M[][]):0:a[i][j], \
+                            i, j, m, n, t, t[j], t[j][i]\
+                            """,
+                    vd.knownVariableNamesToString());
+            VariableInfo viTJI = vd.variableInfo("t[j][i]");
+            assertEquals("*M-2-0M|*-0.0:a, *M-2-0M|*-0:a[i], -1-:a[i][j], *M-2-0M|*-0.0:t, *M-2-0M|*-0:t[j]",
+                    viTJI.linkedVariables().toString());
+
+            // FIXME why 0-2-0:a[i] and not 0M-2-0M??
+            VariableInfo viT = vd.variableInfo("t");
+            assertEquals("0M-2-0M:a, 0-2-0:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-*M|0-*:t[j], 0M-2-*M|0.0-*:t[j][i]",
+                    viT.linkedVariables().toString());
+
+            // should we already link a and a[0] ??
+            VariableInfo viA = vd.variableInfo(a);
+            assertEquals("0M-2-*M|0-*:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-0M:t, 0-2-0:t[j], 0M-2-*M|0.0-*:t[j][i]",
+                    viA.linkedVariables().toString());
+
+            VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
+            assertEquals("", viA0.linkedVariables().toString());
+        }
+    }
 }

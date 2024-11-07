@@ -354,7 +354,14 @@ public class Analyzer {
             });
         } else if (statement instanceof ExpressionAsStatement
                    || statement instanceof ReturnStatement
-                   || statement instanceof IfElseStatement) {
+                   || statement instanceof YieldStatement
+                   || statement instanceof IfElseStatement
+                   || statement instanceof LoopStatement
+                   || statement instanceof SynchronizedStatement
+                   || statement instanceof ThrowStatement
+                   || statement instanceof SwitchStatementOldStyle
+                   || statement instanceof SwitchStatementNewStyle
+        ) {
             EvaluationResult evaluationResult = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious,
                     statement.expression());
 
@@ -380,7 +387,12 @@ public class Analyzer {
                 }
             }
             clcBuilder.addLinkEvaluation(evaluationResult, vd);
-        }
+        } else if (statement instanceof ExplicitConstructorInvocation eci) {
+            eci.parameterExpressions().forEach(expression -> {
+                EvaluationResult er = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious, expression);
+                clcBuilder.addLinkEvaluation(er, vd);
+            });
+        } // else: resources of Try statement are handled in doBlocks
         clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index());
 
         if (statement.hasSubBlocks()) {

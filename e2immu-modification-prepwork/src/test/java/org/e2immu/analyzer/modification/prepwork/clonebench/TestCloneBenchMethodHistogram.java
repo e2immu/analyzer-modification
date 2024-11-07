@@ -20,6 +20,10 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/*
+IMPORTANT: use "analyzed" branch of "testarchive".
+A small number of files have been modified wrt the main branch, for this test to run.
+ */
 public class TestCloneBenchMethodHistogram extends CommonTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBenchMethodHistogram.class);
 

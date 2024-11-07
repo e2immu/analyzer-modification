@@ -25,6 +25,10 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/*
+IMPORTANT: use "analyzed" branch of "testarchive".
+A small number of files have been modified wrt the main branch, for this test to run.
+ */
 public class TestCloneBench extends CommonTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBench.class);
 

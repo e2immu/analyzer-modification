@@ -349,7 +349,7 @@ public class TestLinkModificationArea extends CommonTest {
             import java.util.Set;
             class X {
                 static <T> T nonNull(T t) {
-                    if(t == null) throw new NullPointerException(t);
+                    if(t == null) throw new NullPointerException();
                     return t;
                 }
                 static class M { int i; int get() { return i; } void set(int i) { this.i = i; }}
