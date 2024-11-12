@@ -565,17 +565,11 @@ class ExpressionAnalyzer {
             // getter: return value becomes the field reference
             Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             if (getSet.field() != null && mc.methodInfo().hasReturnValue() && !mc.methodInfo().isFluent()) {
-                FieldReference fr = runtime.newFieldReference(getSet.field(), mc.object(), getSet.field().type());
-                Variable variable;
-                if (mc.parameterExpressions().isEmpty()) {
-                    variable = fr;
-                } else {
-                    // indexing
-                    variable = runtime.newDependentVariable(runtime.newVariableExpression(fr), mc.parameterExpressions().get(0));
-                }
+                Variable variable = runtime.getterVariable(mc);
                 VariableExpression ve = runtime.newVariableExpression(variable);
                 Expression svExpression = inferStaticValues(ve);
                 StaticValues svs = StaticValuesImpl.of(svExpression);
+                FieldReference fr = variable.fieldReferenceScope();
                 StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
                 builder.setStaticValues(svs).merge(fr, svsVar);
                 return;

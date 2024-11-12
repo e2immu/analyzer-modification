@@ -12,6 +12,7 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -693,6 +694,7 @@ public class MethodAnalyzer {
             });
         }
 
+        // NOTE: pretty similar code in Factory.getterVariable(MethodCall methodCall);
         private Variable markGetterRecursion(MethodCall mc) {
             Value.FieldValue getSet = mc.methodInfo().getSetField();
             if (getSet.field() != null && !getSet.setter()) {
@@ -708,15 +710,20 @@ public class MethodAnalyzer {
                     object = null;
                 }
                 if (object != null) {
-                    FieldReference fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object),
-                            getSet.field().type());
-                    accessorSeenFirstTime.put(fr, index);
-                    markRead(fr.scope());
-                    if (!mc.parameterExpressions().isEmpty()) {
+                    FieldReference fr;
+                    ParameterizedType type = mc.concreteReturnType();
+                    if (mc.parameterExpressions().isEmpty()) {
+                        fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object), type);
+                        accessorSeenFirstTime.put(fr, index);
+                        markRead(fr.scope());
+                    } else {
+                        ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
+                        fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object), arrayType);
+                        accessorSeenFirstTime.put(fr, index);
+                        markRead(fr.scope());
                         assert mc.methodInfo().parameters().get(0).parameterizedType().isInt();
                         Expression indexExpression = mc.parameterExpressions().get(0);
-                        DependentVariable dv = runtime.newDependentVariable(runtime.newVariableExpression(fr),
-                                indexExpression);
+                        DependentVariable dv = runtime.newDependentVariable(fr, type, indexExpression);
                         accessorSeenFirstTime.put(dv, index);
                         markRead(indexExpression);
                     }

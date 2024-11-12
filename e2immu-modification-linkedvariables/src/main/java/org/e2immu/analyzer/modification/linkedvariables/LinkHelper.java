@@ -541,15 +541,17 @@ class LinkHelper {
         if (immutable.isImmutable()) return lvs;
         Map<Variable, LV> lvMap = new HashMap<>();
         linkedVariablesOfObject.variablesAssigned().forEach(v -> {
-            FieldReference fr = runtime.newFieldReference(getSetField.field(),
-                    runtime.newVariableExpression(v), getSetField.field().type());
+            // NOTE: pretty similar code in Factory.getterVariable(MethodCall)
             Variable variable;
             if (methodCall.parameterExpressions().isEmpty()) {
-                variable = fr;
+                variable = runtime.newFieldReference(getSetField.field(), runtime.newVariableExpression(v), returnType);
             } else {
                 // indexing
-                variable = runtime.newDependentVariable(runtime.newVariableExpression(fr),
-                        methodCall.parameterExpressions().get(0));
+                FieldReference fr = runtime.newFieldReference(getSetField.field(), runtime.newVariableExpression(v),
+                        returnType.copyWithArrays(returnType.arrays() + 1));
+                Expression index = methodCall.parameterExpressions().get(0);
+                assert index.parameterizedType().isMathematicallyInteger();
+                variable = runtime.newDependentVariable(fr, returnType, index);
                 Immutable immutableMethodReturnType = analysisHelper.typeImmutable(returnType);
                 if (!immutableMethodReturnType.isImmutable()) {
                     LV lv;
