@@ -39,32 +39,50 @@ public class MethodAnalyzer {
     }
 
     private static class InternalVariables {
+        final InternalVariables parent;
+
+        // variables that are copied
         final ReturnVariable rv;
-        final Stack<LocalVariable> breakVariables = new Stack<>();
+        final Stack<Statement> loopSwitchStack;
+        final Map<String, String> labelToStatementIndex;
+        final Map<String, Integer> breakCountsInLoop;
 
-
-        final Stack<Statement> loopSwitchStack = new Stack<>();
-        final Map<String, String> labelToStatementIndex = new HashMap<>();
-        final Map<String, Integer> breakCountsInLoop = new HashMap<>();
+        // variables that are searched via parent
+        LocalVariable breakVariable;
         final Map<Variable, String> limitedScopeOfPatternVariables = new HashMap<>();
 
         InternalVariables(ReturnVariable rv) {
             this.rv = rv;
+            this.parent = null;
+            loopSwitchStack = new Stack<>();
+            labelToStatementIndex = new HashMap<>();
+            breakCountsInLoop = new HashMap<>();
+        }
+
+        InternalVariables(InternalVariables parent) {
+            this.parent = parent;
+            this.rv = parent.rv;
+            this.loopSwitchStack = parent.loopSwitchStack;
+            this.labelToStatementIndex = parent.labelToStatementIndex;
+            this.breakCountsInLoop = parent.breakCountsInLoop;
         }
 
         public boolean acceptLimitedScope(Variable variable, String index) {
             String i = limitedScopeOfPatternVariables.get(variable);
             if (i != null) {
-                boolean accept = Util.inScopeOf(i, index);
-                if (!accept) limitedScopeOfPatternVariables.remove(variable);
-                return accept;
+                return Util.inScopeOf(i, index);
+            }
+            // go up, maybe it was defined higher up
+            if (parent != null) {
+                return parent.acceptLimitedScope(variable, index);
             }
             return true;
         }
 
         List<Variable> currentVariables() {
-            if (breakVariables.isEmpty()) return List.of(rv);
-            return List.of(rv, breakVariables.peek());
+            if (breakVariable != null) return List.of(rv, breakVariable);
+            if (parent == null) return List.of(rv);
+            return parent.currentVariables();
         }
 
         void handleStatement(String index, Statement statement) {
@@ -90,17 +108,14 @@ public class MethodAnalyzer {
             }
         }
 
-        void popBreakVariable(LocalVariable bv) {
-            LocalVariable top = breakVariables.pop();
-            assert top == bv;
-        }
-
-        void pushBreakVariable(LocalVariable bv) {
-            breakVariables.push(bv);
+        void setBreakVariable(LocalVariable bv) {
+            breakVariable = bv;
         }
 
         LocalVariable bv() {
-            return breakVariables.isEmpty() ? null : breakVariables.peek();
+            if (breakVariable != null) return breakVariable;
+            if (parent == null) return null;
+            return parent.bv();
         }
     }
 
@@ -203,7 +218,8 @@ public class MethodAnalyzer {
                                      Statement statement,
                                      VariableData previous,
                                      boolean first,
-                                     InternalVariables iv) {
+                                     InternalVariables ivIn) {
+        InternalVariables iv = new InternalVariables(ivIn);
         String index = statement.source().index();
         ReadWriteData readWriteData = analyzeEval(previous, index, statement, iv);
         VariableDataImpl vdi = new VariableDataImpl();
@@ -293,7 +309,7 @@ public class MethodAnalyzer {
         assert vdOfParent != null;
         LocalVariable bv = runtime.newLocalVariable("bv-" + index, runtime.booleanParameterizedType(),
                 runtime.newEmptyExpression());
-        iv.pushBreakVariable(bv);
+        iv.setBreakVariable(bv);
         Assignments notYetAssigned = new Assignments(index + EVAL);
         VariableInfoImpl vii = new VariableInfoImpl(bv, notYetAssigned, Reads.NOT_YET_READ);
         vdOfParent.put(bv, new VariableInfoContainerImpl(bv, SYNTHETIC, Either.right(vii), null,
@@ -343,7 +359,6 @@ public class MethodAnalyzer {
         }
         // noBreakStatementsInside irrelevant for switch
         addMerge(index, oss, vdOfParent, false, lastOfEachSubBlock, iv, fallThroughRecord);
-        iv.popBreakVariable(bv);
     }
 
     private boolean statementGuaranteedToExit(String index, VariableData vd, InternalVariables iv) {

@@ -9,7 +9,9 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.ForStatement;
+import org.e2immu.language.cst.api.statement.IfElseStatement;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -315,6 +317,142 @@ public class TestVariableData extends CommonTest {
 
         FieldReference frTempDir = runtime.newFieldReference(tempDir);
         assertTrue(vd0.isKnown(frTempDir.fullyQualifiedName()));
+    }
+
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            
+            public class X {
+                public String method(String in) {
+                  {
+                     String s = in.toLowerCase();
+                     {
+                        System.out.println(s);
+                     }
+                  }
+                  {
+                     String s = in.toUpperCase();
+                     {
+                        System.out.println(s);
+                     }
+                  }
+                }
+            }
+            """;
+
+    @DisplayName("block scope and clear analysis")
+    @Test
+    public void test7() {
+
+        TypeInfo typeInfo = javaInspector.parse(INPUT7);
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
+        analyzer.doPrimaryType(typeInfo);
+        MethodInfo method = typeInfo.findUniqueMethod("method", 1);
+        VariableData vd = VariableDataImpl.of(method.methodBody().lastStatement());
+        assertEquals("a.b.X.method(String):0:in, java.lang.System.out", vd.knownVariableNamesToString());
+        TranslationMap tm = runtime.newTranslationMapBuilder()
+                .setRecurseIntoScopeVariables(true)
+                .setClearAnalysis(true)
+                .build();
+        TypeInfo t2 = typeInfo.translate(tm);
+        assertNotSame(typeInfo, t2);
+        assertEquals("""
+                package a.b;
+                public class X{public String method(String in){{String s=in.toLowerCase();{System.out.println(s);}}{String s=in.toUpperCase();{System.out.println(s);}}}}\
+                """, t2.print(runtime.qualificationQualifyFromPrimaryType()).toString());
+        analyzer.doPrimaryType(t2);
+    }
+
+
+    @Language("java")
+    private static final String INPUT8 = """
+            package a.b;
+            import java.io.IOException;
+            public class X {
+                public String method(Exception in) {
+                    String s;
+                    if (in instanceof RuntimeException e) {
+                        s = e.toString();
+                    } else {
+                        if (in instanceof IOException e1) {
+                            s = "?";
+                        } else {
+                            String e2 = in.toString();
+                            s = e2;
+                        }
+                    }
+                    return s;
+                }
+            }
+            """;
+
+    @DisplayName("scope of pattern variables")
+    @Test
+    public void test8() {
+        TypeInfo typeInfo = javaInspector.parse(INPUT8);
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
+        analyzer.doPrimaryType(typeInfo);
+        MethodInfo method = typeInfo.findUniqueMethod("method", 1);
+
+        IfElseStatement ifElse1 = (IfElseStatement) method.methodBody().statements().get(1);
+        Statement s100 = ifElse1.block().statements().get(0);
+        assertEquals("a.b.X.method(Exception):0:in, e, s",
+                VariableDataImpl.of(s100).knownVariableNamesToString());
+
+        IfElseStatement ifElse110 = (IfElseStatement) ifElse1.elseBlock().statements().get(0);
+        Statement s11000 = ifElse110.block().statements().get(0);
+        assertEquals("a.b.X.method(Exception):0:in, e1, s",
+                VariableDataImpl.of(s11000).knownVariableNamesToString());
+
+        Statement s11010 = ifElse110.elseBlock().statements().get(0);
+        assertEquals("1.1.0.1.0", s11010.source().index());
+        assertEquals("a.b.X.method(Exception):0:in, e2, s",
+                VariableDataImpl.of(s11010).knownVariableNamesToString());
+        Statement s11011 = ifElse110.elseBlock().statements().get(1);
+        assertEquals("a.b.X.method(Exception):0:in, e2, s",
+                VariableDataImpl.of(s11011).knownVariableNamesToString());
+
+        VariableData vd110 = VariableDataImpl.of(ifElse110);
+        assertEquals("a.b.X.method(Exception):0:in, e1, s", vd110.knownVariableNamesToString());
+
+        VariableData vd1 = VariableDataImpl.of(ifElse1);
+        assertEquals("a.b.X.method(Exception):0:in, e, s", vd1.knownVariableNamesToString());
+
+        VariableData vd2 = VariableDataImpl.of(method.methodBody().statements().get(2));
+        assertEquals("a.b.X.method(Exception), a.b.X.method(Exception):0:in, s", vd2.knownVariableNamesToString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT9 = """
+            package a.b;
+            import java.io.IOException;
+            public class X {
+                public String method(Exception in) {
+                    String s;
+                    if (in instanceof RuntimeException e) {
+                        s = e.toString();
+                    } else {
+                        if (in instanceof IOException e) {
+                            s = "?" + e;
+                        } else {
+                            String e = in.toString();
+                            s = e;
+                        }
+                    }
+                    return s;
+                }
+            }
+            """;
+
+    @DisplayName("scope of pattern variables, now with same variable name")
+    @Test
+    public void test9() {
+        TypeInfo typeInfo = javaInspector.parse(INPUT9);
+        PrepAnalyzer analyzer = new PrepAnalyzer(javaInspector.runtime());
+        analyzer.doPrimaryType(typeInfo);
     }
 
 }
