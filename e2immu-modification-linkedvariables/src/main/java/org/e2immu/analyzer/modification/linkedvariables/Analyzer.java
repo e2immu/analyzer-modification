@@ -249,10 +249,14 @@ public class Analyzer {
                 && v instanceof FieldReference fr && fr.scopeIsThis() && fr.fieldInfo().isPropertyFinal()) {
                 StaticValues sv = vi.staticValues();
                 if (sv != null && sv.expression() instanceof VariableExpression ve
-                    && ve.variable() instanceof ParameterInfo pi
-                    && !pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
-                    StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), false, Map.of());
-                    pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
+                    && ve.variable() instanceof ParameterInfo pi) {
+                    if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
+                        StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), false, Map.of());
+                        pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
+                    }
+                    if (!pi.analysis().haveAnalyzedValueFor(PARAMETER_ASSIGNED_TO_FIELD)) {
+                        pi.analysis().set(PARAMETER_ASSIGNED_TO_FIELD, new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
+                    }
                 }
             }
             if (v instanceof This && !methodInfo.hasReturnValue()) {
@@ -507,6 +511,11 @@ public class Analyzer {
         svMapParameters.forEach((pi, sv) -> {
             if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
                 pi.analysis().set(STATIC_VALUES_PARAMETER, sv);
+            }
+            if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsThis()) {
+                if (!pi.analysis().haveAnalyzedValueFor(PARAMETER_ASSIGNED_TO_FIELD)) {
+                    pi.analysis().set(PARAMETER_ASSIGNED_TO_FIELD, new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
+                }
             }
         });
     }
