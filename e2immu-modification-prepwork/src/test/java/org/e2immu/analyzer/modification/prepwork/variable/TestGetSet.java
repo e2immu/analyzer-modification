@@ -3,8 +3,10 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,10 @@ public class TestGetSet extends CommonTest {
             
                 void setD(double d) { this.d = d; }
                 void setRI(int i) { this.r.i = i; }
+            
+                void setS2ToString(String s) {
+                    setS2(3, "abc");
+                }
             }
             """;
 
@@ -107,6 +113,14 @@ public class TestGetSet extends CommonTest {
         assertSame(d, setD.getSetField().field());
         MethodInfo setRI = X.findUniqueMethod("setRI", 1);
         assertSame(ri, setRI.getSetField().field());
+
+
+        MethodInfo test1 = X.findUniqueMethod("setS2ToString", 1);
+        Statement s0 = test1.methodBody().statements().get(0);
+        MethodCall mc0 = (MethodCall) s0.expression();
+        Variable v = runtime.setterVariable(mc0);
+        assertEquals("a.b.X.list[3]", v.fullyQualifiedName());
+        assertTrue(v.parameterizedType().isJavaLangString());
     }
 
 
