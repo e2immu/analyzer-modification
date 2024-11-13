@@ -207,4 +207,46 @@ public class TestAlwaysEscapes extends CommonTest {
             assertTrue(s0.alwaysEscapes());
         }
     }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            import java.util.Date;
+            import java.util.Random;
+            import java.util.WeakHashMap;
+            
+            public class X {
+              public static int method1() {
+                do {
+                  int random_num = randomNumberGenerator.nextInt();
+                  if (random_num <= 0) continue;
+                  synchronized (aceThreadList) {
+                    if (aceThreadList.get(random_num) == null) {
+                      return random_num;
+                    }
+                  }
+                } while (true);
+              }
+            
+              private static WeakHashMap aceThreadList = new WeakHashMap();
+              private static Random randomNumberGenerator = new Random((new Date()).getTime());
+            }
+            """;
+
+    @DisplayName("synchronized in infinite loop")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        {
+            MethodInfo method = X.findUniqueMethod("method1", 0);
+            ComputeAlwaysEscapes.go(method);
+            Statement s0 = method.methodBody().statements().get(0);
+            assertTrue(s0.alwaysEscapes());
+            Statement s001 = s0.block().statements().get(1);
+            assertFalse(s001.alwaysEscapes());
+            Statement s002 = s0.block().statements().get(2);
+            assertFalse(s002.alwaysEscapes());
+        }
+    }
+
 }
