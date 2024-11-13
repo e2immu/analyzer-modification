@@ -80,10 +80,8 @@ public class ComputeAlwaysEscapes {
             escape = e1.and(e2);
         } else if (statement instanceof LoopStatement loop) {
             Escape e1 = alwaysEscapes(loop.block());
-            if (e1 == Escape.ALWAYS) {
+            if (loop.expression().isBoolValueTrue() && (e1 == Escape.ALWAYS || e1 == Escape.NO)) {
                 escape = Escape.ALWAYS;
-            } else if (loop.expression().isBoolValueTrue() && e1 == Escape.NO) {
-                escape = Escape.ALWAYS; // infinite loop, we'll not go further
             } else {
                 escape = Escape.NO;
             }

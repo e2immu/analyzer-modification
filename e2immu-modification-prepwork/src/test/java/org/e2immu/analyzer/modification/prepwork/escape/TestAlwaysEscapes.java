@@ -179,7 +179,6 @@ public class TestAlwaysEscapes extends CommonTest {
     }
 
 
-
     @Language("java")
     private static final String INPUT4 = """
             package a.b;
@@ -246,6 +245,45 @@ public class TestAlwaysEscapes extends CommonTest {
             assertFalse(s001.alwaysEscapes());
             Statement s002 = s0.block().statements().get(2);
             assertFalse(s002.alwaysEscapes());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            import java.io.File;
+            import java.io.FileFilter;
+            import java.util.ArrayList;
+            import java.util.Arrays;
+            import java.util.List;
+            
+            public class X {
+              public static List<File> listFiles(final File file, final FileFilter fileFilter) {
+                final List<File> list = new ArrayList<File>();
+                final File[] files = file.listFiles(fileFilter);
+                list.addAll(Arrays.asList(files));
+                if (files.length != 0) {
+                  for (final File f : files) {
+                    list.addAll(listFiles(f, fileFilter));
+                    return list;
+                  }
+                } else return list;
+                return list;
+              }
+            }
+            """;
+
+    @DisplayName("return in for-each")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        {
+            MethodInfo method = X.findUniqueMethod("listFiles", 2);
+            ComputeAlwaysEscapes.go(method);
+            Statement s3 = method.methodBody().statements().get(3);
+            Statement s300 = s3.block().statements().get(0);
+            assertFalse(s300.alwaysEscapes());
+            assertFalse(s3.alwaysEscapes());
         }
     }
 
