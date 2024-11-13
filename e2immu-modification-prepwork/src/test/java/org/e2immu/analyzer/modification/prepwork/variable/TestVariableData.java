@@ -353,7 +353,6 @@ public class TestVariableData extends CommonTest {
         VariableData vd = VariableDataImpl.of(method.methodBody().lastStatement());
         assertEquals("a.b.X.method(String):0:in, java.lang.System.out", vd.knownVariableNamesToString());
         TranslationMap tm = runtime.newTranslationMapBuilder()
-                .setRecurseIntoScopeVariables(true)
                 .setClearAnalysis(true)
                 .build();
         TypeInfo t2 = typeInfo.translate(tm);

@@ -743,7 +743,6 @@ class ExpressionAnalyzer {
                     ValueImpl.VariableBooleanMapImpl.EMPTY);
             if (!modComp.isEmpty()) {
                 TranslationMap tm = runtime.newTranslationMapBuilder()
-                        .setRecurseIntoScopeVariables(true)
                         .put(mrPi, runtime.newThis(pi.parameterizedType()))
                         .build();
                 for (Map.Entry<Variable, Boolean> entry : modComp.map().entrySet()) {
@@ -778,8 +777,7 @@ class ExpressionAnalyzer {
                 && !(ve.variable() instanceof This)) {
                 for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                     This thisInSv = runtime.newThis(mc.object().parameterizedType().typeInfo().asParameterizedType());
-                    TranslationMap tm = runtime.newTranslationMapBuilder()
-                            .setRecurseIntoScopeVariables(true).put(thisInSv, ve.variable()).build();
+                    TranslationMap tm = runtime.newTranslationMapBuilder().put(thisInSv, ve.variable()).build();
                     Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
                     Variable v = ((VariableExpression) translatedVe).variable();
                     markModified(v, builder);
@@ -808,8 +806,7 @@ class ExpressionAnalyzer {
                     for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                         This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo().asParameterizedType());
                         // go from r.function to this.function, which is what we have in the StaticValues.values() map
-                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder()
-                                .setRecurseIntoScopeVariables(true).put(pi, thisInSv);
+                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder().put(pi, thisInSv);
                         for (ParameterInfo pi2 : mc.methodInfo().parameters()) {
                             if (pi != pi2) {
                                 tmb.put(runtime.newVariableExpression(pi2), mc.parameterExpressions().get(pi2.index()));
