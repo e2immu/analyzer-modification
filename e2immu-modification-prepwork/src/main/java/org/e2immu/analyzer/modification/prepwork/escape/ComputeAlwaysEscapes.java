@@ -66,11 +66,10 @@ public class ComputeAlwaysEscapes {
                 escape = Escape.NO;
             } else {
                 escape = block.statements().stream()
-                        .map(ComputeAlwaysEscapes::alwaysEscapes).reduce(Escape.NO, Escape::or);
+                        .map(ComputeAlwaysEscapes::alwaysEscapes)
+                        .reduce(Escape.NO, Escape::or);
             }
-            return escape;
-        }
-        if (statement instanceof ThrowStatement || statement instanceof ReturnStatement) {
+        } else if (statement instanceof ThrowStatement || statement instanceof ReturnStatement) {
             escape = Escape.ALWAYS;
         } else if (statement instanceof BreakStatement) {
             escape = Escape.BREAK;

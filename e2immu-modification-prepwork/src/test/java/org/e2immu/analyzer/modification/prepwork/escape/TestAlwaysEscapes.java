@@ -5,6 +5,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.IfElseStatement;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.statement.TryStatement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -285,6 +286,43 @@ public class TestAlwaysEscapes extends CommonTest {
             assertFalse(s300.alwaysEscapes());
             assertFalse(s3.alwaysEscapes());
         }
+    }
+
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import java.io.IOException;
+            import java.net.HttpURLConnection;
+            import java.net.MalformedURLException;
+            import java.net.URI;
+            import java.net.URL;
+            public class X {
+                public int getResponseCode(URI uri) {
+                    int response = -1;
+                    try {
+                        URL url = uri.toURL();
+                        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                        response = connection.getResponseCode();
+                    } catch (MalformedURLException m) {
+                        throw new MalformedURLException("URL not correct");
+                    } catch (IOException e) {
+                        throw new IOException("can open connection");
+                    } finally {
+                        return response;
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("return in finally block")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        MethodInfo method = X.findUniqueMethod("getResponseCode", 1);
+        ComputeAlwaysEscapes.go(method);
+        TryStatement s1 = (TryStatement) method.methodBody().statements().get(1);
+        assertTrue(s1.finallyBlock().alwaysEscapes());
     }
 
 }
