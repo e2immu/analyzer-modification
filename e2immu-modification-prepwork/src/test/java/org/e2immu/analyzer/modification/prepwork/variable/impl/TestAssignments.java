@@ -114,4 +114,57 @@ public class TestAssignments {
         assertTrue(b1.hasAValueAt("2.0.2"));
         assertFalse(b1.hasAValueAt("3"));
     }
+
+
+    Assignments.CompleteMerge TRUE_COMPLETE_MERGE = new Assignments.CompleteMerge() {
+        @Override
+        public void add(String subIndex) {
+            // nothing here
+        }
+
+        @Override
+        public boolean complete() {
+            return true;
+        }
+    };
+
+
+    Assignments.CompleteMerge FALSE_COMPLETE_MERGE = new Assignments.CompleteMerge() {
+        @Override
+        public void add(String subIndex) {
+            // nothing here
+        }
+
+        @Override
+        public boolean complete() {
+            return false;
+        }
+    };
+
+    @Test
+    public void test4() {
+        Assignments a = new Assignments("0");
+        Assignments a0 = Assignments.newAssignment("1.0.1.0.2", a);
+        Assignments a1 = Assignments.mergeBlocks("1.0.1", TRUE_COMPLETE_MERGE, Map.of("1.0.1.0.2", a0), Map.of());
+        assertEquals("D:0, A:[1.0.1.0.2, 1.0.1=M]", a1.toString());
+        Assignments a2 = Assignments.newAssignment("1.1.0", a);
+        Assignments a3 = Assignments.mergeBlocks("1", TRUE_COMPLETE_MERGE, Map.of("1.0.1", a1, "1.1.0", a2), Map.of());
+        assertEquals("D:0, A:[1.0.1.0.2, 1.0.1=M, 1.1.0, 1=M]", a3.toString());
+
+        assertTrue(a3.hasBeenAssignedAfterFor("1.0.1~", "2"));
+    }
+
+
+    @Test
+    public void test4b() {
+        Assignments a = new Assignments("0");
+        Assignments a0 = Assignments.newAssignment("1.0.1.0.2", a);
+        Assignments a1 = Assignments.mergeBlocks("1.0.1", FALSE_COMPLETE_MERGE, Map.of("1.0.1.0.2", a0), Map.of());
+        assertEquals("D:0, A:[1.0.1.0.2]", a1.toString());
+        Assignments a2 = Assignments.newAssignment("1.1.0", a);
+        Assignments a3 = Assignments.mergeBlocks("1", FALSE_COMPLETE_MERGE, Map.of("1.0.1", a1, "1.1.0", a2), Map.of());
+        assertEquals("D:0, A:[1.0.1.0.2, 1.1.0]", a3.toString());
+
+        assertFalse(a3.hasBeenAssignedAfterFor("1.0.1~", "2"));
+    }
 }
