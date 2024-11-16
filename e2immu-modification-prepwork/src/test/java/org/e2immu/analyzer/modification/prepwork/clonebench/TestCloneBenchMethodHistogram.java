@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,12 +45,18 @@ public class TestCloneBenchMethodHistogram extends CommonTest {
         String directory = "../../testtransform/" + name + "/src/main/java/";
         File src = new File(directory);
         assertTrue(src.isDirectory());
-        File[] javaFiles = src.listFiles(f -> f.getName().endsWith(".java") && !f.getName().endsWith("_t.java"));
+        File[] javaFiles = src.listFiles(f -> f.getName().endsWith(".java") && !isProcessed(f.getName()));
         assertNotNull(javaFiles);
         LOGGER.info("Found {} java files in {}", javaFiles.length, directory);
         for (File javaFile : javaFiles) {
             process(analyzer, javaFile, methodHistogram);
         }
+    }
+
+    private static final Pattern PROCESSED = Pattern.compile(".+_t(_o\\d)?.java");
+
+    private static boolean isProcessed(String name) {
+        return PROCESSED.matcher(name).matches();
     }
 
     private void process(PrepAnalyzer analyzer, File javaFile, Map<String, Integer> methodHistogram) throws IOException {

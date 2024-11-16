@@ -50,7 +50,7 @@ public class MethodAnalyzer {
 
         // variables that are searched via parent
         LocalVariable breakVariable;
-        final Map<Variable, String> limitedScopeOfPatternVariables = new HashMap<>();
+        final Map<String, String> limitedScopeOfPatternVariables = new HashMap<>();
 
         InternalVariables(ReturnVariable rv) {
             this.rv = rv;
@@ -68,14 +68,14 @@ public class MethodAnalyzer {
             this.breakCountsInLoop = parent.breakCountsInLoop;
         }
 
-        public boolean acceptLimitedScope(Variable variable, String index) {
-            String i = limitedScopeOfPatternVariables.get(variable);
+        public boolean acceptLimitedScope(Variable variable, String indexOfDefinition, String index) {
+            String i = limitedScopeOfPatternVariablesGet(variable, indexOfDefinition);
             if (i != null) {
                 return Util.inScopeOf(i, index);
             }
             // go up, maybe it was defined higher up
             if (parent != null) {
-                return parent.acceptLimitedScope(variable, index);
+                return parent.acceptLimitedScope(variable, indexOfDefinition, index);
             }
             return true;
         }
@@ -107,6 +107,14 @@ public class MethodAnalyzer {
             if (statement instanceof SwitchStatementOldStyle || statement instanceof LoopStatement) {
                 loopSwitchStack.pop();
             }
+        }
+
+        public String limitedScopeOfPatternVariablesGet(Variable v, String indexOfDefinition) {
+            return limitedScopeOfPatternVariables.get(indexOfDefinition + "-" + v.simpleName());
+        }
+
+        public void limitedScopeOfPatternVariablesPut(Variable v, String indexOfDefinition, String limitedScope) {
+            limitedScopeOfPatternVariables.put(indexOfDefinition + "-" + v.simpleName(), limitedScope);
         }
 
         void setBreakVariable(LocalVariable bv) {
@@ -239,13 +247,14 @@ public class MethodAnalyzer {
             vdi.put(v, vic);
             String limitedScope = readWriteData.restrictToScope.get(v);
             if (limitedScope != null) {
-                iv.limitedScopeOfPatternVariables.put(v, limitedScope);
+                iv.limitedScopeOfPatternVariablesPut(v, i, limitedScope);
             }
         });
 
         streamOfPrevious.forEach(vic -> {
             VariableInfo vi = vic.best(stageOfPrevious);
-            if (Util.inScopeOf(vi.assignments().indexOfDefinition(), index) && iv.acceptLimitedScope(vi.variable(), index)) {
+            String indexOfDefinition = vi.assignments().indexOfDefinition();
+            if (Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(vi.variable(), indexOfDefinition, index)) {
                 Variable variable = vi.variable();
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
@@ -395,7 +404,8 @@ public class MethodAnalyzer {
             vd.variableInfoStream().forEach(vi -> {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
                 if (vic == null || vic.hasMerge()) {
-                    if (copyToMerge(index, vi) && iv.acceptLimitedScope(vi.variable(), index)) {
+                    if (copyToMerge(index, vi)
+                        && iv.acceptLimitedScope(vi.variable(), vi.assignments().indexOfDefinition(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
                 }

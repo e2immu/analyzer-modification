@@ -51,11 +51,17 @@ public class TestAssignmentsInstanceOf extends CommonTest {
         assertEquals("D:0-E, A:[0-E]", vi000.assignments().toString());
         assertEquals("Type RuntimeException", vi000.variable().parameterizedType().toString());
 
+        VariableData vd010 = VariableDataImpl.of(ifElse.elseBlock().statements().get(0));
+        assertEquals("X.method(Exception):0:exception, e", vd010.knownVariableNamesToString());
+        VariableInfo vi010 = vd010.variableInfo("e");
+        assertEquals("D:0.1.0, A:[0.1.0]", vi010.assignments().toString());
+        assertEquals("Type String", vi010.variable().parameterizedType().toString());
+
         VariableData vd011 = VariableDataImpl.of(ifElse.elseBlock().statements().get(1));
-        assertEquals("must contain e", vd011.knownVariableNamesToString());
+        assertEquals("X.method(Exception):0:exception, e, java.lang.System.out", vd011.knownVariableNamesToString());
         VariableInfo vi011 = vd011.variableInfo("e");
-        assertEquals("D:0-E, A:[0-E]", vi011.assignments().toString());
-        assertEquals("Type RuntimeException", vi011.variable().parameterizedType().toString());
+        assertEquals("D:0.1.0, A:[0.1.0]", vi011.assignments().toString());
+        assertEquals("Type String", vi011.variable().parameterizedType().toString());
     }
 
     @Language("java")
@@ -96,9 +102,9 @@ public class TestAssignmentsInstanceOf extends CommonTest {
         assertEquals("Type RuntimeException", vi010.variable().parameterizedType().toString());
 
         VariableData vd001 = VariableDataImpl.of(ifElse.block().statements().get(1));
-        assertEquals("must contain e", vd001.knownVariableNamesToString());
+        assertEquals("X.method(Exception):0:exception, e, java.lang.System.out", vd001.knownVariableNamesToString());
         VariableInfo vi001 = vd001.variableInfo("e");
-        assertEquals("D:0-E, A:[0-E]", vi001.assignments().toString());
-        assertEquals("Type RuntimeException", vi001.variable().parameterizedType().toString());
+        assertEquals("D:0.0.0, A:[0.0.0]", vi001.assignments().toString());
+        assertEquals("Type String", vi001.variable().parameterizedType().toString());
     }
 }
