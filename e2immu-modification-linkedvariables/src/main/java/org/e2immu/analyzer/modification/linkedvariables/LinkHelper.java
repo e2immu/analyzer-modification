@@ -128,7 +128,9 @@ class LinkHelper {
                 // recursion at the level of the type parameters
                 HiddenContentTypes newHiddenContentTypes = concreteParameterType.typeInfo().analysis()
                         .getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                ParameterizedType newParameterMethodType = concreteParameterType.typeInfo().asParameterizedType();
+                ParameterizedType newParameterMethodType = concreteParameterType.typeInfo().asParameterizedType()
+                        // add the arrays, e.g. because of Class<?>[]
+                        .copyWithArrays(concreteParameterType.arrays());
                 HiddenContentSelector newHcsSource = HiddenContentSelector.selectAll(newHiddenContentTypes,
                         newParameterMethodType);
                 LinkedVariables recursive = linkedVariablesOfParameter(newHiddenContentTypes,
