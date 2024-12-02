@@ -322,5 +322,20 @@ public class Assignments {
         return Arrays.binarySearch(assignmentIndices, index) >= 0;
     }
 
+    public List<String> fromToLevelOf(String from, String toLevel) {
+        String endOf = Util.endOf(toLevel);
+
+        int k = Arrays.binarySearch(assignmentIndices, from);
+        assert k >= 0;
+        List<String> result = new ArrayList<>();
+        for (int i = k; i < assignmentIndices.length; i++) {
+            String s = stripMerge(assignmentIndices[i]);
+            if (Util.atSameLevel(s, toLevel)) break;
+            // emergency break
+            if (s.compareTo(endOf) >= 0) break;
+            result.add(s);
+        }
+        return result;
+    }
 }
 

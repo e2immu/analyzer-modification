@@ -13,6 +13,12 @@ public class Util {
                || d0 > 0 && d1 > 0 && i0.substring(0, d0).equals(i1.substring(0, d1));
     }
 
+    public static String endOf(String index) {
+        int i = index.lastIndexOf('.');
+        if (i < 0) return "~";
+        return index.substring(0, i) + ".~";
+    }
+
     /**
      * all
      *
