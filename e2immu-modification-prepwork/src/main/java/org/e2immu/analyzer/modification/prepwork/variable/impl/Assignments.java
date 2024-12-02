@@ -133,7 +133,7 @@ public class Assignments {
                                           Map<String, List<Assignments>> assignmentsToAddFromFallThrough) {
         List<String> list = new ArrayList<>();
         Assignments aFirst = null;
-        boolean haveAtLeastOneAssignment =false;
+        boolean haveAtLeastOneAssignment = false;
         for (Map.Entry<String, Assignments> entry : assignmentsInBlocks.entrySet()) {
             Assignments a = entry.getValue();
             String subIndex = entry.getKey();
@@ -250,6 +250,26 @@ public class Assignments {
         return false;
     }
 
+    public boolean isReassignment(String index) {
+        int pos = Arrays.binarySearch(assignmentIndices, index);
+        for (int k = pos - 1; k >= 0; k--) {
+            String s = stripMerge(assignmentIndices[k]);
+            if (Util.atSameLevel(s, index)) return true;
+            int lastDot = index.lastIndexOf('.');
+            while (lastDot > 0) {
+                String sub = index.substring(0, lastDot);
+                if (Util.atSameLevel(s, sub)) return true;
+                lastDot = sub.lastIndexOf('.');
+            }
+        }
+        return false;
+    }
+
+    private static String stripMerge(String s) {
+        if (s.endsWith("=M")) return s.substring(0, s.length() - 2);
+        return s;
+    }
+
     /*
     do we have an assignment after 'after', seen by 'seenBy'?
 
@@ -297,5 +317,10 @@ public class Assignments {
         if (s0.compareTo(fromIncl) < 0) return false;
         return s0.compareTo(toExcl) < 0;
     }
+
+    public boolean contains(String index) {
+        return Arrays.binarySearch(assignmentIndices, index) >= 0;
+    }
+
 }
 

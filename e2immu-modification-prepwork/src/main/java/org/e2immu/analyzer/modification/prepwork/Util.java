@@ -9,7 +9,8 @@ public class Util {
     public static boolean atSameLevel(String i0, String i1) {
         int d0 = i0.lastIndexOf(DOT);
         int d1 = i1.lastIndexOf(DOT);
-        return d0 > 0 && d1 > 0 && i0.substring(0, d0).equals(i1.substring(0, d1));
+        return d0 == -1 && d1 == -1
+               || d0 > 0 && d1 > 0 && i0.substring(0, d0).equals(i1.substring(0, d1));
     }
 
     /**
