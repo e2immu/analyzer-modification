@@ -337,5 +337,15 @@ public class Assignments {
         }
         return result;
     }
+
+    public boolean moreAssignmentsAtThisLevel(String index) {
+        int k = Arrays.binarySearch(assignmentIndices, index);
+        assert k >= 0;
+        for (int i = k + 1; i < assignmentIndices.length; i++) {
+            String s = stripMerge(assignmentIndices[i]);
+            if (Util.atSameLevel(s, index)) return true;
+        }
+        return false;
+    }
 }
 
