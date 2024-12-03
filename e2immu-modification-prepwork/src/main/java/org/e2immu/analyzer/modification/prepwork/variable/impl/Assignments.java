@@ -265,9 +265,13 @@ public class Assignments {
         return false;
     }
 
-    private static String stripMerge(String s) {
+    public static String stripMerge(String s) {
         if (s.endsWith("=M")) return s.substring(0, s.length() - 2);
         return s;
+    }
+
+    public static boolean isMerge(String s) {
+        return s.endsWith("=M");
     }
 
     /*
@@ -322,30 +326,22 @@ public class Assignments {
         return Arrays.binarySearch(assignmentIndices, index) >= 0;
     }
 
-    public List<String> fromToLevelOf(String from, String toLevel) {
-        String endOf = Util.endOf(toLevel);
-
+    public Iterable<String> from(String from, boolean includeFrom) {
         int k = Arrays.binarySearch(assignmentIndices, from);
         assert k >= 0;
-        List<String> result = new ArrayList<>();
-        for (int i = k; i < assignmentIndices.length; i++) {
-            String s = stripMerge(assignmentIndices[i]);
-            if (Util.atSameLevel(s, toLevel)) break;
-            // emergency break
-            if (s.compareTo(endOf) >= 0) break;
-            result.add(s);
-        }
-        return result;
-    }
+        return () -> new Iterator<>() {
+            int i = k + (includeFrom ? 0 : 1);
 
-    public boolean moreAssignmentsAtThisLevel(String index) {
-        int k = Arrays.binarySearch(assignmentIndices, index);
-        assert k >= 0;
-        for (int i = k + 1; i < assignmentIndices.length; i++) {
-            String s = stripMerge(assignmentIndices[i]);
-            if (Util.atSameLevel(s, index)) return true;
-        }
-        return false;
+            @Override
+            public boolean hasNext() {
+                return i < assignmentIndices.length;
+            }
+
+            @Override
+            public String next() {
+                return assignmentIndices[i++];
+            }
+        };
     }
 }
 
