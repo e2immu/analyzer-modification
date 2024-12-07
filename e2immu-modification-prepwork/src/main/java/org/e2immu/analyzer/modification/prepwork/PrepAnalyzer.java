@@ -18,6 +18,7 @@ import org.e2immu.util.internal.graph.G;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class PrepAnalyzer {
     private final Runtime runtime;
 
     public PrepAnalyzer(Runtime runtime) {
-        methodAnalyzer = new MethodAnalyzer(runtime);
+        methodAnalyzer = new MethodAnalyzer(runtime, this);
         computeHiddenContent = new ComputeHiddenContent(runtime);
         computeHCS = new ComputeHCS(runtime);
         this.runtime = runtime;
@@ -61,6 +62,19 @@ public class PrepAnalyzer {
     }
 
     public List<Info> doPrimaryType(TypeInfo typeInfo) {
+        assert typeInfo.isPrimaryType();
+        doType(typeInfo);
+
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, typeInfo);
+        ccg.setRecursiveMethods();
+        G<Info> cg = ccg.go().graph();
+        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
+        cp.go(typeInfo, cg);
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        return cao.go(cg);
+    }
+
+    void doType(TypeInfo typeInfo) {
         List<MethodInfo> gettersAndSetters = new LinkedList<>();
         List<MethodInfo> otherConstructorsAndMethods = new LinkedList<>();
 
@@ -76,14 +90,6 @@ public class PrepAnalyzer {
 
         gettersAndSetters.forEach(this::doMethod);
         otherConstructorsAndMethods.forEach(this::doMethod);
-
-        ComputeCallGraph ccg = new ComputeCallGraph(runtime, typeInfo);
-        ccg.setRecursiveMethods();
-        G<Info> cg = ccg.go().graph();
-        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-        cp.go(typeInfo, cg);
-        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
-        return cao.go(cg);
     }
 
     private void doType(TypeInfo typeInfo, List<MethodInfo> gettersAndSetters, List<MethodInfo> otherConstructorsAndMethods) {
@@ -92,30 +98,8 @@ public class PrepAnalyzer {
                 computeHiddenContent.compute(typeInfo));
 
         // recurse
-        typeInfo.subTypes().forEach(typeInfo1 -> doType(typeInfo1, gettersAndSetters, otherConstructorsAndMethods));
+        typeInfo.subTypes().forEach(this::doType);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
-            mi.methodBody().visit(e -> {
-                if (e instanceof Lambda lambda) {
-                    doType(lambda.methodInfo().typeInfo(), gettersAndSetters, otherConstructorsAndMethods);
-                    return false; // otherwise, we'll go inside the body again
-                }
-                if (e instanceof ConstructorCall cc) {
-                    if (cc.anonymousClass() != null) {
-                        doType(cc.anonymousClass(), gettersAndSetters, otherConstructorsAndMethods);
-                    }
-                    if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
-                        // synthetic array constructors are not stored listed in typeInfo.constructorAndMethodStream()
-                        HiddenContentTypes hctConstructorType = cc.constructor().typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
-                                () -> computeHiddenContent.compute(cc.constructor().typeInfo()));
-                        HiddenContentTypes hctMethod = computeHiddenContent.compute(hctConstructorType, cc.constructor());
-                        assert !cc.constructor().analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES);
-                        cc.constructor().analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
-                        computeHCS.doHiddenContentSelector(cc.constructor());
-                        // not adding it to "otherConstructorsAndMethods"
-                    }
-                }
-                return true;
-            });
             if (!mi.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) {
                 HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, mi);
                 mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
@@ -132,17 +116,29 @@ public class PrepAnalyzer {
             if (fi.initializer() != null) {
                 fi.initializer().visit(e -> {
                     if (e instanceof Lambda lambda) {
-                        doType(lambda.methodInfo().typeInfo(), gettersAndSetters, otherConstructorsAndMethods);
+                        doType(lambda.methodInfo().typeInfo());
                         return false;
                     }
                     if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
-                        doType(cc.anonymousClass(), gettersAndSetters, otherConstructorsAndMethods);
+                        doType(cc.anonymousClass());
                         return false;
                     }
                     return true;
                 });
             }
         });
+    }
+
+    // called from MethodAnalyzer
+    void handleSyntheticArrayConstructor(ConstructorCall cc) {
+        // synthetic array constructors are not stored listed in typeInfo.constructorAndMethodStream()
+        HiddenContentTypes hctConstructorType = cc.constructor().typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                () -> computeHiddenContent.compute(cc.constructor().typeInfo()));
+        HiddenContentTypes hctMethod = computeHiddenContent.compute(hctConstructorType, cc.constructor());
+        assert !cc.constructor().analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES);
+        cc.constructor().analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
+        computeHCS.doHiddenContentSelector(cc.constructor());
+        // not adding it to "otherConstructorsAndMethods"
     }
 
     public void initialize(List<TypeInfo> typesLoaded) {

@@ -203,42 +203,64 @@ public class TestReads extends CommonTest {
     }
 
     @Language("java")
-    public static final String INPUT4b = """
-            import java.io.File;
+    public static final String INPUT5 = """
             import java.io.IOException;
-            import java.nio.file.Files;
-            import java.nio.file.Path;
-            import java.util.List;
-            import java.util.regex.Pattern;
-            import java.util.stream.Collectors;
-            import java.util.stream.Stream;
-            class X{
-                private List<File> find(Path sourceDirectory) {
-                    try(Stream<Path> sourceDocumentCandidates=Files.walk(sourceDirectory)) {
-                        return sourceDocumentCandidates.filter(Files::isRegularFile)
-                            .filter(path -> {
-                                return sourceDirectory.relativize(path).toString().isEmpty();
-                            })
-                            .map(Path::toFile).collect(Collectors.toList());
-                    } catch(IOException e){
-                        throw new RuntimeException();
-                    }
+            import java.io.InputStream;
+            import java.nio.ByteBuffer;
+            import java.nio.channels.ReadableByteChannel;
+            
+            public class X {
+            
+                public static ReadableByteChannel newChannel(final InputStream in) {
+                    return new ReadableByteChannel() {
+            
+                        public boolean open = true;
+            
+                        public int read(ByteBuffer dst) throws IOException {
+                            assert dst.hasArray();
+                            byte[] array = dst.array();
+                            int arrayOffset = dst.arrayOffset();
+                            int totalRead = 0;
+                            int bytesRead = 0;
+                            int bytesToRead;
+                            while ((bytesToRead = dst.remaining()) > 0) {
+                                if ((totalRead > 0) && !(in.available() > 0)) {
+                                    break;
+                                }
+                                int pos = dst.position();
+                                bytesRead = in.read(array, arrayOffset + pos, bytesToRead);
+                                if (bytesRead < 0) {
+                                    break;
+                                } else {
+                                    dst.position(pos + bytesRead);
+                                    totalRead += bytesRead;
+                                }
+                            }
+                            if ((bytesRead < 0) && (totalRead == 0)) {
+                                return -1;
+                            }
+                            return totalRead;
+                        }
+            
+                        public boolean isOpen() {
+                            return open;
+                        }
+            
+                        public void close() throws IOException {
+                            in.close();
+                            open = false;
+                        }
+                    };
                 }
             }
             """;
 
-    @DisplayName("simple variant without LVC, that works")
+    @DisplayName("copyReadsFromAnonymousMethod for field initializer 'true'")
     @Test
-    public void test4b() {
-        TypeInfo X = javaInspector.parse(INPUT4b);
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.doPrimaryType(X);
-        MethodInfo find = X.findUniqueMethod("find", 1);
-        ParameterInfo sourceDirectory = find.parameters().get(0);
-        Statement last = find.methodBody().lastStatement();
-        VariableData vdLast = VariableDataImpl.of(last);
-        VariableInfo viSd = vdLast.variableInfo(sourceDirectory);
-        assertEquals("0+0, 0.0.0", viSd.reads().toString());
     }
 
 }

@@ -34,9 +34,11 @@ public class MethodAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodAnalyzer.class);
 
     private final Runtime runtime;
+    private final PrepAnalyzer prepAnalyzer;
 
-    public MethodAnalyzer(Runtime runtime) {
+    public MethodAnalyzer(Runtime runtime, PrepAnalyzer prepAnalyzer) {
         this.runtime = runtime;
+        this.prepAnalyzer = prepAnalyzer;
     }
 
     private static class InternalVariables {
@@ -596,26 +598,37 @@ public class MethodAnalyzer {
         public boolean beforeExpression(Expression e) {
             if (e instanceof Lambda lambda) {
                 // we plan to catch all variables that we already know, but not to introduce NEW variables
-                handleAnonymousMethod(lambda.methodBody(), lambda.parameters(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
+                prepAnalyzer.doType(lambda.methodInfo().typeInfo());
+                copyReadsFromAnonymousMethod(lambda.methodBody(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
                 return false;
             }
-            if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
-                Set<FieldInfo> localFields = new HashSet<>(cc.anonymousClass().fields());
-                Set<TypeInfo> typeHierarchy = new HashSet<>();
-                typeHierarchy.add(cc.anonymousClass());
-                typeHierarchy.addAll(cc.anonymousClass().superTypesExcludingJavaLangObject());
-                typeHierarchy.add(runtime.objectTypeInfo());
-                cc.anonymousClass().superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
-                cc.anonymousClass().fields().forEach(f -> {
-                    if (f.initializer() != null && !f.initializer().isEmpty()) {
-                        Block block = runtime.newBlockBuilder()
-                                .addStatement(runtime.newExpressionAsStatement(f.initializer())).build();
-                        handleAnonymousMethod(block, List.of(), localFields, typeHierarchy);
+
+            if (e instanceof ConstructorCall cc) {
+                if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
+                    prepAnalyzer.handleSyntheticArrayConstructor(cc);
+                } else {
+                    TypeInfo anonymousClass = cc.anonymousClass();
+                    if (anonymousClass != null) {
+                        prepAnalyzer.doType(anonymousClass);
+
+                        Set<FieldInfo> localFields = new HashSet<>(anonymousClass.fields());
+                        Set<TypeInfo> typeHierarchy = new HashSet<>();
+                        typeHierarchy.add(anonymousClass);
+                        typeHierarchy.addAll(anonymousClass.superTypesExcludingJavaLangObject());
+                        typeHierarchy.add(runtime.objectTypeInfo());
+                        anonymousClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
+                        anonymousClass.fields().forEach(f -> {
+                            if (f.initializer() != null && !f.initializer().isEmpty()) {
+                                Block block = runtime.newBlockBuilder()
+                                        .addStatement(runtime.newExpressionAsStatement(f.initializer())).build();
+                                copyReadsFromAnonymousMethod(block, localFields, typeHierarchy);
+                            }
+                        });
+                        anonymousClass.constructorAndMethodStream()
+                                .forEach(mi -> copyReadsFromAnonymousMethod(mi.methodBody(), localFields, typeHierarchy));
+                        return true; // so that the arguments get processed; the current visitor ignores the anonymous class
                     }
-                });
-                cc.anonymousClass().constructorAndMethodStream()
-                        .forEach(mi -> handleAnonymousMethod(mi.methodBody(), mi.parameters(), localFields, typeHierarchy));
-                return true; // so that the arguments get processed; the current visitor ignores the anonymous class
+                }
             }
             if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
                 ++inNegative;
@@ -682,26 +695,25 @@ public class MethodAnalyzer {
             return true;
         }
 
-        private void handleAnonymousMethod(Block methodBody,
-                                           List<ParameterInfo> parameters,
-                                           Set<FieldInfo> localFields,
-                                           Set<TypeInfo> typeHierarchy) {
-            Set<Variable> definedInLambda = new HashSet<>(parameters);
-            methodBody.visit(v -> {
-                if (v instanceof Statement s) {
-                    if (v instanceof LocalVariableCreation lvc) {
-                        definedInLambda.addAll(lvc.newLocalVariables());
-                    } else if (!(v instanceof Block)) {
-                        Visitor sub = new Visitor(index, knownVariableNames, s);
-                        s.visit(sub);
-                        sub.read.keySet().stream()
-                                .filter(vv -> !(vv instanceof FieldReference fr && localFields.contains(fr.fieldInfo())))
-                                .filter(vv -> !(vv instanceof This thisVar && typeHierarchy.contains(thisVar.typeInfo())))
-                                .filter(vv -> !definedInLambda.contains(vv)).forEach(this::markRead);
+        private void copyReadsFromAnonymousMethod(Block methodBody,
+                                                  Set<FieldInfo> localFields,
+                                                  Set<TypeInfo> typeHierarchy) {
+            Statement last = methodBody.lastStatement();
+            if(last != null) {
+                VariableData vd = VariableDataImpl.of(last);
+                vd.variableInfoStream().forEach(vi -> {
+                    Variable v = vi.variable();
+                    boolean read =
+                            vi.assignments().indexOfDefinition().equals("-")
+                            && !(v instanceof ParameterInfo pi && typeHierarchy.contains(pi.methodInfo().typeInfo()))
+                            && !(v instanceof FieldReference fr && localFields.contains(fr.fieldInfo()))
+                            && !(v instanceof This thisVar && typeHierarchy.contains(thisVar.typeInfo()))
+                            && !(v instanceof ReturnVariable);
+                    if (read) {
+                        markRead(v);
                     }
-                }
-                return true;
-            });
+                });
+            } // else: empty method
         }
 
         // NOTE: pretty similar code in Factory.getterVariable(MethodCall methodCall);
