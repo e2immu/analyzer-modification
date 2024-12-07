@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
+import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.*;
@@ -53,6 +54,10 @@ public class MethodAnalyzer {
         // variables that are searched via parent
         LocalVariable breakVariable;
         final Map<String, String> limitedScopeOfPatternVariables = new HashMap<>();
+
+        InternalVariables() {
+            this((ReturnVariable) null);
+        }
 
         InternalVariables(ReturnVariable rv) {
             this.rv = rv;
@@ -225,6 +230,20 @@ public class MethodAnalyzer {
         return previous;
     }
 
+    void doInitializerExpression(FieldInfo fieldInfo) {
+        Expression expression = fieldInfo.initializer();
+        VariableDataImpl vd = new VariableDataImpl();
+        if (!expression.isEmpty()) {
+            Visitor v = new Visitor("0", Set.of(), expression);
+            expression.visit(v);
+            ReadWriteData readWriteData = new ReadWriteData(null, v.seenFirstTime, v.accessorSeenFirstTime,
+                    v.read, v.assigned, v.restrictToScope);
+            fromReadWriteDataIntoVd(readWriteData, false, vd, new InternalVariables(),
+                    Stream.of(), null, "0");
+        }
+        fieldInfo.analysisOfInitializer().set(VariableDataImpl.VARIABLE_DATA, vd);
+    }
+
     private VariableData doStatement(MethodInfo methodInfo,
                                      Statement statement,
                                      VariableData previous,
@@ -243,6 +262,39 @@ public class MethodAnalyzer {
             streamOfPrevious = previous.variableInfoContainerStream();
         }
 
+        fromReadWriteDataIntoVd(readWriteData, hasMerge, vdi, iv, streamOfPrevious, stageOfPrevious, index);
+
+        iv.handleStatement(index, statement);
+
+        if (statement instanceof SwitchStatementOldStyle oss) {
+            doOldStyleSwitchBlock(methodInfo, oss, vdi, iv);
+        } else {
+            // sub-blocks
+            if (statement.hasSubBlocks()) {
+                Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, iv);
+
+                boolean noBreakStatementsInside;
+                if (statement instanceof LoopStatement) {
+                    noBreakStatementsInside = !iv.breakCountsInLoop.containsKey(index);
+                } else {
+                    noBreakStatementsInside = false;
+                }
+                addMerge(index, statement, vdi, noBreakStatementsInside, lastOfEachSubBlock, iv, Map.of());
+            }
+        }
+        iv.endHandleStatement(statement);
+
+        statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
+        return vdi;
+    }
+
+    private void fromReadWriteDataIntoVd(ReadWriteData readWriteData,
+                                         boolean hasMerge,
+                                         VariableDataImpl vdi,
+                                         InternalVariables iv,
+                                         Stream<VariableInfoContainer> streamOfPrevious,
+                                         Stage stageOfPrevious,
+                                         String index) {
         readWriteData.seenFirstTime.forEach((v, i) -> {
             VariableInfoContainer vic = initialVariable(i, v, readWriteData,
                     hasMerge && !(v instanceof LocalVariable));
@@ -281,29 +333,6 @@ public class MethodAnalyzer {
                             Either.right(initial), eval, false);
                     vdi.put(v, vic);
                 });
-
-        iv.handleStatement(index, statement);
-
-        if (statement instanceof SwitchStatementOldStyle oss) {
-            doOldStyleSwitchBlock(methodInfo, oss, vdi, iv);
-        } else {
-            // sub-blocks
-            if (statement.hasSubBlocks()) {
-                Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vdi, iv);
-
-                boolean noBreakStatementsInside;
-                if (statement instanceof LoopStatement) {
-                    noBreakStatementsInside = !iv.breakCountsInLoop.containsKey(index);
-                } else {
-                    noBreakStatementsInside = false;
-                }
-                addMerge(index, statement, vdi, noBreakStatementsInside, lastOfEachSubBlock, iv, Map.of());
-            }
-        }
-        iv.endHandleStatement(statement);
-
-        statement.analysis().set(VariableDataImpl.VARIABLE_DATA, vdi);
-        return vdi;
     }
 
     private static final VariableNature SYNTHETIC = new VariableNature() {
@@ -572,9 +601,9 @@ public class MethodAnalyzer {
         final Map<Variable, String> accessorSeenFirstTime = new HashMap<>();
         final Map<Variable, String> restrictToScope = new HashMap<>();
         final Set<String> knownVariableNames;
-        final Statement statement;
+        final Element statement;
 
-        Visitor(String index, Set<String> knownVariableNames, Statement statement) {
+        Visitor(String index, Set<String> knownVariableNames, Element statement) {
             this.index = index;
             this.knownVariableNames = Set.copyOf(knownVariableNames); // make sure we do not modify it
             this.statement = statement;
@@ -599,7 +628,7 @@ public class MethodAnalyzer {
             if (e instanceof Lambda lambda) {
                 // we plan to catch all variables that we already know, but not to introduce NEW variables
                 prepAnalyzer.doType(lambda.methodInfo().typeInfo());
-                copyReadsFromAnonymousMethod(lambda.methodBody(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
+                copyReadsFromAnonymousMethod(lambda.methodInfo(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
                 return false;
             }
 
@@ -619,13 +648,11 @@ public class MethodAnalyzer {
                         anonymousClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
                         anonymousClass.fields().forEach(f -> {
                             if (f.initializer() != null && !f.initializer().isEmpty()) {
-                                Block block = runtime.newBlockBuilder()
-                                        .addStatement(runtime.newExpressionAsStatement(f.initializer())).build();
-                                copyReadsFromAnonymousMethod(block, localFields, typeHierarchy);
+                                copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy);
                             }
                         });
                         anonymousClass.constructorAndMethodStream()
-                                .forEach(mi -> copyReadsFromAnonymousMethod(mi.methodBody(), localFields, typeHierarchy));
+                                .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy));
                         return true; // so that the arguments get processed; the current visitor ignores the anonymous class
                     }
                 }
@@ -695,25 +722,31 @@ public class MethodAnalyzer {
             return true;
         }
 
-        private void copyReadsFromAnonymousMethod(Block methodBody,
+        private void copyReadsFromAnonymousMethod(MethodInfo methodInfo,
                                                   Set<FieldInfo> localFields,
                                                   Set<TypeInfo> typeHierarchy) {
-            Statement last = methodBody.lastStatement();
-            if(last != null) {
-                VariableData vd = VariableDataImpl.of(last);
-                vd.variableInfoStream().forEach(vi -> {
-                    Variable v = vi.variable();
-                    boolean read =
-                            vi.assignments().indexOfDefinition().equals("-")
-                            && !(v instanceof ParameterInfo pi && typeHierarchy.contains(pi.methodInfo().typeInfo()))
-                            && !(v instanceof FieldReference fr && localFields.contains(fr.fieldInfo()))
-                            && !(v instanceof This thisVar && typeHierarchy.contains(thisVar.typeInfo()))
-                            && !(v instanceof ReturnVariable);
-                    if (read) {
-                        markRead(v);
-                    }
-                });
-            } // else: empty method
+            Statement last = methodInfo.methodBody().lastStatement();
+            if (last != null) {
+                copyReadsFromAnonymousMethod(last.analysis(), localFields, typeHierarchy);
+            }
+        }
+
+        private void copyReadsFromAnonymousMethod(PropertyValueMap analysis,
+                                                  Set<FieldInfo> localFields,
+                                                  Set<TypeInfo> typeHierarchy) {
+            VariableData vd = analysis.getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
+            vd.variableInfoStream().forEach(vi -> {
+                Variable v = vi.variable();
+                boolean read =
+                        vi.assignments().indexOfDefinition().equals("-")
+                        && !(v instanceof ParameterInfo pi && typeHierarchy.contains(pi.methodInfo().typeInfo()))
+                        && !(v instanceof FieldReference fr && localFields.contains(fr.fieldInfo()))
+                        && !(v instanceof This thisVar && typeHierarchy.contains(thisVar.typeInfo()))
+                        && !(v instanceof ReturnVariable);
+                if (read) {
+                    markRead(v);
+                }
+            });
         }
 
         // NOTE: pretty similar code in Factory.getterVariable(MethodCall methodCall);

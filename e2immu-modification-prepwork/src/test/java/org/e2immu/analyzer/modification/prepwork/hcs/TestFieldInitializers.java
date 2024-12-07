@@ -2,6 +2,10 @@ package org.e2immu.analyzer.modification.prepwork.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.Lambda;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -11,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class TestFieldInitializers extends CommonTest {
@@ -141,6 +145,13 @@ public class TestFieldInitializers extends CommonTest {
         TypeInfo B = javaInspector.parse(INPUT1);
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         List<Info> analysisOrder = prepAnalyzer.doPrimaryType(B);
+        FieldInfo concatWithKey = B.getFieldByName("concatWithKey", true);
+        Lambda lambda = (Lambda) concatWithKey.initializer();
+        assertEquals("Map_Compute.$3.apply(String,String)", lambda.methodInfo().fullyQualifiedName());
+        VariableData vdConcat = concatWithKey.analysisOfInitializer().getOrNull(VariableDataImpl.VARIABLE_DATA,
+                VariableDataImpl.class);
+        assertNotNull(vdConcat);
+        assertEquals("", vdConcat.knownVariableNamesToString());
         for (Info info : analysisOrder) {
             if (info instanceof MethodInfo methodInfo && !methodInfo.isConstructor()) {
                 assertTrue(methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD),

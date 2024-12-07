@@ -112,21 +112,7 @@ public class PrepAnalyzer {
                 otherConstructorsAndMethods.add(mi);
             }
         });
-        typeInfo.fields().forEach(fi -> {
-            if (fi.initializer() != null) {
-                fi.initializer().visit(e -> {
-                    if (e instanceof Lambda lambda) {
-                        doType(lambda.methodInfo().typeInfo());
-                        return false;
-                    }
-                    if (e instanceof ConstructorCall cc && cc.anonymousClass() != null) {
-                        doType(cc.anonymousClass());
-                        return false;
-                    }
-                    return true;
-                });
-            }
-        });
+        typeInfo.fields().forEach(methodAnalyzer::doInitializerExpression);
     }
 
     // called from MethodAnalyzer
