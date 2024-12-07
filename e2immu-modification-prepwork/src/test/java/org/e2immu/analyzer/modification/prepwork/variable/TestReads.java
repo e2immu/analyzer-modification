@@ -108,7 +108,6 @@ public class TestReads extends CommonTest {
         assertEquals("1", vif2.reads().toString());
     }
 
-
     @Language("java")
     private static final String INPUT3 = """
             package a.b;
@@ -162,4 +161,84 @@ public class TestReads extends CommonTest {
         VariableInfo vif2 = vd2.variableInfo(f);
         assertEquals("0", vif2.reads().toString());
     }
+
+    @Language("java")
+    public static final String INPUT4 = """
+            import java.io.File;
+            import java.io.IOException;
+            import java.nio.file.Files;
+            import java.nio.file.Path;
+            import java.util.List;
+            import java.util.regex.Pattern;
+            import java.util.stream.Collectors;
+            import java.util.stream.Stream;
+            class X{
+                private List<File> find(Path sourceDirectory) {
+                    try(Stream<Path> sourceDocumentCandidates=Files.walk(sourceDirectory)) {
+                        return sourceDocumentCandidates.filter(Files::isRegularFile)
+                            .filter(path -> {
+                                String s = sourceDirectory.relativize(path).toString();
+                                return s.isEmpty();
+                            })
+                            .map(Path::toFile).collect(Collectors.toList());
+                    } catch(IOException e){
+                        throw new RuntimeException();
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("variant with LVC, that fails")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+        MethodInfo find = X.findUniqueMethod("find", 1);
+        ParameterInfo sourceDirectory = find.parameters().get(0);
+        Statement last = find.methodBody().lastStatement();
+        VariableData vdLast = VariableDataImpl.of(last);
+        VariableInfo viSd = vdLast.variableInfo(sourceDirectory);
+        assertEquals("0+0, 0.0.0", viSd.reads().toString());
+    }
+
+    @Language("java")
+    public static final String INPUT4b = """
+            import java.io.File;
+            import java.io.IOException;
+            import java.nio.file.Files;
+            import java.nio.file.Path;
+            import java.util.List;
+            import java.util.regex.Pattern;
+            import java.util.stream.Collectors;
+            import java.util.stream.Stream;
+            class X{
+                private List<File> find(Path sourceDirectory) {
+                    try(Stream<Path> sourceDocumentCandidates=Files.walk(sourceDirectory)) {
+                        return sourceDocumentCandidates.filter(Files::isRegularFile)
+                            .filter(path -> {
+                                return sourceDirectory.relativize(path).toString().isEmpty();
+                            })
+                            .map(Path::toFile).collect(Collectors.toList());
+                    } catch(IOException e){
+                        throw new RuntimeException();
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("simple variant without LVC, that works")
+    @Test
+    public void test4b() {
+        TypeInfo X = javaInspector.parse(INPUT4b);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+        MethodInfo find = X.findUniqueMethod("find", 1);
+        ParameterInfo sourceDirectory = find.parameters().get(0);
+        Statement last = find.methodBody().lastStatement();
+        VariableData vdLast = VariableDataImpl.of(last);
+        VariableInfo viSd = vdLast.variableInfo(sourceDirectory);
+        assertEquals("0+0, 0.0.0", viSd.reads().toString());
+    }
+
 }
