@@ -627,7 +627,7 @@ public class MethodAnalyzer {
         public boolean beforeExpression(Expression e) {
             if (e instanceof Lambda lambda) {
                 // we plan to catch all variables that we already know, but not to introduce NEW variables
-                prepAnalyzer.doType(lambda.methodInfo().typeInfo());
+                if (prepAnalyzer.recurseIntoAnonymous) prepAnalyzer.doType(lambda.methodInfo().typeInfo());
                 copyReadsFromAnonymousMethod(lambda.methodInfo(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
                 return false;
             }
@@ -638,7 +638,7 @@ public class MethodAnalyzer {
                 } else {
                     TypeInfo anonymousClass = cc.anonymousClass();
                     if (anonymousClass != null) {
-                        prepAnalyzer.doType(anonymousClass);
+                        if (prepAnalyzer.recurseIntoAnonymous) prepAnalyzer.doType(anonymousClass);
 
                         Set<FieldInfo> localFields = new HashSet<>(anonymousClass.fields());
                         Set<TypeInfo> typeHierarchy = new HashSet<>();

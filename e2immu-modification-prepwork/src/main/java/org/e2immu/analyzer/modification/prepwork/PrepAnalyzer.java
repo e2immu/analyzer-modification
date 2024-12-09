@@ -42,12 +42,18 @@ public class PrepAnalyzer {
     private final ComputeHiddenContent computeHiddenContent;
     private final ComputeHCS computeHCS;
     private final Runtime runtime;
+    final boolean recurseIntoAnonymous;
 
     public PrepAnalyzer(Runtime runtime) {
+        this(runtime, true);
+    }
+
+    public PrepAnalyzer(Runtime runtime, boolean recurseIntoAnonymous) {
         methodAnalyzer = new MethodAnalyzer(runtime, this);
         computeHiddenContent = new ComputeHiddenContent(runtime);
         computeHCS = new ComputeHCS(runtime);
         this.runtime = runtime;
+        this.recurseIntoAnonymous = recurseIntoAnonymous;
     }
 
     /*
@@ -117,14 +123,15 @@ public class PrepAnalyzer {
 
     // called from MethodAnalyzer
     void handleSyntheticArrayConstructor(ConstructorCall cc) {
-        // synthetic array constructors are not stored listed in typeInfo.constructorAndMethodStream()
-        HiddenContentTypes hctConstructorType = cc.constructor().typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
-                () -> computeHiddenContent.compute(cc.constructor().typeInfo()));
-        HiddenContentTypes hctMethod = computeHiddenContent.compute(hctConstructorType, cc.constructor());
-        assert !cc.constructor().analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES);
-        cc.constructor().analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
-        computeHCS.doHiddenContentSelector(cc.constructor());
-        // not adding it to "otherConstructorsAndMethods"
+        if (!cc.constructor().analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) {
+            // synthetic array constructors are not stored listed in typeInfo.constructorAndMethodStream()
+            HiddenContentTypes hctConstructorType = cc.constructor().typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                    () -> computeHiddenContent.compute(cc.constructor().typeInfo()));
+            HiddenContentTypes hctMethod = computeHiddenContent.compute(hctConstructorType, cc.constructor());
+            cc.constructor().analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
+            computeHCS.doHiddenContentSelector(cc.constructor());
+            // not adding it to "otherConstructorsAndMethods"
+        }
     }
 
     public void initialize(List<TypeInfo> typesLoaded) {
