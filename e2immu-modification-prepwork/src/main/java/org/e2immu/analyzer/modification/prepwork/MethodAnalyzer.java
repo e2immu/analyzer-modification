@@ -50,21 +50,23 @@ public class MethodAnalyzer {
         final Stack<Statement> loopSwitchStack;
         final Map<String, String> labelToStatementIndex;
         final Map<String, Integer> breakCountsInLoop;
+        final Set<String> namesOfLocalVariablesInEnclosedMethod;
 
         // variables that are searched via parent
         LocalVariable breakVariable;
         final Map<String, String> limitedScopeOfPatternVariables = new HashMap<>();
 
         InternalVariables() {
-            this((ReturnVariable) null);
+            this((ReturnVariable) null, Set.of());
         }
 
-        InternalVariables(ReturnVariable rv) {
+        InternalVariables(ReturnVariable rv, Set<String> namesOfLocalVariablesInEnclosedMethod) {
             this.rv = rv;
             this.parent = null;
             loopSwitchStack = new Stack<>();
             labelToStatementIndex = new HashMap<>();
             breakCountsInLoop = new HashMap<>();
+            this.namesOfLocalVariablesInEnclosedMethod = namesOfLocalVariablesInEnclosedMethod;
         }
 
         InternalVariables(InternalVariables parent) {
@@ -73,6 +75,7 @@ public class MethodAnalyzer {
             this.loopSwitchStack = parent.loopSwitchStack;
             this.labelToStatementIndex = parent.labelToStatementIndex;
             this.breakCountsInLoop = parent.breakCountsInLoop;
+            this.namesOfLocalVariablesInEnclosedMethod = parent.namesOfLocalVariablesInEnclosedMethod;
         }
 
         public boolean acceptLimitedScope(Variable variable, String indexOfDefinition, String index) {
@@ -175,7 +178,10 @@ public class MethodAnalyzer {
         // in order to know when the method exits (we'll track 'throw' and 'return' statements)
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);
         // start analysis, and copy results of last statement into method
-        InternalVariables iv = new InternalVariables(rv);
+        Set<String> namesOfLocalVariablesInEnclosedMethod = methodInfo.typeInfo().analysis()
+                .getOrDefault(PropertyImpl.LOCAL_VARIABLES_OF_ENCLOSING_METHOD, ValueImpl.SetOfStringsImpl.EMPTY_SET)
+                .set();
+        InternalVariables iv = new InternalVariables(rv, namesOfLocalVariablesInEnclosedMethod);
         try {
             VariableData lastOfMainBlock = doBlock(methodInfo, methodBody, null, iv);
             if (lastOfMainBlock != null) {
@@ -234,7 +240,7 @@ public class MethodAnalyzer {
         Expression expression = fieldInfo.initializer();
         VariableDataImpl vd = new VariableDataImpl();
         if (!expression.isEmpty()) {
-            Visitor v = new Visitor("0", Set.of(), expression);
+            Visitor v = new Visitor("0", Set.of(), expression, null);
             expression.visit(v);
             ReadWriteData readWriteData = new ReadWriteData(null, v.seenFirstTime, v.accessorSeenFirstTime,
                     v.read, v.assigned, v.restrictToScope);
@@ -308,7 +314,9 @@ public class MethodAnalyzer {
         streamOfPrevious.forEach(vic -> {
             VariableInfo vi = vic.best(stageOfPrevious);
             String indexOfDefinition = vi.assignments().indexOfDefinition();
-            if (Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(vi.variable(), indexOfDefinition, index)) {
+            if (vi.variable() instanceof LocalVariable lv && iv.namesOfLocalVariablesInEnclosedMethod.contains(lv.simpleName())
+                ||
+                Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(vi.variable(), indexOfDefinition, index)) {
                 Variable variable = vi.variable();
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
@@ -435,7 +443,7 @@ public class MethodAnalyzer {
             vd.variableInfoStream().forEach(vi -> {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
                 if (vic == null || vic.hasMerge()) {
-                    if (copyToMerge(index, vi)
+                    if (copyToMerge(index, vi, iv.namesOfLocalVariablesInEnclosedMethod)
                         && iv.acceptLimitedScope(vi.variable(), vi.assignments().indexOfDefinition(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
@@ -499,8 +507,11 @@ public class MethodAnalyzer {
         return res;
     }
 
-    private boolean copyToMerge(String index, VariableInfo vi) {
-        return !isLocal(vi.variable()) || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
+    private boolean copyToMerge(String index, VariableInfo vi, Set<String> namesOfLocalVariablesInEnclosedMethod) {
+        Variable variable = vi.variable();
+        return variable instanceof LocalVariable lv && namesOfLocalVariablesInEnclosedMethod.contains(lv.simpleName())
+               || !isLocal(variable)
+               || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
     }
 
     private static boolean isLocal(Variable v) {
@@ -530,7 +541,7 @@ public class MethodAnalyzer {
             index = indexIn;
         }
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
-        Visitor v = new Visitor(index, knownVariableNames, statement);
+        Visitor v = new Visitor(index, knownVariableNames, statement, previous);
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assignedAdd(iv.rv);
             if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
@@ -602,9 +613,11 @@ public class MethodAnalyzer {
         final Map<Variable, String> restrictToScope = new HashMap<>();
         final Set<String> knownVariableNames;
         final Element statement;
+        final VariableData previousVariableData;
 
-        Visitor(String index, Set<String> knownVariableNames, Element statement) {
+        Visitor(String index, Set<String> knownVariableNames, Element statement, VariableData previousVariableData) {
             this.index = index;
+            this.previousVariableData = previousVariableData;
             this.knownVariableNames = Set.copyOf(knownVariableNames); // make sure we do not modify it
             this.statement = statement;
         }
@@ -627,8 +640,12 @@ public class MethodAnalyzer {
         public boolean beforeExpression(Expression e) {
             if (e instanceof Lambda lambda) {
                 // we plan to catch all variables that we already know, but not to introduce NEW variables
-                if (prepAnalyzer.recurseIntoAnonymous) prepAnalyzer.doType(lambda.methodInfo().typeInfo());
-                copyReadsFromAnonymousMethod(lambda.methodInfo(), Set.of(), Set.of(lambda.methodInfo().typeInfo()));
+                Set<String> localVariableNames = ensureLocalVariableNamesOfEnclosingType(lambda.methodInfo().typeInfo());
+                if (prepAnalyzer.recurseIntoAnonymous) {
+                    prepAnalyzer.doType(lambda.methodInfo().typeInfo());
+                }
+                copyReadsFromAnonymousMethod(lambda.methodInfo(), Set.of(), Set.of(lambda.methodInfo().typeInfo()),
+                        localVariableNames);
                 return false;
             }
 
@@ -638,7 +655,10 @@ public class MethodAnalyzer {
                 } else {
                     TypeInfo anonymousClass = cc.anonymousClass();
                     if (anonymousClass != null) {
-                        if (prepAnalyzer.recurseIntoAnonymous) prepAnalyzer.doType(anonymousClass);
+                        Set<String> namesOfLocalVariablesInEnclosedMethod = ensureLocalVariableNamesOfEnclosingType(anonymousClass);
+                        if (prepAnalyzer.recurseIntoAnonymous) {
+                            prepAnalyzer.doType(anonymousClass);
+                        }
 
                         Set<FieldInfo> localFields = new HashSet<>(anonymousClass.fields());
                         Set<TypeInfo> typeHierarchy = new HashSet<>();
@@ -648,11 +668,13 @@ public class MethodAnalyzer {
                         anonymousClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
                         anonymousClass.fields().forEach(f -> {
                             if (f.initializer() != null && !f.initializer().isEmpty()) {
-                                copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy);
+                                copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy,
+                                        namesOfLocalVariablesInEnclosedMethod);
                             }
                         });
                         anonymousClass.constructorAndMethodStream()
-                                .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy));
+                                .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy,
+                                        namesOfLocalVariablesInEnclosedMethod));
                         return true; // so that the arguments get processed; the current visitor ignores the anonymous class
                     }
                 }
@@ -722,22 +744,50 @@ public class MethodAnalyzer {
             return true;
         }
 
+        private Set<String> ensureLocalVariableNamesOfEnclosingType(TypeInfo anonymousClass) {
+            Value.SetOfStrings stored = anonymousClass.analysis()
+                    .getOrNull(PropertyImpl.LOCAL_VARIABLES_OF_ENCLOSING_METHOD, ValueImpl.SetOfStringsImpl.class);
+            if (stored == null) {
+                Set<String> names = allKnownLocalVariableNames();
+                anonymousClass.analysis().set(PropertyImpl.LOCAL_VARIABLES_OF_ENCLOSING_METHOD,
+                        new ValueImpl.SetOfStringsImpl(Set.copyOf(names)));
+                return names;
+            }
+            return stored.set();
+        }
+
+        private Set<String> allKnownLocalVariableNames() {
+            if (previousVariableData != null) {
+                return previousVariableData.variableInfoContainerStream()
+                        .map(vic -> vic.bestCurrentlyComputed())
+                        .filter(vi -> vi != null &&  isLocal(vi.variable()))
+                        .map(vi -> vi.variable().simpleName())
+                        .collect(Collectors.toSet());
+            }
+            return Set.of();
+        }
+
         private void copyReadsFromAnonymousMethod(MethodInfo methodInfo,
                                                   Set<FieldInfo> localFields,
-                                                  Set<TypeInfo> typeHierarchy) {
+                                                  Set<TypeInfo> typeHierarchy,
+                                                  Set<String> namesOfLocalVariablesInEnclosedMethod) {
             Statement last = methodInfo.methodBody().lastStatement();
             if (last != null) {
-                copyReadsFromAnonymousMethod(last.analysis(), localFields, typeHierarchy);
+                copyReadsFromAnonymousMethod(last.analysis(), localFields, typeHierarchy,
+                        namesOfLocalVariablesInEnclosedMethod);
             }
         }
 
         private void copyReadsFromAnonymousMethod(PropertyValueMap analysis,
                                                   Set<FieldInfo> localFields,
-                                                  Set<TypeInfo> typeHierarchy) {
+                                                  Set<TypeInfo> typeHierarchy,
+                                                  Set<String> namesOfLocalVariablesInEnclosedMethod) {
             VariableData vd = analysis.getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
             vd.variableInfoStream().forEach(vi -> {
                 Variable v = vi.variable();
                 boolean read =
+                        v instanceof LocalVariable lv && namesOfLocalVariablesInEnclosedMethod.contains(lv.simpleName())
+                        ||
                         vi.assignments().indexOfDefinition().equals("-")
                         && !(v instanceof ParameterInfo pi && typeHierarchy.contains(pi.methodInfo().typeInfo()))
                         && !(v instanceof FieldReference fr && localFields.contains(fr.fieldInfo()))

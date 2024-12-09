@@ -133,4 +133,10 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
         VariableInfoContainer prev = previousOrInitial.getLeft();
         return prev.hasMerge() ? Stage.MERGE : Stage.EVALUATION;
     }
+
+    @Override
+    public VariableInfo bestCurrentlyComputed() {
+        if(merge != null && merge.isSet()) return merge.get();
+        return evaluation;
+    }
 }

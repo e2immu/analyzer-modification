@@ -71,4 +71,6 @@ public interface VariableInfoContainer {
     @NotNull
     VariableInfo getRecursiveInitialOrNull();
 
+    VariableInfo bestCurrentlyComputed();
+
 }
