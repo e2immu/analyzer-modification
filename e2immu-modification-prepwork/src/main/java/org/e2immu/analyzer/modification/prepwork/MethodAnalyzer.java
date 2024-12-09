@@ -302,7 +302,7 @@ public class MethodAnalyzer {
                                          Stage stageOfPrevious,
                                          String index) {
         readWriteData.seenFirstTime.forEach((v, i) -> {
-            VariableInfoContainer vic = initialVariable(i, v, readWriteData,
+            VariableInfoContainer vic = initialVariable(i, v, readWriteData, iv,
                     hasMerge && !(v instanceof LocalVariable));
             vdi.put(v, vic);
             String limitedScope = readWriteData.restrictToScope.get(v);
@@ -514,16 +514,28 @@ public class MethodAnalyzer {
                || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
     }
 
-    private static boolean isLocal(Variable v) {
+    public static boolean isLocal(Variable v) {
         return v instanceof LocalVariable
                || v instanceof FieldReference fr && isLocal(fr.scopeVariable())
                || v instanceof DependentVariable dv
                   && (isLocal(dv.arrayVariable()) || isLocal(dv.indexVariable()));
     }
 
-    private VariableInfoContainer initialVariable(String index, Variable v, ReadWriteData readWriteData,
+    private VariableInfoContainer initialVariable(String index,
+                                                  Variable v,
+                                                  ReadWriteData readWriteData,
+                                                  InternalVariables iv,
                                                   boolean hasMerge) {
-        String indexOfDefinition = v instanceof LocalVariable ? index : StatementIndex.BEFORE_METHOD;
+        String indexOfDefinition;
+        if(v instanceof LocalVariable lv) {
+            if(iv.namesOfLocalVariablesInEnclosedMethod.contains(lv.simpleName())){
+                indexOfDefinition = StatementIndex.ENCLOSING_METHOD;
+            } else {
+                indexOfDefinition = index;
+            }
+        } else {
+            indexOfDefinition = BEFORE_METHOD;
+        }
         Assignments notYetAssigned = new Assignments(indexOfDefinition);
         VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, Reads.NOT_YET_READ);
         Reads reads = readWriteData.isRead(v, initial);
