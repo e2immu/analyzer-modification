@@ -513,6 +513,11 @@ class LinkHelper {
 
         Value.Independent independent = methodInfo.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
                 ValueImpl.IndependentImpl.DEPENDENT);
+        Value.Immutable immutable = methodInfo.analysis().getOrDefault(PropertyImpl.IMMUTABLE_METHOD,
+                ValueImpl.ImmutableImpl.MUTABLE);
+        assert !immutable.isImmutable() || independent.isIndependent();
+        assert !immutable.isImmutableHC() || independent.isAtLeastIndependentHc();
+
         ParameterizedType methodType = methodInfo.typeInfo().asParameterizedType();
         ParameterizedType methodReturnType = methodInfo.returnType();
 
