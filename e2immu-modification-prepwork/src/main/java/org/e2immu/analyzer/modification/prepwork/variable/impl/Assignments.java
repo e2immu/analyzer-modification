@@ -37,6 +37,10 @@ public class Assignments {
         this.indexOfDefinition = previous.indexOfDefinition;
     }
 
+    public boolean isDefinedInEnclosingMethod() {
+        return StatementIndex.ENCLOSING_METHOD.equals(indexOfDefinition);
+    }
+
     public int size() {
         return assignmentIndices.length;
     }
