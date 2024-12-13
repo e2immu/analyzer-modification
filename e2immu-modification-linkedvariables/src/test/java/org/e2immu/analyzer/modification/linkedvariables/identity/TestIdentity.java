@@ -161,4 +161,24 @@ public class TestIdentity extends CommonTest {
         assertFalse(method.isIdentity());
     }
 
+
+    @Language("java")
+    private static final String INPUT5 = """
+            public class B {
+                private static int method(long lVal) { return (int)lVal; }
+            }
+            """;
+
+    @DisplayName("should not be @Identity method: long to int cast")
+    @Test
+    public void test5() {
+        TypeInfo B = javaInspector.parse(INPUT5);
+        List<Info> ao = prepWork(B);
+        analyzer.doPrimaryType(B, ao);
+
+        MethodInfo method = B.findUniqueMethod("method", 1);
+
+        assertFalse(method.isIdentity());
+    }
+
 }

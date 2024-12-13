@@ -147,8 +147,11 @@ class ExpressionAnalyzer {
                 return EvaluationResult.EMPTY;
             }
 
-            // pass-through
+            // pass-through, except when narrowing the cast on primitives >> result can be completely unrelated
             if (expression instanceof Cast c) {
+                if (narrowingCast(c.expression().parameterizedType(), c.parameterizedType())) {
+                    return EvaluationResult.EMPTY;
+                }
                 return eval(c.expression(), c.parameterizedType());
             }
             if (expression instanceof EnclosedExpression c) {
@@ -209,6 +212,13 @@ class ExpressionAnalyzer {
                 return EvaluationResult.EMPTY;
             }
             throw new UnsupportedOperationException("expression " + expression.getClass());
+        }
+
+        private boolean narrowingCast(ParameterizedType from, ParameterizedType to) {
+            return from.isPrimitiveExcludingVoid()
+                   && to.isPrimitiveExcludingVoid()
+                   && !from.equals(to)
+                   && runtime.widestType(from, to).equals(from);
         }
 
         private void recursivelyCollectLinksToScopeVariables(Variable v, EvaluationResult.Builder builder) {
