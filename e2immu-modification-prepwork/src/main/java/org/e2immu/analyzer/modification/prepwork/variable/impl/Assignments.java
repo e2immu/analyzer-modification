@@ -41,6 +41,10 @@ public class Assignments {
         return StatementIndex.ENCLOSING_METHOD.equals(indexOfDefinition);
     }
 
+    public boolean isEmpty() {
+        return assignmentIndices.length == 0;
+    }
+
     public int size() {
         return assignmentIndices.length;
     }
@@ -346,6 +350,10 @@ public class Assignments {
                 return assignmentIndices[i++];
             }
         };
+    }
+
+    public boolean assignedAtCreation() {
+        return indexOfDefinition.equals(assignmentIndices[0]);
     }
 }
 

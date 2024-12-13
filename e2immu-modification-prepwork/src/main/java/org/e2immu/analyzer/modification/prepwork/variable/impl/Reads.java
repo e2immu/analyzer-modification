@@ -43,6 +43,10 @@ public class Reads {
         return indices;
     }
 
+    public boolean isEmpty() {
+        return indices.isEmpty();
+    }
+
     // we re-sort, because sometimes indices come in later (DoStatement, ForStatement condition)
     public Reads with(List<String> newIndices) {
         return new Reads(Stream.concat(indices.stream(), newIndices.stream()).distinct().sorted().toList());
