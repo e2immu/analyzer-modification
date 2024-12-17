@@ -291,7 +291,7 @@ public class Assignments {
     0 - 1.0.0 - 1.1.0 --> no
     1.1.0 - 2 - 2.0.1 --> yes
      */
-    public boolean hasBeenAssignedAfterFor(String after, String seenBy) {
+    public boolean hasBeenAssignedAfterFor(String after, String seenBy, boolean inclusive) {
         if (indexOfDefinition.compareTo(after) >= 0) {
             return true;
         }
@@ -299,7 +299,7 @@ public class Assignments {
         int pos = Arrays.binarySearch(assignmentIndices, after);
         int start;
         if (pos >= 0) {
-            start = pos + 1;
+            start = pos + (inclusive ? 0 : 1);
         } else {
             start = -(pos + 1);
         }

@@ -151,7 +151,7 @@ public class TestAssignments {
         Assignments a3 = Assignments.mergeBlocks("1", TRUE_COMPLETE_MERGE, Map.of("1.0.1", a1, "1.1.0", a2), Map.of());
         assertEquals("D:0, A:[1.0.1.0.2, 1.0.1=M, 1.1.0, 1=M]", a3.toString());
 
-        assertTrue(a3.hasBeenAssignedAfterFor("1.0.1~", "2"));
+        assertTrue(a3.hasBeenAssignedAfterFor("1.0.1~", "2", false));
     }
 
 
@@ -165,6 +165,6 @@ public class TestAssignments {
         Assignments a3 = Assignments.mergeBlocks("1", FALSE_COMPLETE_MERGE, Map.of("1.0.1", a1, "1.1.0", a2), Map.of());
         assertEquals("D:0, A:[1.0.1.0.2, 1.1.0]", a3.toString());
 
-        assertFalse(a3.hasBeenAssignedAfterFor("1.0.1~", "2"));
+        assertFalse(a3.hasBeenAssignedAfterFor("1.0.1~", "2", false));
     }
 }

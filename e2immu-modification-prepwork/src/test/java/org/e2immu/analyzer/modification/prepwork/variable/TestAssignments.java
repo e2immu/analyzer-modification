@@ -646,8 +646,8 @@ public class TestAssignments extends CommonTest {
         VariableInfo iVi = vdMethod.variableInfo("i");
         assertEquals("1.0.0, 3", iVi.reads().toString());
         assertEquals("D:0, A:[0, 2]", iVi.assignments().toString());
-        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3"));
-        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3.0.1"));
+        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3", false));
+        assertTrue(iVi.assignments().hasBeenAssignedAfterFor("1=M", "3.0.1", false));
 
         Statement s2 = method.methodBody().statements().get(2);
         VariableData vd2 = VariableDataImpl.of(s2);
