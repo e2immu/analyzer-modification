@@ -344,7 +344,7 @@ class ComputeLinkCompletion {
                     Map<Variable, LV> links = shortestPath.links(variable, null);
                     for (Map.Entry<Variable, LV> e : links.entrySet()) {
                         Variable to = e.getKey();
-                        if (to != variable && (e.getValue().isDependent() || e.getValue().isStaticallyAssignedOrAssigned())) {
+                        if (to != variable && e.getValue().propagateModification()) {
                             change |= newModified.add(to);
                         }
                     }

@@ -14,6 +14,8 @@ public interface LV extends Comparable<LV> {
 
     boolean mineIsAll();
 
+    boolean propagateModification();
+
     boolean theirsIsAll();
 
     boolean theirsContainsAll();

@@ -66,6 +66,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             }
             """;
 
+    public static final String LD_VARIABLES = "org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopData.variables#a.b.X.modify(org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopData):0:ld";
 
     @DisplayName("static assignment in LoopData, propagate modifications")
     @Test
@@ -86,26 +87,71 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             List<Info> analysisOrder = prepWork(X);
             analyzer.doPrimaryType(X, analysisOrder);
         }
+        testModify(X);
+        MethodInfo swap = X.findUniqueMethod("swap", 1);
+        ParameterInfo swap0 = swap.parameters().get(0);
+        {
+            VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
+            VariableInfo vi0Ld = vd0.variableInfo("ld");
+            assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl variables[0]=f",
+                    vi0Ld.staticValues().toString());
+
+        }
+        {
+            VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
+            VariableInfo vi1Ld = vd1.variableInfo("ld");
+            assertTrue(vi1Ld.isModified());
+
+            VariableInfo vi1f = vd1.variableInfo(swap0);
+            // FIXME follow modified components parameter of
+            
+            assertTrue(vi1f.isModified());
+        }
+    }
+
+    private static void testModify(TypeInfo X) {
         MethodInfo modify = X.findUniqueMethod("modify", 1);
         ParameterInfo modify0 = modify.parameters().get(0);
+        assertEquals("ld", modify0.name());
+
+        {
+            VariableData vd0 = VariableDataImpl.of(modify.methodBody().statements().get(0));
+            assertEquals("E=ld.variables[0]", vd0.variableInfo("m").staticValues().toString());
+        }
+        {
+            VariableData vd2 = VariableDataImpl.of(modify.methodBody().statements().get(2));
+            assertEquals("E=m[a][1]", vd2.variableInfo("tmp").staticValues().toString());
+        }
+        {
+            VariableData vd3 = VariableDataImpl.of(modify.methodBody().statements().get(3));
+            VariableInfo vi3m = vd3.variableInfo("m");
+            assertEquals("E=ld.variables[0] this[a][1]=m[a][0]", vi3m.staticValues().toString());
+            assertEquals("*M-4-0M:ld, 0M-2-*M|0-*:m[a], *-2-0:variables, -1-:variables[0]",
+                    vi3m.linkedVariables().toString());
+            assertTrue(vi3m.isModified());
+
+            VariableInfo vi3Variables = vd3.variableInfo(LD_VARIABLES);
+            assertTrue(vi3Variables.isModified()); // this follows the 2 link
+
+            VariableInfo vi3ld = vd3.variableInfo(modify0);
+            // NOT following the -4- link!
+            assertFalse(vi3ld.isModified());
+        }
+        {
+            VariableData vdLast = VariableDataImpl.of(modify.methodBody().lastStatement());
+            VariableInfo viLastM = vdLast.variableInfo("m");
+            assertTrue(viLastM.isModified());
+
+            VariableInfo viLastModified0 = vdLast.variableInfo(modify0);
+            assertEquals("0M-4-*M:m, 0M-4-*M:m[a], 0-4-0:variables, 0M-4-*M:variables[0]",
+                    viLastModified0.linkedVariables().toString());
+            assertFalse(viLastModified0.isModified());
+        }
+        assertFalse(modify0.isModified());
+        // the modified components parameter will be our gateway to propagating the modifications
         assertEquals("ld.variables=true, ld.variables[0]=true",
                 modify0.analysis().getOrNull(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
         assertTrue(modify.isIdentity());
-
-        VariableData vd0 = VariableDataImpl.of(modify.methodBody().statements().get(0));
-        assertEquals("E=ld.variables[0]", vd0.variableInfo("m").staticValues().toString());
-        VariableData vdLast = VariableDataImpl.of(modify.methodBody().lastStatement());
-
-        VariableInfo viLastM = vdLast.variableInfo("m");
-        assertTrue(viLastM.isModified());
-
-        VariableInfo viLastModified0 = vdLast.variableInfo(modify0);
-        assertEquals("0M-4-*M:m, 0M-4-*M:m[a], 0-4-0:variables, 0M-4-*M:variables[0]",
-                viLastModified0.linkedVariables().toString());
-
-        // FIXME this is a modification propagation problem... graph should see to solution 4M
-        assertTrue(viLastModified0.isModified());
-        assertTrue(modify0.isModified());
     }
 
 }

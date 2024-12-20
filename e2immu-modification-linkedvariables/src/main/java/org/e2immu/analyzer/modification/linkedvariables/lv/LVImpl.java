@@ -234,6 +234,23 @@ public class LVImpl implements LV {
     }
 
     @Override
+    public boolean propagateModification() {
+        return isDependent()
+               || isStaticallyAssignedOrAssigned();
+        // uncomment the following if you want to follow *-4-M
+        //       || isCommonHC() && allToNonAllMod();
+    }
+
+    // *M-...0M
+    private boolean allToNonAllMod() {
+        for (Map.Entry<Indices, Link> e : links.map().entrySet()) {
+            if (!e.getKey().isAll()) return false;
+            if (!e.getValue().mutable() || e.getValue().to().isAll()) return false;
+        }
+        return true;
+    }
+
+    @Override
     public LV correctTo(Map<Indices, Indices> correctionMap) {
         if (links.map().isEmpty()) return this;
         boolean isHc = isCommonHC();
