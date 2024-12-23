@@ -95,10 +95,7 @@ public class TestWriteAnalysis extends CommonTest {
     @Language("java")
     private static final String OUTPUT2 = """
             package a.b;
-            import java.util.ArrayList;
-            import java.util.HashSet;
-            import java.util.List;
-            import java.util.Set;
+            import java.util.*;
             import org.e2immu.annotation.Immutable;
             import org.e2immu.annotation.Modified;
             @Immutable(hc = true)
