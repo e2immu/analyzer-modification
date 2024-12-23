@@ -58,9 +58,16 @@ public class TestStaticValuesOfLoopData extends CommonTest {
                     return ld;
                }
             
-               // ensure that f is @Modified
-               private void swap(float[][] f) {
+               private void swap1(float[][] f) {
                    Loop.LoopData ld = new Loop.LoopDataImpl.Builder().set(0, f).build();
+                   modify(ld);
+               }
+            
+               private void swap2(float[][] f) {
+                   Loop.LoopData ld = new Loop.LoopDataImpl.Builder()
+                       .body(this::modify)
+                       .set(0, f)
+                       .build();
                    Loop.run(ld);
                }
             }
@@ -79,8 +86,8 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             List<Info> analysisOrder = prepWork(loop);
             analyzer.doPrimaryType(loop, analysisOrder);
         }
-        MethodInfo run = loop.findUniqueMethod("run", 1);
-        assertTrue(run.parameters().get(0).isModified());
+
+        testRun(loop);
 
         TypeInfo X = javaInspector.parse(INPUT);
         {
@@ -88,23 +95,54 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             analyzer.doPrimaryType(X, analysisOrder);
         }
         testModify(X);
-        MethodInfo swap = X.findUniqueMethod("swap", 1);
+        testSwap1(X);
+        testSwap2(X);
+    }
+
+    private static void testSwap2(TypeInfo X) {
+        MethodInfo swap = X.findUniqueMethod("swap2", 1);
+        ParameterInfo swap0 = swap.parameters().get(0);
+        {
+            VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
+            VariableInfo vi0Ld = vd0.variableInfo("ld");
+            assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl this.body=this::modify, variables[0]=f",
+                    vi0Ld.staticValues().toString());
+        }
+        {
+            VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
+            VariableInfo vi1f = vd1.variableInfo(swap0);
+            // here we should see that ld.body has been executed, which is the modify() call
+            // the modify call changes variables[0], which is f
+
+            // we have all the information to make this work!
+            // main code in ExpressionAnalyzer.propagateComponents -> EA.propagateModificationOfParameter
+            assertTrue(vi1f.isModified());
+        }
+    }
+
+    private static void testRun(TypeInfo loop) {
+        MethodInfo run = loop.findUniqueMethod("run", 1);
+        assertTrue(run.parameters().get(0).isModified());
+        ParameterInfo run0 = run.parameters().get(0);
+        assertTrue(run0.isModified());
+        assertEquals("ld.body=true", run0.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+                ValueImpl.VariableBooleanMapImpl.class).toString());
+    }
+
+    private static void testSwap1(TypeInfo X) {
+        MethodInfo swap = X.findUniqueMethod("swap1", 1);
         ParameterInfo swap0 = swap.parameters().get(0);
         {
             VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
             VariableInfo vi0Ld = vd0.variableInfo("ld");
             assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl variables[0]=f",
                     vi0Ld.staticValues().toString());
-
         }
         {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
             VariableInfo vi1Ld = vd1.variableInfo("ld");
-            assertTrue(vi1Ld.isModified());
-
+            assertFalse(vi1Ld.isModified());
             VariableInfo vi1f = vd1.variableInfo(swap0);
-            // FIXME follow modified components parameter of
-            
             assertTrue(vi1f.isModified());
         }
     }

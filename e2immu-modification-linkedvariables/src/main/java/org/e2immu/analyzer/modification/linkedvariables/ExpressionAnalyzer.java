@@ -818,7 +818,9 @@ class ExpressionAnalyzer {
                     for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                         This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo().asParameterizedType());
                         // go from r.function to this.function, which is what we have in the StaticValues.values() map
-                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder().put(pi, thisInSv);
+                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder()
+                                .put(ve.variable(), thisInSv) // see TestStaticValuesOfLoopData.testSwap2
+                                .put(pi, thisInSv); // see many others
                         for (ParameterInfo pi2 : mc.methodInfo().parameters()) {
                             if (pi != pi2) {
                                 tmb.put(runtime.newVariableExpression(pi2), mc.parameterExpressions().get(pi2.index()));

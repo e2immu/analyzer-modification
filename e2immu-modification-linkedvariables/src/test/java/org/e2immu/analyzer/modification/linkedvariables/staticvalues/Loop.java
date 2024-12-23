@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
-import org.e2immu.annotation.Modified;
 import org.e2immu.annotation.method.GetSet;
 
 import java.util.Iterator;
@@ -11,11 +10,16 @@ public class Loop {
     public static LoopData run(LoopData initial) {
         LoopData ld = initial;
         while (ld.hasNext()) {
-            ld = ld.next();
+            if (ld.loop() != null) {
+                Object loopValue = ld.loop().next();
+                LoopData nextLd = ld.withLoopValue(loopValue);
+                ld = ld.body().apply(nextLd);
+            } else {
+                ld =ld.body().apply(ld);
+            }
         }
         return ld;
     }
-
 
     public interface LoopData {
 
@@ -26,7 +30,6 @@ public class Loop {
 
         Object getReturnValue();
 
-        @Modified("loop")
         boolean hasNext();
 
         boolean isReturn();
@@ -34,9 +37,6 @@ public class Loop {
         Object loopValue();
 
         int level();
-
-        @Modified("loop")
-        LoopData next();
 
         LoopData with(int pos, Object value);
 
@@ -48,12 +48,17 @@ public class Loop {
 
         LoopData withException(Throwable e);
 
+        LoopData withLoopValue(Object loopValue);
+
         LoopData withReturn(boolean doReturn);
 
         LoopData withReturnValue(boolean doReturn, Object returnValue);
 
         @GetSet
         Iterator<?> loop();
+
+        @GetSet
+        Function<LoopData, LoopData> body();
     }
 
     public interface Exit {
@@ -118,10 +123,14 @@ public class Loop {
             this.loopValue = loopValue;
         }
 
-        // FIXME only here for @Modified("loop")
         @Override
         public Iterator<?> loop() {
             return loop;
+        }
+
+        @Override
+        public Function<LoopData, LoopData> body() {
+            return body;
         }
 
         @Override
@@ -167,16 +176,6 @@ public class Loop {
         @Override
         public Object loopValue() {
             return loopValue;
-        }
-
-        @Override
-        public LoopData next() {
-            if (loop != null) {
-                Object loopValue = loop.next();
-                LoopData nextLd = withLoopValue(loopValue);
-                return body.apply(nextLd);
-            }
-            return body.apply(this);
         }
 
         @Override
@@ -242,7 +241,8 @@ public class Loop {
             return withReturnValue(doReturn, null);
         }
 
-        private LoopData withLoopValue(Object loopValue) {
+        @Override
+        public LoopData withLoopValue(Object loopValue) {
             return new LoopDataImpl(loop, body, exit, variables, loopValue);
         }
 
