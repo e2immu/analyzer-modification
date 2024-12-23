@@ -105,7 +105,7 @@ public class TestLinkCast extends CommonTest {
         assertTrue(r.isModified());
         Value.VariableBooleanMap map = r.analysis().getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.EMPTY);
         assertEquals(1, map.map().size());
-        assertEquals("{r.object=true}", map.map().toString());
+        assertEquals("{this.object=true}", map.map().toString());
     }
 
 
@@ -182,7 +182,7 @@ public class TestLinkCast extends CommonTest {
         Value.VariableBooleanMap map = r.analysis().getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.EMPTY);
         assertEquals(1, map.map().size());
-        assertEquals("{r.object=true}", map.map().toString());
+        assertEquals("{this.object=true}", map.map().toString());
     }
 
 }

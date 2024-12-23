@@ -169,7 +169,7 @@ public class TestModificationFunctional extends CommonTest {
         }
         {
             assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-            assertEquals("r.function=true", runR.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+            assertEquals("this.function=true", runR.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
             assertSame(FALSE, runR.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
             assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
@@ -228,7 +228,7 @@ public class TestModificationFunctional extends CommonTest {
         }
 
         assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-        assertEquals("s.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+        assertEquals("this.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.class).toString());
         assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
 
@@ -342,7 +342,7 @@ public class TestModificationFunctional extends CommonTest {
         }
 
         assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-        assertEquals("s.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+        assertEquals("this.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.class).toString());
         assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
 

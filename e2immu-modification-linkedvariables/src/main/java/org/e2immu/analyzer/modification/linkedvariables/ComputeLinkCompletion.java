@@ -238,7 +238,9 @@ class ComputeLinkCompletion {
                         vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
                     }
                     Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
-                    if (mfiComponents != null && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
+                    if (mfiComponents != null
+                        && !mfiComponents.isEmpty()
+                        && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
                         vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(mfiComponents));
                     }
                 } // is possible: artificially created break variable (see e.g. TestBreakVariable)

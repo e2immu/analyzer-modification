@@ -263,7 +263,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertTrue(viLastList2.isModified());
         }
         ParameterInfo body0 = body.parameters().get(0);
-        assertEquals("td.variables=true, td.variables[1]=true", body0.analysis()
+        assertEquals("this.variables=true, this.variables[1]=true", body0.analysis()
                 .getOrNull(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
     }
 
@@ -341,7 +341,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
                     ValueImpl.VariableBooleanMapImpl.class).toString());
 
             // test that it is copied onto the parameter
-            assertEquals("td.throwingFunction=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+            assertEquals("this.throwingFunction=true", runTd.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
         }
     }

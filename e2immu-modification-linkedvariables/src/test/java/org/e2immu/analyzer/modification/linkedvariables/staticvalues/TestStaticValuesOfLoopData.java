@@ -1,19 +1,11 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
-import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.*;
-import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
-import org.e2immu.language.cst.impl.variable.FieldReferenceImpl;
-import org.e2immu.language.cst.impl.variable.ThisImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,11 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
-import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
-import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_COMPONENTS_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_FI_COMPONENTS_PARAMETER;
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,6 +57,14 @@ public class TestStaticValuesOfLoopData extends CommonTest {
                        .build();
                    Loop.run(ld);
                }
+
+                private void swap3(float[][] f) {
+                   Loop.LoopData ld1 = new Loop.LoopDataImpl.Builder()
+                       .body(this::modify)
+                       .set(0, f)
+                       .build();
+                   Loop.run(ld1);
+               }
             }
             """;
 
@@ -97,6 +92,24 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         testModify(X);
         testSwap1(X);
         testSwap2(X);
+        testSwap3(X);
+    }
+
+    private static void testSwap3(TypeInfo X) {
+        MethodInfo swap = X.findUniqueMethod("swap3", 1);
+        ParameterInfo swap0 = swap.parameters().get(0);
+        {
+            VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
+            VariableInfo vi0Ld = vd0.variableInfo("ld1");
+            assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl this.body=this::modify, variables[0]=f",
+                    vi0Ld.staticValues().toString());
+        }
+        {
+            VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
+            VariableInfo vi1f = vd1.variableInfo(swap0);
+            // compared to testSwap2, 'ld' has a different name :-)
+            assertTrue(vi1f.isModified());
+        }
     }
 
     private static void testSwap2(TypeInfo X) {
@@ -125,7 +138,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         assertTrue(run.parameters().get(0).isModified());
         ParameterInfo run0 = run.parameters().get(0);
         assertTrue(run0.isModified());
-        assertEquals("ld.body=true", run0.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
+        assertEquals("this.body=true", run0.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.class).toString());
     }
 
@@ -187,7 +200,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         }
         assertFalse(modify0.isModified());
         // the modified components parameter will be our gateway to propagating the modifications
-        assertEquals("ld.variables=true, ld.variables[0]=true",
+        assertEquals("this.variables=true, this.variables[0]=true",
                 modify0.analysis().getOrNull(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
         assertTrue(modify.isIdentity());
     }

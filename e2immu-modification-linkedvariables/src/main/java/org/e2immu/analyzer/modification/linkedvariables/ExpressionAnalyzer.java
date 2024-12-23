@@ -816,27 +816,28 @@ class ExpressionAnalyzer {
                 if (pe instanceof VariableExpression ve) {
                     StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
                     for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
-                        This thisInSv = runtime.newThis(pi.parameterizedType().typeInfo().asParameterizedType());
-                        // go from r.function to this.function, which is what we have in the StaticValues.values() map
-                        TranslationMap.Builder tmb = runtime.newTranslationMapBuilder()
-                                .put(ve.variable(), thisInSv) // see TestStaticValuesOfLoopData.testSwap2
-                                .put(pi, thisInSv); // see many others
-                        for (ParameterInfo pi2 : mc.methodInfo().parameters()) {
-                            if (pi != pi2) {
-                                tmb.put(runtime.newVariableExpression(pi2), mc.parameterExpressions().get(pi2.index()));
-                            }
-                        }
-                        TranslationMap tm = tmb.build();
-                        Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
-                        Variable key = ((VariableExpression) translatedVe).variable();
                         Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
                         Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
                                 completedMap);
-                        Expression e = augmented.get(key);
+                        Variable afterArgumentExpansion = expandArguments(mc, pi, entry.getKey());
+                        Expression e = augmented.get(afterArgumentExpansion);
                         consumer.accept(e, entry.getValue(), augmented);
                     }
                 }
             }
+        }
+
+        // see TestStaticValuesModification,test4
+        private Variable expandArguments(MethodCall mc, ParameterInfo ignore, Variable key) {
+            TranslationMap.Builder tmb = runtime.newTranslationMapBuilder();
+            for (ParameterInfo pi : mc.methodInfo().parameters()) {
+                if (ignore != pi) {
+                    tmb.put(runtime.newVariableExpression(pi), mc.parameterExpressions().get(pi.index()));
+                }
+            }
+            TranslationMap tm = tmb.build();
+            Expression translatedVe = runtime.newVariableExpression(key).translate(tm);
+            return ((VariableExpression) translatedVe).variable();
         }
 
         private Map<Variable, Expression> augmentWithImplementation(ParameterizedType targetType,

@@ -17,6 +17,7 @@ import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
+import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -204,7 +205,7 @@ public class Analyzer {
                 if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_PARAMETER)) {
                     Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
                     if (!modifiedComponents.isEmpty()) {
-                        Value.VariableBooleanMap vbm = new ValueImpl.VariableBooleanMapImpl(modifiedComponents);
+                        Value.VariableBooleanMap vbm = translateVariableBooleanMapToThisScope(pi, modifiedComponents);
                         pi.analysis().set(MODIFIED_COMPONENTS_PARAMETER, vbm);
                     }
                 }
@@ -212,7 +213,8 @@ public class Analyzer {
                         ValueImpl.VariableBooleanMapImpl.class);
                 if (mfi != null && !mfi.map().isEmpty()
                     && !pi.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_PARAMETER)) {
-                    pi.analysis().set(MODIFIED_FI_COMPONENTS_PARAMETER, mfi);
+                    VariableBooleanMap thisScope = translateVariableBooleanMapToThisScope(pi, mfi.map());
+                    pi.analysis().set(MODIFIED_FI_COMPONENTS_PARAMETER, thisScope);
                 }
             } else if (v instanceof ReturnVariable && methodInfo.hasReturnValue()) {
                 LinkedVariables linkedVariables = vi.linkedVariables();
@@ -231,7 +233,7 @@ public class Analyzer {
                 Value.SetOfInfo set = methodInfo.typeInfo().analysis().getOrDefault(PART_OF_CONSTRUCTION,
                         EMPTY_PART_OF_CONSTRUCTION);
                 boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
-                boolean assignment = vi.assignments().size() > 0;
+                boolean assignment = !vi.assignments().isEmpty();
                 if ((modification || assignment) && !set.infoSet().contains(methodInfo)) {
                     if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
                         methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
@@ -270,6 +272,23 @@ public class Analyzer {
         if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_METHOD) && !modifiedComponentsMethod.isEmpty()) {
             methodInfo.analysis().set(MODIFIED_COMPONENTS_METHOD, new ValueImpl.VariableBooleanMapImpl(modifiedComponentsMethod));
         }
+    }
+
+    private VariableBooleanMap translateVariableBooleanMapToThisScope(ParameterInfo pi, Map<Variable, Boolean> vbm) {
+        This thisVar = runtime.newThis(pi.parameterizedType().typeInfo().asParameterizedType());
+        Map<Variable, Boolean> map = vbm.entrySet().stream().collect(Collectors
+                .toUnmodifiableMap(e -> replaceScope(e.getKey(), thisVar), Map.Entry::getValue));
+        return new ValueImpl.VariableBooleanMapImpl(map);
+    }
+
+    private Variable replaceScope(Variable v, Variable newScope) {
+        Variable frScope = v.fieldReferenceBase();
+        if (frScope != null) {
+            TranslationMap tm = runtime.newTranslationMapBuilder().put(frScope, newScope).build();
+            VariableExpression tve = (VariableExpression) runtime.newVariableExpression(v).translate(tm);
+            return tve.variable();
+        }
+        return v;
     }
 
     // step 1: modification check on fields of parameter

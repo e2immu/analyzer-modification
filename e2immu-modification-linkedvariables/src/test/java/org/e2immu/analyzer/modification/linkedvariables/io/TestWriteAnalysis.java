@@ -95,7 +95,10 @@ public class TestWriteAnalysis extends CommonTest {
     @Language("java")
     private static final String OUTPUT2 = """
             package a.b;
-            import java.util.*;
+            import java.util.ArrayList;
+            import java.util.HashSet;
+            import java.util.List;
+            import java.util.Set;
             import org.e2immu.annotation.Immutable;
             import org.e2immu.annotation.Modified;
             @Immutable(hc = true)
@@ -132,7 +135,7 @@ public class TestWriteAnalysis extends CommonTest {
               {"name": "Mlist(2)", "data":{"getSetField":["Flist(2)",false],"hcsMethod":{"1":[[-1]]},"staticValuesMethod":["",["variableExpression",["F",["Ta.b.X","SR(0)","Flist(2)"]]],[]]}}]},
              {"name": "C<init>(0)", "data":{"hc":{"0":"Tjava.lang.Object"},"independentMethod":2}},
              {"name": "MsetAdd(0)", "data":{"hc":{"0":"Ta.b.X.R"},"independentMethod":2}, "sub":
-              {"name": "Pr(0)", "data":{"hcsParameter":{"0":[[-1]]},"independentParameter":2,"modifiedComponentsParameter":[["F",["Ta.b.X","SR(0)","Fset(0)"],["variableExpression",["P",["Ta.b.X","MsetAdd(0)","Pr(0)"]]]],true],"modifiedParameter":1}}},
+              {"name": "Pr(0)", "data":{"hcsParameter":{"0":[[-1]]},"independentParameter":2,"modifiedComponentsParameter":[["F",["Ta.b.X","SR(0)","Fset(0)"]],true],"modifiedParameter":1}}},
              {"name": "Mmethod(1)", "data":{"independentMethod":2}}]}
             ]
             """;

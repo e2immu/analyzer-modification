@@ -10,6 +10,7 @@ import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -93,8 +94,9 @@ public class TestStaticValuesModification extends CommonTest {
 
             Value.VariableBooleanMap modificationMap = setAdd0.analysis().getOrNull(MODIFIED_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class);
-            assertEquals("r.set=true", modificationMap.toString());
-            FieldReference frSet = runtime.newFieldReference(rSet, runtime.newVariableExpression(setAdd0), rSet.type());
+            assertEquals("this.set=true", modificationMap.toString());
+            This thisVar = runtime.newThis(setAdd0.parameterizedType().typeInfo().asParameterizedType());
+            FieldReference frSet = runtime.newFieldReference(rSet, runtime.newVariableExpression(thisVar), rSet.type());
             assertNotNull(modificationMap);
             assertNotNull(modificationMap.map());
             assertEquals(1, modificationMap.map().size());
@@ -189,7 +191,7 @@ public class TestStaticValuesModification extends CommonTest {
                     vdSetAdd0.knownVariableNamesToString());
         }
         assertTrue(setAdd0.isModified());
-        assertEquals("r.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+        assertEquals("this.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.EMPTY).toString());
 
         MethodInfo method = X.findUniqueMethod("method", 0);
@@ -309,7 +311,7 @@ public class TestStaticValuesModification extends CommonTest {
                 assertTrue(vi0rSet.isModified());
             }
             assertTrue(setAdd0.isModified());
-            assertEquals("r.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
+            assertEquals("this.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.EMPTY).toString());
         }
         {
@@ -459,7 +461,7 @@ public class TestStaticValuesModification extends CommonTest {
                 assertEquals("E=ri.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
             }
             assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
-            assertEquals("ri.objects=true, ri.objects[index]=true",
+            assertEquals("this.objects=true, this.objects[index]=true",
                     MapUtil.nice(modify0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                             ValueImpl.VariableBooleanMapImpl.EMPTY).map()));
         }
@@ -494,7 +496,7 @@ public class TestStaticValuesModification extends CommonTest {
                 assertEquals("E=r.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
             }
             assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
-            assertEquals("r.objects=true, r.objects[index]=true",
+            assertEquals("this.objects=true, this.objects[index]=true",
                     MapUtil.nice(modify0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                             ValueImpl.VariableBooleanMapImpl.EMPTY).map()));
         }
