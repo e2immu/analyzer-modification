@@ -54,7 +54,13 @@ public class TestGetSet extends CommonTest {
                 void setD(double d) { this.d = d; }
                 void setRI(int i) { this.r.i = i; }
             
-                void setS2ToString(String s) {
+                Object callGetO() {
+                    return getO(3);
+                }
+                Object callGetS() {
+                    return getS(3);
+                }
+                void callSetS2(String s) {
                     setS2(3, "abc");
                 }
             }
@@ -114,13 +120,30 @@ public class TestGetSet extends CommonTest {
         MethodInfo setRI = X.findUniqueMethod("setRI", 1);
         assertSame(ri, setRI.getSetField().field());
 
-
-        MethodInfo test1 = X.findUniqueMethod("setS2ToString", 1);
-        Statement s0 = test1.methodBody().statements().get(0);
-        MethodCall mc0 = (MethodCall) s0.expression();
-        Variable v = runtime.setterVariable(mc0);
-        assertEquals("a.b.X.list[3]", v.fullyQualifiedName());
-        assertTrue(v.parameterizedType().isJavaLangString());
+        {
+            MethodInfo test1 = X.findUniqueMethod("callGetO", 0);
+            Statement s0 = test1.methodBody().statements().get(0);
+            MethodCall mc0 = (MethodCall) s0.expression();
+            Variable v = runtime.getterVariable(mc0);
+            assertEquals("a.b.X.objects[3]", v.fullyQualifiedName());
+            assertEquals(runtime.objectParameterizedType(), v.parameterizedType());
+        }
+        {
+            MethodInfo test1 = X.findUniqueMethod("callGetS", 0);
+            Statement s0 = test1.methodBody().statements().get(0);
+            MethodCall mc0 = (MethodCall) s0.expression();
+            Variable v = runtime.getterVariable(mc0);
+            assertEquals("a.b.X.list[3]", v.fullyQualifiedName());
+            assertEquals(runtime.stringParameterizedType(), v.parameterizedType());
+        }
+        {
+            MethodInfo test1 = X.findUniqueMethod("callSetS2", 1);
+            Statement s0 = test1.methodBody().statements().get(0);
+            MethodCall mc0 = (MethodCall) s0.expression();
+            Variable v = runtime.setterVariable(mc0);
+            assertEquals("a.b.X.list[3]", v.fullyQualifiedName());
+            assertEquals(runtime.stringParameterizedType(), v.parameterizedType());
+        }
     }
 
 
@@ -334,6 +357,40 @@ public class TestGetSet extends CommonTest {
                     a.b.X.getInt(int), a.b.X.getInt(int):0:index, a.b.X.intList, a.b.X.this, \
                     java.util.List._synthetic_list#a.b.X.intList, \
                     java.util.List._synthetic_list#a.b.X.intList[a.b.X.getInt(int):0:index]\
+                    """, vdLast.knownVariableNamesToString());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT5b = """
+            package a.b;
+            import org.e2immu.annotation.method.GetSet;
+            import java.util.ArrayList;
+            import java.util.function.Function;
+            class X {
+                ArrayList<Integer> intList;
+            
+                Integer getInt(int index) {
+                    return intList.get(index);
+                }
+            }
+            """;
+
+    @DisplayName("list accessor, arrayList")
+    @Test
+    public void test5b() {
+        TypeInfo X = javaInspector.parse(INPUT5b);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo getInt = X.findUniqueMethod("getInt", 1);
+        assertEquals("a.b.X.intList", getInt.getSetField().field().fullyQualifiedName());
+        {
+            // NO synthetics for ArrayList!!!
+            VariableData vdLast = VariableDataImpl.of(getInt.methodBody().lastStatement());
+            assertEquals("""
+                    a.b.X.getInt(int), a.b.X.getInt(int):0:index, a.b.X.intList, a.b.X.this\
                     """, vdLast.knownVariableNamesToString());
         }
     }
