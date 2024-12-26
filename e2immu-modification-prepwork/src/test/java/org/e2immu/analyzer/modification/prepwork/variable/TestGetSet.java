@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -127,6 +128,9 @@ public class TestGetSet extends CommonTest {
             Variable v = runtime.getterVariable(mc0);
             assertEquals("a.b.X.objects[3]", v.fullyQualifiedName());
             assertEquals(runtime.objectParameterizedType(), v.parameterizedType());
+            if(v instanceof DependentVariable dv) {
+                assertEquals(1, dv.arrayVariable().parameterizedType().arrays());
+            } else fail();
         }
         {
             MethodInfo test1 = X.findUniqueMethod("callGetS", 0);
