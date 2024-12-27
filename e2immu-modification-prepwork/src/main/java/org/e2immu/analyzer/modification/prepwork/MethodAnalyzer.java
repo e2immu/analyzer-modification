@@ -527,8 +527,8 @@ public class MethodAnalyzer {
                                                   InternalVariables iv,
                                                   boolean hasMerge) {
         String indexOfDefinition;
-        if(v instanceof LocalVariable lv) {
-            if(iv.namesOfLocalVariablesInEnclosedMethod.contains(lv.simpleName())){
+        if (v instanceof LocalVariable lv) {
+            if (iv.namesOfLocalVariablesInEnclosedMethod.contains(lv.simpleName())) {
                 indexOfDefinition = StatementIndex.ENCLOSING_METHOD;
             } else {
                 indexOfDefinition = index;
@@ -635,10 +635,28 @@ public class MethodAnalyzer {
         }
 
         public void assignedAdd(Variable variable) {
-            assigned.computeIfAbsent(variable, v -> new ArrayList<>()).add(index);
+            List<String> indices = assigned.computeIfAbsent(variable, v -> new ArrayList<>());
+            String last;
+            if (!indices.isEmpty() && stripPlus(last = indices.get(indices.size() - 1)).equals(index)) {
+                // we've already added one, but there may be others, see TestAssignmentsExpression
+                // dedicated code to deal with multiple reassignments in one statement; this is pretty rare!
+                int plus = last.lastIndexOf('+');
+                if (plus < 0) {
+                    indices.add(index + "+0");
+                } else {
+                    indices.add(index + "+" + (1 + Integer.parseInt(last.substring(plus + 1))));
+                }
+            } else {
+                indices.add(index);
+            }
             if (!knownVariableNames.contains(variable.fullyQualifiedName()) && !seenFirstTime.containsKey(variable)) {
                 seenFirstTime.put(variable, index);
             }
+        }
+
+        private static String stripPlus(String s) {
+            int plus = s.lastIndexOf('+');
+            return plus < 0 ? s : s.substring(0, plus);
         }
 
         @Override
@@ -772,7 +790,7 @@ public class MethodAnalyzer {
             if (previousVariableData != null) {
                 return previousVariableData.variableInfoContainerStream()
                         .map(vic -> vic.bestCurrentlyComputed())
-                        .filter(vi -> vi != null &&  isLocal(vi.variable()))
+                        .filter(vi -> vi != null && isLocal(vi.variable()))
                         .map(vi -> vi.variable().simpleName())
                         .collect(Collectors.toSet());
             }
