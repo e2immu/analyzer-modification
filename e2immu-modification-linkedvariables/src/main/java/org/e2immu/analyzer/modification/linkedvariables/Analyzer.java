@@ -285,8 +285,7 @@ public class Analyzer {
         Variable frScope = v.fieldReferenceBase();
         if (frScope != null) {
             TranslationMap tm = runtime.newTranslationMapBuilder().put(frScope, newScope).build();
-            VariableExpression tve = (VariableExpression) runtime.newVariableExpression(v).translate(tm);
-            return tve.variable();
+            return tm.translateVariableRecursively(v);
         }
         return v;
     }

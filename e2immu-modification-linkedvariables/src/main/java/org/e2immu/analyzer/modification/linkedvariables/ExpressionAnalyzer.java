@@ -760,8 +760,7 @@ class ExpressionAnalyzer {
                 for (Map.Entry<Variable, Boolean> entry : modComp.map().entrySet()) {
                     if (entry.getValue()) {
                         // modified component
-                        Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
-                        Variable translated = ((VariableExpression) translatedVe).variable();
+                        Variable translated = tm.translateVariableRecursively(entry.getKey());
                         Expression value = map.get(translated);
                         if (value instanceof VariableExpression ve) {
                             markModified(ve.variable(), builder);
@@ -790,8 +789,7 @@ class ExpressionAnalyzer {
                 for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
                     This thisInSv = runtime.newThis(mc.object().parameterizedType().typeInfo().asParameterizedType());
                     TranslationMap tm = runtime.newTranslationMapBuilder().put(thisInSv, ve.variable()).build();
-                    Expression translatedVe = runtime.newVariableExpression(entry.getKey()).translate(tm);
-                    Variable v = ((VariableExpression) translatedVe).variable();
+                    Variable v = tm.translateVariableRecursively(entry.getKey());
                     markModified(v, builder);
                 }
             }
@@ -836,8 +834,7 @@ class ExpressionAnalyzer {
                 }
             }
             TranslationMap tm = tmb.build();
-            Expression translatedVe = runtime.newVariableExpression(key).translate(tm);
-            return ((VariableExpression) translatedVe).variable();
+            return tm.translateVariableRecursively(key);
         }
 
         private Map<Variable, Expression> augmentWithImplementation(ParameterizedType targetType,
