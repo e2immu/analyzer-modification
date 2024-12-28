@@ -353,7 +353,7 @@ class ExpressionAnalyzer {
                         This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()); // irrelevant which type
                         Variable base = dv.arrayVariableBase();
                         TranslationMap tm = runtime.newTranslationMapBuilder().put(base, thisVar).build();
-                        Variable indexed = ((VariableExpression) assignment.target().translate(tm)).variable();
+                        Variable indexed = tm.translateVariableRecursively(assignment.variableTarget());
                         StaticValues newSv = new StaticValuesImpl(null, null, false, Map.of(indexed, value));
                         builder.merge(dv.arrayVariable(), newSv);
                         v = dv.arrayVariable();

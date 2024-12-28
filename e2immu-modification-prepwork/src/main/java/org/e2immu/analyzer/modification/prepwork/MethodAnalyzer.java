@@ -718,9 +718,9 @@ public class MethodAnalyzer {
                 Variable variable = ve.variable();
                 markRead(variable);
                 if (ve.variable() instanceof DependentVariable dv) {
-                    if (!(dv.indexExpression() instanceof VariableExpression)) dv.indexExpression().visit(this);
-                    if (!(dv.arrayExpression() instanceof VariableExpression)) dv.arrayExpression().visit(this);
-                } else if (ve.variable() instanceof FieldReference fr && !(fr.scope() instanceof VariableExpression)) {
+                    dv.indexExpression().visit(this);
+                    dv.arrayExpression().visit(this);
+                } else if (ve.variable() instanceof FieldReference fr) {
                     fr.scope().visit(this);
                 }
                 return false;

@@ -49,4 +49,32 @@ public class TestAssignmentsExpression extends CommonTest {
         assertEquals("D:0, A:[0, 1.0.0, 1.0.0+0, 1.0.0+1, 1.0.0+2]", viPos100.assignments().toString());
     }
 
+
+    @Language("java")
+    public static final String INPUT2 = """
+            package a.b;
+            import java.io.*;
+            class X {
+                int method(int[][] ints) {
+                    int i = 3;
+                    ints[i][i] = ints[++i][++i];
+                    return ints[i][i];
+                }
+            }
+            """;
+
+
+    @DisplayName("multiple assignments in one statement, 2")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doMethod(method);
+        Statement s1 = method.methodBody().statements().get(1);
+        VariableData vd1i = VariableDataImpl.of(s1);
+        VariableInfo vi1i = vd1i.variableInfo("i");
+        assertEquals("D:0, A:[0, 1, 1+0]", vi1i.assignments().toString());
+    }
+
 }
