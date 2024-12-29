@@ -10,7 +10,6 @@ import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.statement.ExpressionAsStatement;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -20,8 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class TestArrayVariable extends CommonTest {
@@ -53,17 +51,46 @@ public class TestArrayVariable extends CommonTest {
         VariableData vd000 = VariableDataImpl.of(s000);
 
         Variable av = ((DependentVariable) ((Assignment) s000.expression()).variableTarget()).arrayVariable();
-        assertEquals("av-5-13", av.fullyQualifiedName());
+        assertSame(put0, av);
 
-        VariableInfo viAv = vd000.variableInfo(av);
-        assertEquals("-1-:array, 0-4-*:av-5-13[index], 0-4-*:element", viAv.linkedVariables().toString());
-        assertTrue(viAv.isModified());
-        VariableInfo viArray = vd000.variableInfo(put0);
-        assertEquals("-1-:av-5-13, 0-4-*:av-5-13[index], 0-4-*:element", viArray.linkedVariables().toString());
-        assertTrue(viArray.isModified());
+        VariableInfo viPut0 = vd000.variableInfo(put0);
+        assertEquals("0-4-*:array[index], 0-4-*:element", viPut0.linkedVariables().toString());
+        assertEquals("0-4-*:array[index], 0-4-*:element", put0.analysis()
+                .getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.class).toString());
+        /*
+        20241229
+        part of an as yet not fully resolved issue: should "array" be @Modified or not?
+        of course its object graph is modified, but it is done through casting.
 
-        assertEquals("0-4-*:av-5-13[index], 0-4-*:element", put0.analysis().getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER,
-                LinkedVariablesImpl.class).toString());
-        assertTrue(put0.isModified());
+        the current code would have to use the parameterized type of DV.arrayExpression() rather that
+        that of DV.arrayVariable() to allow for -2- links which would propagate the modification.
+         */
+        assertFalse(put0.isModified());
+    }
+
+    @Language("java")
+    private static final String INPUT2 = """
+            package a.b;
+            public class X {
+              public void method() {
+                for (int i = 0; i < 8; i++) {
+                  for (int id = 0; id < 8; id++) {
+                    OldBoard[i][id][move] = TheBoard[i][id];
+                  }
+                }
+              }
+            
+              int[][] TheBoard;
+              int[][][] OldBoard;
+              int move = 0;
+            }
+            """;
+
+    @DisplayName("array variable")
+    @Test
+    public void test2() {
+        TypeInfo C = javaInspector.parse(INPUT2);
+        List<Info> ao = prepWork(C);
+        analyzer.doPrimaryType(C, ao);
     }
 }

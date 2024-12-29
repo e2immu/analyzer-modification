@@ -277,7 +277,7 @@ class ExpressionAnalyzer {
                     builder.merge(dv.indexVariable(), index.linkedVariables());
                 }
                 fieldIndex = 0;
-                fieldType = dv.arrayVariable().parameterizedType().copyWithOneFewerArrays();
+                fieldType = dv.arrayExpression().parameterizedType().copyWithOneFewerArrays();
             } else {
                 dependentVariable = null;
                 fieldIndex = -1; // irrelevant
@@ -350,7 +350,9 @@ class ExpressionAnalyzer {
                 Expression indexExpression = null;
                 while (true) {
                     if (v instanceof DependentVariable dv) {
-                        This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()); // irrelevant which type
+                        int arrays = dv.arrayVariableBase().parameterizedType().arrays();
+                        This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()
+                                .copyWithArrays(arrays)); // irrelevant which type; this is very fake
                         Variable base = dv.arrayVariableBase();
                         TranslationMap tm = runtime.newTranslationMapBuilder().put(base, thisVar).build();
                         Variable indexed = tm.translateVariableRecursively(assignment.variableTarget());

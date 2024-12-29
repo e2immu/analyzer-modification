@@ -7,6 +7,7 @@ import org.e2immu.language.cst.api.expression.Assignment;
 import org.e2immu.language.cst.api.expression.Cast;
 import org.e2immu.language.cst.api.expression.EnclosedExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.ExpressionAsStatement;
 import org.e2immu.language.cst.api.statement.Statement;
@@ -41,8 +42,6 @@ public class TestCastArray extends CommonTest {
             }
             """;
 
-    public static final String AV_9_21 = "av-9-21";
-
     @DisplayName("variable should exist")
     @Test
     public void test1() {
@@ -50,6 +49,7 @@ public class TestCastArray extends CommonTest {
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doPrimaryType(X);
         MethodInfo put = X.findUniqueMethod("put", 3);
+        ParameterInfo p0 = put.parameters().get(0);
         Statement s000 = put.methodBody().statements().get(0).block().statements().get(0);
         Statement s00000 = s000.block().statements().get(0);
         Statement s000000 = s00000.block().statements().get(0);
@@ -57,20 +57,18 @@ public class TestCastArray extends CommonTest {
             if (eas.expression() instanceof Assignment a) {
                 if (a.variableTarget() instanceof DependentVariable dv) {
                     assertTrue(dv.arrayExpression() instanceof EnclosedExpression ee && ee.expression() instanceof Cast);
-                    assertEquals(AV_9_21, dv.arrayVariable().fullyQualifiedName());
+                    assertSame(p0, dv.arrayVariable());
                 } else fail();
             } else fail();
         } else fail();
 
         VariableData vd000000 = VariableDataImpl.of(s000000);
-        VariableInfo vi000000av = vd000000.variableInfo(AV_9_21);
-        assertEquals("D:0.0.0.0.0.0.0, A:[]", vi000000av.assignments().toString());
-        assertEquals("0.0.0.0.0.0.0", vi000000av.reads().toString());
-
-        VariableData vd0000 = VariableDataImpl.of(s00000);
-        assertFalse(vd0000.isKnown(AV_9_21));
-
-        VariableData vd00 = VariableDataImpl.of(s000);
-        assertFalse(vd00.isKnown(AV_9_21));
+        VariableInfo vi000000av = vd000000.variableInfo(p0);
+        assertEquals("D:-, A:[]", vi000000av.assignments().toString());
+        assertEquals("0.0.0-E, 0.0.0.0.0.0.0", vi000000av.reads().toString());
+        assertEquals("""
+                X.put(Object,Object,int):0:array, X.put(Object,Object,int):0:array[X.put(Object,Object,int):2:index], \
+                X.put(Object,Object,int):1:element, X.put(Object,Object,int):2:index\
+                """, vd000000.knownVariableNamesToString());
     }
 }
