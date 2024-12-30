@@ -100,7 +100,7 @@ public class TestCallGraph extends CommonTest {
         G<Info> graph = ccg.go().graph();
         assertEquals("""
                 a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.method(java.util.List<String>), a.b.X.$1->1->a.b.X.$1.accept(String), \
-                a.b.X.$1->1->a.b.X.method(java.util.List<String>)\
+                a.b.X.$1->1->a.b.X.method(java.util.List<String>), a.b.X.method(java.util.List<String>)->1->a.b.X.$1.accept(String)\
                 """, graph.toString());
 
         // NOTE: at the moment, both the lambda method and 'method' are marked recursive

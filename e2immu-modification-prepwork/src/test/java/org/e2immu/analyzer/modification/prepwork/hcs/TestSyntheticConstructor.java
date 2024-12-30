@@ -97,7 +97,7 @@ public class TestSyntheticConstructor extends CommonTest {
 
         TypeInfo B = javaInspector.parse(INPUT2);
         List<Info> ao = new PrepAnalyzer(runtime).doPrimaryType(B);
-        assertEquals("B.$1.$1.apply(String),B.$1.accept(java.util.jar.JarEntry),B.<init>(),B.main(String[]),B,B.$1,B.$1.$1",
+        assertEquals("B.$1.$1.apply(String),B.<init>(),B.$1.accept(java.util.jar.JarEntry),B.$1.$1,B.main(String[]),B,B.$1",
                 ao.stream().map(Info::fullyQualifiedName).collect(Collectors.joining(",")));
         MethodInfo methodInfo = (MethodInfo) ao.get(0);
         assertTrue(methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD));

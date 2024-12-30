@@ -230,11 +230,9 @@ public class Analyzer {
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
             } else if (v instanceof This || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
-                Value.SetOfInfo set = methodInfo.typeInfo().analysis().getOrDefault(PART_OF_CONSTRUCTION,
-                        EMPTY_PART_OF_CONSTRUCTION);
                 boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
                 boolean assignment = !vi.assignments().isEmpty();
-                if ((modification || assignment) && !set.infoSet().contains(methodInfo)) {
+                if ((modification || assignment) && !methodInfo.isConstructor()) {
                     if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
                         methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
                     }

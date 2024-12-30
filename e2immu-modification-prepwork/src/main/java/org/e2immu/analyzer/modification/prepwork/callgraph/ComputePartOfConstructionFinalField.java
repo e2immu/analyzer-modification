@@ -95,43 +95,57 @@ public class ComputePartOfConstructionFinalField {
 
     private boolean isAssigned(MethodInfo methodInfo, FieldInfo fieldInfo) {
         Statement lastStatement = methodInfo.methodBody().lastStatement();
+        if (lastStatement == null) return false;
         VariableData vd = VariableDataImpl.of(lastStatement);
         assert vd != null;
         return vd.variableInfoContainerStream()
                 .filter(vic -> vic.variable() instanceof FieldReference fr && fr.fieldInfo() == fieldInfo)
                 .map(VariableInfoContainer::best)
-                .anyMatch(vi -> vi.assignments().size() > 0);
+                .anyMatch(vi -> !vi.assignments().isEmpty());
     }
 
     private Set<MethodInfo> computePartOfConstruction(TypeInfo typeInfo, G<Info> callGraph) {
-        Set<MethodInfo> candidates = typeInfo.constructorAndMethodStream()
-                .filter(this::canBePartOfConstruction).collect(Collectors.toCollection(HashSet::new));
-        Set<MethodInfo> called = new HashSet<>(typeInfo.constructors());
+        Set<MethodInfo> calledFromConstruction = new HashSet<>();
+        Set<MethodInfo> calledFromOutside = new HashSet<>();
 
         boolean changes = true;
         while (changes) {
             changes = false;
-            for (MethodInfo methodInfo : typeInfo.constructorsAndMethods()) {
-                boolean canBePartOfConstruction = canBePartOfConstruction(methodInfo);
-                V<Info> v = callGraph.vertex(methodInfo);
-                Map<V<Info>, Long> edges = callGraph.edges(v);
-                if (edges != null) {
-                    for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
-                        if (entry.getKey().t() instanceof MethodInfo toMethod) {
-                            if (!canBePartOfConstruction && !toMethod.isConstructor()) {
-                                changes |= candidates.remove(toMethod);
+            for (V<Info> v : callGraph.vertices()) {
+                if (v.t() instanceof MethodInfo methodInfo) {
+                    if (methodInfo.isConstructor()) {
+                        changes |= calledFromConstruction.add(methodInfo);
+                    } else if (!methodInfo.access().isPrivate()) {
+                        changes |= calledFromOutside.add(methodInfo);
+                    }
+                    boolean isCalledFromConstruction = calledFromConstruction.contains(methodInfo);
+                    boolean isCalledFromOutside = calledFromOutside.contains(methodInfo);
+                    Map<V<Info>, Long> edges = callGraph.edges(v);
+                    if (edges != null) {
+                        for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
+                            if (entry.getKey().t() instanceof MethodInfo toMethod) {
+                                if (isCalledFromConstruction) {
+                                    changes |= calledFromConstruction.add(toMethod);
+                                }
+                                if (isCalledFromOutside && !toMethod.isConstructor()) {
+                                    changes |= calledFromOutside.add(toMethod);
+                                }
                             }
-                            called.add(toMethod);
                         }
                     }
                 }
             }
         }
-        candidates.retainAll(called);
+        Set<MethodInfo> candidates = typeInfo.constructorAndMethodStream()
+                .filter(this::canBePartOfConstruction).collect(Collectors.toCollection(HashSet::new));
+        candidates.removeAll(calledFromOutside);
+        candidates.retainAll(calledFromConstruction);
         return Set.copyOf(candidates);
     }
 
     private boolean canBePartOfConstruction(MethodInfo mi) {
-        return mi.isConstructor() || mi.access().isPrivate() && mi.typeInfo().enclosingMethod() == null;
+        return mi.isConstructor()
+               || mi.access().isPrivate() && mi.typeInfo().enclosingMethod() == null
+               || mi.typeInfo().enclosingMethod() != null && canBePartOfConstruction(mi.typeInfo().enclosingMethod());
     }
 }

@@ -159,6 +159,9 @@ public class ComputeCallGraph {
                 TypeInfo anonymousType = cc.anonymousClass();
                 if (anonymousType != null) {
                     handleAnonymousType(info, anonymousType); // B
+                    for(MethodInfo mi: anonymousType.constructorsAndMethods()) {
+                        handleMethodCall(info, mi);
+                    }
                     return false;
                 }
                 return true;
@@ -166,6 +169,7 @@ public class ComputeCallGraph {
             if (e instanceof Lambda lambda) {
                 TypeInfo anonymousType = lambda.methodInfo().typeInfo();
                 handleAnonymousType(info, anonymousType); // B
+                handleMethodCall(info, lambda.methodInfo());
                 return false;
             }
             return true;

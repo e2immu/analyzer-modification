@@ -87,4 +87,69 @@ public class TestComputePartOfConstruction extends CommonTest {
         assertTrue(exit.isPropertyFinal());
     }
 
+
+    @Language("java")
+    private static final String INPUT3 = """
+            package a.b;
+            class X {
+                private int i;
+                public X() {
+                    update();
+                }
+                public void init() {
+                    Runnable r = ()->update();
+                    r.run();
+                }
+            
+                private void update() {
+                    ++i;
+                }
+            }
+            """;
+
+    @DisplayName("lambda and part of construction")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+
+        assertEquals("[a.b.X.X()]",
+                X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).infoSet().toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            class X {
+                private int i;
+                public X() {
+                    update(); 
+                }
+                public void init() {
+                    Runnable r = new Runnable() {
+                        @Override public void run() {
+                            update();
+                        }
+                    };
+                    r.run();
+                }
+            
+                private void update() {
+                    ++i;
+                }
+            }
+            """;
+
+    @DisplayName("anonymous type and part of construction")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+
+        assertEquals("[a.b.X.X()]",
+                X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).infoSet().toString());
+    }
 }
