@@ -17,6 +17,7 @@ Prep work
 
 * method call graph, recursive methods, order of analysis
 
+* get/set analysis
 
 Linked variables analyzer
 

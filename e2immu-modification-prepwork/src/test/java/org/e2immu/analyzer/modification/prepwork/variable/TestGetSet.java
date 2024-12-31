@@ -137,7 +137,7 @@ public class TestGetSet extends CommonTest {
             Statement s0 = test1.methodBody().statements().get(0);
             MethodCall mc0 = (MethodCall) s0.expression();
             Variable v = runtime.getterVariable(mc0);
-            assertEquals("a.b.X.list[3]", v.fullyQualifiedName());
+            assertEquals("java.util.List._synthetic_list#a.b.X.list[3]", v.fullyQualifiedName());
             assertEquals(runtime.stringParameterizedType(), v.parameterizedType());
         }
         {
@@ -145,7 +145,7 @@ public class TestGetSet extends CommonTest {
             Statement s0 = test1.methodBody().statements().get(0);
             MethodCall mc0 = (MethodCall) s0.expression();
             Variable v = runtime.setterVariable(mc0);
-            assertEquals("a.b.X.list[3]", v.fullyQualifiedName());
+            assertEquals("java.util.List._synthetic_list#a.b.X.list[3]", v.fullyQualifiedName());
             assertEquals(runtime.stringParameterizedType(), v.parameterizedType());
         }
     }
