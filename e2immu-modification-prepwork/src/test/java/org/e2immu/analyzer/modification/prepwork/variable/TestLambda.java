@@ -51,7 +51,7 @@ public class TestLambda extends CommonTest {
         assertEquals("a.b.X.method(byte[]):0:b", vd0.knownVariableNamesToString());
         Lambda lambda = (Lambda) ((MethodCall) s0.expression()).parameterExpressions().get(1);
         assertTrue(lambda.methodInfo().typeInfo().analysis().getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
-                MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().isEmpty());
+                MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).isEmpty());
         assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<b.length;", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
@@ -100,8 +100,8 @@ public class TestLambda extends CommonTest {
         MethodCall mc = (MethodCall) lvc.localVariable().assignmentExpression();
         ConstructorCall cc = (ConstructorCall) mc.parameterExpressions().get(0);
         TypeInfo anon = cc.anonymousClass();
-        assertEquals("{lc=VI[lc]}", anon.analysis().getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
-                MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().toString());
+        assertEquals("lc", anon.analysis().getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
+                MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).sortedByFqn());
         VariableData vd1 = VariableDataImpl.of(lvc);
         VariableInfo vi1Lc = vd1.variableInfo("lc");
         assertEquals("1", vi1Lc.reads().toString());
@@ -171,9 +171,9 @@ public class TestLambda extends CommonTest {
         // we don't want the variables that have been created in the lambda. We do get b, max
         assertEquals("a.b.X.method(byte[]):0:b, max", vd1.knownVariableNamesToString());
         Lambda lambda = (Lambda) ((MethodCall) s1.expression()).parameterExpressions().get(1);
-        assertEquals("{max=VI[max]}", lambda.methodInfo().typeInfo().analysis()
+        assertEquals("max", lambda.methodInfo().typeInfo().analysis()
                 .getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
-                        MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().toString());
+                        MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).sortedByFqn());
         assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<max;", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
@@ -208,9 +208,9 @@ public class TestLambda extends CommonTest {
         // we don't want the variables that have been created in the lambda. We do get b, max
         assertEquals("a.b.X.method(int):0:k, max, max[0]", vd1.knownVariableNamesToString());
         Lambda lambda = (Lambda) ((MethodCall) s1.expression()).parameterExpressions().get(1);
-        assertEquals("{max=VI[max]}", lambda.methodInfo().typeInfo().analysis()
+        assertEquals("max", lambda.methodInfo().typeInfo().analysis()
                 .getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
-                        MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().toString());
+                        MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).sortedByFqn());
         assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<max[0];", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
@@ -221,7 +221,7 @@ public class TestLambda extends CommonTest {
         assertEquals("1", max0.reads().toString());
         assertEquals("D:0, A:[]", max0.assignments().toString());
 
-        VariableInfo max= vd1.variableInfo("max");
+        VariableInfo max = vd1.variableInfo("max");
         assertEquals("1", max.reads().toString());
         assertEquals("D:0, A:[0]", max.assignments().toString());
     }

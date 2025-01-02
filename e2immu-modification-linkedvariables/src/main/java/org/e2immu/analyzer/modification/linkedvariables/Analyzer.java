@@ -247,7 +247,8 @@ public class Analyzer {
                     fr.fieldInfo().analysis().set(MODIFIED_FIELD, TRUE);
                 }
                 if (modification && vi.isVariableInClosure()) {
-                    VariableInfo outerVi = vi.variableInfoInClosure();
+                    VariableData vd = vi.variableInfoInClosure();
+                    VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
                     if (!outerVi.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
                         outerVi.analysis().set(MODIFIED_VARIABLE, TRUE);
                     }

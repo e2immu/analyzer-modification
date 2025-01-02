@@ -21,7 +21,7 @@ public interface VariableInfo {
         return variableInfoInClosure() != null;
     }
 
-    VariableInfo variableInfoInClosure();
+    VariableData variableInfoInClosure();
 
     Reads reads();
 

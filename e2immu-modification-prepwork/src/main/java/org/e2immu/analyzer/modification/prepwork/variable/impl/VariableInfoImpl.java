@@ -1,9 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable.impl;
 
-import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
-import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
-import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.variable.LocalVariable;
@@ -27,9 +24,9 @@ public class VariableInfoImpl implements VariableInfo {
     private final Variable variable;
     private final Assignments assignments;
     private final Reads reads;
-    private final VariableInfo variableInClosure;
+    private final VariableData variableInClosure;
 
-    public VariableInfoImpl(Variable variable, Assignments assignments, Reads reads, VariableInfo variableInClosure) {
+    public VariableInfoImpl(Variable variable, Assignments assignments, Reads reads, VariableData variableInClosure) {
         this.variable = variable;
         this.assignments = assignments;
         this.reads = reads;
@@ -122,7 +119,7 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     @Override
-    public VariableInfo variableInfoInClosure() {
+    public VariableData variableInfoInClosure() {
         return variableInClosure;
     }
 
