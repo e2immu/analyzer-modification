@@ -36,15 +36,15 @@ do all the analysis of this phase
 public class MethodAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodAnalyzer.class);
 
-    record VariableInfoMap(Map<String, VariableInfo> byFqn) implements Value {
+    public record VariableInfoMap(Map<String, VariableInfo> byFqn) implements Value {
         @Override
         public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
             throw new UnsupportedOperationException();
         }
     }
 
-    static final VariableInfoMap EMPTY_VARIABLE_INFO_MAP = new VariableInfoMap(Map.of());
-    static final Property VARIABLES_OF_ENCLOSING_METHOD = new PropertyImpl("localVariablesOfEnclosingMethod",
+    public static final VariableInfoMap EMPTY_VARIABLE_INFO_MAP = new VariableInfoMap(Map.of());
+    public static final Property VARIABLES_OF_ENCLOSING_METHOD = new PropertyImpl("localVariablesOfEnclosingMethod",
             EMPTY_VARIABLE_INFO_MAP);
 
     private final Runtime runtime;
@@ -258,7 +258,7 @@ public class MethodAnalyzer {
             ReadWriteData readWriteData = new ReadWriteData(null, v.seenFirstTime, v.accessorSeenFirstTime,
                     v.read, v.assigned, v.restrictToScope);
             fromReadWriteDataIntoVd(readWriteData, false, vd, new InternalVariables(),
-                    Stream.of(), null, "0");
+                    null, null, "0");
         }
         fieldInfo.analysisOfInitializer().set(VariableDataImpl.VARIABLE_DATA, vd);
     }
@@ -274,14 +274,8 @@ public class MethodAnalyzer {
         VariableDataImpl vdi = new VariableDataImpl();
         boolean hasMerge = statement.hasSubBlocks();
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
-        Stream<VariableInfoContainer> streamOfPrevious;
-        if (previous == null) {
-            streamOfPrevious = Stream.of();
-        } else {
-            streamOfPrevious = previous.variableInfoContainerStream();
-        }
 
-        fromReadWriteDataIntoVd(readWriteData, hasMerge, vdi, iv, streamOfPrevious, stageOfPrevious, index);
+        fromReadWriteDataIntoVd(readWriteData, hasMerge, vdi, iv, previous, stageOfPrevious, index);
 
         iv.handleStatement(index, statement);
 
@@ -311,11 +305,11 @@ public class MethodAnalyzer {
                                          boolean hasMerge,
                                          VariableDataImpl vdi,
                                          InternalVariables iv,
-                                         Stream<VariableInfoContainer> streamOfPrevious,
+                                         VariableData previousVd,
                                          Stage stageOfPrevious,
                                          String index) {
         readWriteData.seenFirstTime.forEach((v, i) -> {
-            VariableInfoContainer vic = initialVariable(i, v, readWriteData, iv, hasMerge && !isLocal(v));
+            VariableInfoContainer vic = initialVariable(i, v, readWriteData, previousVd, iv, hasMerge && !isLocal(v));
             vdi.put(v, vic);
             String limitedScope = readWriteData.restrictToScope.get(v);
             if (limitedScope != null) {
@@ -323,6 +317,12 @@ public class MethodAnalyzer {
             }
         });
 
+        Stream<VariableInfoContainer> streamOfPrevious;
+        if (previousVd == null) {
+            streamOfPrevious = Stream.of();
+        } else {
+            streamOfPrevious = previousVd.variableInfoContainerStream();
+        }
         streamOfPrevious.forEach(vic -> {
             VariableInfo vi = vic.best(stageOfPrevious);
             String indexOfDefinition = vi.assignments().indexOfDefinition();
@@ -538,25 +538,55 @@ public class MethodAnalyzer {
     private VariableInfoContainer initialVariable(String index,
                                                   Variable v,
                                                   ReadWriteData readWriteData,
+                                                  VariableData previousVd,
                                                   InternalVariables iv,
                                                   boolean hasMerge) {
-        String indexOfDefinition;
-        VariableInfo viInClosure = iv.closure.byFqn.get(v.fullyQualifiedName());
-        if (isLocal(v)) {
-            if (viInClosure != null) {
-                indexOfDefinition = StatementIndex.ENCLOSING_METHOD;
-            } else {
-                indexOfDefinition = index;
-            }
-        } else {
-            indexOfDefinition = BEFORE_METHOD;
-        }
+        String indexOfDefinition = indexOfDefinition(v, index, previousVd, iv);
         Assignments notYetAssigned = new Assignments(indexOfDefinition);
+        VariableInfo viInClosure = iv.closure.byFqn.get(v.fullyQualifiedName());
         VariableInfoImpl initial = new VariableInfoImpl(v, notYetAssigned, Reads.NOT_YET_READ, viInClosure);
         Reads reads = readWriteData.isRead(v, initial);
         VariableInfoImpl eval = new VariableInfoImpl(v, readWriteData.assignmentIds(v, initial), reads, viInClosure);
         return new VariableInfoContainerImpl(v, NormalVariableNature.INSTANCE,
                 Either.right(initial), eval, hasMerge);
+    }
+
+    private String indexOfDefinition(Variable v, String index, VariableData previousVd, InternalVariables iv) {
+        VariableInfo viInClosure = iv.closure.byFqn.get(v.fullyQualifiedName());
+        if (viInClosure != null) {
+            return StatementIndex.ENCLOSING_METHOD;
+        }
+        if (v instanceof LocalVariable) {
+            // NEW!
+            return index;
+        }
+        return recursiveIndexOfDefinition(v, index, previousVd, iv);
+    }
+
+    private String recursiveIndexOfDefinition(Variable v, String index, VariableData previousVd, InternalVariables iv) {
+        if (v == null) return BEFORE_METHOD;
+        VariableInfo viInClosure = iv.closure.byFqn.get(v.fullyQualifiedName());
+        if (viInClosure != null) {
+            return StatementIndex.ENCLOSING_METHOD;
+        }
+        VariableInfoContainer viPrevious = previousVd != null ? previousVd.variableInfoContainerOrNull(v.fullyQualifiedName()) : null;
+        if (viPrevious != null) {
+            VariableInfo recursiveInitialOrNull = viPrevious.getRecursiveInitialOrNull();
+            if (recursiveInitialOrNull != null) {
+                return recursiveInitialOrNull.assignments().indexOfDefinition();
+            }
+        }
+        if (v instanceof DependentVariable dv) {
+            String a = recursiveIndexOfDefinition(dv.arrayVariable(), index, previousVd, iv);
+            String i = recursiveIndexOfDefinition(dv.indexVariable(), index, previousVd, iv);
+            return a.compareTo(i) > 0 ? a : i;
+        }
+        if (v instanceof FieldReference fr) {
+            return recursiveIndexOfDefinition(fr.fieldReferenceBase(), index, previousVd, iv);
+        }
+        //assert !(v instanceof LocalVariable);
+        // This, ClassVariable, ParameterInfo
+        return BEFORE_METHOD;
     }
 
     private ReadWriteData analyzeEval(VariableData previous, String indexIn, Statement statement, InternalVariables iv) {
@@ -569,6 +599,7 @@ public class MethodAnalyzer {
         }
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
         Visitor v = new Visitor(index, knownVariableNames, statement, previous);
+        boolean eval = true;
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assignedAdd(iv.rv);
             if (!v.knownVariableNames.contains(iv.rv.fullyQualifiedName())) {
@@ -594,8 +625,11 @@ public class MethodAnalyzer {
                 for (Expression updater : fs.updaters()) {
                     updater.visit(v.withIndex(indexIn + EVAL_UPDATE));
                 }
-                // the condition is evaluated 2x
+                // the condition is evaluated 2x, but we'll have to do the normal one first!!
+                // (see e.g. TestModificationArrays in linkedvariables)
+                fs.expression().visit(v.withIndex(indexIn + EVAL));
                 fs.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
+                eval = false;
             } else if (statement instanceof WhileStatement ws) {
                 ws.expression().visit(v.withIndex(indexIn + EVAL_AFTER_UPDATE));
             } else if (statement instanceof ForEachStatement fe) {
@@ -607,8 +641,10 @@ public class MethodAnalyzer {
                 eci.parameterExpressions().forEach(e -> e.visit(v));
             }
         }
-        Expression expression = statement.expression();
-        if (expression != null && !expression.isEmpty()) expression.visit(v.withIndex(index));
+        if (eval) {
+            Expression expression = statement.expression();
+            if (expression != null && !expression.isEmpty()) expression.visit(v.withIndex(index));
+        }
         return new ReadWriteData(previous, v.seenFirstTime, v.accessorSeenFirstTime, v.read, v.assigned,
                 v.restrictToScope);
     }
