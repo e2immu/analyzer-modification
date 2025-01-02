@@ -17,6 +17,12 @@ public interface VariableInfo {
      */
     Assignments assignments();
 
+    default boolean isVariableInClosure() {
+        return variableInfoInClosure() != null;
+    }
+
+    VariableInfo variableInfoInClosure();
+
     Reads reads();
 
     /*

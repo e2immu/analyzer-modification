@@ -157,7 +157,8 @@ class ComputeLinkCompletion {
                     // we're creating new variables as well, added in "recursivelyAddAssignmentsAtScopeLevel"
                     Assignments assignments = new Assignments(statementIndex);
                     Reads reads = new Reads(statementIndex);
-                    VariableInfoImpl initial = new VariableInfoImpl(variable, assignments, reads);
+                    VariableInfoImpl initial = new VariableInfoImpl(variable, assignments, reads,
+                            vicOrig.getPreviousOrInitial().variableInfoInClosure());
                     VariableInfoContainer newVic = new VariableInfoContainerImpl(variable, vicOrig.variableNature(),
                             Either.right(initial), null, vicOrig.hasMerge());
                     ((VariableDataImpl) variableData).put(variable, newVic);

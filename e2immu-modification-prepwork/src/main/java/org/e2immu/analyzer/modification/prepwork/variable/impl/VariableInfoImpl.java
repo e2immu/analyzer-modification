@@ -27,11 +27,13 @@ public class VariableInfoImpl implements VariableInfo {
     private final Variable variable;
     private final Assignments assignments;
     private final Reads reads;
+    private final VariableInfo variableInClosure;
 
-    public VariableInfoImpl(Variable variable, Assignments assignments, Reads reads) {
+    public VariableInfoImpl(Variable variable, Assignments assignments, Reads reads, VariableInfo variableInClosure) {
         this.variable = variable;
         this.assignments = assignments;
         this.reads = reads;
+        this.variableInClosure = variableInClosure;
     }
 
     public void initializeLinkedVariables(LinkedVariables initialValue) {
@@ -117,5 +119,10 @@ public class VariableInfoImpl implements VariableInfo {
     @Override
     public boolean isModified() {
         return analysis.getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue();
+    }
+
+    @Override
+    public VariableInfo variableInfoInClosure() {
+        return variableInClosure;
     }
 }

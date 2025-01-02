@@ -229,7 +229,9 @@ public class Analyzer {
                     StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
-            } else if (v instanceof This || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
+            } else if (v instanceof This
+                       || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
+                       || vi.isVariableInClosure()) {
                 boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
                 boolean assignment = !vi.assignments().isEmpty();
                 if ((modification || assignment) && !methodInfo.isConstructor()) {
@@ -243,6 +245,12 @@ public class Analyzer {
                 if (modification && v instanceof FieldReference fr
                     && !fr.fieldInfo().analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
                     fr.fieldInfo().analysis().set(MODIFIED_FIELD, TRUE);
+                }
+                if (modification && vi.isVariableInClosure()) {
+                    VariableInfo outerVi = vi.variableInfoInClosure();
+                    if (!outerVi.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
+                        outerVi.analysis().set(MODIFIED_VARIABLE, TRUE);
+                    }
                 }
             }
             if (methodInfo.isConstructor()
