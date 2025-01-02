@@ -1,14 +1,18 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.MethodAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.Assignment;
+import org.e2immu.language.cst.api.expression.ConstructorCall;
 import org.e2immu.language.cst.api.expression.Lambda;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.ExpressionAsStatement;
+import org.e2immu.language.cst.api.statement.LocalVariableCreation;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -17,8 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLambda extends CommonTest {
 
@@ -47,6 +50,8 @@ public class TestLambda extends CommonTest {
         // we don't want the variables that have been created in the lambda. We do get b
         assertEquals("a.b.X.method(byte[]):0:b", vd0.knownVariableNamesToString());
         Lambda lambda = (Lambda) ((MethodCall) s0.expression()).parameterExpressions().get(1);
+        assertTrue(lambda.methodInfo().typeInfo().analysis().getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
+                MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().isEmpty());
         assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<b.length;", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
@@ -64,11 +69,12 @@ public class TestLambda extends CommonTest {
             public class Function10927145_file1830095 {
             
                 public static void method(final String extension, File currentDir, List<File> filesList) {
+                    String lc = extension.toLowerCase();
                     String[] files = currentDir.list(new FilenameFilter() {
             
                         public boolean accept(File dir, String name) {
                             File f = new File(dir, name);
-                            return f.isDirectory() || name.endsWith(extension);
+                            return f.isDirectory() || name.endsWith(lc);
                         }
                     });
                     for (String filename : files) {
@@ -89,6 +95,17 @@ public class TestLambda extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
         analyzer.doPrimaryType(X);
+        MethodInfo method = X.findUniqueMethod("method", 3);
+        LocalVariableCreation lvc = (LocalVariableCreation) method.methodBody().statements().get(1);
+        MethodCall mc = (MethodCall) lvc.localVariable().assignmentExpression();
+        ConstructorCall cc = (ConstructorCall) mc.parameterExpressions().get(0);
+        TypeInfo anon = cc.anonymousClass();
+        assertEquals("{lc=VI[lc]}", anon.analysis().getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
+                MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().toString());
+        VariableData vd1 = VariableDataImpl.of(lvc);
+        VariableInfo vi1Lc = vd1.variableInfo("lc");
+        assertEquals("1", vi1Lc.reads().toString());
+        assertEquals("D:0, A:[0]", vi1Lc.assignments().toString());
     }
 
     @Language("java")
@@ -127,4 +144,85 @@ public class TestLambda extends CommonTest {
         assertEquals("X.open(java.io.File):0:file, fixedFile", vd.knownVariableNamesToString());
     }
 
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import java.util.stream.IntStream;
+            public class X {
+                void method(byte[] b) {
+                    int max = b.length/2;
+                    IntStream.iterate(0, i -> i < max, i -> i + 1);
+                }
+            }
+            """;
+
+
+    @DisplayName("lambda parameters and closure")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Statement s1 = method.methodBody().statements().get(1);
+        VariableData vd1 = VariableDataImpl.of(s1);
+        // we don't want the variables that have been created in the lambda. We do get b, max
+        assertEquals("a.b.X.method(byte[]):0:b, max", vd1.knownVariableNamesToString());
+        Lambda lambda = (Lambda) ((MethodCall) s1.expression()).parameterExpressions().get(1);
+        assertEquals("{max=VI[max]}", lambda.methodInfo().typeInfo().analysis()
+                .getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
+                        MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().toString());
+        assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
+        Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
+        assertEquals("return i<max;", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
+        VariableData vdL0 = VariableDataImpl.of(l0);
+        assertEquals("a.b.X.$1.test(int), a.b.X.$1.test(int):0:i, max", vdL0.knownVariableNamesToString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            import java.util.stream.IntStream;
+            public class X {
+                void method(int k) {
+                    int[] max = new int[] { k };
+                    IntStream.iterate(0, i -> i < max[0], i -> i + 1);
+                }
+            }
+            """;
+
+
+    @DisplayName("lambda parameters and closure, 2")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        Statement s1 = method.methodBody().statements().get(1);
+        VariableData vd1 = VariableDataImpl.of(s1);
+        // we don't want the variables that have been created in the lambda. We do get b, max
+        assertEquals("a.b.X.method(int):0:k, max, max[0]", vd1.knownVariableNamesToString());
+        Lambda lambda = (Lambda) ((MethodCall) s1.expression()).parameterExpressions().get(1);
+        assertEquals("{max=VI[max]}", lambda.methodInfo().typeInfo().analysis()
+                .getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
+                        MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).byFqn().toString());
+        assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
+        Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
+        assertEquals("return i<max[0];", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
+        VariableData vdL0 = VariableDataImpl.of(l0);
+        assertEquals("a.b.X.$1.test(int), a.b.X.$1.test(int):0:i, max, max[0]", vdL0.knownVariableNamesToString());
+
+        VariableInfo max0 = vd1.variableInfo("max[0]");
+        assertEquals("1", max0.reads().toString());
+        assertEquals("D:0, A:[]", max0.assignments().toString());
+
+        VariableInfo max= vd1.variableInfo("max");
+        assertEquals("1", max.reads().toString());
+        assertEquals("D:0, A:[0]", max.assignments().toString());
+    }
 }

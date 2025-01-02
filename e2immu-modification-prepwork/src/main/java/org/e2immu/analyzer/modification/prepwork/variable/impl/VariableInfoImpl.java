@@ -125,4 +125,9 @@ public class VariableInfoImpl implements VariableInfo {
     public VariableInfo variableInfoInClosure() {
         return variableInClosure;
     }
+
+    @Override
+    public String toString() {
+        return "VI[" + variable + "]";
+    }
 }

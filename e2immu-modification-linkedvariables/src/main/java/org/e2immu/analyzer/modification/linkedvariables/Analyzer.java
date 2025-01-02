@@ -238,7 +238,7 @@ public class Analyzer {
                     if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
                         methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
                     }
-                    if (v instanceof FieldReference) {
+                    if (v instanceof FieldReference || vi.isVariableInClosure()) {
                         modifiedComponentsMethod.put(v, true);
                     }
                 }

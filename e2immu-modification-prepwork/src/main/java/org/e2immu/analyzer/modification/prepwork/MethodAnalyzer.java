@@ -41,6 +41,11 @@ public class MethodAnalyzer {
         public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
             throw new UnsupportedOperationException();
         }
+
+        public String sortedByFqn() {
+            return byFqn.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue())
+                    .sorted().collect(Collectors.joining(", "));
+        }
     }
 
     public static final VariableInfoMap EMPTY_VARIABLE_INFO_MAP = new VariableInfoMap(Map.of());
