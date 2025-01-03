@@ -120,11 +120,12 @@ class ExpressionAnalyzer {
                 return linkEvaluationOfMethodCall(currentMethod, mc, forwardType);
             }
             if (expression instanceof ConstructorCall cc) {
-                if (cc.constructor() != null) {
-                    return linkEvaluationOfConstructorCall(currentMethod, cc);
-                }
+                // important: check anonymous type first, it can have constructor != null
                 if (cc.anonymousClass() != null) {
                     return linkEvaluationOfAnonymousClass(currentMethod, cc);
+                }
+                if (cc.constructor() != null) {
+                    return linkEvaluationOfConstructorCall(currentMethod, cc);
                 }
             }
             if (expression instanceof MethodReference mr) {

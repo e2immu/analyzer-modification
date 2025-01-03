@@ -754,33 +754,33 @@ public class MethodAnalyzer {
             }
 
             if (e instanceof ConstructorCall cc) {
+                // important: check anonymous type first, it can have constructor != null
+                TypeInfo anonymousClass = cc.anonymousClass();
+                if (anonymousClass != null) {
+                    VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(anonymousClass);
+                    if (prepAnalyzer.recurseIntoAnonymous) {
+                        prepAnalyzer.doType(anonymousClass);
+                    }
+
+                    Set<FieldInfo> localFields = new HashSet<>(anonymousClass.fields());
+                    Set<TypeInfo> typeHierarchy = new HashSet<>();
+                    typeHierarchy.add(anonymousClass);
+                    typeHierarchy.addAll(anonymousClass.superTypesExcludingJavaLangObject());
+                    typeHierarchy.add(runtime.objectTypeInfo());
+                    anonymousClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
+                    anonymousClass.fields().forEach(f -> {
+                        if (f.initializer() != null && !f.initializer().isEmpty()) {
+                            copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy,
+                                    variableInfoMap);
+                        }
+                    });
+                    anonymousClass.constructorAndMethodStream()
+                            .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy,
+                                    variableInfoMap));
+                    return true; // so that the arguments get processed; the current visitor ignores the anonymous class
+                }
                 if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
                     prepAnalyzer.handleSyntheticArrayConstructor(cc);
-                } else {
-                    TypeInfo anonymousClass = cc.anonymousClass();
-                    if (anonymousClass != null) {
-                        VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(anonymousClass);
-                        if (prepAnalyzer.recurseIntoAnonymous) {
-                            prepAnalyzer.doType(anonymousClass);
-                        }
-
-                        Set<FieldInfo> localFields = new HashSet<>(anonymousClass.fields());
-                        Set<TypeInfo> typeHierarchy = new HashSet<>();
-                        typeHierarchy.add(anonymousClass);
-                        typeHierarchy.addAll(anonymousClass.superTypesExcludingJavaLangObject());
-                        typeHierarchy.add(runtime.objectTypeInfo());
-                        anonymousClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
-                        anonymousClass.fields().forEach(f -> {
-                            if (f.initializer() != null && !f.initializer().isEmpty()) {
-                                copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy,
-                                        variableInfoMap);
-                            }
-                        });
-                        anonymousClass.constructorAndMethodStream()
-                                .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy,
-                                        variableInfoMap));
-                        return true; // so that the arguments get processed; the current visitor ignores the anonymous class
-                    }
                 }
             }
             if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
@@ -836,16 +836,21 @@ public class MethodAnalyzer {
                     }
                 }
                 // also, simply ensure that modified component variables exist
-                Value.VariableBooleanMap modifiedComponents = mc.methodInfo().analysis()
-                        .getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_METHOD, ValueImpl.VariableBooleanMapImpl.EMPTY);
-                modifiedComponents.map().keySet().forEach(v -> {
-                    if (v instanceof FieldReference fr) {
-                        FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), mc.object(), fr.parameterizedType());
-                        markRead(newFr);
-                    }
-                });
+                copyModifiedComponentsMethod(mc.methodInfo(), mc.object());
             }
             return true;
+        }
+
+        // This annotation only exists here through @Modified("...") annotations; not through analysis, which comes later
+        private void copyModifiedComponentsMethod(MethodInfo methodInfo, Expression object) {
+            Value.VariableBooleanMap modifiedComponents = methodInfo.analysis()
+                    .getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_METHOD, ValueImpl.VariableBooleanMapImpl.EMPTY);
+            modifiedComponents.map().keySet().forEach(v -> {
+                if (v instanceof FieldReference fr) {
+                    FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), object, fr.parameterizedType());
+                    markRead(newFr);
+                }
+            });
         }
 
         private VariableInfoMap ensureLocalVariableNamesOfEnclosingType(TypeInfo anonymousClass) {

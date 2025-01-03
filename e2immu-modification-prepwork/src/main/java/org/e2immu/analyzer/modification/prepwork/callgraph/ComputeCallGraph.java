@@ -148,19 +148,20 @@ public class ComputeCallGraph {
                 return false;
             }
             if (e instanceof ConstructorCall cc) {
+                TypeInfo anonymousType = cc.anonymousClass();
+                // important: check anonymous type first, it can have constructor != null
+                if (anonymousType != null) {
+                    handleAnonymousType(info, anonymousType); // B
+                    for(MethodInfo mi: anonymousType.constructorsAndMethods()) {
+                        handleMethodCall(info, mi);
+                    }
+                    return false;
+                }
                 if (cc.constructor() != null) {
                     handleMethodCall(info, cc.constructor());
                     cc.parameterExpressions().forEach(pe -> pe.visit(this));
                     if (cc.object() != null && !(cc.object() instanceof VariableExpression || cc.object() instanceof TypeExpression)) {
                         cc.object().visit(this);
-                    }
-                    return false;
-                }
-                TypeInfo anonymousType = cc.anonymousClass();
-                if (anonymousType != null) {
-                    handleAnonymousType(info, anonymousType); // B
-                    for(MethodInfo mi: anonymousType.constructorsAndMethods()) {
-                        handleMethodCall(info, mi);
                     }
                     return false;
                 }
