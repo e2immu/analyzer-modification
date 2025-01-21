@@ -335,8 +335,18 @@ public class Assignments {
     }
 
     public Iterable<String> from(String from, boolean includeFrom) {
-        int k = Arrays.binarySearch(assignmentIndices, from);
-        assert k >= 0;
+        return from(from, includeFrom, false);
+    }
+
+    public Iterable<String> from(String from, boolean includeFrom, boolean flexible) {
+        int k1 = Arrays.binarySearch(assignmentIndices, from);
+        int k;
+        if (flexible) {
+            k = k1 < 0 ? -k1 - 1 : k1;
+        } else {
+            k = k1;
+            assert k >= 0;
+        }
         return () -> new Iterator<>() {
             int i = k + (includeFrom ? 0 : 1);
 
