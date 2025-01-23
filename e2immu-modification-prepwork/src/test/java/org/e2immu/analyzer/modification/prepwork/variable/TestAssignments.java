@@ -739,4 +739,32 @@ public class TestAssignments extends CommonTest {
         analyzer.doMethod(method);
     }
 
+
+    @Language("java")
+    public static final String INPUT12 = """
+            import java.util.List;
+            class X {
+                private int method(int iIn, int len, List<Integer> list) {
+                    int i = iIn;
+                    if (i < len) {
+                        int j = list.get(i++);
+                    }
+                    return i;
+                }
+            }
+            """;
+
+    @DisplayName("++ in method call argument")
+    @Test
+    public void test12() {
+        TypeInfo X = javaInspector.parse(INPUT12);
+        MethodInfo method = X.findUniqueMethod("method", 3);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doMethod(method);
+
+        Statement lastStatement = method.methodBody().lastStatement();
+        VariableData vdLast = VariableDataImpl.of(lastStatement);
+        Assignments assignments = vdLast.variableInfo("i").assignments();
+        assertEquals("D:0, A:[0, 1.0.0]", assignments.toString());
+    }
 }

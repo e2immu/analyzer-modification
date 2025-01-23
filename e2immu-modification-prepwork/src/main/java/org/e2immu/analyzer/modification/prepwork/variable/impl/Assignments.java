@@ -278,6 +278,11 @@ public class Assignments {
         return s;
     }
 
+    public static String stripEvalOrMerge(String s) {
+        if (s.endsWith("=M") || s.endsWith("-E")) return s.substring(0, s.length() - 2);
+        return s;
+    }
+
     public static boolean isMerge(String s) {
         return s.endsWith("=M");
     }

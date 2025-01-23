@@ -831,9 +831,7 @@ public class MethodAnalyzer {
                 Value.FieldValue getSet = mc.methodInfo().getSetField();
                 if (getSet.field() != null && !getSet.setter()) {
                     // getter
-                    if (markGetterRecursion(mc) != null) {
-                        return false; // and getters do not have modified components
-                    }
+                    markGetterRecursion(mc);
                 }
                 // also, simply ensure that modified component variables exist
                 copyModifiedComponentsMethod(mc.methodInfo(), mc.object());
