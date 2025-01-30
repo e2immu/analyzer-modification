@@ -1037,10 +1037,15 @@ class ExpressionAnalyzer {
             linkHelper.crossLink(leObject.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
 
             // from object to return value
-            LinkedVariables lvsResult1 = objectType == null ? EMPTY
-                    : linkHelper.linkedVariablesMethodCallObjectToReturnType(mc, objectType, leObject.linkedVariables(),
-                    linkedVariablesOfParameters, concreteReturnType);
-
+            LinkedVariables lvsResult1;
+            if (objectType == null) lvsResult1 = EMPTY;
+            else {
+                lvsResult1 = linkHelper.linkedVariablesMethodCallObjectToReturnType(mc, objectType, leObject.linkedVariables(),
+                        linkedVariablesOfParameters, concreteReturnType);
+                if (!mc.analysis().haveAnalyzedValueFor(LinkedVariablesImpl.LINKS_TO_OBJECT)) {
+                    mc.analysis().set(LinkedVariablesImpl.LINKS_TO_OBJECT, lvsResult1);
+                }
+            }
             // merge from param to object and from object to return value
             LinkedVariables lvsResult2 = fp.intoResult() == null ? lvsResult1
                     : lvsResult1.merge(fp.intoResult().linkedVariablesOfExpression());

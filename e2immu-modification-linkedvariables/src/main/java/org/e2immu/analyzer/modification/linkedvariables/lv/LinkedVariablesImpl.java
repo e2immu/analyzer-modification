@@ -30,6 +30,9 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
     public static final Property LINKED_VARIABLES_PARAMETER = new PropertyImpl("linkedVariablesOfParameter", EMPTY);
     public static final Property LINKED_VARIABLES_FIELD = new PropertyImpl("linkedVariablesOfField", EMPTY);
 
+    // for methods
+    public static final Property LINKS_TO_OBJECT = new PropertyImpl("linksToObject", EMPTY);
+
     public static final String NOT_YET_SET_STR = "NOT_YET_SET";
     private final Map<Variable, LV> variables;
 
