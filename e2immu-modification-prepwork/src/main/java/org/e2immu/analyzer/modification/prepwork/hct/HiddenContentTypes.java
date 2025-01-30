@@ -182,10 +182,11 @@ public class HiddenContentTypes implements Value {
             } else throw new UnsupportedOperationException();
             map.put(codec.encodeInt(context, key), v);
         });
-        if (map.isEmpty()) return null;
         if (startOfMethodParameters != 0) {
             map.put(codec.encodeString(context, "M"), codec.encodeInt(context, startOfMethodParameters));
         }
+        // we always write out, even if 'map' is empty; otherwise, methods don't have proper values when their
+        // data is empty but their type's is not.
         return codec.encodeMap(context, map);
     }
 

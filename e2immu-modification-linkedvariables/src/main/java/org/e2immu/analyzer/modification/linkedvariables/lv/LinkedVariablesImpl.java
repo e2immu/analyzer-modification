@@ -189,6 +189,11 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
     }
 
     @Override
+    public Stream<Variable> variableStream() {
+        return variables.keySet().stream();
+    }
+
+    @Override
     public Stream<Variable> variablesAssigned() {
         return variables.entrySet().stream()
                 .filter(e -> isAssigned(e.getValue()))

@@ -59,6 +59,8 @@ public interface LinkedVariables extends Iterable<Map.Entry<Variable, LV>>, Valu
 
     LinkedVariables maximum(LV other);
 
+    Stream<Variable> variableStream();
+
     Stream<Variable> variablesAssigned();
 
     LinkedVariables translate(TranslationMap translationMap);

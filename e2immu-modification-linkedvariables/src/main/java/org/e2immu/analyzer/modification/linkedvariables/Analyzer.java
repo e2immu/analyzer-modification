@@ -13,11 +13,13 @@ import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.translate.TranslationMap;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -31,7 +33,6 @@ import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
-import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.EMPTY_PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
@@ -414,6 +415,11 @@ public class Analyzer {
                 } else {
                     clcBuilder.addAssignment(rv, sv);
                 }
+            } else if (statement instanceof ForEachStatement forEach) {
+                LinkedVariables lvs;
+                VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(forEach.initializer().localVariable());
+                lvs = computeForEachLinkedVariables(methodInfo, previous, forEach, stageOfPrevious);
+                clcBuilder.addLink(lvs, vi);
             }
             clcBuilder.addLinkEvaluation(evaluationResult, vd);
         } else if (statement instanceof ExplicitConstructorInvocation eci) {
@@ -435,6 +441,38 @@ public class Analyzer {
             }
         }
         return vd;
+    }
+
+    private LinkedVariables computeForEachLinkedVariables(MethodInfo methodInfo,
+                                                          VariableData previous,
+                                                          ForEachStatement forEach,
+                                                          Stage stageOfPrevious) {
+        LinkedVariables lvs;
+        TypeInfo iterator = runtime.getFullyQualified(Iterator.class, false);
+        TypeInfo iterableType = runtime.getFullyQualified(Iterable.class, false);
+        if (iterator == null || iterableType == null) {
+            lvs = EMPTY;
+        } else {
+            ParameterizedType initType = forEach.initializer().localVariable().parameterizedType();
+            MethodInfo iterableIterator = iterableType.findUniqueMethod("iterator", 0);
+            ParameterizedType concreteIteratorType = runtime.newParameterizedType(iterator, List.of(initType));
+            MethodCall mcIterator = runtime.newMethodCallBuilder()
+                    .setObject(forEach.expression())
+                    .setMethodInfo(iterableIterator)
+                    .setParameterExpressions(List.of())
+                    .setConcreteReturnType(concreteIteratorType)
+                    .build();
+            MethodInfo iteratorNext = iterator.findUniqueMethod("next", 0);
+            MethodCall mc = runtime.newMethodCallBuilder()
+                    .setObject(mcIterator)
+                    .setMethodInfo(iteratorNext)
+                    .setParameterExpressions(List.of(runtime.intZero()))
+                    .setConcreteReturnType(initType)
+                    .build();
+            EvaluationResult ev2 = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious, mc);
+            lvs = ev2.linkedVariables();
+        }
+        return lvs;
     }
 
     private static void mergeBlocks(VariableInfoContainer vic, Map<String, VariableData> lastOfEachSubBlock, VariableData vd) {
