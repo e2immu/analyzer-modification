@@ -30,19 +30,27 @@ direction of arrow: I need you to exist first (I, from -> you, to)
 public class ComputeCallGraph {
     public static final Property RECURSIVE_METHOD = new PropertyImpl("recursiveMethod", ValueImpl.BoolImpl.FALSE);
     private final Runtime runtime;
-    private final TypeInfo primaryType;
+    private final Set<TypeInfo> primaryTypes;
     private final Set<MethodInfo> recursive = new HashSet<>();
     private final G.Builder<Info> builder = new G.Builder<>(Long::sum);
+    private final Predicate<TypeInfo> externalsToAccept;
 
     private G<Info> graph;
 
     public ComputeCallGraph(Runtime runtime, TypeInfo primaryType) {
+        this(runtime, Set.of(primaryType), t -> false);
+    }
+
+    public ComputeCallGraph(Runtime runtime,
+                            Set<TypeInfo> primaryTypes,
+                            Predicate<TypeInfo> externalsToAccept) {
         this.runtime = runtime;
-        this.primaryType = primaryType;
+        this.primaryTypes = primaryTypes;
+        this.externalsToAccept = externalsToAccept;
     }
 
     public ComputeCallGraph go() {
-        go(primaryType);
+        primaryTypes.forEach(this::go);
         graph = builder.build();
         return this;
     }
@@ -120,15 +128,17 @@ public class ComputeCallGraph {
         }
 
         public boolean test(Element e) {
-            if (e instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr
-                && fr.fieldInfo().owner().primaryType().equals(primaryType)) {
+            if (e instanceof VariableExpression ve
+                && ve.variable() instanceof FieldReference fr
+                && accept(fr.fieldInfo().owner())) {
                 // inside a type, an accessor should come before its field
                 // outside a type, we want the field to have been processed first
                 // see e.g. TestStaticValuesRecord,2
                 handleFieldAccess(info, fr);
             }
-            if (e instanceof Assignment a && a.variableTarget() instanceof FieldReference fr
-                && fr.fieldInfo().owner().primaryType().equals(primaryType)) {
+            if (e instanceof Assignment a
+                && a.variableTarget() instanceof FieldReference fr
+                && accept(fr.fieldInfo().owner().primaryType())) {
                 handleFieldAccess(info, fr);
             }
             if (e instanceof LocalVariableCreation lvc) {
@@ -152,7 +162,7 @@ public class ComputeCallGraph {
                 // important: check anonymous type first, it can have constructor != null
                 if (anonymousType != null) {
                     handleAnonymousType(info, anonymousType); // B
-                    for(MethodInfo mi: anonymousType.constructorsAndMethods()) {
+                    for (MethodInfo mi : anonymousType.constructorsAndMethods()) {
                         handleMethodCall(info, mi);
                     }
                     return false;
@@ -196,7 +206,7 @@ public class ComputeCallGraph {
         } else if (from instanceof MethodInfo mi && isRecursion(mi, to)) {
             recursive.add(mi);
             recursive.add(to);
-        } else if (to.typeInfo().primaryType().equals(primaryType)) {
+        } else if (accept(to.typeInfo())) {
             builder.add(from, List.of(to)); // D
         }
     }
@@ -214,7 +224,7 @@ public class ComputeCallGraph {
         if (!from.typeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
             TypeInfo best = pt.bestTypeInfo();
             if (best != null) {
-                if (best != from && best.primaryType().equals(primaryType)) {
+                if (best != from && accept(best)) {
                     builder.add(from, List.of(best));
                 }
                 for (ParameterizedType parameter : pt.parameters()) {
@@ -222,5 +232,9 @@ public class ComputeCallGraph {
                 }
             }
         } // else: avoid links to self, we want the type at the end
+    }
+
+    private boolean accept(TypeInfo typeInfo) {
+        return primaryTypes.contains(typeInfo.primaryType()) || externalsToAccept.test(typeInfo);
     }
 }

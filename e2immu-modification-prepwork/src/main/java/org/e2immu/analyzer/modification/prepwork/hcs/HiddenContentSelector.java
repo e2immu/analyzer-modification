@@ -244,6 +244,15 @@ public class HiddenContentSelector implements Value {
         if (allowVarargs && from.arrays() == to.arrays() + 1) {
             return translateHcs(runtime, genericsHelper, from.copyWithOneFewerArrays(), to, false);
         }
+        if (from.typeInfo() != null && "java.lang.Iterable".equals(from.typeInfo().fullyQualifiedName())
+            && to.arrays() > 0) {
+            // e.g. from = Iterable<T>, to = Closeable[]
+            Map<Indices, ParameterizedType> map1 = extract(runtime, from);
+            assert map1.size() == 1;
+            Map.Entry<Indices, ParameterizedType> entry1 = map1.entrySet().stream().findFirst().orElseThrow();
+            assert "0".equals(entry1.getKey().toString());
+            return Map.of(entry1.getKey(), new IndicesAndType(entry1.getKey(), to.copyWithFewerArrays(1)));
+        }
         assert from.isAssignableFrom(runtime, to);
 
         if (isNone() || to.isTypeOfNullConstant()) return Map.of();
