@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
+import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Codec;
@@ -828,6 +829,7 @@ public class MethodAnalyzer {
                 return false;
             }
             if (e instanceof MethodCall mc) {
+                ensureGetSet(mc.methodInfo());
                 Value.FieldValue getSet = mc.methodInfo().getSetField();
                 if (getSet.field() != null && !getSet.setter()) {
                     // getter
@@ -905,8 +907,9 @@ public class MethodAnalyzer {
             });
         }
 
-        // NOTE: pretty similar code in Factory.getterVariable(MethodCall methodCall);
+        // NOTE: pretty similar code in Runtime.getterVariable(MethodCall methodCall);
         private Variable markGetterRecursion(MethodCall mc) {
+            ensureGetSet(mc.methodInfo());
             Value.FieldValue getSet = mc.methodInfo().getSetField();
             if (getSet.field() != null && !getSet.setter()) {
                 Variable object;
@@ -1001,6 +1004,18 @@ public class MethodAnalyzer {
         public Visitor withIndex(String s) {
             this.index = s;
             return this;
+        }
+    }
+
+    /*
+    Depending on the order of the primary types in "PrepAnalyzer.doPrimaryTypes", the getSet analysis may have
+    happened already, or not. TestCallGraph2 contains an example where this can go wrong, but note that the execution
+    order for the modification analyzer does not catch this problem.
+
+     */
+    private static void ensureGetSet(MethodInfo methodInfo) {
+        if(!methodInfo.isAbstract()) {
+            GetSetHelper.doGetSetAnalysis(methodInfo, methodInfo.methodBody());
         }
     }
 }

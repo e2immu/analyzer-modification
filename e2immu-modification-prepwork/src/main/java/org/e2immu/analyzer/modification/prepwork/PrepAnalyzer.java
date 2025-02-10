@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
@@ -65,17 +66,24 @@ public class PrepAnalyzer {
         methodAnalyzer.doMethod(methodInfo, methodBlock);
     }
 
-    public List<Info> doPrimaryType(TypeInfo typeInfo) {
-        assert typeInfo.isPrimaryType();
-        doType(typeInfo);
-
-        ComputeCallGraph ccg = new ComputeCallGraph(runtime, typeInfo);
-        ccg.setRecursiveMethods();
+    public List<Info> doPrimaryTypes(Set<TypeInfo> primaryTypes) {
+        for (TypeInfo primaryType : primaryTypes) {
+            assert primaryType.isPrimaryType();
+            doType(primaryType);
+        }
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, primaryTypes, ti -> false);
         G<Info> cg = ccg.go().graph();
+        ccg.setRecursiveMethods();
         ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-        cp.go(typeInfo, cg);
+        for (TypeInfo primaryType : primaryTypes) {
+            cp.go(primaryType, cg);
+        }
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         return cao.go(cg);
+    }
+
+    public List<Info> doPrimaryType(TypeInfo typeInfo) {
+        return doPrimaryTypes(Set.of(typeInfo));
     }
 
     void doType(TypeInfo typeInfo) {

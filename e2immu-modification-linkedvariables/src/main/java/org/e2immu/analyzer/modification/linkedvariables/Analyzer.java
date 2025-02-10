@@ -540,14 +540,24 @@ public class Analyzer {
      */
     public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
         LOGGER.info("Start primary type {}", primaryType);
+        go(analysisOrder);
+    }
+
+    /*
+    there is no real need to analyze per primary type
+     */
+
+    public void go(List<Info> analysisOrder) {
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
-        Value.SetOfInfo partOfConstruction = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
         for (Info info : analysisOrder) {
             try {
                 if (info instanceof MethodInfo mi) {
                     doMethod(mi);
                     appendToFieldStaticValueMap(mi, svMap);
                 } else if (info instanceof FieldInfo fi) {
+                    TypeInfo primaryType = fi.owner().primaryType();
+                    Value.SetOfInfo partOfConstruction = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION,
+                            ValueImpl.SetOfInfoImpl.class);
                     doField(fi, svMap.get(fi), partOfConstruction);
                 } else if (info instanceof TypeInfo ti) {
                     LOGGER.info("Do type {}", ti);

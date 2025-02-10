@@ -1,0 +1,213 @@
+package org.e2immu.analyzer.modification.prepwork.callgraph;
+
+import org.e2immu.analyzer.modification.prepwork.CommonTest2;
+import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
+import org.e2immu.language.cst.api.info.Info;
+import org.e2immu.language.inspection.api.parser.Summary;
+import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class TestCallGraph2 extends CommonTest2 {
+
+    @Language("java")
+    String TYPE_A_B_C = """
+            package a.b.c;
+            import java.util.ArrayList;
+            import java.util.List;
+            class C { // sort of stack
+                List<String> strings = new ArrayList<>();
+                public void push(String s) { strings.add(s); }
+                public String get() { return strings.get(strings.size() - 1); }
+                public String pop() { return strings.remove(strings.size() - 1); }
+                public int size() { return strings.size(); }
+                public List<String> asList() { return strings; }
+            }
+            """;
+
+    @Language("java")
+    String TYPE_A_B_D = """
+            package a.b.d;
+            import org.slf4j.Logger;
+            import org.slf4j.LoggerFactory;
+            import a.b.c.C;
+            import java.util.stream.Stream;
+            class D {
+                static Logger LOGGER = LoggerFactory.getLogger("D");
+                final C c;
+                public  D(C c) { this.c = c; }
+                public void push(String s) {
+                    LOGGER.info("push {}", s);
+                    c.push(s);
+                }
+                public String pop() {
+                    LOGGER.info("pop {}", c.size());
+                    return c.pop();
+                }
+                public int size(){
+                    LOGGER.debug("size {}", c.size());
+                    return c.size();
+                }
+                public Stream<String> stream() {
+                    return c.asList().stream();
+                }
+            }
+            """;
+
+    // the implementation
+    @Language("java")
+    String TYPE_A_B_E1 = """
+            package a.b.e;
+            import a.b.c.C;
+            import a.b.d.D;
+            import java.sql.Connection;
+            import java.sql.ResultSet;
+            import java.sql.SQLException;
+            import java.sql.Statement;
+            import java.util.stream.Stream;
+            class E1 {
+                D d  = new D(new C());
+            
+                public int size() {
+                    return d.size();
+                }
+                public String pop() {
+                    return d.pop();
+                }
+                public Stream<String> stream() {
+                    return d.stream();
+                }
+                public void fill(Connection con) throws SQLException {
+                    String query = "select NAME from COFFEES";
+                    try (Statement stmt = con.createStatement()) {
+                      ResultSet rs = stmt.executeQuery(query);
+                      while (rs.next()) {
+                        String coffeeName = rs.getString("COF_NAME");
+                        d.push(coffeeName);
+                      }
+                    } catch (SQLException e) {
+                      System.err.println(e);
+                    }
+                }
+            }
+            """;
+
+    // uses the implementation, no interface can be introduced
+    @Language("java")
+    String TYPE_A_B_E2 = """
+            package a.b.e;
+            import java.sql.Connection;
+            class E2 {
+                final Connection con;
+                final E1 e1 = new E1();
+                E2(Connection con) {
+                    this.con = con;
+                }
+                void go() {
+                    e1.fill(con);
+                }
+            }
+            """;
+
+    // implementation can be partially replaced by interface
+    @Language("java")
+    String TYPE_A_B_F1 = """
+            package a.b.f;
+            import a.b.e.E1;
+            import java.sql.Connection;
+            class F1 {
+                final Connection con;
+                E2(Connection con) {
+                    this.con = con;
+                }
+                void go(E1 e1) {
+                    e1.fill(con);
+                }
+                String get(E1 e1) {
+                    return e1.pop();
+                }
+            }
+            """;
+
+    // implementation can be fully replaced by interface
+    @Language("java")
+    String TYPE_A_B_F2 = """
+            package a.b.f;
+            import a.b.e.E1;
+            class F2 {
+              String get(E1 e1) {
+                    return e1.pop();
+                }
+            }
+            """;
+
+    @Language("java")
+    String TYPE_A_B_G1 = """
+            package a.b.g;
+            class G1 {
+                void print() {
+                    System.out.println("?");
+                }
+            }
+            """;
+
+    // implementation can be fully replaced by interface, uses G1, F2
+    @Language("java")
+    String TYPE_A_B_G2 = """
+            package a.b.g;
+            import a.b.f.F2;
+            import a.b.e.E1;
+            class G2 {
+                final G1 g1 = new G1();
+                final F2 f2 = new F2();
+                final E1 e1;
+                G2(E1 e1) {
+                    this.e1 = e1;
+                }
+                public String go() {
+                    int s = e1.size();
+                    return "=" + s + g1 + f2;
+                }
+                public String go2() {
+                    String s = e1.pop();
+                    return "=" + s + g1 + f2;
+                }
+            }
+            """;
+
+    @Test
+    public void test() throws IOException {
+        Map<String, String> sourcesByFqn = Map.of("a.b.c.C", TYPE_A_B_C, "a.b.d.D", TYPE_A_B_D,
+                "a.b.e.E1", TYPE_A_B_E1, "a.b.e.E2", TYPE_A_B_E2,
+                "a.b.f.F1", TYPE_A_B_F1, "a.b.f.F2", TYPE_A_B_F2,
+                "a.b.g.G1", TYPE_A_B_G1, "a.b.g.G2", TYPE_A_B_G2);
+        List<Info> order =init(sourcesByFqn);
+
+        /*
+         D.stream() should come after a.b.c.C.strings#a.b.d.D.c
+         while it comes after C.strings, it is before D.c (which is to be expected?)
+         */
+        assertEquals("""
+                [a.b.c.C.<init>(), a.b.c.C.asList(), a.b.c.C.get(), a.b.c.C.pop(), a.b.c.C.push(String), a.b.c.C.size(), \
+                a.b.d.D.LOGGER, a.b.e.E1.<init>(), a.b.e.E2.E2(java.sql.Connection), a.b.f.F1.E2(java.sql.Connection), \
+                a.b.f.F2.<init>(), a.b.g.G1.<init>(), a.b.g.G1.print(), \
+                a.b.c.C.strings, \
+                a.b.d.D.pop(), a.b.d.D.push(String), \
+                a.b.d.D.size(), \
+                a.b.d.D.stream(), \
+                a.b.g.G1, a.b.c.C, a.b.e.E1.fill(java.sql.Connection), a.b.e.E1.pop(), \
+                a.b.e.E1.size(), a.b.e.E1.stream(), a.b.d.D.D(a.b.c.C), a.b.e.E2.go(), a.b.g.G2.go(), a.b.g.G2.go2(), \
+                a.b.d.D.c, \
+                a.b.e.E2.con, a.b.g.G2.g1, a.b.d.D, a.b.e.E1.d, a.b.e.E1, a.b.e.E2.e1, a.b.f.F1.get(a.b.e.E1), \
+                a.b.f.F1.go(a.b.e.E1), a.b.f.F2.get(a.b.e.E1), a.b.g.G2.G2(a.b.e.E1), a.b.e.E2, a.b.f.F1.con, a.b.f.F2, \
+                a.b.g.G2.e1, a.b.f.F1, a.b.g.G2.f2, a.b.g.G2]\
+                """, order.toString());
+    }
+
+}

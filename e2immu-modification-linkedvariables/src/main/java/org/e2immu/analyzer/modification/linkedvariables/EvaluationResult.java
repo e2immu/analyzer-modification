@@ -33,10 +33,17 @@ class EvaluationResult {
                              Map<FieldReference, Boolean> modifiedFunctionalComponents) {
         this.linkedVariables = linkedVariables;
         this.links = links;
+        assert ensureNoIdentityLinks(this.links);
         this.modified = modified;
         this.staticValues = staticValues;
         this.assignments = assignments;
         this.modifiedFunctionalComponents = modifiedFunctionalComponents;
+    }
+
+    private static boolean ensureNoIdentityLinks(Map<Variable, LinkedVariables> links) {
+        return links.entrySet().stream()
+                .noneMatch(e -> e.getValue().variableStream()
+                        .anyMatch(v -> v.equals(e.getKey())));
     }
 
     public static class Builder {
@@ -57,6 +64,7 @@ class EvaluationResult {
             staticValues = evaluationResult.staticValues;
 
             evaluationResult.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
+            assert ensureNoIdentityLinks(this.links);
             evaluationResult.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(evaluationResult.modified);
             modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents);
@@ -68,6 +76,7 @@ class EvaluationResult {
             linkedVariables = builder.linkedVariables;
             staticValues = builder.staticValues;
             builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
+            assert ensureNoIdentityLinks(this.links);
             builder.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(builder.modified);
             modifiedFunctionalComponents.putAll(builder.modifiedFunctionalComponents);
@@ -98,7 +107,11 @@ class EvaluationResult {
         Builder merge(Variable variable, LinkedVariables lv) {
             assert variable != null;
             assert lv != null;
-            this.links.merge(variable, lv, LinkedVariables::merge);
+            LinkedVariables lvWithout = lv.remove(v -> v.equals(variable));
+            if (!lvWithout.isEmpty()) {
+                this.links.merge(variable, lvWithout, LinkedVariables::merge);
+                assert ensureNoIdentityLinks(this.links);
+            }
             return this;
         }
 

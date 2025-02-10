@@ -104,10 +104,14 @@ class ExpressionAnalyzer {
                         .merge(evalValue)
                         .merge(evalTarget)
                         .merge(assignment.variableTarget(), evalValue.linkedVariables())
-                        .merge(assignment.variableTarget(), evalTarget.linkedVariables())
                         .setLinkedVariables(evalValue.linkedVariables())
                         .merge(assignment.variableTarget(), evalValue.staticValues())
                         .setStaticValues(evalValue.staticValues());
+                LinkedVariables withoutVt = evalTarget.linkedVariables()
+                        .remove(v -> v.equals(assignment.variableTarget()));
+                if (!withoutVt.isEmpty()) {
+                    builder.merge(assignment.variableTarget(), withoutVt);
+                }
                 setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
                 if (assignment.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
                     markModified(fr.scopeVariable(), builder);
@@ -258,7 +262,11 @@ class ExpressionAnalyzer {
                 if (fr.scope() instanceof VariableExpression sv
                     && !(sv.variable() instanceof This)) {
                     dependentVariable = fr.scopeVariable();
-                    builder.merge(dependentVariable, scope.linkedVariables());
+                    LinkedVariables withoutDv = scope.linkedVariables()
+                            .remove(vv -> vv.equals(dependentVariable));
+                    if (!withoutDv.isEmpty()) {
+                        builder.merge(dependentVariable, withoutDv);
+                    }
                     fieldIndex = fr.fieldInfo().indexInType();
                     fieldType = fr.fieldInfo().type();
                 } else {
