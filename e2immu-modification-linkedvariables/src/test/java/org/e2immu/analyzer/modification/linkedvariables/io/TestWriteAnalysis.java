@@ -152,7 +152,7 @@ public class TestWriteAnalysis extends CommonTest {
         assertEquals(output, s);
         Trie<TypeInfo> typeTrie = new Trie<>();
         typeTrie.add(X.fullyQualifiedName().split("\\."), X);
-        WriteAnalysis writeAnalysis = new WriteAnalysis(runtime);
+        WriteAnalysis writeAnalysis = new WriteAnalysis(runtime, javaInspector.packageToInputPath());
         File dest = new File("build/json");
         dest.mkdirs();
         Codec codec = new LinkedVariablesCodec(runtime).codec();
