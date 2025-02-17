@@ -8,10 +8,12 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImp
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.analyzer.shallow.analyzer.AnnotationExpressionsToPropertyValueMap;
 import org.e2immu.analyzer.shallow.analyzer.ShallowMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
+import org.e2immu.language.cst.api.expression.AnnotationExpression;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
@@ -548,7 +550,25 @@ public class Analyzer {
      */
 
     public void go(List<Info> analysisOrder) {
+        go(analysisOrder, Map.of());
+    }
+
+    public void go(List<Info> analysisOrder, Map<Info, List<AnnotationExpression>> overridesAndConfirmations) {
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
+        // we copy annotation overrides first, before going through all objects in detail.
+        for (Info info : analysisOrder) {
+            // annotations from A-API file
+            List<AnnotationExpression> annotations = overridesAndConfirmations.get(info);
+            if (annotations != null && !annotations.isEmpty()) {
+                Map<Property, Value> pvMap = AnnotationExpressionsToPropertyValueMap.annotationsToMap(info, annotations);
+                pvMap.forEach((p, v) -> info.analysis().set(p, v));
+            }
+            // annotations in source
+            Map<Property, Value> pvMapSrc = AnnotationExpressionsToPropertyValueMap.annotationsToMap(info, info.annotations());
+            pvMapSrc.forEach((p, v) -> {
+                if (!info.analysis().haveAnalyzedValueFor(p)) info.analysis().set(p, v);
+            });
+        }
         for (Info info : analysisOrder) {
             try {
                 if (info instanceof MethodInfo mi) {
