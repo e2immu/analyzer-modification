@@ -111,7 +111,7 @@ public class TestCloneBench extends CommonTest {
 
         LOGGER.warn("JDK calls:");
         Composer composer = new Composer(javaInspector.runtime(),
-                "org.e2immu.analyzer.shallow.aapi.java", null, null,
+                "org.e2immu.analyzer.shallow.aapi.java", Map.of(), Map.of(),
                 javaInspector.packageToInputPath(), w -> w.access().isPublic());
         List<TypeInfo> toCompose =
                 typeHistogram.entrySet().stream()

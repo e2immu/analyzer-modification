@@ -46,7 +46,6 @@ public class CommonTest {
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/slf4j/event")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "ch/qos/logback/core")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "ch/qos/logback/classic")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "io/codelaser/jfocus/transform/support")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/opentest4j");
         for (String extra : extraClassPath) {
             builder.addClassPath(extra);

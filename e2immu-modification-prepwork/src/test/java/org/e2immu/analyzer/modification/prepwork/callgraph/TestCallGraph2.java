@@ -187,7 +187,7 @@ public class TestCallGraph2 extends CommonTest2 {
                 "a.b.e.E1", TYPE_A_B_E1, "a.b.e.E2", TYPE_A_B_E2,
                 "a.b.f.F1", TYPE_A_B_F1, "a.b.f.F2", TYPE_A_B_F2,
                 "a.b.g.G1", TYPE_A_B_G1, "a.b.g.G2", TYPE_A_B_G2);
-        List<Info> order =init(sourcesByFqn);
+        List<Info> order = init(sourcesByFqn);
 
         /*
          D.stream() should come after a.b.c.C.strings#a.b.d.D.c
