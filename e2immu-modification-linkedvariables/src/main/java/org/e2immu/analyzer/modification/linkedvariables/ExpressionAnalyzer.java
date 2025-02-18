@@ -40,7 +40,6 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesIm
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 
 class ExpressionAnalyzer {
@@ -114,9 +113,9 @@ class ExpressionAnalyzer {
                 }
                 setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
                 if (assignment.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
-                    markModified(fr.scopeVariable(), builder);
+                    markModified(fr.scopeVariable(), builder, ValueImpl.BoolImpl.FALSE);
                 } else if (assignment.variableTarget() instanceof DependentVariable dv && dv.arrayVariable() != null) {
-                    markModified(dv.arrayVariable(), builder);
+                    markModified(dv.arrayVariable(), builder, ValueImpl.BoolImpl.FALSE);
                 }
                 return builder.build();
             }
@@ -569,7 +568,7 @@ class ExpressionAnalyzer {
             leParams.forEach(builder::merge);
 
             methodCallLinks(currentMethod, mc.withObject(object), builder, leObject, leParams, forwardType);
-            methodCallModified(mc, object, builder);
+            methodCallUnmodified(mc, object, builder);
             methodCallStaticValue(mc, builder, leObject, leParams);
 
             return builder.build();
@@ -708,28 +707,34 @@ class ExpressionAnalyzer {
             void accept(Expression mapKey, boolean mapValue, Map<Variable, Expression> svMap);
         }
 
-        private void methodCallModified(MethodCall mc, Expression object, EvaluationResult.Builder builder) {
+        private void methodCallUnmodified(MethodCall mc, Expression object, EvaluationResult.Builder builder) {
             if (object instanceof VariableExpression ve) {
-                boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
+                Value.Bool nonModifying = mc.methodInfo().analysis().getOrDefault(NON_MODIFYING_METHOD,
+                        ValueImpl.BoolImpl.NO_VALUE);
                 if (ve.variable().parameterizedType().isFunctionalInterface()
                     && ve.variable() instanceof FieldReference fr
                     && !fr.isStatic() && !(fr.scopeVariable() instanceof This)) {
-                    builder.addModifiedFunctionalInterfaceComponent(fr, modifying);
-                } else if (modifying) {
-                    markModified(ve.variable(), builder);
-                    propagateMethodComponents(mc, builder);
+                    if (nonModifying.hasAValue()) {
+                        builder.addModifiedFunctionalInterfaceComponent(fr, nonModifying.isFalse());
+                    }
+                } else if (nonModifying.hasAValue()) {
+                    markModified(ve.variable(), builder, nonModifying);
+                    if (nonModifying.isFalse()) {
+                        propagateMethodComponents(mc, builder);
+                    }
                 }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
-                if (pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue()) {
+                Value.Bool unmodified = pi.analysis().getOrDefault(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.NO_VALUE);
+                if (unmodified.hasAValue()) {
                     if (pi.isVarArgs()) {
                         for (int i = mc.methodInfo().parameters().size() - 1; i < mc.parameterExpressions().size(); i++) {
                             Expression pe = mc.parameterExpressions().get(i);
-                            handleModifiedParameter(builder, pe);
+                            handleModifiedParameter(builder, pe, unmodified);
                         }
                     } else {
                         Expression pe = mc.parameterExpressions().get(pi.index());
-                        handleModifiedParameter(builder, pe);
+                        handleModifiedParameter(builder, pe, unmodified);
                     }
                 }
                 /*
@@ -741,7 +746,7 @@ class ExpressionAnalyzer {
                 propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi, (e, mapValue, map) -> {
                     if (e instanceof MethodReference mr) {
                         if (mapValue) {
-                            propagateModificationOfObject(mr, builder);
+                            propagateModificationOfObject(mr, builder, ValueImpl.BoolImpl.FALSE);
                             for (ParameterInfo mrPi : mr.methodInfo().parameters()) {
                                 propagateModificationOfParameter(builder, pi, map, mrPi);
                             }
@@ -752,7 +757,7 @@ class ExpressionAnalyzer {
                 });
                 propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, pi, (e, mapValue, map) -> {
                     if (e instanceof VariableExpression ve2 && mapValue) {
-                        markModified(ve2.variable(), builder);
+                        markModified(ve2.variable(), builder, ValueImpl.BoolImpl.FALSE);
                     }
                 });
             }
@@ -769,24 +774,21 @@ class ExpressionAnalyzer {
                         .put(mrPi, runtime.newThis(pi.parameterizedType()))
                         .build();
                 for (Map.Entry<Variable, Boolean> entry : modComp.map().entrySet()) {
-                    if (entry.getValue()) {
-                        // modified component
-                        Variable translated = tm.translateVariableRecursively(entry.getKey());
-                        Expression value = map.get(translated);
-                        if (value instanceof VariableExpression ve) {
-                            markModified(ve.variable(), builder);
-                        }
-                        LOGGER.debug("Have translated variable {}", translated);
+                    Variable translated = tm.translateVariableRecursively(entry.getKey());
+                    Expression value = map.get(translated);
+                    if (value instanceof VariableExpression ve) {
+                        markModified(ve.variable(), builder, ValueImpl.BoolImpl.from(entry.getValue()));
                     }
+                    LOGGER.debug("Have translated variable {}", translated);
                 }
             }
         }
 
-        private void handleModifiedParameter(EvaluationResult.Builder builder, Expression pe) {
+        private void handleModifiedParameter(EvaluationResult.Builder builder, Expression pe, Value.Bool unmodified) {
             if (pe instanceof VariableExpression ve) {
-                markModified(ve.variable(), builder);
-            } else if (pe instanceof MethodReference mr) {
-                propagateModificationOfObject(mr, builder);
+                markModified(ve.variable(), builder, unmodified);
+            } else if (pe instanceof MethodReference mr && unmodified.isFalse()) {
+                propagateModificationOfObject(mr, builder, unmodified);
             }
         }
 
@@ -801,7 +803,7 @@ class ExpressionAnalyzer {
                     This thisInSv = runtime.newThis(mc.object().parameterizedType().typeInfo().asParameterizedType());
                     TranslationMap tm = runtime.newTranslationMapBuilder().put(thisInSv, ve.variable()).build();
                     Variable v = tm.translateVariableRecursively(entry.getKey());
-                    markModified(v, builder);
+                    markModified(v, builder, ValueImpl.BoolImpl.from(entry.getValue()));
                 }
             }
         }
@@ -991,31 +993,22 @@ class ExpressionAnalyzer {
             // TODO
         }
 
-        private void propagateModificationOfObject(MethodReference mr, EvaluationResult.Builder builder) {
+        private void propagateModificationOfObject(MethodReference mr, EvaluationResult.Builder builder, Bool unmodified) {
             if (mr.methodInfo().isModifying() && mr.scope() instanceof VariableExpression ve) {
-                markModified(ve.variable(), builder);
+                markModified(ve.variable(), builder, unmodified);
             }
         }
 
-        private void markModified(Variable variable, EvaluationResult.Builder builder) {
+        private void markModified(Variable variable, EvaluationResult.Builder builder, Bool nonModifying) {
             ParameterizedType type = variable.parameterizedType();
-            TypeInfo typeInfo = type.typeInfo();
-            boolean mutable = type.arrays() > 0 || typeInfo != null && typeInfo.analysis()
-                    .getOrDefault(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable();
-            if (mutable || isSyntheticObjectUsedInMethodComponentModification(variable)) {
-                builder.addModified(variable);
-                if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
-                    markModified(fr.scopeVariable(), builder);
-                } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
-                    markModified(dv.arrayVariable(), builder);
-                }
+            Value.Immutable immutable = analysisHelper.typeImmutable(type);
+            Bool value = immutable.isAtLeastImmutableHC() ? ValueImpl.BoolImpl.TRUE : nonModifying;
+            builder.addModified(variable, value);
+            if (variable instanceof FieldReference fr && fr.scopeVariable() != null) {
+                markModified(fr.scopeVariable(), builder, value);
+            } else if (variable instanceof DependentVariable dv && dv.arrayVariable() != null) {
+                markModified(dv.arrayVariable(), builder, value);
             }
-        }
-
-        private static boolean isSyntheticObjectUsedInMethodComponentModification(Variable variable) {
-            return variable.parameterizedType().isJavaLangObject()
-                   && variable instanceof FieldReference fr
-                   && fr.fieldInfo().isSynthetic();
         }
 
         private void methodCallLinks(MethodInfo currentMethod,

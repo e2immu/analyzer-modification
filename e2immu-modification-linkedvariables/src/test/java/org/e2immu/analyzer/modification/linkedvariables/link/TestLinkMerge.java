@@ -52,13 +52,13 @@ public class TestLinkMerge extends CommonTest {
 
         VariableData vd000 = VariableDataImpl.of(s000);
         VariableInfo viSet000 = vd000.variableInfo(set);
-        assertTrue(viSet000.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(viSet000.isModified());
         assertEquals("0-4-*:s", viSet000.linkedVariables().toString());
 
         VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo viSet0 = vd0.variableInfo(set);
         assertEquals("0-4-*:s", viSet0.linkedVariables().toString());
-        assertTrue(viSet0.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(viSet0.isModified());
     }
 
 
@@ -118,29 +118,25 @@ public class TestLinkMerge extends CommonTest {
                 VariableData vd200 = VariableDataImpl.of(s200);
                 VariableInfo viI200 = vd200.variableInfo("i");
                 assertEquals("-1-:set, 0-4-*:t", viI200.linkedVariables().toString());
-                assertTrue(viI200.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
-                        ValueImpl.BoolImpl.FALSE).isTrue());
+                assertTrue(viI200.isModified());
 
                 VariableInfo viSet200 = vd200.variableInfo(set);
                 assertEquals("-1-:i, 0-4-*:t", viSet200.linkedVariables().toString());
 
                 // test the propagation of the @Modified property via clustering
-                assertTrue(viSet200.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
-                        ValueImpl.BoolImpl.FALSE).isTrue());
+                assertTrue(viSet200.isModified());
             }
             {
                 VariableData vd2 = VariableDataImpl.of(s2);
                 VariableInfo viI2 = vd2.variableInfo("i");
                 assertEquals("-1-:set, 0-4-*:t", viI2.linkedVariables().toString());
-                assertTrue(viI2.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
-                        ValueImpl.BoolImpl.FALSE).isTrue());
+                assertTrue(viI2.isModified());
 
                 VariableInfo viSet2 = vd2.variableInfo(set);
                 assertEquals("-1-:i, 0-4-*:t", viSet2.linkedVariables().toString());
 
                 // test the propagation of the @Modified property via merge
-                assertTrue(viSet2.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE,
-                        ValueImpl.BoolImpl.FALSE).isTrue());
+                assertTrue(viSet2.isModified());
             }
         }
     }

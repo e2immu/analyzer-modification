@@ -257,8 +257,7 @@ public class TestLinkObjectRecursion extends CommonTest {
         FieldInfo loop = loopDataImpl.getFieldByName("loop", true);
         assertFalse(loop.isFinal());
         assertTrue(loop.isPropertyFinal());
-        assertSame(ValueImpl.BoolImpl.TRUE, loop.analysis().getOrDefault(PropertyImpl.MODIFIED_FIELD,
-                ValueImpl.BoolImpl.FALSE));
+        assertTrue(loop.isModified());
 
         FieldInfo body = loopDataImpl.getFieldByName("body", true);
         FieldReference bodyFr = runtime.newFieldReference(body);

@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.Reads;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.variable.Variable;
 
 public interface VariableInfo {
@@ -47,5 +48,15 @@ public interface VariableInfo {
     // for later
     //int modificationTime();
 
-    boolean isModified();
+    Value.Bool notModified();
+
+    // for tests
+
+    default boolean isModified() {
+        return notModified().isFalse();
+    }
+
+    default boolean isUnmodified() {
+        return notModified().isTrue();
+    }
 }

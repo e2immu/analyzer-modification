@@ -99,7 +99,9 @@ public class ComputeImmutable {
         VariableData vd = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
         return vd.variableInfoStream().anyMatch(vi -> {
             // modified
-            if (vi.variable() instanceof FieldReference fr && inHierarchy(typeInfo, fr.fieldInfo().owner()) && vi.isModified()) {
+            if (vi.variable() instanceof FieldReference fr
+                && inHierarchy(typeInfo, fr.fieldInfo().owner())
+                && vi.notModified().isFalse()) {
                 return true;
             }
             // exposed via the return variable

@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.annotation.Fluent;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 
@@ -22,12 +23,12 @@ class EvaluationResult {
     // other assignments accumulated along the way, as "side effects"
     private final Map<Variable, StaticValues> assignments;
 
-    private final Set<Variable> modified;
+    private final Map<Variable, Value.Bool> modified;
     private final Map<FieldReference, Boolean> modifiedFunctionalComponents;
 
     private EvaluationResult(LinkedVariables linkedVariables,
                              Map<Variable, LinkedVariables> links,
-                             Set<Variable> modified,
+                             Map<Variable, Value.Bool> modified,
                              StaticValues staticValues,
                              Map<Variable, StaticValues> assignments,
                              Map<FieldReference, Boolean> modifiedFunctionalComponents) {
@@ -51,7 +52,7 @@ class EvaluationResult {
         private StaticValues staticValues = StaticValuesImpl.NONE;
         private final Map<Variable, LinkedVariables> links = new HashMap<>();
         private final Map<Variable, StaticValues> assignments = new HashMap<>();
-        private final Set<Variable> modified = new HashSet<>();
+        private final Map<Variable, Value.Bool> modified = new HashMap<>();
         private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
 
         public LinkedVariables getLinkedVariablesOf(Variable variable) {
@@ -66,7 +67,7 @@ class EvaluationResult {
             evaluationResult.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
             assert ensureNoIdentityLinks(this.links);
             evaluationResult.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
-            modified.addAll(evaluationResult.modified);
+            PropertyUtil.mergeBool(evaluationResult.modified, modified);
             modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents);
             return this;
         }
@@ -78,7 +79,7 @@ class EvaluationResult {
             builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
             assert ensureNoIdentityLinks(this.links);
             builder.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
-            modified.addAll(builder.modified);
+            PropertyUtil.mergeBool(builder.modified, modified);
             modifiedFunctionalComponents.putAll(builder.modifiedFunctionalComponents);
             return this;
         }
@@ -126,8 +127,8 @@ class EvaluationResult {
         }
 
         @Fluent
-        Builder addModified(Variable variable) {
-            modified.add(variable);
+        Builder addModified(Variable variable, Value.Bool value) {
+            modified.merge(variable, value, Value.Bool::and);
             return this;
         }
 
@@ -146,7 +147,7 @@ class EvaluationResult {
         }
 
         EvaluationResult build() {
-            return new EvaluationResult(linkedVariables, Map.copyOf(links), Set.copyOf(modified),
+            return new EvaluationResult(linkedVariables, Map.copyOf(links), Map.copyOf(modified),
                     staticValues, Map.copyOf(assignments), Map.copyOf(modifiedFunctionalComponents));
         }
 
@@ -179,7 +180,7 @@ class EvaluationResult {
         return staticValues;
     }
 
-    public Set<Variable> modified() {
+    public Map<Variable, Value.Bool> modified() {
         return modified;
     }
 

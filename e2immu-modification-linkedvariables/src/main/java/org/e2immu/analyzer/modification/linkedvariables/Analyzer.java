@@ -39,10 +39,9 @@ import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfC
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class Analyzer {
@@ -199,9 +198,11 @@ public class Analyzer {
                         pi.analysis().set(LINKED_VARIABLES_PARAMETER, filteredLvs);
                     }
                 }
-                if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
-                    boolean modified = vi.isModified();
-                    pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                if (!pi.analysis().haveAnalyzedValueFor(UNMODIFIED_PARAMETER)) {
+                    Value.Bool unmodified = vi.notModified();
+                    if (unmodified.hasAValue()) {
+                        pi.analysis().set(UNMODIFIED_PARAMETER, unmodified);
+                    }
                 }
                 // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
                 // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
@@ -235,25 +236,35 @@ public class Analyzer {
             } else if (v instanceof This
                        || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
                        || vi.isVariableInClosure()) {
-                boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
+                Bool unmodified = vi.notModified();
                 boolean assignment = !vi.assignments().isEmpty();
-                if ((modification || assignment) && !methodInfo.isConstructor()) {
-                    if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
-                        methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
+                if (!methodInfo.isConstructor()) {
+                    if (!methodInfo.analysis().haveAnalyzedValueFor(NON_MODIFYING_METHOD)) {
+                        if (assignment) {
+                            methodInfo.analysis().set(NON_MODIFYING_METHOD, FALSE);
+                        } else if (unmodified.hasAValue()) {
+                            methodInfo.analysis().set(NON_MODIFYING_METHOD, unmodified);
+                        }
                     }
                     if (v instanceof FieldReference || vi.isVariableInClosure()) {
-                        modifiedComponentsMethod.put(v, true);
+                        if (assignment) {
+                            modifiedComponentsMethod.put(v, true);
+                        } else if (unmodified.hasAValue()) {
+                            modifiedComponentsMethod.put(v, !unmodified.isTrue());
+                        }
                     }
                 }
-                if (modification && v instanceof FieldReference fr
-                    && !fr.fieldInfo().analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
-                    fr.fieldInfo().analysis().set(MODIFIED_FIELD, TRUE);
+                // short-cut for fields
+                if (unmodified.isFalse() && v instanceof FieldReference fr
+                    && !fr.fieldInfo().analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
+                    fr.fieldInfo().analysis().set(UNMODIFIED_FIELD, FALSE);
                 }
-                if (modification && vi.isVariableInClosure()) {
+                // short-cut for closures, FIXME ensure that there is dedicated code to look at all methods in a closure
+                if (unmodified.isFalse() && vi.isVariableInClosure()) {
                     VariableData vd = vi.variableInfoInClosure();
                     VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
-                    if (!outerVi.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
-                        outerVi.analysis().set(MODIFIED_VARIABLE, TRUE);
+                    if (!outerVi.analysis().haveAnalyzedValueFor(UNMODIFIED_VARIABLE)) {
+                        outerVi.analysis().set(UNMODIFIED_VARIABLE, FALSE);
                     }
                 }
             }
@@ -306,10 +317,10 @@ public class Analyzer {
         if (pi.parameterizedType().isTypeParameter()) return Map.of();
         Stream<Variable> step1 = variableData.variableInfoStream()
                 .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursively(pi))
-                .filter(VariableInfo::isModified)
+                .filter(vi -> !vi.notModified().isTrue())
                 .map(VariableInfo::variable);
         Stream<Variable> step2 = variableData.variableInfoStream()
-                .filter(VariableInfo::isModified)
+                .filter(vi -> !vi.notModified().isTrue())
                 .map(vi -> {
                     StaticValues sv = vi.staticValues();
                     if (sv != null && sv.expression() instanceof VariableExpression ve && ve.variable().scopeIsRecursively(pi)) {
@@ -488,13 +499,16 @@ public class Analyzer {
         StaticValues reducedSv = computeStaticValuesMerge(lastOfEachSubBlock, variable);
         merge.staticValuesSet(reducedSv);
 
-        if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
-            boolean modified = lastOfEachSubBlock.values().stream()
+        if (!merge.analysis().haveAnalyzedValueFor(UNMODIFIED_VARIABLE)) {
+            Value.Bool unmodified = lastOfEachSubBlock.values().stream()
                     .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
                     .filter(Objects::nonNull)
                     .map(VariableInfoContainer::best)
-                    .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
-            merge.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+                    .map(VariableInfo::notModified)
+                    .reduce(ValueImpl.BoolImpl.NO_VALUE, Value.Bool::and);
+            if (unmodified.hasAValue()) {
+                merge.analysis().set(UNMODIFIED_VARIABLE, unmodified);
+            }
         }
         if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
             Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()
@@ -653,19 +667,20 @@ public class Analyzer {
             fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
             LOGGER.info("Do field {}: set {}", fieldInfo, reduced);
         }
-        if (!fieldInfo.analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
-            boolean modified = fieldInfo.owner().primaryType().recursiveMethodStream()
+        if (!fieldInfo.analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
+            Value.Bool unmodified = fieldInfo.owner().primaryType().recursiveMethodStream()
                     .filter(mi -> !partOfConstruction.infoSet().contains(mi))
                     .filter(mi -> !mi.methodBody().isEmpty())
-                    .anyMatch(mi -> {
+                    .flatMap(mi -> {
                         Statement lastStatement = mi.methodBody().lastStatement();
                         VariableData vd = VariableDataImpl.of(lastStatement);
-                        return vd.variableInfoStream().anyMatch(vi -> vi.variable() instanceof FieldReference fr
-                                                                      && fr.fieldInfo() == fieldInfo
-                                                                      && vi.isModified());
-                    });
-            if (modified) {
-                fieldInfo.analysis().set(MODIFIED_FIELD, TRUE);
+                        return vd.variableInfoStream()
+                                .filter(vi -> vi.variable() instanceof FieldReference fr
+                                              && fr.fieldInfo() == fieldInfo)
+                                .map(VariableInfo::notModified);
+                    }).reduce(ValueImpl.BoolImpl.NO_VALUE, Value.Bool::and);
+            if (unmodified.hasAValue()) {
+                fieldInfo.analysis().set(UNMODIFIED_FIELD, unmodified);
             }
         }
     }

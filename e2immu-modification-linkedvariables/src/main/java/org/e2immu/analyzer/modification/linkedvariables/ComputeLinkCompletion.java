@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 
 /*
 given a number of links, build a graph, and compute the shortest path between all combinations,
@@ -44,7 +44,7 @@ class ComputeLinkCompletion {
 
     class Builder {
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
-        private final Set<Variable> modifiedInEval = new HashSet<>();
+        private final Map<Variable, Value.Bool> modifiedInEval = new HashMap<>();
         private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
 
         private final Map<Variable, List<StaticValues>> staticValues = new HashMap<>();
@@ -58,7 +58,7 @@ class ComputeLinkCompletion {
                 VariableInfoImpl vi = (VariableInfoImpl) destination.variableInfo(entry.getKey());
                 addAssignment(vi.variable(), entry.getValue());
             }
-            this.modifiedInEval.addAll(evaluationResult.modified());
+            PropertyUtil.mergeBool(evaluationResult.modified(), modifiedInEval);
             this.modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents());
         }
 
@@ -215,7 +215,7 @@ class ComputeLinkCompletion {
 
             WeightedGraph wgForModification = weightedGraph.copyForModification();
             ShortestPath shortestPathForMod = wgForModification.shortestPath();
-            Set<Variable> modifying = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPathForMod);
+            Map<Variable, Value.Bool> unmodifiedMap = computeModified(previous, stageOfPrevious, modifiedInEval, shortestPathForMod);
 
             ShortestPath shortestPath = weightedGraph.shortestPath();
             Map<Variable, Map<Variable, Boolean>> mfiComponentMaps = computeMFIComponents(previous, stageOfPrevious,
@@ -234,9 +234,11 @@ class ComputeLinkCompletion {
                     } else {
                         vii.setLinkedVariables(linkedVariables);
                     }
-                    if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
-                        boolean isModified = modifying.contains(variable);
-                        vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                    if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.UNMODIFIED_VARIABLE)) {
+                        Value.Bool unmodified = unmodifiedMap.get(variable);
+                        if (unmodified.hasAValue()) {
+                            vii.analysis().set(UNMODIFIED_VARIABLE, unmodified);
+                        }
                     }
                     Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
                     if (mfiComponents != null
@@ -321,19 +323,20 @@ class ComputeLinkCompletion {
         }
 
 
-        private Set<Variable> computeModified(VariableData previous,
-                                              Stage stageOfPrevious,
-                                              Set<Variable> modifiedInEval,
-                                              ShortestPath shortestPath) {
+        private Map<Variable, Value.Bool> computeModified(VariableData previous,
+                                                          Stage stageOfPrevious,
+                                                          Map<Variable, Value.Bool> modifiedInEval,
+                                                          ShortestPath shortestPath) {
 
-            Set<Variable> modified = new HashSet<>(modifiedInEval);
+            Map<Variable, Value.Bool> modified = new HashMap<>(modifiedInEval);
             if (previous != null) {
                 for (Variable variable : shortestPath.variables()) {
                     VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
                     if (vicPrev != null) {
                         VariableInfo vi = vicPrev.best(stageOfPrevious);
-                        if (vi != null && vi.analysis().getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
-                            modified.add(vi.variable());
+                        if (vi != null) {
+                            Value.Bool value = vi.notModified();
+                            modified.merge(vi.variable(), value, Value.Bool::and);
                         }
                     }
                 }
@@ -342,19 +345,24 @@ class ComputeLinkCompletion {
             boolean change = true;
             while (change) {
                 change = false;
-                Set<Variable> newModified = new HashSet<>(modified);
-                for (Variable variable : modified) {
-                    Map<Variable, LV> links = shortestPath.links(variable, null);
-                    for (Map.Entry<Variable, LV> e : links.entrySet()) {
-                        Variable to = e.getKey();
-                        if (to != variable && e.getValue().propagateModification()) {
-                            change |= newModified.add(to);
+                Map<Variable, Value.Bool> newModified = new HashMap<>(modified);
+                for (Map.Entry<Variable, Value.Bool> entry : modified.entrySet()) {
+                    Variable variable = entry.getKey();
+                    Value.Bool value = entry.getValue();
+                    if (value.hasAValue()) {
+                        Map<Variable, LV> links = shortestPath.links(variable, null);
+                        for (Map.Entry<Variable, LV> e : links.entrySet()) {
+                            Variable to = e.getKey();
+                            if (to != variable && e.getValue().propagateModification()) {
+                                change |= PropertyUtil.mergeBool(newModified, to, value);
+                            }
                         }
                     }
                 }
-                modified.addAll(newModified);
+                modified.putAll(newModified);
             }
             return modified;
         }
+
     }
 }
