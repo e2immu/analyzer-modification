@@ -236,7 +236,7 @@ class ComputeLinkCompletion {
                     }
                     if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.UNMODIFIED_VARIABLE)) {
                         Value.Bool unmodified = unmodifiedMap.get(variable);
-                        if (unmodified.hasAValue()) {
+                        if (unmodified != null && unmodified.hasAValue()) {
                             vii.analysis().set(UNMODIFIED_VARIABLE, unmodified);
                         }
                     }

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestModificationBasics extends CommonTest {
     @Language("java")
@@ -29,6 +30,10 @@ public class TestModificationBasics extends CommonTest {
     @Test
     public void test() {
         TypeInfo X = javaInspector.parse(INPUT);
+        TypeInfo list = javaInspector.compiledTypesManager().get(List.class);
+        MethodInfo iterator = list.findUniqueMethod("iterator", 0);
+        assertTrue(iterator.isNotModifying());
+
         e2immuAnalysis(X);
         MethodInfo m = X.findUniqueMethod("m", 1);
         assertFalse(m.isModifying());
