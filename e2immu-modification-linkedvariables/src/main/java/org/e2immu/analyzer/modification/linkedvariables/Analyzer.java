@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
@@ -72,8 +73,7 @@ public class Analyzer {
 
     public void doMethod(MethodInfo methodInfo) {
         LOGGER.info("Do method {}", methodInfo);
-
-        assert methodInfo.analysis().haveAnalyzedValueFor(HCS_METHOD) : "Method without HCS: " + methodInfo;
+        ComputeHCS.safeHcsMethod(runtime, methodInfo);
         assert methodInfo.parameters().stream().allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER))
                 : "Method with a parameter without HCS: " + methodInfo;
 
@@ -158,6 +158,10 @@ public class Analyzer {
         if (fluent) return INDEPENDENT;
         boolean typeIsImmutable = analysisHelper.typeImmutable(methodInfo.returnType()).isImmutable();
         if (typeIsImmutable) return INDEPENDENT;
+        // TODO this is a temporary fail-safe, to avoid problems
+        //  in case of a synthetic method without variables, INDEPENDENT would be correct.
+        //  in case of a synthetic method without code, DEPENDENT may be the best choice
+        if (lastOfMainBlock == null) return DEPENDENT; // happens in some synthetic cases
         return worstLinkToFields(lastOfMainBlock, methodInfo.fullyQualifiedName());
     }
 

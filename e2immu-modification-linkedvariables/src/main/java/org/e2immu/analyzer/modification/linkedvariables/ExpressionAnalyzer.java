@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
+import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -209,6 +210,11 @@ class ExpressionAnalyzer {
             if (expression instanceof Or or) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 or.expressions().forEach(e -> builder.merge(eval(e)));
+                return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+            }
+            if(expression instanceof SwitchExpression se) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                // TODO! this is a stub.
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
             }
             if (expression == null
@@ -507,8 +513,7 @@ class ExpressionAnalyzer {
         private EvaluationResult linkEvaluationOfMethodReference(MethodInfo currentMethod, MethodReference mr) {
             EvaluationResult scopeResult = eval(mr.scope());
             Value.Independent independentOfMethod = mr.methodInfo().analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
-            HiddenContentSelector hcsMethod = mr.methodInfo().analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
-            assert hcsMethod != null : "Have no hidden content selector computed for " + mr.methodInfo();
+            HiddenContentSelector hcsMethod = ComputeHCS.safeHcsMethod(runtime, mr.methodInfo());
 
             Map<NamedType, ParameterizedType> map = mr.parameterizedType().initialTypeParameterMap();
             ParameterizedType typeOfReturnValue = mr.methodInfo().returnType();
