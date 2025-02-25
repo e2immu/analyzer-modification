@@ -37,6 +37,7 @@ public class GetSetHelper {
     - alternative packing systems: a map with string constants, getting values at fixed positions (see TestGetSet)
      */
     public static boolean doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
+        assert methodBody != null;
         Value.FieldValue currentGetSet = methodInfo.analysis().getOrNull(PropertyImpl.GET_SET_FIELD,
                 ValueImpl.GetSetValueImpl.class);
         if (currentGetSet != null) {

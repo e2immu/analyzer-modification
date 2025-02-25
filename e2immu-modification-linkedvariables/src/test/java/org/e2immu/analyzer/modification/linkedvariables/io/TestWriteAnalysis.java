@@ -100,11 +100,7 @@ public class TestWriteAnalysis extends CommonTest {
             import org.e2immu.annotation.Modified;
             @Immutable(hc = true)
             class X {
-                record R(Set<Integer> set, int i, List<String> list) {
-                    private final Set<Integer> set;
-                    private final int i;
-                    private final List<String> list;
-                }
+                record R(Set<Integer> set, int i, List<String> list) { }
                 void setAdd(@Modified X.R r) { r.set.add(r.i); }
                 void method() {
                     List<String> l = new ArrayList<>();

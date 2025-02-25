@@ -99,4 +99,19 @@ public class ComputeHCS {
         return (int) types.filter(t -> hct.indexOfOrNull(t) != null).count();
     }
 
+    public static HiddenContentSelector safeHcsMethod(Runtime runtime, MethodInfo methodInfo) {
+        HiddenContentSelector hcsMethod = methodInfo.analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
+        if (hcsMethod == null && methodInfo.isSyntheticArrayConstructor()) {
+            ComputeHiddenContent computeHiddenContent = new ComputeHiddenContent(runtime);
+            HiddenContentTypes hctType = methodInfo.typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                    () -> computeHiddenContent.compute(methodInfo.typeInfo()));
+            HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, methodInfo);
+            methodInfo.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
+            return new ComputeHCS(runtime).doHiddenContentSelector(methodInfo);
+        }
+        if (hcsMethod == null) {
+            throw new UnsupportedOperationException("Have no hidden content selector computed for " + methodInfo);
+        }
+        return hcsMethod;
+    }
 }
