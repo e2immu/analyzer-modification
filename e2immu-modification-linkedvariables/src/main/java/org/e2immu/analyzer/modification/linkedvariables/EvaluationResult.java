@@ -54,10 +54,6 @@ class EvaluationResult {
         private final Set<Variable> modified = new HashSet<>();
         private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
 
-        public LinkedVariables getLinkedVariablesOf(Variable variable) {
-            return links.get(variable);
-        }
-
         @Fluent
         public Builder merge(EvaluationResult evaluationResult) {
             linkedVariables = evaluationResult.linkedVariables;
@@ -68,18 +64,6 @@ class EvaluationResult {
             evaluationResult.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(evaluationResult.modified);
             modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents);
-            return this;
-        }
-
-        @Fluent
-        public Builder merge(Builder builder) {
-            linkedVariables = builder.linkedVariables;
-            staticValues = builder.staticValues;
-            builder.links.forEach((v, lv) -> links.merge(v, lv, LinkedVariables::merge));
-            assert ensureNoIdentityLinks(this.links);
-            builder.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
-            modified.addAll(builder.modified);
-            modifiedFunctionalComponents.putAll(builder.modifiedFunctionalComponents);
             return this;
         }
 
@@ -135,14 +119,6 @@ class EvaluationResult {
         Builder addModifiedFunctionalInterfaceComponent(FieldReference fieldReference, boolean propagateOrFailOnModified) {
             modifiedFunctionalComponents.put(fieldReference, propagateOrFailOnModified);
             return this;
-        }
-
-        public LinkedVariables linkedVariablesOfExpression() {
-            return linkedVariables;
-        }
-
-        public Map<FieldReference, Boolean> modifiedFunctionalComponents() {
-            return modifiedFunctionalComponents;
         }
 
         EvaluationResult build() {

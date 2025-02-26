@@ -559,7 +559,7 @@ class ExpressionAnalyzer {
             StaticValues staticValues = new StaticValuesImpl(cc.parameterizedType(), cc, false, Map.copyOf(map));
             return builder
                     .setStaticValues(staticValues)
-                    .setLinkedVariables(from.intoObject().linkedVariablesOfExpression())
+                    .setLinkedVariables(from.intoObject().linkedVariables())
                     .build();
         }
 
@@ -1040,7 +1040,7 @@ class ExpressionAnalyzer {
             // from parameters to object
             LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
                     mc.parameterExpressions(), leParams);
-            LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariablesOfExpression();
+            LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariables();
             if (mc.object() instanceof VariableExpression ve) {
                 builder.merge(ve.variable(), linkedVariablesOfObjectFromParams);
             }
@@ -1061,7 +1061,7 @@ class ExpressionAnalyzer {
             }
             // merge from param to object and from object to return value
             LinkedVariables lvsResult2 = fp.intoResult() == null ? lvsResult1
-                    : lvsResult1.merge(fp.intoResult().linkedVariablesOfExpression());
+                    : lvsResult1.merge(fp.intoResult().linkedVariables());
             builder.setLinkedVariables(lvsResult2);
         }
     }

@@ -200,8 +200,7 @@ class LinkHelper {
         return pt.withParameters(List.copyOf(parameters));
     }
 
-    public record FromParameters(EvaluationResult.Builder intoObject,
-                                 EvaluationResult.Builder intoResult) {
+    public record FromParameters(EvaluationResult intoObject, EvaluationResult intoResult) {
     }
 
     /*
@@ -230,7 +229,7 @@ class LinkHelper {
             }
             linksBetweenParameters(intoObjectBuilder, methodInfo, parameterExpressions, linkedVariables);
         }
-        return new FromParameters(intoObjectBuilder, intoResultBuilder);
+        return new FromParameters(intoObjectBuilder.build(), intoResultBuilder == null ? null : intoResultBuilder.build());
     }
 
     private void linkParameterToObjectOrResult(ParameterInfo pi,

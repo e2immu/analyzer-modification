@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.language.cst.api.info.FieldInfo;
@@ -46,7 +47,7 @@ public class TestStaticValuesGetSet extends CommonTest {
 
     @DisplayName("modification of an array component element")
     @Test
-    public void test4() {
+    public void test() {
         TypeInfo X = javaInspector.parse(INPUT);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
@@ -124,5 +125,30 @@ public class TestStaticValuesGetSet extends CommonTest {
             // IMPORTANT: convention is that the first parameter is the index
             assertEquals("integers[o]=i", set3Sv.toString());
         }
+    }
+
+    @Language("java")
+    private static final String INPUT_2 = """
+            package a.b;
+            class X {
+                interface I { }
+                record R(I i) {}
+                record Wrapper(R r) {}
+                I extract(Wrapper w) {
+                   return w.r().i;
+                }
+            }
+            """;
+
+    @DisplayName("getter in field reference")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT_2);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.doPrimaryType(X, analysisOrder);
+        MethodInfo extract = X.findUniqueMethod("extract", 1);
+        assertEquals("-1-:i, *-4-0:r", extract.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                LinkedVariablesImpl.EMPTY).toString());
+        assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, StaticValuesImpl.NONE).toString());
     }
 }
