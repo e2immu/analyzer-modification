@@ -103,7 +103,7 @@ public class CommonTest {
 
     protected String printType(TypeInfo newType) {
         Qualification.Decorator decorator = new DecoratorImpl(runtime);
-        OutputBuilder ob = new TypePrinter(newType).print(javaInspector.importComputer(4),
+        OutputBuilder ob = new TypePrinter(newType, false).print(javaInspector.importComputer(4),
                 runtime.qualificationQualifyFromPrimaryType(decorator), true);
         Formatter formatter = new FormatterImpl(runtime, new FormattingOptionsImpl.Builder().build());
         return formatter.write(ob);

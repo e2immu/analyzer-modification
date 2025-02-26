@@ -929,17 +929,14 @@ public class MethodAnalyzer {
                     if (mc.parameterExpressions().isEmpty()) {
                         fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object), type);
                         accessorSeenFirstTime.put(fr, index);
-                        markRead(fr.scope());
                     } else {
                         ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
                         fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object), arrayType);
                         accessorSeenFirstTime.put(fr, index);
-                        markRead(fr.scope());
                         assert mc.methodInfo().parameters().get(0).parameterizedType().isInt();
                         Expression indexExpression = mc.parameterExpressions().get(0);
                         DependentVariable dv = runtime.newDependentVariable(fr, type, indexExpression);
                         accessorSeenFirstTime.put(dv, index);
-                        markRead(indexExpression);
                     }
                     return fr;
                 }
@@ -956,22 +953,11 @@ public class MethodAnalyzer {
             return object;
         }
 
-        private void markRead(Variable variable) {
-            variable.variableStreamDescend().forEach(v -> {
-                read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
-                if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
-                    seenFirstTime.put(v, index);
-                }
-            });
-        }
-
-        private void markRead(Expression expression) {
-            expression.variableStreamDescend().forEach(v -> {
-                read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
-                if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
-                    seenFirstTime.put(v, index);
-                }
-            });
+        private void markRead(Variable v) {
+            read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
+            if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
+                seenFirstTime.put(v, index);
+            }
         }
 
         /*
@@ -1014,7 +1000,7 @@ public class MethodAnalyzer {
 
      */
     private static void ensureGetSet(MethodInfo methodInfo) {
-        if(!methodInfo.isAbstract()) {
+        if (!methodInfo.isAbstract()) {
             GetSetHelper.doGetSetAnalysis(methodInfo, methodInfo.methodBody());
         }
     }
