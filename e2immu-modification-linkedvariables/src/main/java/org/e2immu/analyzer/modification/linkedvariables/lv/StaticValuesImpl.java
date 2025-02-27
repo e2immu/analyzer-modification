@@ -24,6 +24,7 @@ public record StaticValuesImpl(ParameterizedType type,
 
     public StaticValuesImpl {
         assert !multipleExpressions || expression == null;
+        assert expression == null || expression.source() != null;
     }
 
     public static final StaticValues NONE = new StaticValuesImpl(null, null, false, Map.of());

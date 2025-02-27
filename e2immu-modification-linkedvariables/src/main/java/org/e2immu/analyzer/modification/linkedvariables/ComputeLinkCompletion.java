@@ -10,6 +10,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
@@ -72,14 +73,17 @@ class ComputeLinkCompletion {
 
         public void write(VariableData variableData, Stage stage,
                           VariableData previous, Stage stageOfPrevious,
-                          String statementIndex) {
+                          String statementIndex, Source source) {
             writeLinksAndModification(variableData, stage, previous, stageOfPrevious);
-            writeAssignments(variableData, stage, previous, stageOfPrevious, statementIndex);
+            writeAssignments(variableData, stage, previous, stageOfPrevious, statementIndex, source);
         }
 
-        private void writeAssignments(VariableData variableData, Stage stage,
-                                      VariableData previous, Stage stageOfPrevious,
-                                      String statementIndex) {
+        private void writeAssignments(VariableData variableData,
+                                      Stage stage,
+                                      VariableData previous,
+                                      Stage stageOfPrevious,
+                                      String statementIndex,
+                                      Source source) {
             if (previous != null) {
                 // copy previous assignment data into the map, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)
@@ -90,7 +94,7 @@ class ComputeLinkCompletion {
                             }
                         });
             }
-            recursivelyAddAssignmentsAtScopeLevel(variableData, statementIndex);
+            recursivelyAddAssignmentsAtScopeLevel(source, variableData, statementIndex);
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 Variable variable = entry.getKey();
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
@@ -109,12 +113,14 @@ class ComputeLinkCompletion {
         If we have an assignment of E=3 to a.b.c, we first add an assignment of this.c=3 to a.b,
         then we add an assignment of this.b.c=3 to a.
          */
-        private void recursivelyAddAssignmentsAtScopeLevel(VariableData variableData, String statementIndex) {
+        private void recursivelyAddAssignmentsAtScopeLevel(Source source, VariableData variableData, String statementIndex) {
             Map<Variable, List<StaticValues>> append = new HashMap<>();
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 if (entry.getKey() instanceof FieldReference fr) {
-                    Expression svScope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo()
-                            .typeInfo().asParameterizedType()));
+                    Expression svScope = runtime.newVariableExpressionBuilder()
+                            .setVariable(runtime.newThis(fr.fieldInfo().typeInfo().asParameterizedType()))
+                            .setSource(source)
+                            .build();
                     recursivelyAdd(append, fr.scope(), fr.scope(), fr, svScope, fr.fieldInfo(), entry.getValue(),
                             variableData, statementIndex);
                 }
@@ -179,17 +185,18 @@ class ComputeLinkCompletion {
          */
         private Expression suffix(Expression all, Expression prefix) {
             if (all instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
-                Expression scope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo().asParameterizedType()));
+                This newThis = runtime.newThis(fr.fieldInfo().typeInfo().asParameterizedType());
+                Expression scope = runtime.newVariableExpressionBuilder().setVariable(newThis).setSource(ve.source()).build();
                 Expression move = fr.scope();
                 while (!move.equals(prefix)) {
                     if (move instanceof VariableExpression ve2 && ve2.variable() instanceof FieldReference fr2) {
                         FieldReference intermediaryFr = runtime.newFieldReference(fr2.fieldInfo(), scope, fr.parameterizedType());
-                        scope = runtime.newVariableExpression(intermediaryFr);
+                        scope = runtime.newVariableExpressionBuilder().setSource(ve2.source()).setVariable(intermediaryFr).build();
                         move = fr2.scope();
                     }
                 }
                 FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), scope, fr.parameterizedType());
-                return runtime.newVariableExpression(newFr);
+                return runtime.newVariableExpressionBuilder().setVariable(newFr).setSource(all.source()).build();
             }
             throw new UnsupportedOperationException();
         }

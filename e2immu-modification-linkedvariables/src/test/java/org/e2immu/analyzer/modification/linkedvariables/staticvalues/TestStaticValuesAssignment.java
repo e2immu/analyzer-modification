@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
@@ -342,7 +343,8 @@ public class TestStaticValuesAssignment extends CommonTest {
             // IMPROVE the r.i=3 is maybe not necessary here
             assertEquals("r.i=3, this.i=3", vi0R.staticValues().toString());
 
-            Variable ri = runtime.newFieldReference(iField, runtime.newVariableExpression(r), iField.type());
+            VariableExpression scope = runtime.newVariableExpressionBuilder().setVariable(r).setSource(iField.source()).build();
+            Variable ri = runtime.newFieldReference(iField, scope, iField.type());
             assertEquals("r.i", ri.toString());
             VariableInfo vi0Ri = vd0.variableInfo(ri);
             assertEquals("", vi0Ri.linkedVariables().toString());
@@ -399,7 +401,9 @@ public class TestStaticValuesAssignment extends CommonTest {
             // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
             // s.r should have component i=3
             // s should have r.i=3
-            FieldReference sr = runtime.newFieldReference(rInS, runtime.newVariableExpression(s), rInS.type());
+            assertNotNull(rInS.source());
+            VariableExpression scope = runtime.newVariableExpressionBuilder().setVariable(s).setSource(rInS.source()).build();
+            FieldReference sr = runtime.newFieldReference(rInS, scope, rInS.type());
             assertEquals("s.r", sr.toString());
             VariableInfo vi0Sr = vd0.variableInfo(sr);
             assertEquals("s.r.i=3, this.i=3", vi0Sr.staticValues().toString());
@@ -455,10 +459,12 @@ public class TestStaticValuesAssignment extends CommonTest {
         // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
         // s.r should have component i=3
         // s should have r.i=3
-        FieldReference ts = runtime.newFieldReference(sInT, runtime.newVariableExpression(t), sInT.type());
+        VariableExpression scopeT = runtime.newVariableExpressionBuilder().setVariable(t).setSource(t.source()).build();
+        FieldReference ts = runtime.newFieldReference(sInT, scopeT, sInT.type());
         assertEquals("t.s", ts.toString());
 
-        FieldReference tsr = runtime.newFieldReference(rInS, runtime.newVariableExpression(ts), rInS.type());
+        VariableExpression scopeTs = runtime.newVariableExpressionBuilder().setVariable(ts).setSource(t.source()).build();
+        FieldReference tsr = runtime.newFieldReference(rInS, scopeTs, rInS.type());
         assertEquals("t.s.r", tsr.toString());
 
         VariableInfo vi0Tsr = vd0.variableInfo(tsr);
@@ -480,10 +486,12 @@ public class TestStaticValuesAssignment extends CommonTest {
         // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
         // s.r should have component i=3
         // s should have r.i=3
-        FieldReference ts = runtime.newFieldReference(sInT, runtime.newVariableExpression(t), sInT.type());
+        VariableExpression scopeT = runtime.newVariableExpressionBuilder().setVariable(t).setSource(t.source()).build();
+        FieldReference ts = runtime.newFieldReference(sInT, scopeT, sInT.type());
         assertEquals("t.s", ts.toString());
 
-        FieldReference tsr = runtime.newFieldReference(rInS, runtime.newVariableExpression(ts), rInS.type());
+        VariableExpression scopeTs = runtime.newVariableExpressionBuilder().setVariable(ts).setSource(t.source()).build();
+        FieldReference tsr = runtime.newFieldReference(rInS, scopeTs, rInS.type());
         assertEquals("t.s.r", tsr.toString());
 
         VariableInfo vi0Tsr = vd0.variableInfo(tsr);

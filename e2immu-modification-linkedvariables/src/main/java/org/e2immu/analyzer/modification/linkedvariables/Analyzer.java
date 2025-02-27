@@ -13,6 +13,7 @@ import org.e2immu.analyzer.shallow.analyzer.ShallowMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
+import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
@@ -265,7 +266,10 @@ public class Analyzer {
                 if (sv != null && sv.expression() instanceof VariableExpression ve
                     && ve.variable() instanceof ParameterInfo pi) {
                     if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
-                        StaticValues newSv = new StaticValuesImpl(null, runtime.newVariableExpression(fr), false, Map.of());
+                        VariableExpression veFr = runtime.newVariableExpressionBuilder()
+                                .setVariable(fr).setSource(ve.source())
+                                .build();
+                        StaticValues newSv = new StaticValuesImpl(null, veFr, false, Map.of());
                         pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
                     }
                     if (!pi.analysis().haveAnalyzedValueFor(PARAMETER_ASSIGNED_TO_FIELD)) {
@@ -432,7 +436,7 @@ public class Analyzer {
                 clcBuilder.addLinkEvaluation(er, vd);
             });
         } // else: resources of Try statement are handled in doBlocks
-        clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index());
+        clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index(), statement.source());
 
         if (statement.hasSubBlocks()) {
             Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
@@ -457,10 +461,12 @@ public class Analyzer {
         if (iterator == null || iterableType == null) {
             lvs = EMPTY;
         } else {
+            Source source = forEach.expression().source();
             ParameterizedType initType = forEach.initializer().localVariable().parameterizedType();
             MethodInfo iterableIterator = iterableType.findUniqueMethod("iterator", 0);
             ParameterizedType concreteIteratorType = runtime.newParameterizedType(iterator, List.of(initType));
             MethodCall mcIterator = runtime.newMethodCallBuilder()
+                    .setSource(source)
                     .setObject(forEach.expression())
                     .setMethodInfo(iterableIterator)
                     .setParameterExpressions(List.of())
@@ -468,9 +474,10 @@ public class Analyzer {
                     .build();
             MethodInfo iteratorNext = iterator.findUniqueMethod("next", 0);
             MethodCall mc = runtime.newMethodCallBuilder()
+                    .setSource(source)
                     .setObject(mcIterator)
                     .setMethodInfo(iteratorNext)
-                    .setParameterExpressions(List.of(runtime.intZero()))
+                    .setParameterExpressions(List.of(runtime.newInt(List.of(), source, 0)))
                     .setConcreteReturnType(initType)
                     .build();
             EvaluationResult ev2 = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious, mc);
@@ -607,7 +614,10 @@ public class Analyzer {
                     if (sv != null
                         && sv.expression() instanceof VariableExpression ve
                         && ve.variable() instanceof ParameterInfo pi) {
-                        VariableExpression reverseVe = runtime.newVariableExpression(runtime.newFieldReference(fieldInfo));
+                        VariableExpression reverseVe = runtime.newVariableExpressionBuilder()
+                                .setVariable(runtime.newFieldReference(fieldInfo))
+                                .setSource(pi.source())
+                                .build();
                         StaticValues reverse = StaticValuesImpl.of(reverseVe);
                         StaticValues prev = svMapParameters.put(pi, reverse);
                         if (prev != null && !prev.equals(sv)) throw new UnsupportedOperationException("TODO");

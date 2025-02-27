@@ -555,9 +555,12 @@ class LinkHelper {
                 // indexing
                 FieldReference fr = runtime.newFieldReference(getSetField.field(), runtime.newVariableExpression(v),
                         returnType.copyWithArrays(returnType.arrays() + 1));
+                Expression array = runtime.newVariableExpressionBuilder()
+                        .setVariable(fr).setSource(methodCall.object().source())
+                        .build();
                 Expression index = methodCall.parameterExpressions().get(0);
                 assert index.parameterizedType().isMathematicallyInteger();
-                variable = runtime.newDependentVariable(fr, returnType, index);
+                variable = runtime.newDependentVariable(array, index, returnType);
                 Immutable immutableMethodReturnType = analysisHelper.typeImmutable(returnType);
                 if (!immutableMethodReturnType.isImmutable()) {
                     LV lv;

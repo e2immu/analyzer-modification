@@ -47,11 +47,20 @@ class GetSetHelper {
         } else {
             // indexing
             ParameterInfo indexParameter = methodInfo.parameters().get(getSet.parameterIndexOfIndex());
-            indexOrNull = runtime.newVariableExpression(indexParameter);
+            indexOrNull = runtime.newVariableExpressionBuilder()
+                    .setVariable(indexParameter)
+                    .setSource(indexParameter.source())
+                    .build();
         }
-        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
+        VariableExpression thisVe = runtime.newVariableExpressionBuilder()
+                .setSource(methodInfo.source())
+                .setVariable(runtime.newThis(methodInfo.typeInfo().asParameterizedType()))
+                .build();
         Variable variable = getSet.createVariable(runtime, thisVe, indexOrNull);
-        return new StaticValuesImpl(null, runtime.newVariableExpression(variable), false, Map.of());
+        VariableExpression ve = runtime.newVariableExpressionBuilder().setVariable(variable)
+                .setSource(methodInfo.source())
+                .build();
+        return new StaticValuesImpl(null, ve, false, Map.of());
     }
 
     private StaticValues setter(MethodInfo methodInfo, Value.FieldValue getSet) {
@@ -60,13 +69,16 @@ class GetSetHelper {
         if (getSet.hasIndex()) {
             // indexing
             // DECISION: if the object type is 'int' as well, we follow the convention of List.set(index. element)
-            Variable indexParameter = methodInfo.parameters().get(getSet.parameterIndexOfIndex());
+            ParameterInfo indexParameter = methodInfo.parameters().get(getSet.parameterIndexOfIndex());
             valueParameter = methodInfo.parameters().get(1 - getSet.parameterIndexOfIndex());
 
             // see org.e2immu.language.inspection.api.util.GetSetUtil.extractFieldType
             if (getSet.field().type().arrays() > 0) {
                 // indexing in array: this.objects[i]=o
-                indexOrNull = runtime.newVariableExpression(indexParameter);
+                indexOrNull = runtime.newVariableExpressionBuilder()
+                        .setVariable(indexParameter)
+                        .setSource(indexParameter.source())
+                        .build();
             } else {
                 throw new UnsupportedOperationException("indexing is in a virtual array");
             }
@@ -76,16 +88,25 @@ class GetSetHelper {
             valueParameter = methodInfo.parameters().get(0);
             indexOrNull = null;
         }
-        VariableExpression thisVe = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
+        VariableExpression thisVe = runtime.newVariableExpressionBuilder()
+                .setVariable(runtime.newThis(methodInfo.typeInfo().asParameterizedType()))
+                .setSource(methodInfo.source())
+                .build();
         Variable target = getSet.createVariable(runtime, thisVe, indexOrNull);
         Expression expression;
         if (methodInfo.isFluent()) {
-            expression = runtime.newVariableExpression(runtime.newThis(methodInfo.typeInfo().asParameterizedType()));
+            expression = runtime.newVariableExpressionBuilder()
+                    .setVariable(runtime.newThis(methodInfo.typeInfo().asParameterizedType()))
+                    .setSource(methodInfo.source())
+                    .build();
         } else {
             expression = null;
         }
-        return new StaticValuesImpl(null, expression, false,
-                Map.of(target, runtime.newVariableExpression(valueParameter)));
+        VariableExpression valPar = runtime.newVariableExpressionBuilder()
+                .setVariable(valueParameter)
+                .setSource(valueParameter.source())
+                .build();
+        return new StaticValuesImpl(null, expression, false, Map.of(target, valPar));
     }
 
 }

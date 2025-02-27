@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork.getset;
 
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
@@ -36,30 +37,46 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
             if (getSet.field() != null) {
                 Expression replacedObject = unwrap(mc.object().translate(this));
                 ParameterizedType type = mc.concreteReturnType();
+                Source objectSourceIn = mc.object().source();
+                Source objectSource = objectSourceIn == null ? runtime.noSource() : objectSourceIn;
+                assert objectSource != null;
                 if (getSet.setter()) {
-                    VariableExpression target;
+
+                    Variable v;
                     if (getSet.hasIndex()) {
                         Expression replacedIndex = mc.parameterExpressions().get(getSet.parameterIndexOfIndex())
                                 .translate(this);
                         ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
                         FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, arrayType);
-                        target = runtime.newVariableExpression(runtime.newDependentVariable(fr, type, replacedIndex));
+                        VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
+                                .setVariable(fr)
+                                .setSource(objectSource)
+                                .build();
+                        v = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
                     } else {
-                        target = runtime.newVariableExpression(runtime.newFieldReference(getSet.field(), replacedObject,
-                                mc.object().parameterizedType()));
+                        v = runtime.newFieldReference(getSet.field(), replacedObject, mc.object().parameterizedType());
                     }
+                    VariableExpression target = runtime.newVariableExpressionBuilder().setVariable(v).setSource(mc.source()).build();
                     Expression replacedValue = mc.parameterExpressions().get(getSet.parameterIndexOfValue());
                     //return runtime.newAssignmentBuilder().setSource(mc.source()).setTarget(target).setValue(replacedValue).build();
                 } else {
                     if (mc.parameterExpressions().size() == 1) {
                         ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
                         FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, arrayType);
-                        Expression replacedIndex = mc.parameterExpressions().get(0).translate(this);
-                        DependentVariable dv = runtime.newDependentVariable(fr, type, replacedIndex);
-                        return runtime.newVariableExpression(dv);
+                        Expression index = mc.parameterExpressions().get(0);
+                        Expression replacedIndex = index.translate(this);
+                        VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
+                                .setVariable(fr)
+                                .setSource(objectSource)
+                                .build();
+                        DependentVariable dv = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
+                        return runtime.newVariableExpressionBuilder()
+                                .setVariable(dv)
+                                .setSource(mc.source())
+                                .build();
                     }
                     FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, type);
-                    return runtime.newVariableExpression(fr);
+                    return runtime.newVariableExpressionBuilder().setVariable(fr).setSource(mc.source()).build();
                 }
             }
         }

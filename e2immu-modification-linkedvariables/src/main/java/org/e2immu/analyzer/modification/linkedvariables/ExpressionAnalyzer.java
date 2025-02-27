@@ -187,6 +187,7 @@ class ExpressionAnalyzer {
                 return b.setLinkedVariables(merge).build();
             }
             if (expression instanceof ConstantExpression<?> ce) {
+                assert ce.source() != null;
                 StaticValues sv = StaticValuesImpl.of(ce);
                 return new EvaluationResult.Builder().setLinkedVariables(EMPTY).setStaticValues(sv).build();
             }
@@ -382,7 +383,9 @@ class ExpressionAnalyzer {
                     } else if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression) {
                         Variable variable;
                         if (indexExpression != null) {
-                            variable = runtime.newDependentVariable(runtime.newVariableExpression(fr), indexExpression);
+                            VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
+                                    .setVariable(fr).setSource(assignment.target().source()).build();
+                            variable = runtime.newDependentVariable(arrayExpression, indexExpression);
                         } else {
                             variable = fr;
                         }
@@ -842,7 +845,10 @@ class ExpressionAnalyzer {
             TranslationMap.Builder tmb = runtime.newTranslationMapBuilder();
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
                 if (ignore != pi) {
-                    tmb.put(runtime.newVariableExpression(pi), mc.parameterExpressions().get(pi.index()));
+                    VariableExpression ve = runtime.newVariableExpressionBuilder().setVariable(pi)
+                            .setSource(pi.source())
+                            .build();
+                    tmb.put(ve, mc.parameterExpressions().get(pi.index()));
                 }
             }
             TranslationMap tm = tmb.build();
@@ -886,10 +892,16 @@ class ExpressionAnalyzer {
                     Variable liftedScope = liftScope(ve.variable(), liftField.owner().asSimpleParameterizedType());
                     if (liftedScope != ve.variable()) {
                         // the scope can join us
-                        FieldReference newFr = runtime.newFieldReference(liftField, runtime.newVariableExpression(liftedScope),
-                                liftField.type());
-                        return runtime.newDependentVariable(runtime.newVariableExpression(newFr),
-                                dv.indexExpression());
+                        VariableExpression scope = runtime.newVariableExpressionBuilder()
+                                .setVariable(liftedScope)
+                                .setSource(ve.source())
+                                .build();
+                        FieldReference newFr = runtime.newFieldReference(liftField, scope, liftField.type());
+                        VariableExpression newFrVe = runtime.newVariableExpressionBuilder()
+                                .setVariable(newFr)
+                                .setSource(ve.source())
+                                .build();
+                        return runtime.newDependentVariable(newFrVe, dv.indexExpression());
                     }
                 }
             }
@@ -900,8 +912,11 @@ class ExpressionAnalyzer {
                     Variable liftedScope = liftScope(ve.variable(), liftField.owner().asSimpleParameterizedType());
                     if (liftedScope != ve.variable()) {
                         // the scope can join us
-                        return runtime.newFieldReference(liftField, runtime.newVariableExpression(liftedScope),
-                                liftField.type());
+                        VariableExpression scope = runtime.newVariableExpressionBuilder()
+                                .setSource(ve.source())
+                                .setVariable(liftedScope)
+                                .build();
+                        return runtime.newFieldReference(liftField, scope, liftField.type());
                     }
                 }
             }
@@ -972,8 +987,11 @@ class ExpressionAnalyzer {
                                         .entrySet().stream().filter(e -> e.getKey() instanceof FieldReference)
                                         .forEach(e -> {
                                             FieldReference fr = (FieldReference) e.getKey();
+                                            VariableExpression scope = runtime.newVariableExpressionBuilder()
+                                                    .setSource(e.getValue().source())
+                                                    .setVariable(entry.getKey()).build();
                                             Variable newV = runtime.newFieldReference(fr.fieldInfo(),
-                                                    runtime.newVariableExpression(entry.getKey()), fr.parameterizedType());
+                                                    scope, fr.parameterizedType());
                                             if (!result.containsKey(newV)) {
                                                 extra.put(newV, e.getValue());
                                             }
