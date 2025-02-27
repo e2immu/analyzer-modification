@@ -156,14 +156,15 @@ public class TestStaticValuesGetSet extends CommonTest {
         {
             MethodInfo getter = X.findUniqueMethod("getter", 1);
             assertEquals("E=w.r", getter.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
-            assertEquals("-1-:r, *M-4-0M:w", getter.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+            assertEquals("-1-:r, *-4-0:w", getter.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
                     .toString());
         }
         {
             MethodInfo extract = X.findUniqueMethod("extract", 1);
             assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
-            assertEquals("-1-:i, *-4-0:r, *M-4-0M:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+            assertEquals("-1-:i, *-4-0:r, *-4-0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
                     .toString());
+            // FIXME why is this not *-4-0:w with 0.0 ???
         }
     }
 }

@@ -402,10 +402,10 @@ public class TestStaticValuesAssignment extends CommonTest {
             FieldReference sr = runtime.newFieldReference(rInS, runtime.newVariableExpression(s), rInS.type());
             assertEquals("s.r", sr.toString());
             VariableInfo vi0Sr = vd0.variableInfo(sr);
-            assertEquals("this.i=3", vi0Sr.staticValues().toString());
+            assertEquals("s.r.i=3, this.i=3", vi0Sr.staticValues().toString());
 
             VariableInfo vi0S = vd0.variableInfo(s);
-            assertEquals("this.r.i=3", vi0S.staticValues().toString());
+            assertEquals("s.r=3, this.r.i=3", vi0S.staticValues().toString());
         }
     }
 
@@ -441,12 +441,12 @@ public class TestStaticValuesAssignment extends CommonTest {
         FieldInfo sInT = T.getFieldByName("s", true);
 
         MethodInfo method1 = X.findUniqueMethod("method1", 1);
-        test6Method(method1, sInT, rInS);
+        test6Method1(method1, sInT, rInS);
         MethodInfo method2 = X.findUniqueMethod("method2", 1);
-        test6Method(method2, sInT, rInS);
+        test6Method2(method2, sInT, rInS);
     }
 
-    private void test6Method(MethodInfo method, FieldInfo sInT, FieldInfo rInS) {
+    private void test6Method1(MethodInfo method, FieldInfo sInT, FieldInfo rInS) {
         ParameterInfo t = method.parameters().get(0);
 
         Statement s0 = method.methodBody().statements().get(0);
@@ -462,13 +462,38 @@ public class TestStaticValuesAssignment extends CommonTest {
         assertEquals("t.s.r", tsr.toString());
 
         VariableInfo vi0Tsr = vd0.variableInfo(tsr);
-        assertEquals("this.i=3", vi0Tsr.staticValues().toString());
+        assertEquals("t.s.r.i=3, this.i=3", vi0Tsr.staticValues().toString());
 
         VariableInfo vi0Ts = vd0.variableInfo(ts);
-        assertEquals("this.r.i=3", vi0Ts.staticValues().toString());
+        assertEquals("t.s.r=3, this.r.i=3", vi0Ts.staticValues().toString());
 
         VariableInfo vi0T = vd0.variableInfo(t);
-        assertEquals("this.s.r.i=3", vi0T.staticValues().toString());
+        assertEquals("t.s=3, this.s.r.i=3", vi0T.staticValues().toString());
+    }
+
+    private void test6Method2(MethodInfo method, FieldInfo sInT, FieldInfo rInS) {
+        ParameterInfo t = method.parameters().get(0);
+
+        Statement s0 = method.methodBody().statements().get(0);
+        VariableData vd0 = VariableDataImpl.of(s0);
+
+        // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
+        // s.r should have component i=3
+        // s should have r.i=3
+        FieldReference ts = runtime.newFieldReference(sInT, runtime.newVariableExpression(t), sInT.type());
+        assertEquals("t.s", ts.toString());
+
+        FieldReference tsr = runtime.newFieldReference(rInS, runtime.newVariableExpression(ts), rInS.type());
+        assertEquals("t.s.r", tsr.toString());
+
+        VariableInfo vi0Tsr = vd0.variableInfo(tsr);
+        assertEquals("t.s.r.i=3, this.i=3", vi0Tsr.staticValues().toString());
+
+        VariableInfo vi0Ts = vd0.variableInfo(ts);
+        assertEquals("t.s.r=3, this.r=3", vi0Ts.staticValues().toString());
+
+        VariableInfo vi0T = vd0.variableInfo(t);
+        assertEquals("t.s=3, this.s.r=3", vi0T.staticValues().toString());
     }
 
 }

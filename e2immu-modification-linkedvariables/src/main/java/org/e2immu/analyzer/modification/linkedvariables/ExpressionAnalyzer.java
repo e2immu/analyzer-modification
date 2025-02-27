@@ -596,14 +596,7 @@ class ExpressionAnalyzer {
             // getter: return value becomes the field reference
             Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             if (getSet.field() != null && mc.methodInfo().hasReturnValue() && !mc.methodInfo().isFluent()) {
-                Variable variable = runtime.getterVariable(mc);
-                VariableExpression ve = runtime.newVariableExpression(variable);
-                Expression svExpression = inferStaticValues(ve);
-                StaticValues svs = StaticValuesImpl.of(svExpression);
-                FieldReference fr = variable.fieldReferenceScope();
-                StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, fr);
-                builder.setStaticValues(svs).merge(fr, svsVar);
-                return;
+                throw new UnsupportedOperationException("Should have been filtered out");
             }
 
             // fluent setter, see TestStaticValuesAssignment,4,method and method2

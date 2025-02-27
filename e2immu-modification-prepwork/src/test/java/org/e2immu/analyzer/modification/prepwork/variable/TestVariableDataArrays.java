@@ -48,7 +48,7 @@ public class TestVariableDataArrays extends CommonTest {
         VariableData vd100 = VariableDataImpl.of(s100);
         // the `7-40` refers to the index of pixels[i+j*size]
         assertEquals("""
-                a.b.X.method(int[],int,int,int):0:pixels, a.b.X.method(int[],int,int,int):0:pixels[`7-40`], \
+                a.b.X.method(int[],int,int,int):0:pixels, \
                 a.b.X.method(int[],int,int,int):1:w, \
                 a.b.X.method(int[],int,int,int):2:h, \
                 a.b.X.method(int[],int,int,int):3:size, \

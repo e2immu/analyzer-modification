@@ -496,7 +496,6 @@ public class TestGetSet extends CommonTest {
         assertEquals("""
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
                 resultMap, t\
                 """, vd1.knownVariableNamesToString());
 
@@ -505,7 +504,6 @@ public class TestGetSet extends CommonTest {
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                        java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
                         resultMap\
                         """,
                 vdLast.knownVariableNamesToString());
@@ -568,7 +566,6 @@ public class TestGetSet extends CommonTest {
         assertEquals("""
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                java.util.List._synthetic_list#listC, java.util.List._synthetic_list#listC[0], \
                 listB, resultMap, t\
                 """, vd1.knownVariableNamesToString());
 
@@ -577,7 +574,6 @@ public class TestGetSet extends CommonTest {
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
-                        java.util.List._synthetic_list#listC, java.util.List._synthetic_list#listC[0], \
                         listB, resultMap\
                         """,
                 vdLast.knownVariableNamesToString());

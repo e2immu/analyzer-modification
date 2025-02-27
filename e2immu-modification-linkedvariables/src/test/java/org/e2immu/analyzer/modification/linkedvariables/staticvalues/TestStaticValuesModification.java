@@ -448,7 +448,7 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s0 = modify.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
-                assertEquals("*-2-0:objects, -1-:objects[index], *M-4-0M:ri",
+                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:ri",
                         vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
                 assertEquals("E=ri.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
             }
@@ -457,10 +457,11 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
                 assertTrue(vi1Set.isModified());
-                assertEquals("*-2-0:objects, -1-:objects[index], *M-4-0M:ri", vi1Set.linkedVariables().toString());
+                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:ri",
+                        vi1Set.linkedVariables().toString());
                 assertEquals("E=ri.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
             }
-            assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
+            assertTrue(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
             assertEquals("this.objects=true, this.objects[index]=true",
                     MapUtil.nice(modify0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                             ValueImpl.VariableBooleanMapImpl.EMPTY).map()));
@@ -484,7 +485,8 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s0 = modify2.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
-                assertEquals("*-2-0:objects, -1-:objects[index], *M-4-0M:r", vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
+                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:r",
+                        vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
                 assertEquals("E=r.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
             }
             {
@@ -492,10 +494,11 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
                 assertTrue(vi1Set.isModified());
-                assertEquals("*-2-0:objects, -1-:objects[index], *M-4-0M:r", vi1Set.linkedVariables().toString());
+                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:r",
+                        vi1Set.linkedVariables().toString());
                 assertEquals("E=r.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
             }
-            assertFalse(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
+            assertTrue(modify0.isModified()); // R.objects is Immutable HC, but we have a modification on the component, via the cast
             assertEquals("this.objects=true, this.objects[index]=true",
                     MapUtil.nice(modify0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
                             ValueImpl.VariableBooleanMapImpl.EMPTY).map()));

@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
 import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
-import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Codec;
@@ -17,7 +16,6 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
-import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.*;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -332,7 +330,8 @@ public class MethodAnalyzer {
                                          Stage stageOfPrevious,
                                          String index) {
         readWriteData.seenFirstTime.forEach((v, i) -> {
-            VariableInfoContainer vic = initialVariable(i, v, readWriteData, previousVd, iv, hasMerge && !isLocal(v));
+            VariableInfoContainer vic = initialVariable(i, v, readWriteData, previousVd, iv,
+                    hasMerge && localComponents(v).isEmpty());
             vdi.put(v, vic);
             String limitedScope = readWriteData.restrictToScope.get(v);
             if (limitedScope != null) {
@@ -478,7 +477,7 @@ public class MethodAnalyzer {
             vd.variableInfoStream().forEach(vi -> {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
                 if (vic == null || vic.hasMerge()) {
-                    if (copyToMerge(index, vi, iv.closure)
+                    if (copyToMerge(index, vi.variable(), vd, iv.closure)
                         && iv.acceptLimitedScope(vi.variable(), vi.assignments().indexOfDefinition(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
@@ -544,11 +543,22 @@ public class MethodAnalyzer {
         return res;
     }
 
-    private boolean copyToMerge(String index, VariableInfo vi, VariableInfoMap closure) {
-        Variable variable = vi.variable();
-        return closure.contains(variable.fullyQualifiedName())
-               || !isLocal(variable)
-               || index.compareTo(vi.assignments().indexOfDefinition()) >= 0;
+    private boolean copyToMerge(String index, Variable variable, VariableData vd, VariableInfoMap closure) {
+        if (closure.contains(variable.fullyQualifiedName())) return true;
+        Set<LocalVariable> localComponents = localComponents(variable);
+        if (localComponents.isEmpty()) return true;
+        for (LocalVariable localComponent : localComponents) {
+            VariableInfo vi = vd.variableInfo(localComponent);
+            if (index.compareTo(vi.assignments().indexOfDefinition()) < 0) return false;
+        }
+        return true;
+    }
+
+    public static Set<LocalVariable> localComponents(Variable variable) {
+        return variable.variableStreamDescend()
+                .filter(v -> v instanceof LocalVariable)
+                .map(v -> (LocalVariable) v)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public static boolean isLocal(Variable v) {
