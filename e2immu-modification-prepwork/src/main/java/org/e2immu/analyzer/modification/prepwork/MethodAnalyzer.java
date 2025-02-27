@@ -561,13 +561,6 @@ public class MethodAnalyzer {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    public static boolean isLocal(Variable v) {
-        return v instanceof LocalVariable
-               || v instanceof FieldReference fr && isLocal(fr.scopeVariable())
-               || v instanceof DependentVariable dv
-                  && (isLocal(dv.arrayVariable()) || isLocal(dv.indexVariable()));
-    }
-
     private VariableInfoContainer initialVariable(String index,
                                                   Variable v,
                                                   ReadWriteData readWriteData,
@@ -876,7 +869,7 @@ public class MethodAnalyzer {
             if (previousVariableData != null) {
                 return previousVariableData.variableInfoContainerStream()
                         .map(VariableInfoContainer::bestCurrentlyComputed)
-                        .filter(vi -> vi != null && isLocal(vi.variable()))
+                        .filter(vi -> vi != null && !localComponents(vi.variable()).isEmpty())
                         .map(vi -> vi.variable().fullyQualifiedName())
                         .collect(Collectors.toUnmodifiableSet());
             }
@@ -900,18 +893,38 @@ public class MethodAnalyzer {
             VariableData vd = analysis.getOrNull(VariableDataImpl.VARIABLE_DATA, VariableDataImpl.class);
             vd.variableInfoStream().forEach(vi -> {
                 Variable v = vi.variable();
-                boolean read =
-                        isLocal(v) && closure.contains(v.fullyQualifiedName())
-                        ||
-                        vi.assignments().indexOfDefinition().equals("-")
-                        && !(v instanceof ParameterInfo pi && typeHierarchy.contains(pi.methodInfo().typeInfo()))
-                        && !(v instanceof FieldReference fr && localFields.contains(fr.fieldInfo()))
-                        && !(v instanceof This thisVar && typeHierarchy.contains(thisVar.typeInfo()))
-                        && !(v instanceof ReturnVariable);
-                if (read) {
+                boolean accept = acceptForCopy(v, localFields, typeHierarchy, closure);
+                if (accept && !vi.reads().isEmpty()) {
                     markRead(v);
                 }
             });
+        }
+
+        private static boolean acceptForCopy(Variable v,
+                                             Set<FieldInfo> localFields,
+                                             Set<TypeInfo> typeHierarchy,
+                                             VariableInfoMap closure) {
+            if (v instanceof LocalVariable) {
+                return closure.contains(v.fullyQualifiedName());
+            }
+            if (v instanceof ParameterInfo pi) {
+                return !typeHierarchy.contains(pi.methodInfo().typeInfo());
+            }
+            if (v instanceof This thisVar) {
+                return !typeHierarchy.contains(thisVar.typeInfo());
+            }
+            if (v instanceof ReturnVariable) {
+                return false;
+            }
+            if (v instanceof FieldReference fr) {
+                return !localFields.contains(fr.fieldInfo())
+                       && (fr.scopeVariable() == null || acceptForCopy(fr.scopeVariable(), localFields, typeHierarchy, closure));
+            }
+            if (v instanceof DependentVariable dv) {
+                return (dv.arrayVariable() == null || acceptForCopy(dv.arrayVariable(), localFields, typeHierarchy, closure))
+                       && (dv.indexVariable() == null || acceptForCopy(dv.indexVariable(), localFields, typeHierarchy, closure));
+            }
+            throw new UnsupportedOperationException();
         }
 
         private void markRead(Variable v) {

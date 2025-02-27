@@ -225,4 +225,46 @@ public class TestLambda extends CommonTest {
         assertEquals("1", max.reads().toString());
         assertEquals("D:0, A:[0]", max.assignments().toString());
     }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.util.stream.IntStream;
+            import java.util.List;
+            
+            public abstract class X {
+            
+                private record R(String r) {}
+                private record Wrapper(String w) {}
+                abstract List<Wrapper> diff(Wrapper[] w1, Wrapper[] w2);
+            
+                public List<Wrapper> diffLines(List<R> list1, List<R> list2) {
+                    Wrapper[] r1 = list1.stream().map(r -> new Wrapper(r.r)).toArray(Wrapper[]::new);
+                    Wrapper[] r2 = list2.stream().map(r -> new Wrapper(r.r)).toArray(Wrapper[]::new);
+                    List<Wrapper> rawDiffs = diff(r1, r2);
+                    for (int i = 0; i < rawDiffs.size(); ++i) {
+                        System.out.println(rawDiffs.get(i));
+                    }
+                    return List.copyOf(rawDiffs);
+                }
+            }
+            """;
+
+
+    @DisplayName("lambda parameters and closure, 3")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+        MethodInfo method = X.findUniqueMethod("diffLines", 2);
+        Statement s1 = method.methodBody().statements().get(1);
+        VariableData vd1 = VariableDataImpl.of(s1);
+        // we don't want the variables that have been created in the lambda. We do get b, max
+        assertEquals("""
+                a.b.X.diffLines(java.util.List<a.b.X.R>,java.util.List<a.b.X.R>):0:list1, a.b.X.diffLines(java.util.List<a.b.X.R>,java.util.List<a.b.X.R>):1:list2, r1, r2\
+                """, vd1.knownVariableNamesToString());
+    }
 }
