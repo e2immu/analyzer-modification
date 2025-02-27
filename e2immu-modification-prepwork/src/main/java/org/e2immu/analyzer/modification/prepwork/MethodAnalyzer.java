@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
@@ -70,11 +71,12 @@ public class MethodAnalyzer {
 
     private final Runtime runtime;
     private final PrepAnalyzer prepAnalyzer;
-
+    private final ApplyGetSetTranslation applyGetSetTranslation;
 
     public MethodAnalyzer(Runtime runtime, PrepAnalyzer prepAnalyzer) {
         this.runtime = runtime;
         this.prepAnalyzer = prepAnalyzer;
+        this.applyGetSetTranslation = new ApplyGetSetTranslation(runtime);
     }
 
     private static class InternalVariables {
@@ -742,7 +744,8 @@ public class MethodAnalyzer {
         }
 
         @Override
-        public boolean beforeExpression(Expression e) {
+        public boolean beforeExpression(Expression expressionIn) {
+            Expression e = expressionIn.translate(applyGetSetTranslation);
             if (e instanceof Lambda lambda) {
                 // we plan to catch all variables that we already know, but not to introduce NEW variables
                 VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(lambda.methodInfo().typeInfo());
@@ -829,12 +832,6 @@ public class MethodAnalyzer {
                 return false;
             }
             if (e instanceof MethodCall mc) {
-                ensureGetSet(mc.methodInfo());
-                Value.FieldValue getSet = mc.methodInfo().getSetField();
-                if (getSet.field() != null && !getSet.setter()) {
-                    // getter
-                    markGetterRecursion(mc);
-                }
                 // also, simply ensure that modified component variables exist
                 copyModifiedComponentsMethod(mc.methodInfo(), mc.object());
             }
@@ -907,52 +904,6 @@ public class MethodAnalyzer {
             });
         }
 
-        // NOTE: pretty similar code in Runtime.getterVariable(MethodCall methodCall);
-        private Variable markGetterRecursion(MethodCall mc) {
-            ensureGetSet(mc.methodInfo());
-            Value.FieldValue getSet = mc.methodInfo().getSetField();
-            if (getSet.field() != null && !getSet.setter()) {
-                Variable object;
-
-                Expression unwrappedObject = unwrap(mc.object());
-                if (unwrappedObject instanceof VariableExpression ve) {
-                    object = ve.variable();
-                    markRead(object);
-                } else if (unwrappedObject instanceof MethodCall mc2) {
-                    object = markGetterRecursion(mc2);
-                } else {
-                    object = null;
-                }
-                if (object != null) {
-                    FieldReference fr;
-                    ParameterizedType type = mc.concreteReturnType();
-                    if (mc.parameterExpressions().isEmpty()) {
-                        fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object), type);
-                        accessorSeenFirstTime.put(fr, index);
-                    } else {
-                        ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
-                        fr = runtime.newFieldReference(getSet.field(), runtime.newVariableExpression(object), arrayType);
-                        accessorSeenFirstTime.put(fr, index);
-                        assert mc.methodInfo().parameters().get(0).parameterizedType().isInt();
-                        Expression indexExpression = mc.parameterExpressions().get(0);
-                        DependentVariable dv = runtime.newDependentVariable(fr, type, indexExpression);
-                        accessorSeenFirstTime.put(dv, index);
-                    }
-                    return fr;
-                }
-            }
-            return null;
-        }
-
-        // see TestCast,2
-        private Expression unwrap(Expression object) {
-            if (object instanceof EnclosedExpression ee) return unwrap(ee.inner());
-            if (object instanceof Cast cast && cast.expression() instanceof VariableExpression ve) {
-                return unwrap(ve);
-            }
-            return object;
-        }
-
         private void markRead(Variable v) {
             read.computeIfAbsent(v, vv -> new ArrayList<>()).add(index);
             if (!knownVariableNames.contains(v.fullyQualifiedName()) && !seenFirstTime.containsKey(v)) {
@@ -990,18 +941,6 @@ public class MethodAnalyzer {
         public Visitor withIndex(String s) {
             this.index = s;
             return this;
-        }
-    }
-
-    /*
-    Depending on the order of the primary types in "PrepAnalyzer.doPrimaryTypes", the getSet analysis may have
-    happened already, or not. TestCallGraph2 contains an example where this can go wrong, but note that the execution
-    order for the modification analyzer does not catch this problem.
-
-     */
-    private static void ensureGetSet(MethodInfo methodInfo) {
-        if (!methodInfo.isAbstract()) {
-            GetSetHelper.doGetSetAnalysis(methodInfo, methodInfo.methodBody());
         }
     }
 }

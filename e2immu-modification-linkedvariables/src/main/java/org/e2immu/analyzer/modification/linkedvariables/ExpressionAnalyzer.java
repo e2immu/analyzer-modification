@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
@@ -51,19 +52,22 @@ class ExpressionAnalyzer {
     private final GenericsHelper genericsHelper;
     private final AnalysisHelper analysisHelper;
     private final LinkHelperFunctional linkHelperFunctional;
+    private final ApplyGetSetTranslation applyGetSetTranslation;
 
     public ExpressionAnalyzer(Runtime runtime) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper();
         this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
+        this.applyGetSetTranslation = new ApplyGetSetTranslation(runtime);
     }
 
     public EvaluationResult linkEvaluation(MethodInfo currentMethod,
                                            VariableData variableDataPrevious,
                                            Stage stageOfPrevious,
                                            Expression expression) {
-        return new Internal(currentMethod, variableDataPrevious, stageOfPrevious).eval(expression);
+        Expression translated = expression.translate(applyGetSetTranslation);
+        return new Internal(currentMethod, variableDataPrevious, stageOfPrevious).eval(translated);
     }
 
     private class Internal {
@@ -212,7 +216,7 @@ class ExpressionAnalyzer {
                 or.expressions().forEach(e -> builder.merge(eval(e)));
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
             }
-            if(expression instanceof SwitchExpression se) {
+            if (expression instanceof SwitchExpression se) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 // TODO! this is a stub.
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
@@ -565,16 +569,15 @@ class ExpressionAnalyzer {
 
         private EvaluationResult linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc, ParameterizedType forwardType) {
             EvaluationResult.Builder builder = new EvaluationResult.Builder();
-            Expression object = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
 
-            EvaluationResult leObject = eval(object);
+            EvaluationResult leObject = eval(mc.object());
             builder.merge(leObject);
 
             List<EvaluationResult> leParams = mc.parameterExpressions().stream().map(this::eval).toList();
             leParams.forEach(builder::merge);
 
-            methodCallLinks(currentMethod, mc.withObject(object), builder, leObject, leParams, forwardType);
-            methodCallModified(mc, object, builder);
+            methodCallLinks(currentMethod, mc, builder, leObject, leParams, forwardType);
+            methodCallModified(mc, builder);
             methodCallStaticValue(mc, builder, leObject, leParams);
 
             return builder.build();
@@ -713,8 +716,8 @@ class ExpressionAnalyzer {
             void accept(Expression mapKey, boolean mapValue, Map<Variable, Expression> svMap);
         }
 
-        private void methodCallModified(MethodCall mc, Expression object, EvaluationResult.Builder builder) {
-            if (object instanceof VariableExpression ve) {
+        private void methodCallModified(MethodCall mc, EvaluationResult.Builder builder) {
+            if (mc.object() instanceof VariableExpression ve) {
                 boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
                 if (ve.variable().parameterizedType().isFunctionalInterface()
                     && ve.variable() instanceof FieldReference fr
@@ -1064,23 +1067,5 @@ class ExpressionAnalyzer {
                     : lvsResult1.merge(fp.intoResult().linkedVariables());
             builder.setLinkedVariables(lvsResult2);
         }
-    }
-
-    public static Expression recursivelyReplaceAccessorByFieldReference(Runtime runtime, Expression expression) {
-        if (expression instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr) {
-            Expression replacedScope = recursivelyReplaceAccessorByFieldReference(runtime, fr.scope());
-            return replacedScope == fr.scope() ? expression
-                    : runtime.newVariableExpression(runtime.newFieldReference(fr.fieldInfo(), replacedScope,
-                    fr.parameterizedType()));
-        }
-        if (expression instanceof MethodCall mc) {
-            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
-            if (getSet.field() != null && !getSet.setter()) {
-                Expression replacedObject = recursivelyReplaceAccessorByFieldReference(runtime, mc.object());
-                FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, mc.concreteReturnType());
-                return runtime.newVariableExpression(fr);
-            }
-        }
-        return expression;
     }
 }

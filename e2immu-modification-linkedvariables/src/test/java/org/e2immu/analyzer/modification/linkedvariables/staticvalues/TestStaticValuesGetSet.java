@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.EMPTY;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_METHOD;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.NONE;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_METHOD;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -127,6 +130,7 @@ public class TestStaticValuesGetSet extends CommonTest {
         }
     }
 
+
     @Language("java")
     private static final String INPUT_2 = """
             package a.b;
@@ -134,6 +138,9 @@ public class TestStaticValuesGetSet extends CommonTest {
                 interface I { }
                 record R(I i) {}
                 record Wrapper(R r) {}
+                R getter(Wrapper w) {
+                    return w.r();
+                }
                 I extract(Wrapper w) {
                    return w.r().i;
                 }
@@ -146,9 +153,17 @@ public class TestStaticValuesGetSet extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT_2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
-        MethodInfo extract = X.findUniqueMethod("extract", 1);
-        assertEquals("-1-:i, *-4-0:r", extract.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
-                LinkedVariablesImpl.EMPTY).toString());
-        assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, StaticValuesImpl.NONE).toString());
+        {
+            MethodInfo getter = X.findUniqueMethod("getter", 1);
+            assertEquals("E=w.r", getter.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
+            assertEquals("-1-:r, *M-4-0M:w", getter.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+                    .toString());
+        }
+        {
+            MethodInfo extract = X.findUniqueMethod("extract", 1);
+            assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
+            assertEquals("-1-:i, *-4-0:r, *M-4-0M:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+                    .toString());
+        }
     }
 }

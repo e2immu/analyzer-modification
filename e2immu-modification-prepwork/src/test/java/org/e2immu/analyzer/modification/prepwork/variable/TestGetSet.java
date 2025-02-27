@@ -128,7 +128,7 @@ public class TestGetSet extends CommonTest {
             Variable v = runtime.getterVariable(mc0);
             assertEquals("a.b.X.objects[3]", v.fullyQualifiedName());
             assertEquals(runtime.objectParameterizedType(), v.parameterizedType());
-            if(v instanceof DependentVariable dv) {
+            if (v instanceof DependentVariable dv) {
                 assertEquals(1, dv.arrayVariable().parameterizedType().arrays());
             } else fail();
         }
@@ -425,8 +425,11 @@ public class TestGetSet extends CommonTest {
 
         MethodInfo get = X.findUniqueMethod("get", 2);
         VariableData vdLast = VariableDataImpl.of(get.methodBody().lastStatement());
-        assertEquals("a.b.X.get(java.util.List<T>,int), a.b.X.get(java.util.List<T>,int):0:list, a.b.X.get(java.util.List<T>,int):1:i",
-                vdLast.knownVariableNamesToString());
+        assertEquals("""
+                a.b.X.get(java.util.List<T>,int), a.b.X.get(java.util.List<T>,int):0:list, \
+                a.b.X.get(java.util.List<T>,int):1:i, java.util.List._synthetic_list#scope10-16:10-34, \
+                java.util.List._synthetic_list#scope10-16:10-34[a.b.X.get(java.util.List<T>,int):1:i]\
+                """, vdLast.knownVariableNamesToString());
     }
 
 
@@ -477,14 +480,15 @@ public class TestGetSet extends CommonTest {
         assertEquals("D:1.0.0, A:[1.0.0]", vi101010list.assignments().toString());
 
         VariableInfo vi101010syntheticList = vd10101.variableInfo("java.util.List._synthetic_list#list");
-        assertEquals("D:1.0.1.0.0, A:[]", vi101010syntheticList.assignments().toString());
+        assertEquals("D:-, A:[]", vi101010syntheticList.assignments().toString());
         VariableInfo vi101010syntheticList0 = vd10101.variableInfo("java.util.List._synthetic_list#list[0]");
-        assertEquals("D:1.0.1.0.0, A:[]", vi101010syntheticList0.assignments().toString());
+        assertEquals("D:-, A:[]", vi101010syntheticList0.assignments().toString());
 
         VariableData vd101 = VariableDataImpl.of(s101);
         assertEquals("""
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
                 list, resultMap, t\
                 """, vd101.knownVariableNamesToString());
 
@@ -492,6 +496,7 @@ public class TestGetSet extends CommonTest {
         assertEquals("""
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
                 resultMap, t\
                 """, vd1.knownVariableNamesToString());
 
@@ -500,6 +505,7 @@ public class TestGetSet extends CommonTest {
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listIn, \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                        java.util.List._synthetic_list#list, java.util.List._synthetic_list#list[0], \
                         resultMap\
                         """,
                 vdLast.knownVariableNamesToString());
@@ -554,6 +560,7 @@ public class TestGetSet extends CommonTest {
         assertEquals("""
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                java.util.List._synthetic_list#listC, java.util.List._synthetic_list#listC[0], \
                 listB, listC, resultMap, t\
                 """, vd101.knownVariableNamesToString());
 
@@ -561,6 +568,7 @@ public class TestGetSet extends CommonTest {
         assertEquals("""
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                 a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                java.util.List._synthetic_list#listC, java.util.List._synthetic_list#listC[0], \
                 listB, resultMap, t\
                 """, vd1.knownVariableNamesToString());
 
@@ -569,6 +577,7 @@ public class TestGetSet extends CommonTest {
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>), \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):0:listA, \
                         a.b.X.get(java.util.List<T>,java.util.Map<T,java.util.List<S>>):1:stringMap, \
+                        java.util.List._synthetic_list#listC, java.util.List._synthetic_list#listC[0], \
                         listB, resultMap\
                         """,
                 vdLast.knownVariableNamesToString());

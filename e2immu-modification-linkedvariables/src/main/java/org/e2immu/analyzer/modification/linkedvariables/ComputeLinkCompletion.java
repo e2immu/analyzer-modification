@@ -113,9 +113,10 @@ class ComputeLinkCompletion {
             Map<Variable, List<StaticValues>> append = new HashMap<>();
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 if (entry.getKey() instanceof FieldReference fr) {
-                    Expression newScope = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr.scope());
-                    Expression svScope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo().typeInfo().asParameterizedType()));
-                    recursivelyAdd(append, newScope, newScope, fr, svScope, fr.fieldInfo(), entry.getValue(), variableData, statementIndex);
+                    Expression svScope = runtime.newVariableExpression(runtime.newThis(fr.fieldInfo()
+                            .typeInfo().asParameterizedType()));
+                    recursivelyAdd(append, fr.scope(), fr.scope(), fr, svScope, fr.fieldInfo(), entry.getValue(),
+                            variableData, statementIndex);
                 }
             }
             append.forEach((v, list) -> staticValues.merge(v, list, ListUtil::immutableConcat));
@@ -164,9 +165,9 @@ class ComputeLinkCompletion {
                     ((VariableDataImpl) variableData).put(variable, newVic);
                 }
                 if (variable instanceof FieldReference fr2) {
-                    Expression newScope2 = ExpressionAnalyzer.recursivelyReplaceAccessorByFieldReference(runtime, fr2.scope());
-                    Expression newSvScope = suffix(fullScope, newScope2);
-                    recursivelyAdd(append, newScope2, fullScope, fr2, newSvScope, svFieldInfo, newList, variableData, statementIndex);
+                    Expression newSvScope = suffix(fullScope, fr2.scope());
+                    recursivelyAdd(append, fr2.scope(), fullScope, fr2, newSvScope, svFieldInfo, newList, variableData,
+                            statementIndex);
                 }
             }
         }
