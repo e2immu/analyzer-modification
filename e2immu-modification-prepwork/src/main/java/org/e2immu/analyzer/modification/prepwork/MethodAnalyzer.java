@@ -838,6 +838,12 @@ public class MethodAnalyzer {
                 // also, simply ensure that modified component variables exist
                 copyModifiedComponentsMethod(mc.methodInfo(), mc.object());
             }
+            if (e instanceof CommaExpression ce) {
+                for (Expression comma : ce.expressions()) {
+                    comma.visit(this);
+                }
+                return false;
+            }
             return true;
         }
 

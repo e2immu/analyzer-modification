@@ -222,6 +222,13 @@ class ExpressionAnalyzer {
                 // TODO! this is a stub.
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
             }
+            if(expression instanceof CommaExpression ce) {
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                for(Expression e: ce.expressions()) {
+                    builder.merge(eval(e));
+                }
+                return builder.build();
+            }
             if (expression == null
                 || expression instanceof EmptyExpression
                 || expression instanceof TypeExpression) {

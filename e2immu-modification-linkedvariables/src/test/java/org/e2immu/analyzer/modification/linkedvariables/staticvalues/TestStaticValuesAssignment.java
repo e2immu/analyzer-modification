@@ -92,6 +92,13 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
+
+        MethodInfo method = X.findUniqueMethod("method", 0);
+        {
+            VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));
+            assertEquals("a.b.X.j#scope16-15:16-21, x", vd0.knownVariableNamesToString());
+        }
+
         analyzer.doPrimaryType(X, analysisOrder);
 
         FieldInfo fieldJ = X.getFieldByName("j", true);
@@ -120,7 +127,6 @@ public class TestStaticValuesAssignment extends CommonTest {
         StaticValues setJKSv = setJK.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
         assertEquals("E=this this.j=jp, this.k=kp", setJKSv.toString());
 
-        MethodInfo method = X.findUniqueMethod("method", 0);
         {
             Statement s0 = method.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
@@ -194,10 +200,10 @@ public class TestStaticValuesAssignment extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1X = vd1.variableInfo("x");
-            assertEquals("Type a.b.X E=new X() this.j=3", vi1X.staticValues().toString());
+            assertEquals("Type a.b.X E=new X() this.j=3, x.j=3", vi1X.staticValues().toString());
         }
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-        assertEquals("Type a.b.X E=new X() this.j=3", methodSv.toString());
+        assertEquals("Type a.b.X E=new X() this.j=3, x.j=3", methodSv.toString());
     }
 
 

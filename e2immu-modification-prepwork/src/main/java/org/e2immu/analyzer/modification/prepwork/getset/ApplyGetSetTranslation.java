@@ -25,6 +25,19 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
         return false;
     }
 
+    /*
+    a chain of @Fluent setters will be translated to a chain of comma expressions, as follows:
+
+    new Builder().setA(a).setB(b).setC(c).build()
+
+    becomes
+
+    (e.a = a, e.b = b, e.c = c, e.build())  with e the 'new Builder()' object.
+
+    This ensures that all assignments have the same scope object.
+    To do this properly, we must (a) properly implement comma expressions, (b) have simple @Fluent already analyzed
+
+     */
     @Override
     public Expression translateExpression(Expression expression) {
         if (expression instanceof Lambda || expression instanceof ConstructorCall cc && cc.anonymousClass() != null) {
@@ -33,54 +46,94 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
         if (expression instanceof MethodCall mc) {
             ensureGetSet(mc.methodInfo());
 
-            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
+            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD,
+                    ValueImpl.GetSetValueImpl.EMPTY);
             if (getSet.field() != null) {
-                Expression replacedObject = unwrap(mc.object().translate(this));
                 ParameterizedType type = mc.concreteReturnType();
                 Source objectSourceIn = mc.object().source();
                 Source objectSource = objectSourceIn == null ? runtime.noSource() : objectSourceIn;
                 assert objectSource != null;
-                if (getSet.setter()) {
 
-                    Variable v;
-                    if (getSet.hasIndex()) {
-                        Expression replacedIndex = mc.parameterExpressions().get(getSet.parameterIndexOfIndex())
-                                .translate(this);
-                        ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
-                        FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, arrayType);
-                        VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
-                                .setVariable(fr)
-                                .setSource(objectSource)
-                                .build();
-                        v = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
-                    } else {
-                        v = runtime.newFieldReference(getSet.field(), replacedObject, mc.object().parameterizedType());
-                    }
-                    VariableExpression target = runtime.newVariableExpressionBuilder().setVariable(v).setSource(mc.source()).build();
-                    Expression replacedValue = mc.parameterExpressions().get(getSet.parameterIndexOfValue());
-                    //return runtime.newAssignmentBuilder().setSource(mc.source()).setTarget(target).setValue(replacedValue).build();
-                } else {
-                    if (mc.parameterExpressions().size() == 1) {
-                        ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
-                        FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, arrayType);
-                        Expression index = mc.parameterExpressions().get(0);
-                        Expression replacedIndex = index.translate(this);
-                        VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
-                                .setVariable(fr)
-                                .setSource(objectSource)
-                                .build();
-                        DependentVariable dv = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
-                        return runtime.newVariableExpressionBuilder()
-                                .setVariable(dv)
-                                .setSource(mc.source())
-                                .build();
-                    }
-                    FieldReference fr = runtime.newFieldReference(getSet.field(), replacedObject, type);
-                    return runtime.newVariableExpressionBuilder().setVariable(fr).setSource(mc.source()).build();
+                if (getSet.setter()) {
+                    // setter
+                    return replaceByAssignmentOrComma(mc, getSet, type, objectSource);
                 }
+                // getter
+                return replaceByVariableExpression(mc, getSet, type, objectSource);
             }
         }
         return expression;
+    }
+
+    // getter
+    private VariableExpression replaceByVariableExpression(MethodCall mc,
+                                                           Value.FieldValue getSet,
+                                                           ParameterizedType type,
+                                                           Source objectSource) {
+        Expression object = unwrap(mc.object().translate(this));
+        Variable variable;
+        if (mc.parameterExpressions().size() == 1) {
+            ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
+            FieldReference fr = runtime.newFieldReference(getSet.field(), object, arrayType);
+            Expression index = mc.parameterExpressions().get(0);
+            Expression replacedIndex = index.translate(this);
+            VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
+                    .setVariable(fr)
+                    .setSource(objectSource)
+                    .build();
+            variable = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
+        } else {
+            variable = runtime.newFieldReference(getSet.field(), object, type);
+        }
+        return runtime.newVariableExpressionBuilder().setVariable(variable).setSource(mc.source()).build();
+    }
+
+    // setter
+    private Expression replaceByAssignmentOrComma(MethodCall mc,
+                                                  Value.FieldValue getSet,
+                                                  ParameterizedType type,
+                                                  Source objectSource) {
+
+        Expression translatedObject = mc.object().translate(this);
+        Expression object;
+        CommaExpression previousFluent;
+        if (translatedObject instanceof CommaExpression ce) {
+            previousFluent = ce;
+            object = ce.expressions().get(ce.expressions().size() - 1);
+        } else {
+            object = unwrap(translatedObject);
+            previousFluent = null;
+        }
+        Variable v;
+        if (getSet.hasIndex()) {
+            Expression replacedIndex = mc.parameterExpressions().get(getSet.parameterIndexOfIndex())
+                    .translate(this);
+            ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
+            FieldReference fr = runtime.newFieldReference(getSet.field(), object, arrayType);
+            VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
+                    .setVariable(fr)
+                    .setSource(objectSource)
+                    .build();
+            v = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
+        } else {
+            v = runtime.newFieldReference(getSet.field(), object, object.parameterizedType());
+        }
+        VariableExpression target = runtime.newVariableExpressionBuilder().setVariable(v).setSource(mc.source()).build();
+        Expression replacedValue = mc.parameterExpressions().get(getSet.parameterIndexOfValue());
+        Assignment assignment = runtime.newAssignmentBuilder()
+                .setSource(mc.source()).
+                setTarget(target).setValue(replacedValue).build();
+
+        if (mc.methodInfo().isFluent() || previousFluent != null) {
+            CommaExpression.Builder builder = runtime().newCommaBuilder();
+            if (previousFluent != null) {
+                builder.addExpressions(previousFluent.expressions().subList(0, previousFluent.expressions().size() - 1));
+            }
+            builder.addExpression(assignment);
+            builder.addExpression(object);
+            return builder.build();
+        }
+        return assignment;
     }
 
     private static Expression unwrap(Expression object) {

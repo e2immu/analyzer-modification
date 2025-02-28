@@ -45,6 +45,9 @@ public class GetSetHelper {
         }
         Value.FieldValue getSet;
         if (methodBody.isEmpty()) {
+            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.FLUENT_METHOD)) {
+                methodInfo.analysis().set(PropertyImpl.FLUENT_METHOD, ValueImpl.BoolImpl.FALSE);
+            }
             return false;
         }
         Statement s0 = methodBody.statements().get(0);
@@ -72,7 +75,10 @@ public class GetSetHelper {
             } else {
                 getSet = null;
             }
-        } else if (checkSetMethod(methodBody) && s0 instanceof ExpressionAsStatement eas) {
+            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.FLUENT_METHOD)) {
+                methodInfo.analysis().set(PropertyImpl.FLUENT_METHOD, ValueImpl.BoolImpl.FALSE);
+            }
+        } else if (checkSetMethodEnsureFluent(methodInfo, methodBody) && s0 instanceof ExpressionAsStatement eas) {
             if (eas.expression() instanceof Assignment a
                 && a.variableTarget() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
                 && a.value() instanceof VariableExpression ve && ve.variable() instanceof ParameterInfo) {
@@ -112,12 +118,23 @@ public class GetSetHelper {
         return methodInfo.overrides().stream().anyMatch(mi -> fqn.equals(mi.fullyQualifiedName()));
     }
 
-    private static boolean checkSetMethod(Block methodBody) {
-        return methodBody.size() == 1 ||
-               methodBody.size() == 2
-               && methodBody.statements().get(1) instanceof ReturnStatement rs
-               && rs.expression() instanceof VariableExpression veThis
-               && veThis.variable() instanceof This;
+    private static boolean checkSetMethodEnsureFluent(MethodInfo methodInfo, Block methodBody) {
+        Value.Bool fluent;
+        if (methodBody.size() == 1 && methodBody.lastStatement() instanceof ExpressionAsStatement) {
+            fluent = ValueImpl.BoolImpl.FALSE;
+        } else if (methodBody.size() == 2
+                   && methodBody.statements().get(0) instanceof ExpressionAsStatement
+                   && methodBody.statements().get(1) instanceof ReturnStatement rs
+                   && rs.expression() instanceof VariableExpression veThis
+                   && veThis.variable() instanceof This) {
+            fluent = ValueImpl.BoolImpl.TRUE;
+        } else {
+            return false;
+        }
+        if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.FLUENT_METHOD)) {
+            methodInfo.analysis().set(PropertyImpl.FLUENT_METHOD, fluent);
+        }
+        return true;
     }
 
 }

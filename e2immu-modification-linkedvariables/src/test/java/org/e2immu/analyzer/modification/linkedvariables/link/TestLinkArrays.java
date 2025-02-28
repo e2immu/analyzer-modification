@@ -90,13 +90,13 @@ public class TestLinkArrays extends CommonTest {
 
     private void testCommon23(MethodInfo method) {
         ParameterInfo t = method.parameters().get(0);
-        ParameterInfo array = method.parameters().get(1);
+        ParameterInfo i = method.parameters().get(1);
         {
             VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));
             VariableInfo vi0T0 = vd0.variableInfo("t0");
             assertEquals("E=i.variables[0]", vi0T0.staticValues().toString());
             assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[0]", vi0T0.linkedVariables().toString());
-            VariableInfo vi0Array = vd0.variableInfo(array);
+            VariableInfo vi0Array = vd0.variableInfo(i);
             assertEquals("0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0]", vi0Array.linkedVariables().toString());
             assertFalse(vi0Array.isModified());
         }
@@ -107,11 +107,12 @@ public class TestLinkArrays extends CommonTest {
             assertFalse(vi1T0.isModified());
 
             VariableInfo vi1T = vd1.variableInfo(t);
-            assertEquals("*-4-0:i", vi1T.linkedVariables().toString());
+            assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
             assertFalse(vi1T.isModified());
 
-            VariableInfo vi1Array = vd1.variableInfo(array);
-            assertEquals("0-4-*:t, 0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0]", vi1Array.linkedVariables().toString());
+            VariableInfo vi1Array = vd1.variableInfo(i);
+            assertEquals("0M-4-*M:t, 0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0], 0M-4-*M:variables[1]",
+                    vi1Array.linkedVariables().toString());
             assertTrue(vi1Array.isModified());
         }
     }
@@ -151,13 +152,13 @@ public class TestLinkArrays extends CommonTest {
 
         MethodInfo method2 = X.findUniqueMethod("method2", 2);
         ParameterInfo t = method2.parameters().get(0);
-        ParameterInfo array = method2.parameters().get(1);
+        ParameterInfo i = method2.parameters().get(1);
         {
             VariableData vd0 = VariableDataImpl.of(method2.methodBody().statements().get(0));
             VariableInfo vi0T0 = vd0.variableInfo("t0");
             assertEquals("E=i.variables[0]", vi0T0.staticValues().toString());
             assertEquals("-1-:variables[0]", vi0T0.linkedVariables().toString());
-            VariableInfo vi0Array = vd0.variableInfo(array);
+            VariableInfo vi0Array = vd0.variableInfo(i);
             assertEquals("0M-2-*M|0-*:variables", vi0Array.linkedVariables().toString());
             assertFalse(vi0Array.isModified());
         }
@@ -168,11 +169,12 @@ public class TestLinkArrays extends CommonTest {
             assertFalse(vi1T0.isModified());
 
             VariableInfo vi1T = vd1.variableInfo(t);
-            assertEquals("", vi1T.linkedVariables().toString());
+            assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
             assertFalse(vi1T.isModified());
 
-            VariableInfo vi1Array = vd1.variableInfo(array);
-            assertEquals("0M-2-*M|0-*:variables", vi1Array.linkedVariables().toString());
+            VariableInfo vi1Array = vd1.variableInfo(i);
+            assertEquals("0M-4-*M:t, 0M-2-*M|0-*:variables, 0M-4-*M:variables[1]",
+                    vi1Array.linkedVariables().toString());
             assertTrue(vi1Array.isModified());
         }
     }
