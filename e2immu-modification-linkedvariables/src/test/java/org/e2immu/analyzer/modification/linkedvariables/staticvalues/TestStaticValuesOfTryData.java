@@ -277,8 +277,9 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi0B = vd0.variableInfo("b");
             assertEquals("", vi0B.linkedVariables().toString());
-            assertEquals("this.bodyThrowingFunction=this::body, variables[0]=i, variables[1]=list2",
-                    vi0B.staticValues().toString());
+            assertEquals("""
+                    Type a.b.X.TryDataImpl.Builder E=new Builder() this.bodyThrowingFunction=this::body, variables[0]=i, variables[1]=list2\
+                    """, vi0B.staticValues().toString());
 
             VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X.asParameterizedType()));
             assertEquals("", vi0This.linkedVariables().toString());

@@ -387,7 +387,8 @@ public class Analyzer {
                     VariableInfoImpl vi = (VariableInfoImpl) vd.variableInfo(lv);
                     clcBuilder.addLink(evaluationResult.linkedVariables(), vi);
                     clcBuilder.addLinkEvaluation(evaluationResult, vd);
-                    clcBuilder.addAssignment(vi.variable(), evaluationResult.staticValues());
+                    StaticValues staticValues = evaluationResult.gatherAllStaticValues(runtime);
+                    clcBuilder.addAssignment(vi.variable(), staticValues);
                 }
             });
         } else if (statement instanceof ExpressionAsStatement

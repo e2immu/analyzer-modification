@@ -5,6 +5,11 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.annotation.Fluent;
+import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.VariableExpression;
+import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 
@@ -44,6 +49,35 @@ class EvaluationResult {
         return links.entrySet().stream()
                 .noneMatch(e -> e.getValue().variableStream()
                         .anyMatch(v -> v.equals(e.getKey())));
+    }
+
+    /*
+    SV E=expression
+    Assignment expression.field=value
+
+    -> SV E=expression this.field=value
+     */
+    public StaticValues gatherAllStaticValues(Runtime runtime) {
+        Map<Variable, Expression> updatedValueMap = new HashMap<>();
+        if (staticValues.values() != null) updatedValueMap.putAll(staticValues.values());
+        // now copy from assignments, using translation
+        if (staticValues.expression() != null) {
+            TypeInfo bestType = staticValues.expression().parameterizedType().bestTypeInfo();
+            if(bestType != null && !assignments.isEmpty()) {
+                Variable thisVar = runtime.newThis(staticValues.expression().parameterizedType());
+                VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar)
+                        .setSource(staticValues.expression().source()).build();
+                TranslationMap tm = runtime.newTranslationMapBuilder().put(staticValues.expression(), thisVarVe).build();
+                for (Map.Entry<Variable, StaticValues> entry : assignments.entrySet()) {
+                    VariableExpression variableExpression = runtime.newVariableExpression(entry.getKey());
+                    Expression translatedKey = variableExpression.translate(tm);
+                    if (translatedKey != variableExpression && entry.getValue().expression() != null) {
+                        updatedValueMap.put(((VariableExpression) translatedKey).variable(), entry.getValue().expression());
+                    }
+                }
+            }
+        }
+        return new StaticValuesImpl(staticValues.type(), staticValues.expression(), false, updatedValueMap);
     }
 
     public static class Builder {

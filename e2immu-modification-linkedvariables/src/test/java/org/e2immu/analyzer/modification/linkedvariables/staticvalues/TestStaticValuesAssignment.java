@@ -132,10 +132,10 @@ public class TestStaticValuesAssignment extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0X = vd0.variableInfo("x");
-            assertEquals("this.j=3", vi0X.staticValues().toString());
+            assertEquals("Type a.b.X E=new X() this.j=3", vi0X.staticValues().toString());
         }
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-        assertEquals("E=x this.j=3", methodSv.toString());
+        assertEquals("Type a.b.X E=new X() this.j=3", methodSv.toString());
     }
 
 
@@ -276,7 +276,7 @@ public class TestStaticValuesAssignment extends CommonTest {
             Statement s0 = justJ.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0B = vd0.variableInfo("b");
-            assertEquals("this.j=jp", vi0B.staticValues().toString());
+            assertEquals("Type a.b.X.Builder E=new Builder() this.j=jp", vi0B.staticValues().toString());
 
             Statement s1 = justJ.methodBody().lastStatement();
             VariableData vd1 = VariableDataImpl.of(s1);
@@ -304,7 +304,7 @@ public class TestStaticValuesAssignment extends CommonTest {
             Statement s0 = setJK.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0B = vd0.variableInfo("b");
-            assertEquals("this.j=jp, this.k=kp", vi0B.staticValues().toString());
+            assertEquals("Type a.b.X.Builder E=new Builder() this.j=jp, this.k=kp", vi0B.staticValues().toString());
 
             Statement s1 = setJK.methodBody().lastStatement();
             VariableData vd1 = VariableDataImpl.of(s1);

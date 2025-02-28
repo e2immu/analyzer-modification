@@ -603,13 +603,10 @@ class ExpressionAnalyzer {
                 return;
             }
 
-            // getter: return value becomes the field reference
-            Value.FieldValue getSet = mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
-            if (getSet.field() != null && mc.methodInfo().hasReturnValue() && !mc.methodInfo().isFluent()) {
-                throw new UnsupportedOperationException("Should have been filtered out");
-            }
+            assert mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY).field() == null
+                    : "Should have been filtered out!";
 
-            // fluent setter, see TestStaticValuesAssignment,4,method and method2
+            // fluent method that sets values, but not technically a setter
             if (mc.methodInfo().hasReturnValue() && mc.methodInfo().isFluent()
                 && svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
                 StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
