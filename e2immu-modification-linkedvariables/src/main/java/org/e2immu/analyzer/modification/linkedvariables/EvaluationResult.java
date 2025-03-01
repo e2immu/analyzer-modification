@@ -63,7 +63,7 @@ class EvaluationResult {
         // now copy from assignments, using translation
         if (staticValues.expression() != null) {
             TypeInfo bestType = staticValues.expression().parameterizedType().bestTypeInfo();
-            if(bestType != null && !assignments.isEmpty()) {
+            if (bestType != null && !assignments.isEmpty()) {
                 Variable thisVar = runtime.newThis(staticValues.expression().parameterizedType());
                 VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar)
                         .setSource(staticValues.expression().source()).build();
@@ -80,7 +80,7 @@ class EvaluationResult {
         return new StaticValuesImpl(staticValues.type(), staticValues.expression(), false, updatedValueMap);
     }
 
-    public static class Builder {
+    static class Builder {
         private LinkedVariables linkedVariables = LinkedVariablesImpl.EMPTY;
         private StaticValues staticValues = StaticValuesImpl.NONE;
         private final Map<Variable, LinkedVariables> links = new HashMap<>();
@@ -89,7 +89,8 @@ class EvaluationResult {
         private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
 
         @Fluent
-        public Builder merge(EvaluationResult evaluationResult) {
+        Builder merge(EvaluationResult evaluationResult) {
+            if (evaluationResult == EMPTY) return this;
             linkedVariables = evaluationResult.linkedVariables;
             staticValues = evaluationResult.staticValues;
 
@@ -102,7 +103,7 @@ class EvaluationResult {
         }
 
         @Fluent
-        public Builder mergeLinkedVariablesOfExpression(LinkedVariables lv) {
+        Builder mergeLinkedVariablesOfExpression(LinkedVariables lv) {
             linkedVariables = linkedVariables.merge(lv);
             return this;
         }

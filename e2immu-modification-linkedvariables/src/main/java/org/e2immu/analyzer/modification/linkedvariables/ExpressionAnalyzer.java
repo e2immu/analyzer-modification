@@ -87,9 +87,23 @@ class ExpressionAnalyzer {
 
         EvaluationResult eval(Expression expression, ParameterizedType forwardType) {
             if (expression instanceof VariableExpression ve) {
-                EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 Variable v = ve.variable();
-                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, forwardType, builder);
+
+                EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                EvaluationResult scope;
+                if (v instanceof FieldReference fr) {
+                    scope = eval(fr.scope());
+                    builder.merge(scope);
+                } else if (v instanceof DependentVariable dv) {
+                    scope = eval(dv.arrayExpression());
+                    builder.merge(scope);
+                    EvaluationResult index = eval(dv.indexExpression(), runtime.intParameterizedType());
+                    builder.merge(index);
+                } else {
+                    scope = EvaluationResult.EMPTY;
+                }
+
+                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, scope, forwardType, builder);
                 // do we have a static value for 'v'? this static value can be in the current evaluation forward (NYI)
                 // or in the previous statement
                 Expression svExpression = inferStaticValues(ve);
@@ -267,24 +281,18 @@ class ExpressionAnalyzer {
             }
         }
 
-        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve, Variable v,
+        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve, Variable variable,
+                                                                    EvaluationResult scope,
                                                                     ParameterizedType forwardType,
                                                                     EvaluationResult.Builder builder) {
             Map<Variable, LV> map = new HashMap<>();
-            map.put(v, LVImpl.LINK_ASSIGNED);
+            map.put(variable, LVImpl.LINK_ASSIGNED);
             Variable dependentVariable;
             ParameterizedType fieldType;
             int fieldIndex;
-            if (v instanceof FieldReference fr) {
-                EvaluationResult scope = eval(fr.scope());
-                if (fr.scope() instanceof VariableExpression sv
-                    && !(sv.variable() instanceof This)) {
+            if (variable instanceof FieldReference fr) {
+                if (fr.scope() instanceof VariableExpression sv && !(sv.variable() instanceof This)) {
                     dependentVariable = fr.scopeVariable();
-                    LinkedVariables withoutDv = scope.linkedVariables()
-                            .remove(vv -> vv.equals(dependentVariable));
-                    if (!withoutDv.isEmpty()) {
-                        builder.merge(dependentVariable, withoutDv);
-                    }
                     fieldIndex = fr.fieldInfo().indexInType();
                     fieldType = fr.fieldInfo().type();
                 } else {
@@ -292,17 +300,8 @@ class ExpressionAnalyzer {
                     fieldIndex = -1; // irrelevant
                     fieldType = null;
                 }
-            } else if (v instanceof DependentVariable dv) {
-                EvaluationResult array = eval(dv.arrayExpression());
-                EvaluationResult index = eval(dv.indexExpression());
-                builder.merge(array).merge(index);
+            } else if (variable instanceof DependentVariable dv) {
                 dependentVariable = dv.arrayVariable();
-                if (dependentVariable != null) {
-                    builder.merge(dv.arrayVariable(), array.linkedVariables());
-                }
-                if (dv.indexVariable() != null) {
-                    builder.merge(dv.indexVariable(), index.linkedVariables());
-                }
                 fieldIndex = 0;
                 fieldType = dv.arrayExpression().parameterizedType().copyWithOneFewerArrays();
             } else {
@@ -311,62 +310,74 @@ class ExpressionAnalyzer {
                 fieldType = null;
             }
             if (dependentVariable != null) {
-                Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
-                Immutable immutableForward = forwardType == null ? immutable : analysisHelper.typeImmutable(forwardType);
-                if (!immutableForward.isImmutable()) {
-                    boolean isMutable = immutableForward.isMutable();
-                    Indices targetIndices;
-                    Indices targetModificationArea;
-                    Indices sourceModificationArea;
-                    if (isMutable) {
-                        targetModificationArea = new IndicesImpl(fieldIndex);
-                        sourceModificationArea = IndicesImpl.ALL_INDICES;
-                    } else {
-                        targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                        sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                    }
-                    if (v instanceof DependentVariable) {
-                        targetIndices = new IndicesImpl(0);
-                    } else {
-                        TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
-                        assert bestType != null : "The unbound type parameter does not have any fields";
-                        HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                        Integer i = hct.indexOf(fieldType);
-                        if (i != null) {
-                            targetIndices = new IndicesImpl(i);
-                        } else {
-                            targetIndices = null;
-                        }
-                    }
-                    Map<Indices, Link> linkMap;
-                    if (targetIndices == null) {
-                        linkMap = Map.of();
-                        assert isMutable;
-                    } else {
-                        linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
-                    }
-                    Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationArea);
-                    LV lv;
-                    if (isMutable) {
-                        lv = LVImpl.createDependent(links);
-                    } else {
-                        lv = LVImpl.createHC(links);
-                    }
-                    map.put(dependentVariable, lv);
-
-                }
+                scope.linkedVariables().variables().forEach((vv, lv) ->
+                        linkToDependentVariable(ve, variable, forwardType, vv, lv, fieldIndex, fieldType, map));
             }
             // adding existing linked variables is in general not necessary.
             // we do add them in case of functional interfaces, see TestLinkFunctional,5(m3)
             // because method LinkHelperFunctional expects them
-            if (v.parameterizedType().isFunctionalInterface() &&
-                variableDataPrevious != null && variableDataPrevious.isKnown(v.fullyQualifiedName())) {
-                VariableInfo viPrev = variableDataPrevious.variableInfo(v, stageOfPrevious);
+            if (variable.parameterizedType().isFunctionalInterface() &&
+                variableDataPrevious != null && variableDataPrevious.isKnown(variable.fullyQualifiedName())) {
+                VariableInfo viPrev = variableDataPrevious.variableInfo(variable, stageOfPrevious);
                 viPrev.linkedVariables().stream()
                         .filter(e -> !(e.getKey() instanceof This))
                         .forEach(e -> map.put(e.getKey(), e.getValue()));
             }
             return LinkedVariablesImpl.of(map);
+        }
+
+        private void linkToDependentVariable(VariableExpression ve,
+                                             Variable v,
+                                             ParameterizedType forwardType,
+                                             Variable dependentVariable,
+                                             LV currentLink,
+                                             int fieldIndex,
+                                             ParameterizedType fieldType,
+                                             Map<Variable, LV> map) {
+            Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
+            Immutable immutableForward = forwardType == null ? immutable : analysisHelper.typeImmutable(forwardType);
+            if (!immutableForward.isImmutable()) {
+                boolean isMutable = immutableForward.isMutable();
+                Indices targetIndices;
+                Indices targetModificationArea;
+                Indices sourceModificationArea;
+                if (isMutable) {
+                    targetModificationArea = new IndicesImpl(fieldIndex);
+                    sourceModificationArea = IndicesImpl.ALL_INDICES;
+                } else {
+                    targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                    sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                }
+                if (v instanceof DependentVariable) {
+                    targetIndices = new IndicesImpl(0);
+                } else {
+                    TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
+                    assert bestType != null : "The unbound type parameter does not have any fields";
+                    HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+                    Integer i = hct.indexOf(fieldType);
+                    if (i != null) {
+                        targetIndices = new IndicesImpl(i);
+                    } else {
+                        targetIndices = null;
+                    }
+                }
+                Map<Indices, Link> linkMap;
+                if (targetIndices == null) {
+                    linkMap = Map.of();
+                    assert isMutable;
+                } else {
+                    linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
+                }
+                Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationArea);
+                LV lv;
+                if (isMutable) {
+                    lv = LVImpl.createDependent(links);
+                } else {
+                    lv = LVImpl.createHC(links);
+                }
+                map.put(dependentVariable, lv);
+
+            }
         }
 
         private void setStaticValuesForVariableHierarchy(Assignment assignment, EvaluationResult evalValue, EvaluationResult.Builder builder) {
