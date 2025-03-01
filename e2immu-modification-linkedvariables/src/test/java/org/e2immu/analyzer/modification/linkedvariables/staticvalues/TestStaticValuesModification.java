@@ -530,9 +530,8 @@ public class TestStaticValuesModification extends CommonTest {
                 assertFalse(vi2set.isModified());
 
                 VariableInfo vi2r = vd2.variableInfo("r");
-                // FIXME this is obviously wrong, impossible that objects[0]=set, objects=set
                 assertEquals("""
-                        Type a.b.X.RI E=new RI(objects) objects[0]=set, this.objects=objects, this.objects=set\
+                        Type a.b.X.RI E=new RI(objects) objects[0]=set, this.objects=objects, this.objects??set\
                         """, vi2r.staticValues().toString());
             }
             { // modify2(r, 0)

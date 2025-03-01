@@ -222,9 +222,9 @@ class ExpressionAnalyzer {
                 // TODO! this is a stub.
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
             }
-            if(expression instanceof CommaExpression ce) {
+            if (expression instanceof CommaExpression ce) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
-                for(Expression e: ce.expressions()) {
+                for (Expression e : ce.expressions()) {
                     builder.merge(eval(e));
                 }
                 return builder.build();
@@ -624,6 +624,7 @@ class ExpressionAnalyzer {
                 && !(ve.variable() instanceof This)) {
                 StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
                 builder.merge(ve.variable(), sv);
+                return;
             }
 
             // and if we have a return value and our object is variable, copy from the object into the return value
@@ -633,7 +634,11 @@ class ExpressionAnalyzer {
                 Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
                 StaticValues sv = new StaticValuesImpl(svm.type(), null, false, svObjectValues);
                 builder.setStaticValues(sv);
+                if (!sv.isEmpty()) return;
             }
+
+            // fall-back... return method's value
+            builder.setStaticValues(new StaticValuesImpl(mc.concreteReturnType(), mc, false, Map.of()));
         }
 
         private Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {

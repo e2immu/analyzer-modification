@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -342,6 +343,14 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
         List<Info> ao = prepWork(X);
+
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        LocalVariableCreation lvc0 = (LocalVariableCreation) method.methodBody().statements().get(0);
+        ApplyGetSetTranslation tm = new ApplyGetSetTranslation(runtime);
+        assertEquals("""
+                new Builder().j=3,new Builder().intList=List.of(0,1),new Builder().stringSet=in,new Builder()\
+                """, lvc0.localVariable().assignmentExpression().translate(tm).toString());
+
         analyzer.doPrimaryType(X, ao);
 
         TypeInfo R = X.findSubType("R");
@@ -350,7 +359,6 @@ public class TestStaticValuesRecord extends CommonTest {
         StaticValues svP0 = p0ConstructorR.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
         assertEquals("E=this.set", svP0.toString());
 
-        MethodInfo method = X.findUniqueMethod("method", 1);
         {
             LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(1);
             LocalVariable r = rLvc.localVariable();

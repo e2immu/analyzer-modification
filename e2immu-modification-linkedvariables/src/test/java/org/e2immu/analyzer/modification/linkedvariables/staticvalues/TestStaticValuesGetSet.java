@@ -3,11 +3,16 @@ package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -161,10 +166,25 @@ public class TestStaticValuesGetSet extends CommonTest {
         }
         {
             MethodInfo extract = X.findUniqueMethod("extract", 1);
+            Statement s0 = extract.methodBody().statements().get(0);
+            assertEquals("w.r.i", s0.expression().translate(new ApplyGetSetTranslation(runtime)).toString());
+
+            VariableData vd0 = VariableDataImpl.of(s0);
+            assertEquals("""
+                    a.b.X.R.i#a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w, \
+                    a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w, \
+                    a.b.X.extract(a.b.X.Wrapper), \
+                    a.b.X.extract(a.b.X.Wrapper):0:w\
+                    """, vd0.knownVariableNamesToString());
+
+            VariableInfo viRw = vd0.variableInfo("a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w");
+            assertEquals("0-4-*:i, *-4-0:w", viRw.linkedVariables().toString());
+            VariableInfo viIrw = vd0.variableInfo("a.b.X.R.i#a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w");
+            assertEquals("*-4-0:r, *-4-0:w|??", viIrw.linkedVariables().toString());
+
             assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
-            assertEquals("-1-:i, *-4-0:r, *-4-0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
+            assertEquals("-1-:i, *-4-0:r, *-4-0|*-0.0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
                     .toString());
-            // FIXME why is this not *-4-0:w with 0.0 ???
         }
     }
 }

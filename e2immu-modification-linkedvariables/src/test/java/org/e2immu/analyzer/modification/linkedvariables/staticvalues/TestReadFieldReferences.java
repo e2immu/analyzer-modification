@@ -2,8 +2,13 @@ package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.language.cst.api.info.Info;
+import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Block;
+import org.e2immu.language.cst.api.statement.LocalVariableCreation;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +33,7 @@ public class TestReadFieldReferences extends CommonTest {
                 private int N = 0;
                 private int M = 0;
                 private int pixelRange(int p) { return ((p > 255) ? 255 :(p < 0) ? 0 : p); }
-                
+            
                 public void method(double[][] dcts, int[][] pixels) {
                     int x = 0;
                     int y = 0;
@@ -95,6 +100,19 @@ public class TestReadFieldReferences extends CommonTest {
                     a.b.X.$3.test(int), a.b.X.$7.test(int), a.b.X.M, a.b.X.N, a.b.X.method(double[][],int[][]), \
                     a.b.X, a.b.X.$11, a.b.X.$12, a.b.X.$3, a.b.X.$4, a.b.X.$7, a.b.X.$8]\
                     """, analysisOrder.toString());
+
+            MethodInfo methodInfo = X.findUniqueMethod("method", 2);
+            Block innerLoop = methodInfo.methodBody().statements().get(7).block().statements().get(0).block();
+            LocalVariableCreation lvc1 = (LocalVariableCreation) innerLoop.statements().get(1);
+            assertEquals("""
+                    (new Builder().variables[0]=cy0,\
+                    new Builder().variables[1]=dcts,\
+                    new Builder().variables[2]=t,\
+                    new Builder().variables[3]=x,\
+                    new Builder().loop=IntStream.iterate(1,i0->i0<this.N,i0->i0+1).iterator(),\
+                    new Builder()).build()\
+                    """, lvc1.localVariable().assignmentExpression().translate(new ApplyGetSetTranslation(runtime)).toString());
+
             analyzer.doPrimaryType(X, analysisOrder);
         }
     }
