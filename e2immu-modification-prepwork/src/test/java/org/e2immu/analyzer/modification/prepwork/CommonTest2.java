@@ -57,7 +57,9 @@ public class CommonTest2 {
         runtime = javaInspector.runtime();
 
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
-        summary = javaInspector.parse(true, true, sourcesByURIString);
+        JavaInspector.ParseOptions parseOptions = new JavaInspectorImpl.ParseOptionsBuilder()
+                .setFailFast(true).setDetailedSources(true).build();
+        summary = javaInspector.parse(sourcesByURIString, parseOptions);
         prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
         return prepAnalyzer.doPrimaryTypes(Set.copyOf(summary.types()));
     }

@@ -54,7 +54,7 @@ public class CommonTest {
         InputConfiguration inputConfiguration = builder.build();
         javaInspector.initialize(inputConfiguration);
         javaInspector.preload("java.util");
-        javaInspector.parse(true);
+        javaInspector.parse(JavaInspectorImpl.FAIL_FAST);
         runtime = javaInspector.runtime();
     }
 }

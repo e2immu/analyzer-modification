@@ -86,7 +86,7 @@ public class CommonTest {
                 .build();
         new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
 
-        javaInspector.parse(true);
+        javaInspector.parse(JavaInspectorImpl.FAIL_FAST);
         runtime = javaInspector.runtime();
         prepAnalyzer = new PrepAnalyzer(runtime);
 
