@@ -35,7 +35,7 @@ public interface StaticValues extends Value {
     boolean isEmpty();
 
     // for internal testing
-    Stream<Variable> variableStreamDescend();
+    Stream<Variable> targetVariableStreamDescend();
 
     /*
             when stored in a VI object, this should be identical to vi.variable().parameterizedType()

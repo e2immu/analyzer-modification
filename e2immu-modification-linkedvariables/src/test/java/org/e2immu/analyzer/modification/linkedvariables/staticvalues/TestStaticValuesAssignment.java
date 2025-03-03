@@ -402,19 +402,21 @@ public class TestStaticValuesAssignment extends CommonTest {
         {
             Statement s0 = method.methodBody().statements().get(0);
             VariableData vd0 = VariableDataImpl.of(s0);
+            assertEquals("""
+                    a.b.X.R.i#a.b.X.S.r#a.b.X.method(a.b.X.S):0:s, a.b.X.S.r#a.b.X.method(a.b.X.S):0:s, a.b.X.method(a.b.X.S):0:s\
+                    """, vd0.knownVariableNamesToString());
 
-            // at this point, only s.r.i has a static value E=3; s.r and s do not have one ... should they?
-            // s.r should have component i=3
-            // s should have r.i=3
             assertNotNull(rInS.source());
             VariableExpression scope = runtime.newVariableExpressionBuilder().setVariable(s).setSource(rInS.source()).build();
+            VariableInfo vi0Sri = vd0.variableInfo("a.b.X.R.i#a.b.X.S.r#a.b.X.method(a.b.X.S):0:s");
+            assertEquals("E=3", vi0Sri.staticValues().toString());
+
             FieldReference sr = runtime.newFieldReference(rInS, scope, rInS.type());
             assertEquals("s.r", sr.toString());
             VariableInfo vi0Sr = vd0.variableInfo(sr);
-            assertEquals("s.r.i=3, this.i=3", vi0Sr.staticValues().toString());
-
+            assertEquals("this.i=3", vi0Sr.staticValues().toString());
             VariableInfo vi0S = vd0.variableInfo(s);
-            assertEquals("s.r=3, this.r.i=3", vi0S.staticValues().toString());
+            assertEquals("this.r.i=3", vi0S.staticValues().toString());
         }
     }
 
