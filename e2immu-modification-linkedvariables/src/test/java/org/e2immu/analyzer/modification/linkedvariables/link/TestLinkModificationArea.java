@@ -142,7 +142,7 @@ public class TestLinkModificationArea extends CommonTest {
             VariableInfo viRv = vd0.variableInfo(getT.fullyQualifiedName());
             assertEquals("E=r.a.t", viRv.staticValues().toString());
             // not recursive! we don't need the transitive completion here
-            assertEquals("*-4-0:a, *-4-1:r, -1-:t", viRv.linkedVariables().toString());
+            assertEquals("*-4-0:a, *-4-0:r, -1-:t", viRv.linkedVariables().toString());
         }
     }
 

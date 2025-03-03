@@ -224,7 +224,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1List2 = vd1.variableInfo("list2");
-            assertEquals("*M-2-2M|*-2.0:td, *M-2-0M|*-0:variables, -1-:variables[1]", vi1List2.linkedVariables().toString());
+            assertEquals("*M-2-0M|*-2.0:td, *M-2-0M|*-0:variables, -1-:variables[1]", vi1List2.linkedVariables().toString());
 
             assertEquals("E=td.variables[1]", vi1List2.staticValues().toString());
         }
@@ -251,7 +251,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertFalse(vi4i.isModified());
 
             VariableInfo vi4List2 = vd4.variableInfo("list2");
-            assertEquals("*M-2-2M|*-2.0:td, *M-2-0M|*-0:variables, -1-:variables[1]",
+            assertEquals("*M-2-0M|*-2.0:td, *M-2-0M|*-0:variables, -1-:variables[1]",
                     vi4List2.linkedVariables().toString());
             assertEquals("E=td.variables[1]", vi4List2.staticValues().toString());
         }

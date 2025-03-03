@@ -19,6 +19,7 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.type.TypeParameter;
 import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
@@ -91,25 +92,26 @@ class ExpressionAnalyzer {
 
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 EvaluationResult scope;
+                EvaluationResult index;
                 if (v instanceof FieldReference fr) {
                     scope = eval(fr.scope());
-                    builder.merge(scope);
+                    index = EvaluationResult.EMPTY;
                 } else if (v instanceof DependentVariable dv) {
                     scope = eval(dv.arrayExpression());
-                    builder.merge(scope);
-                    EvaluationResult index = eval(dv.indexExpression(), runtime.intParameterizedType());
-                    builder.merge(index);
+                    index = eval(dv.indexExpression(), runtime.intParameterizedType());
                 } else {
                     scope = EvaluationResult.EMPTY;
+                    index = EvaluationResult.EMPTY;
                 }
+                builder.merge(scope);
+                builder.merge(index);
 
-                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, scope, forwardType, builder);
+                LinkedVariables lvs = linkedVariablesOfVariableExpression(ve, v, scope, index, forwardType, builder);
                 // do we have a static value for 'v'? this static value can be in the current evaluation forward (NYI)
                 // or in the previous statement
                 Expression svExpression = inferStaticValues(ve);
                 StaticValues svs = StaticValuesImpl.of(svExpression);
                 StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, v);
-                recursivelyCollectLinksToScopeVariables(v, builder);
                 return builder
                         .setStaticValues(svs.merge(svsVar))
                         .setLinkedVariables(lvs)
@@ -258,31 +260,10 @@ class ExpressionAnalyzer {
                    && runtime.widestType(from, to).equals(from);
         }
 
-        private void recursivelyCollectLinksToScopeVariables(Variable v, EvaluationResult.Builder builder) {
-            if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve && !(ve.variable() instanceof This)) {
-                Value.Immutable immutable = analysisHelper.typeImmutable(v.parameterizedType());
-                if (immutable.isImmutable()) return; // no point linking
-                // we create a link from 'v' into its scope 've.variable()'
-                Indices modificationArea = new IndicesImpl(fr.fieldInfo().indexInType());
-                HiddenContentTypes hct = ve.variable().parameterizedType().bestTypeInfo().analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                Integer index = hct.indexOf(fr.fieldInfo().type());
-                Map<Indices, Link> map;
-                if (index == null) {
-                    map = Map.of();
-                    assert !immutable.isAtLeastImmutableHC();
-                } else {
-                    Link link = new LinkImpl(new IndicesImpl(index), immutable.isMutable());
-                    map = Map.of(IndicesImpl.ALL_INDICES, link);
-                }
-                Links links = new LinksImpl(map, IndicesImpl.ALL_INDICES, modificationArea);
-                LV lv = immutable.isMutable() ? LVImpl.createDependent(links) : LVImpl.createHC(links);
-                builder.merge(v, LinkedVariablesImpl.of(ve.variable(), lv));
-                recursivelyCollectLinksToScopeVariables(ve.variable(), builder);
-            }
-        }
-
-        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve, Variable variable,
+        private LinkedVariables linkedVariablesOfVariableExpression(VariableExpression ve,
+                                                                    Variable variable,
                                                                     EvaluationResult scope,
+                                                                    EvaluationResult index,
                                                                     ParameterizedType forwardType,
                                                                     EvaluationResult.Builder builder) {
             Map<Variable, LV> map = new HashMap<>();
@@ -302,6 +283,9 @@ class ExpressionAnalyzer {
                 }
             } else if (variable instanceof DependentVariable dv) {
                 dependentVariable = dv.arrayVariable();
+                if (dv.indexVariable() != null) {
+                    builder.merge(dv.indexVariable(), index.linkedVariables());
+                }
                 fieldIndex = 0;
                 fieldType = dv.arrayExpression().parameterizedType().copyWithOneFewerArrays();
             } else {
@@ -310,6 +294,8 @@ class ExpressionAnalyzer {
                 fieldType = null;
             }
             if (dependentVariable != null) {
+                builder.merge(dependentVariable, scope.linkedVariables());
+
                 scope.linkedVariables().variables().forEach((vv, lv) ->
                         linkToDependentVariable(ve, variable, forwardType, vv, lv, fieldIndex, fieldType, map));
             }
@@ -350,17 +336,18 @@ class ExpressionAnalyzer {
                 }
                 if (v instanceof DependentVariable) {
                     targetIndices = new IndicesImpl(0);
-                } else {
+                } else if (v instanceof FieldReference fr) {
                     TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
                     assert bestType != null : "The unbound type parameter does not have any fields";
                     HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                    Integer i = hct.indexOf(fieldType);
+                    ParameterizedType fieldType2 = replaceFieldType(fieldType, bestType, fr.scopeVariable());
+                    Integer i = hct.indexOf(fieldType2);
                     if (i != null) {
                         targetIndices = new IndicesImpl(i);
                     } else {
                         targetIndices = null;
                     }
-                }
+                } else throw new UnsupportedOperationException();
                 Map<Indices, Link> linkMap;
                 if (targetIndices == null) {
                     linkMap = Map.of();
@@ -368,7 +355,17 @@ class ExpressionAnalyzer {
                 } else {
                     linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
                 }
-                Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationArea);
+
+                // recursion
+                Indices targetModificationAreaRecursion;
+                if (currentLink.isDependent() && isMutable && targetModificationArea.haveValue()) {
+                    targetModificationAreaRecursion = targetModificationArea.prepend(currentLink.links().modificationAreaTarget());
+                } else {
+                    targetModificationAreaRecursion = targetModificationArea;
+                }
+
+                // create the link, and add it
+                Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
                 LV lv;
                 if (isMutable) {
                     lv = LVImpl.createDependent(links);
@@ -378,6 +375,28 @@ class ExpressionAnalyzer {
                 map.put(dependentVariable, lv);
 
             }
+        }
+
+        /*
+        situation: fieldType is T, TP#0 in M.
+        we need the HCT index of T in R, which holds an M object: record R<T>(M<T> a) {}
+        we must translate T as TP#0 in M to the T as TP#0 in R. There obviously is a relation.
+
+        FIXME needs generalizing, works in TestLinkModificationArea,test1c but probably not wider
+         */
+        private ParameterizedType replaceFieldType(ParameterizedType fieldType, TypeInfo targetType, Variable depVar) {
+            TypeParameter typeParameter = fieldType.typeParameter();
+            if (typeParameter != null && depVar instanceof FieldReference fr && notOwnedBy(typeParameter, targetType)) {
+                FieldInfo fieldInTargetType = fr.fieldInfo();
+                ParameterizedType ptFTT = fieldInTargetType.type();
+                return ptFTT.parameters().get(0);
+            }
+            return fieldType;
+        }
+
+        private boolean notOwnedBy(TypeParameter typeParameter, TypeInfo targetType) {
+            if (typeParameter.getOwner().isLeft()) return !targetType.equals(typeParameter.getOwner().getLeft());
+            throw new UnsupportedOperationException("NYI");
         }
 
         private void setStaticValuesForVariableHierarchy(Assignment assignment, EvaluationResult evalValue, EvaluationResult.Builder builder) {
