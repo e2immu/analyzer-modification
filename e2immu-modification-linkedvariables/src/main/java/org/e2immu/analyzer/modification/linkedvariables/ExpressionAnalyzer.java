@@ -114,6 +114,7 @@ class ExpressionAnalyzer {
                 StaticValues svsVar = StaticValuesImpl.from(variableDataPrevious, stageOfPrevious, v);
                 return builder
                         .setStaticValues(svs.merge(svsVar))
+                        .merge(v, lvs) // make sure the link isn't lost: write it out separately
                         .setLinkedVariables(lvs)
                         .build();
             }
@@ -294,10 +295,10 @@ class ExpressionAnalyzer {
                 fieldType = null;
             }
             if (dependentVariable != null) {
-                builder.merge(dependentVariable, scope.linkedVariables());
-
-                scope.linkedVariables().variables().forEach((vv, lv) ->
-                        linkToDependentVariable(ve, variable, forwardType, vv, lv, fieldIndex, fieldType, map));
+                // at this point, we only link to the dependent variable, and do not do the recursion down to
+                // its transitive closure. That is work for the graph algorithm in ComputeLinkCompletion
+                linkToDependentVariable(ve, variable, forwardType, dependentVariable,
+                        scope.linkedVariables().value(dependentVariable), fieldIndex, fieldType, map);
             }
             // adding existing linked variables is in general not necessary.
             // we do add them in case of functional interfaces, see TestLinkFunctional,5(m3)

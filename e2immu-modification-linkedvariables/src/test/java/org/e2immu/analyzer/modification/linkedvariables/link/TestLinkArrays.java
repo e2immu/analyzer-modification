@@ -100,24 +100,24 @@ public class TestLinkArrays extends CommonTest {
 
             VariableInfo vi0T0 = vd0.variableInfo("t0");
             assertEquals("E=i.variables[0]", vi0T0.staticValues().toString());
-            assertEquals("*-4-0:i, *-4-0:variables, -1-:variables[0]", vi0T0.linkedVariables().toString());
+            assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[0]", vi0T0.linkedVariables().toString());
 
             VariableInfo vi0Array = vd0.variableInfo(i);
-            assertEquals("0-4-*:t0, 0M-2-*M|0-*:variables, 0-4-*:variables[0]", vi0Array.linkedVariables().toString());
+            assertEquals("0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0]", vi0Array.linkedVariables().toString());
             assertFalse(vi0Array.isModified());
         }
         {
             VariableData vd1 = VariableDataImpl.of(method.methodBody().statements().get(1));
             VariableInfo vi1T0 = vd1.variableInfo("t0");
-            assertEquals("*-4-0:i, *-4-0:variables, -1-:variables[0]", vi1T0.linkedVariables().toString());
+            assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[0]", vi1T0.linkedVariables().toString());
             assertFalse(vi1T0.isModified());
 
             VariableInfo vi1T = vd1.variableInfo(t);
-            assertEquals("*-4-0:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
+            assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
             assertFalse(vi1T.isModified());
 
             VariableInfo vi1Array = vd1.variableInfo(i);
-            assertEquals("0-4-*:t, 0-4-*:t0, 0M-2-*M|0-*:variables, 0-4-*:variables[0], 0-4-*:variables[1]",
+            assertEquals("0M-4-*M:t, 0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0], 0M-4-*M:variables[1]",
                     vi1Array.linkedVariables().toString());
             assertTrue(vi1Array.isModified());
         }
@@ -175,11 +175,11 @@ public class TestLinkArrays extends CommonTest {
             assertFalse(vi1T0.isModified());
 
             VariableInfo vi1T = vd1.variableInfo(t);
-            assertEquals("*-4-0:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
+            assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
             assertFalse(vi1T.isModified());
 
             VariableInfo vi1Array = vd1.variableInfo(i);
-            assertEquals("0-4-*:t, 0M-2-*M|0-*:variables, 0-4-*:variables[1]",
+            assertEquals("0M-4-*M:t, 0M-2-*M|0-*:variables, 0M-4-*M:variables[1]",
                     vi1Array.linkedVariables().toString());
             assertTrue(vi1Array.isModified());
         }
@@ -226,11 +226,10 @@ public class TestLinkArrays extends CommonTest {
             VariableInfo viN = vd.variableInfo("n");
             assertEquals("", viN.linkedVariables().toString());
 
-            // FIXME should we already link a and a[0] ??
             VariableInfo viA = vd.variableInfo(a);
-            assertEquals("", viA.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:a[0]", viA.linkedVariables().toString());
             VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
-            assertEquals("", viA0.linkedVariables().toString());
+            assertEquals("*M-2-0M|*-0:a", viA0.linkedVariables().toString());
         }
 
         {
@@ -244,9 +243,9 @@ public class TestLinkArrays extends CommonTest {
             assertEquals("", viT.linkedVariables().toString());
 
             VariableInfo viA = vd.variableInfo(a);
-            assertEquals("", viA.linkedVariables().toString());
+            assertEquals("0M-2-*M|0-*:a[0]", viA.linkedVariables().toString());
             VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
-            assertEquals("", viA0.linkedVariables().toString());
+            assertEquals("*M-2-0M|*-0:a", viA0.linkedVariables().toString());
         }
         {
             Statement s30000 = transpose.methodBody().statements().get(3).block()
@@ -264,15 +263,19 @@ public class TestLinkArrays extends CommonTest {
                     viTJI.linkedVariables().toString());
 
             VariableInfo viT = vd.variableInfo("t");
-            assertEquals("0-2-0:a, 0-2-0:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-*M|0-*:t[j], 0M-2-*M|0.0-*:t[j][i]",
-                    viT.linkedVariables().toString());
+            assertEquals("""
+                    0M-2-0M:a, 0M-2-*M|0-*:a[0], 0-2-0:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-*M|0-*:t[j], 0M-2-*M|0.0-*:t[j][i]\
+                    """, viT.linkedVariables().toString());
 
             VariableInfo viA = vd.variableInfo(a);
-            assertEquals("0M-2-*M|0-*:a[i], 0M-2-*M|0.0-*:a[i][j], 0-2-0:t, 0-2-0:t[j], 0M-2-*M|0.0-*:t[j][i]",
-                    viA.linkedVariables().toString());
+            assertEquals("""
+                    0M-2-*M|0-*:a[0], 0M-2-*M|0-*:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-0M:t, 0-2-0:t[j], 0M-2-*M|0.0-*:t[j][i]\
+                    """, viA.linkedVariables().toString());
 
             VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
-            assertEquals("", viA0.linkedVariables().toString());
+            assertEquals("""
+                    *M-2-0M|*-0:a, -2-:a[i], 0M-2-*M|0-*:a[i][j], 0M-2-0M:t, 0-2-0:t[j], 0M-2-*M|0-*:t[j][i]\
+                    """, viA0.linkedVariables().toString());
         }
     }
 }

@@ -180,7 +180,7 @@ public class TestStaticValuesGetSet extends CommonTest {
             VariableInfo viRw = vd0.variableInfo("a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w");
             assertEquals("0-4-*:i, *-4-0:w", viRw.linkedVariables().toString());
             VariableInfo viIrw = vd0.variableInfo("a.b.X.R.i#a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w");
-            assertEquals("*-4-0:r, *-4-0:w|??", viIrw.linkedVariables().toString());
+            assertEquals("*-4-0:r, *-4-0|*-0.0:w", viIrw.linkedVariables().toString());
 
             assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
             assertEquals("-1-:i, *-4-0:r, *-4-0|*-0.0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
