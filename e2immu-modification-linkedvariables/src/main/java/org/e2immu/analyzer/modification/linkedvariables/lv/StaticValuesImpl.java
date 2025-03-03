@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public record StaticValuesImpl(ParameterizedType type,
                                Expression expression,
@@ -142,5 +143,13 @@ public record StaticValuesImpl(ParameterizedType type,
             }
         }
         return NONE;
+    }
+
+    @Override
+    public Stream<Variable> variableStreamDescend() {
+        Stream<Variable> s1 = expression == null ? Stream.of() : expression.variableStreamDescend();
+        Stream<Variable> s2 = values.entrySet().stream().flatMap(e ->
+                Stream.concat(e.getKey().variableStreamDescend(), e.getValue().variableStreamDescend()));
+        return Stream.concat(s1, s2);
     }
 }

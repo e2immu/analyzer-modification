@@ -418,14 +418,17 @@ class ExpressionAnalyzer {
                         builder.merge(dv.arrayVariable(), newSv);
                         v = dv.arrayVariable();
                         indexExpression = dv.indexExpression();
-                    } else if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression) {
+                    } else if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve) {
                         Variable variable;
+                        This thisVar = runtime.newThis(fr.scopeVariable().parameterizedType());
+                        VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar).setSource(ve.source()).build();
+                        FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), thisVarVe, fr.parameterizedType());
                         if (indexExpression != null) {
                             VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
-                                    .setVariable(fr).setSource(assignment.target().source()).build();
+                                    .setVariable(newFr).setSource(assignment.target().source()).build();
                             variable = runtime.newDependentVariable(arrayExpression, indexExpression);
                         } else {
-                            variable = fr;
+                            variable = newFr;
                         }
                         StaticValues newSv = new StaticValuesImpl(null, null, false, Map.of(variable, value));
                         builder.merge(fr.scopeVariable(), newSv);

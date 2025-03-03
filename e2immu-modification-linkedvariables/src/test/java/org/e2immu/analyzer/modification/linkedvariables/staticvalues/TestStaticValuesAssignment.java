@@ -200,10 +200,10 @@ public class TestStaticValuesAssignment extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(s1);
 
             VariableInfo vi1X = vd1.variableInfo("x");
-            assertEquals("Type a.b.X E=new X() this.j=3, x.j=3", vi1X.staticValues().toString());
+            assertEquals("Type a.b.X E=new X() this.j=3", vi1X.staticValues().toString());
         }
         StaticValues methodSv = method.analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-        assertEquals("Type a.b.X E=new X() this.j=3, x.j=3", methodSv.toString());
+        assertEquals("Type a.b.X E=new X() this.j=3", methodSv.toString());
     }
 
 
@@ -346,8 +346,7 @@ public class TestStaticValuesAssignment extends CommonTest {
 
             VariableInfo vi0R = vd0.variableInfo(r);
             assertEquals("", vi0R.linkedVariables().toString());
-            // IMPROVE the r.i=3 is maybe not necessary here
-            assertEquals("r.i=3, this.i=3", vi0R.staticValues().toString());
+            assertEquals("this.i=3", vi0R.staticValues().toString());
 
             VariableExpression scope = runtime.newVariableExpressionBuilder().setVariable(r).setSource(iField.source()).build();
             Variable ri = runtime.newFieldReference(iField, scope, iField.type());
@@ -474,13 +473,13 @@ public class TestStaticValuesAssignment extends CommonTest {
         assertEquals("t.s.r", tsr.toString());
 
         VariableInfo vi0Tsr = vd0.variableInfo(tsr);
-        assertEquals("t.s.r.i=3, this.i=3", vi0Tsr.staticValues().toString());
+        assertEquals("this.i=3", vi0Tsr.staticValues().toString());
 
         VariableInfo vi0Ts = vd0.variableInfo(ts);
-        assertEquals("t.s.r=3, this.r.i=3", vi0Ts.staticValues().toString());
+        assertEquals("this.r.i=3", vi0Ts.staticValues().toString());
 
         VariableInfo vi0T = vd0.variableInfo(t);
-        assertEquals("t.s=3, this.s.r.i=3", vi0T.staticValues().toString());
+        assertEquals("this.s.r.i=3", vi0T.staticValues().toString());
     }
 
     private void test6Method2(MethodInfo method, FieldInfo sInT, FieldInfo rInS) {

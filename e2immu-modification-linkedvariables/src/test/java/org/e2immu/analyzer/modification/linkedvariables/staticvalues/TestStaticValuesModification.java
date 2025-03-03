@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -398,10 +399,10 @@ public class TestStaticValuesModification extends CommonTest {
                     set.add(3);
                 }
             
-                void method2(Set<Integer> set) {
+                void method2(Set<Integer> integers) {
                     Object[] objects = new Object[2];
                     R r = new RI(objects);
-                    r.set(0, set); // via interface
+                    r.set(0, integers); // via interface
                     modify2(r, 0); // this action should see 'set' modified
                 }
             }
@@ -516,14 +517,26 @@ public class TestStaticValuesModification extends CommonTest {
         {
             MethodInfo method2 = X.findUniqueMethod("method2", 1);
             ParameterInfo method0 = method2.parameters().get(0);
+            {
+                // Object[] objects = new Object[2];
+                Statement s0 = method2.methodBody().statements().get(1);
+                VariableData vd1 = VariableDataImpl.of(s0);
+                VariableInfo vi0o = vd1.variableInfo("objects");
+                assertEquals("Type Object[] E=new Object[2]", vi0o.staticValues().toString());
+            }
             { // R r = new RI(objects)
                 Statement s1 = method2.methodBody().statements().get(1);
                 VariableData vd1 = VariableDataImpl.of(s1);
+                VariableInfo vi1o = vd1.variableInfo("objects");
+                assertEquals("Type Object[] E=new Object[2]", vi1o.staticValues().toString());
                 VariableInfo vi1r = vd1.variableInfo("r");
                 assertEquals("Type a.b.X.RI E=new RI(objects) this.objects=objects", vi1r.staticValues().toString());
             }
-            { // r.set(0, set)
+            { // r.set(0, integers)
                 Statement s2 = method2.methodBody().statements().get(2);
+                assertEquals("r.objects[0]=integers,r", s2.expression()
+                        .translate(new ApplyGetSetTranslation(runtime)).toString());
+
                 VariableData vd2 = VariableDataImpl.of(s2);
 
                 VariableInfo vi2set = vd2.variableInfo(method0);
@@ -531,7 +544,7 @@ public class TestStaticValuesModification extends CommonTest {
 
                 VariableInfo vi2r = vd2.variableInfo("r");
                 assertEquals("""
-                        Type a.b.X.RI E=new RI(objects) objects[0]=set, this.objects=objects, this.objects??set\
+                        Type a.b.X.RI E=new RI(objects) objects[0]=integers, this.objects=objects\
                         """, vi2r.staticValues().toString());
             }
             { // modify2(r, 0)

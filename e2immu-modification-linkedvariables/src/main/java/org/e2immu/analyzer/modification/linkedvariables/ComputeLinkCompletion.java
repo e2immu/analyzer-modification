@@ -15,6 +15,7 @@ import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -98,12 +99,10 @@ class ComputeLinkCompletion {
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 Variable variable = entry.getKey();
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());
-                if (!vic.has(stage)) {
-                    //     throw new UnsupportedOperationException("We should make an entry at this stage?");
-                }
                 VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
                 StaticValues merge = entry.getValue().stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
                 vii.staticValuesSet(merge);
+                assert entry.getKey() instanceof This || merge.variableStreamDescend().noneMatch(entry.getKey()::equals);
             }
         }
 
@@ -141,15 +140,27 @@ class ComputeLinkCompletion {
             if (newScope instanceof VariableExpression ve && !(ve.variable() instanceof This)) {
                 List<StaticValues> newList = values.stream().map(sv -> {
                     Expression expression;
+                    DependentVariable dependentVariable;
                     if (sv.expression() != null && sv.values().isEmpty()) {
                         expression = sv.expression();
+                        dependentVariable = null;
                     } else if (!sv.values().isEmpty()) {
-                        expression = sv.values().values().stream().findFirst().orElseThrow();
+                        Map.Entry<Variable, Expression> e = sv.values().entrySet().stream().findFirst().orElseThrow();
+                        expression = e.getValue();
+                        dependentVariable = e.getKey() instanceof DependentVariable dv ? dv : null;
                     } else {
                         return null; // empty sv
                     }
-                    Map<Variable, Expression> newMap = Map.of(runtime.newFieldReference(svFieldInfo, svScope,
-                            svFieldInfo.type()), expression);
+                    Map<Variable, Expression> newMap;
+                    if (dependentVariable != null) {
+                        FieldReference arrayVariable = runtime.newFieldReference(svFieldInfo, svScope, svFieldInfo.type());
+                        VariableExpression array = runtime.newVariableExpressionBuilder().setVariable(arrayVariable)
+                                .setSource(svScope.source()).build();
+                        DependentVariable dv = runtime.newDependentVariable(array, dependentVariable.indexExpression());
+                        newMap = Map.of(dv, expression);
+                    } else {
+                        newMap = Map.of(runtime.newFieldReference(svFieldInfo, svScope, svFieldInfo.type()), expression);
+                    }
                     return (StaticValues) new StaticValuesImpl(null, null, false, newMap);
                 }).filter(Objects::nonNull).toList();
                 Variable variable = ve.variable();
@@ -174,6 +185,14 @@ class ComputeLinkCompletion {
                     Expression newSvScope = suffix(fullScope, fr2.scope());
                     recursivelyAdd(append, fr2.scope(), fullScope, fr2, newSvScope, svFieldInfo, newList, variableData,
                             statementIndex);
+                }
+            }
+
+            // internal check
+            for (Map.Entry<Variable, List<StaticValues>> entry : append.entrySet()) {
+                Variable v = entry.getKey();
+                for (StaticValues sv : entry.getValue()) {
+                    assert sv.variableStreamDescend().noneMatch(v::equals);
                 }
             }
         }

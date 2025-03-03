@@ -7,6 +7,7 @@ import org.e2immu.language.cst.api.variable.Variable;
 
 import java.util.Map;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /*
 each object, even "ephemeral" ones during evaluation (and held in LinkEvaluation), can have statically assigned values
@@ -32,6 +33,9 @@ building in expression(), and values 'variables[0] -> i' and 'body -> this::some
 
 public interface StaticValues extends Value {
     boolean isEmpty();
+
+    // for internal testing
+    Stream<Variable> variableStreamDescend();
 
     /*
             when stored in a VI object, this should be identical to vi.variable().parameterizedType()

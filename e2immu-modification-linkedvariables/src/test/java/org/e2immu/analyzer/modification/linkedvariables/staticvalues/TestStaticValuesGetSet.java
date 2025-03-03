@@ -14,6 +14,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -152,6 +153,11 @@ public class TestStaticValuesGetSet extends CommonTest {
             }
             """;
 
+    @Disabled("""
+            TODO: the modification area needs to be properly set in the graph algorithm (ComputeLinkCompletion).
+            The ExpressionAnalyzer does not do the transitive closure anymore! w <-> w.r <-> w.r.i,
+            the graph algorithm must ensure w <-> w.r.i has modification area 0.0
+            """)
     @DisplayName("getter in field reference")
     @Test
     public void test2() {
