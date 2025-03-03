@@ -29,6 +29,8 @@ public record StaticValuesImpl(ParameterizedType type,
     }
 
     public static final StaticValues NONE = new StaticValuesImpl(null, null, false, Map.of());
+    public static final StaticValues NOT_COMPUTED = new StaticValuesImpl(null, null, true, Map.of());
+
     public static final Property STATIC_VALUES_METHOD = new PropertyImpl("staticValuesMethod", NONE);
     public static final Property STATIC_VALUES_FIELD = new PropertyImpl("staticValuesField", NONE);
     public static final Property STATIC_VALUES_PARAMETER = new PropertyImpl("staticValuesParameter", NONE);
@@ -39,7 +41,7 @@ public record StaticValuesImpl(ParameterizedType type,
 
     @Override
     public boolean isEmpty() {
-        return type == null && expression == null && values.isEmpty();
+        return type == null && expression == null && values.isEmpty() && !multipleExpressions;
     }
 
     @Override
@@ -149,7 +151,7 @@ public record StaticValuesImpl(ParameterizedType type,
     public Stream<Variable> targetVariableStreamDescend() {
         Stream<Variable> s1 = expression == null ? Stream.of() : expression.variableStreamDescend();
         Stream<Variable> s2 = values.entrySet().stream().flatMap(e ->
-             e.getKey().variableStreamDescend());
+                e.getKey().variableStreamDescend());
         return Stream.concat(s1, s2);
     }
 }

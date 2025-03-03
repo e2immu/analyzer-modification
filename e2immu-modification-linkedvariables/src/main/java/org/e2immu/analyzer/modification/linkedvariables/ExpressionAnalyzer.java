@@ -24,6 +24,7 @@ import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
@@ -193,7 +194,7 @@ class ExpressionAnalyzer {
 
                 LinkedVariables reduced = evaluationResults.stream().map(EvaluationResult::linkedVariables)
                         .reduce(EMPTY, LinkedVariables::merge);
-                return builder.setLinkedVariables(reduced).setStaticValues(NONE).build();
+                return builder.setLinkedVariables(reduced).setStaticValues(NOT_COMPUTED).build();
             }
             if (expression instanceof InlineConditional ic) {
                 EvaluationResult leCondition = eval(ic.condition());
@@ -201,7 +202,7 @@ class ExpressionAnalyzer {
                 EvaluationResult leIfFalse = eval(ic.ifFalse());
                 EvaluationResult.Builder b = new EvaluationResult.Builder().merge(leCondition).merge(leIfTrue).merge(leIfFalse);
                 LinkedVariables merge = leIfTrue.linkedVariables().merge(leIfFalse.linkedVariables());
-                return b.setLinkedVariables(merge).build();
+                return b.setLinkedVariables(merge).setStaticValues(NOT_COMPUTED).build();
             }
             if (expression instanceof ConstantExpression<?> ce) {
                 assert ce.source() != null;
@@ -212,32 +213,32 @@ class ExpressionAnalyzer {
                 EvaluationResult lhs = eval(bo.lhs());
                 EvaluationResult rhs = eval(bo.rhs());
                 return new EvaluationResult.Builder().merge(lhs).merge(rhs)
-                        .setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+                        .setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY).build();
             }
             if (expression instanceof UnaryOperator uo) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
-                builder.merge(eval(uo.expression())).setStaticValues(NONE).setLinkedVariables(EMPTY);
+                builder.merge(eval(uo.expression())).setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY);
                 return builder.build();
             }
             if (expression instanceof ArrayLength al) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
-                builder.merge(eval(al.scope())).setStaticValues(NONE).setLinkedVariables(EMPTY);
+                builder.merge(eval(al.scope())).setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY);
                 return builder.build();
             }
             if (expression instanceof And and) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 and.expressions().forEach(e -> builder.merge(eval(e)));
-                return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+                return builder.setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY).build();
             }
             if (expression instanceof Or or) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 or.expressions().forEach(e -> builder.merge(eval(e)));
-                return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+                return builder.setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY).build();
             }
             if (expression instanceof SwitchExpression) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 // TODO! this is a stub.
-                return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
+                return builder.setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY).build();
             }
             if (expression instanceof CommaExpression ce) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
@@ -591,6 +592,8 @@ class ExpressionAnalyzer {
 
         private void methodCallStaticValue(MethodCall mc, EvaluationResult.Builder builder, EvaluationResult leObject,
                                            List<EvaluationResult> leParams) {
+            builder.setStaticValues(NOT_COMPUTED);
+
             StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
 
             // identity method
@@ -630,11 +633,12 @@ class ExpressionAnalyzer {
                 Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
                 StaticValues sv = new StaticValuesImpl(svm.type(), null, false, svObjectValues);
                 builder.setStaticValues(sv);
-                if (!sv.isEmpty()) return;
             }
 
-            // fall-back... return method's value
-            builder.setStaticValues(new StaticValuesImpl(mc.concreteReturnType(), mc, false, Map.of()));
+            if(mc.methodInfo().analysis().getOrDefault(IMMUTABLE_METHOD, ValueImpl.ImmutableImpl.MUTABLE).isAtLeastImmutableHC()) {
+                StaticValues sv = new StaticValuesImpl(svm.type(), mc, false, Map.of());
+                builder.setStaticValues(sv);
+            }
         }
 
         private Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {
