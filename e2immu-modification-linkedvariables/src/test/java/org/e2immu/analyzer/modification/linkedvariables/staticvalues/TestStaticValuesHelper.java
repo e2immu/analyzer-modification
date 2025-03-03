@@ -9,6 +9,7 @@ import org.e2immu.language.cst.api.expression.Assignment;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.intellij.lang.annotations.Language;
@@ -154,5 +155,104 @@ public class TestStaticValuesHelper extends CommonTest {
                 a.b.X.method(a.b.X.S):0:s=[this.k=s.r.j], s.k=[Type int E=s.r.j]\
                 """, append.entrySet().stream().map(Object::toString).sorted().collect(Collectors.joining(", ")));
     }
+
+    @Language("java")
+    private static final String INPUT_3 = """
+            package a.b;
+            import java.util.Set;
+            class X {
+                int j;
+                int k;
+                void setJ(int jp) {
+                    j=jp;
+                }
+                void setJK(int jp, int kp) {
+                    j=jp;
+                    k=kp;
+                }
+            }
+            """;
+
+    @Test
+    public void test3a() {
+        TypeInfo X = javaInspector.parse(INPUT_3);
+        prepWork(X);
+
+        MethodInfo method = X.findUniqueMethod("setJ", 1);
+        Statement s0 = method.methodBody().statements().get(0);
+        Assignment a = (Assignment) s0.expression().translate(new ApplyGetSetTranslation(runtime));
+        assertEquals("this.j", a.target().toString());
+        StaticValues sv = new StaticValuesImpl(a.value().parameterizedType(), a.value(), false, Map.of());
+        assertEquals("Type int E=jp", sv.toString());
+        FieldReference fr = (FieldReference) a.variableTarget();
+        StaticValuesHelper svh = new StaticValuesHelper(runtime);
+        Map<Variable, List<StaticValues>> append = new HashMap<>();
+        List<StaticValues> list = new ArrayList<>();
+        list.add(sv);
+        append.put(fr, list);
+        svh.recursivelyAdd1(append, fr, a.source(), list, VariableDataImpl.of(s0), "0");
+        assertEquals("""
+                this.j=[Type int E=jp], this=[this.j=jp]\
+                """, append.entrySet().stream().map(Object::toString).sorted().collect(Collectors.joining(", ")));
+    }
+
+
+    @Test
+    public void test3b() {
+        TypeInfo X = javaInspector.parse(INPUT_3);
+        prepWork(X);
+
+        MethodInfo method = X.findUniqueMethod("setJK", 2);
+        Statement s1 = method.methodBody().statements().get(1);
+        Assignment a = (Assignment) s1.expression().translate(new ApplyGetSetTranslation(runtime));
+        assertEquals("this.k", a.target().toString());
+        StaticValues sv = new StaticValuesImpl(a.value().parameterizedType(), a.value(), false, Map.of());
+        assertEquals("Type int E=kp", sv.toString());
+        FieldReference fr = (FieldReference) a.variableTarget();
+        StaticValuesHelper svh = new StaticValuesHelper(runtime);
+        Map<Variable, List<StaticValues>> append = new HashMap<>();
+        List<StaticValues> list = new ArrayList<>();
+        list.add(sv);
+        append.put(fr, list);
+        svh.recursivelyAdd1(append, fr, a.source(), list, VariableDataImpl.of(s1), "0");
+        assertEquals("""
+                this.k=[Type int E=kp], this=[this.k=kp]\
+                """, append.entrySet().stream().map(Object::toString).sorted().collect(Collectors.joining(", ")));
+    }
+
+
+    @Language("java")
+    private static final String INPUT_4 = """
+            package a.b;
+            class X {
+                void set(int[] v, int k) {
+                    v[0] = k;
+                }
+            }
+            """;
+
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT_4);
+        prepWork(X);
+
+        MethodInfo method = X.findUniqueMethod("set", 2);
+        Statement s0 = method.methodBody().statements().get(0);
+        Assignment a = (Assignment) s0.expression().translate(new ApplyGetSetTranslation(runtime));
+        assertEquals("v[0]", a.target().toString());
+        StaticValues sv = new StaticValuesImpl(a.value().parameterizedType(), a.value(), false, Map.of());
+        assertEquals("Type int E=k", sv.toString());
+        DependentVariable dv = (DependentVariable) a.variableTarget();
+        StaticValuesHelper svh = new StaticValuesHelper(runtime);
+        Map<Variable, List<StaticValues>> append = new HashMap<>();
+        List<StaticValues> list = new ArrayList<>();
+        list.add(sv);
+        append.put(dv, list);
+        svh.add(a.source(),  VariableDataImpl.of(s0), "0", dv, list, append);
+        assertEquals("""
+                a.b.X.set(int[],int):0:v=[this[0]=k], v[0]=[Type int E=k]\
+                """, append.entrySet().stream().map(Object::toString).sorted().collect(Collectors.joining(", ")));
+    }
+
 
 }

@@ -81,6 +81,7 @@ class ComputeLinkCompletion {
                                       Stage stageOfPrevious,
                                       String statementIndex,
                                       Source source) {
+            staticValuesHelper.recursivelyAddAssignmentsAtScopeLevel(staticValues, source, variableData, statementIndex);
             if (previous != null) {
                 // copy previous assignment data into the map, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)
@@ -91,7 +92,6 @@ class ComputeLinkCompletion {
                             }
                         });
             }
-            staticValuesHelper.recursivelyAddAssignmentsAtScopeLevel(staticValues, source, variableData, statementIndex);
             for (Map.Entry<Variable, List<StaticValues>> entry : staticValues.entrySet()) {
                 Variable variable = entry.getKey();
                 VariableInfoContainer vic = variableData.variableInfoContainerOrNull(variable.fullyQualifiedName());

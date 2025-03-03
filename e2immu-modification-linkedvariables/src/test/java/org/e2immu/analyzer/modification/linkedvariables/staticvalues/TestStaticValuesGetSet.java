@@ -1,7 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
@@ -14,7 +13,6 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -153,11 +151,11 @@ public class TestStaticValuesGetSet extends CommonTest {
             }
             """;
 
-    @Disabled("""
-            TODO: the modification area needs to be properly set in the graph algorithm (ComputeLinkCompletion).
+    /*
+            FIXME: the modification area needs to be properly set in the graph algorithm (ComputeLinkCompletion).
             The ExpressionAnalyzer does not do the transitive closure anymore! w <-> w.r <-> w.r.i,
             the graph algorithm must ensure w <-> w.r.i has modification area 0.0
-            """)
+     */
     @DisplayName("getter in field reference")
     @Test
     public void test2() {
@@ -184,13 +182,16 @@ public class TestStaticValuesGetSet extends CommonTest {
                     """, vd0.knownVariableNamesToString());
 
             VariableInfo viRw = vd0.variableInfo("a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w");
+            assertNull(viRw.staticValues());
+
             assertEquals("0-4-*:i, *-4-0:w", viRw.linkedVariables().toString());
             VariableInfo viIrw = vd0.variableInfo("a.b.X.R.i#a.b.X.Wrapper.r#a.b.X.extract(a.b.X.Wrapper):0:w");
-            assertEquals("*-4-0:r, *-4-0|*-0.0:w", viIrw.linkedVariables().toString());
+            assertNull(viIrw.staticValues());
+
+            //FIXME assertEquals("*-4-0:r, *-4-0|*-0.0:w", viIrw.linkedVariables().toString());
 
             assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
-            assertEquals("-1-:i, *-4-0:r, *-4-0|*-0.0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY)
-                    .toString());
+            //FIXME assertEquals("-1-:i, *-4-0:r, *-4-0|*-0.0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
         }
     }
 }

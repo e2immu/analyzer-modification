@@ -442,7 +442,7 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableInfo viObjectsI = vd0.variableInfo("a.b.X.RI.objects[a.b.X.RI.set(int,Object):0:i]");
                 assertEquals("E=o", viObjectsI.staticValues().toString());
                 VariableInfo viObjects = vd0.variableInfo("a.b.X.RI.objects");
-                assertEquals("this[i]=o", viObjects.staticValues().toString()); // seems a bit weird
+                assertEquals("this[i]=o", viObjects.staticValues().toString());
                 VariableInfo viThis = vd0.variableInfo(runtime.newThis(RI.asParameterizedType()));
                 assertEquals("objects[i]=o", viThis.staticValues().toString());
             }
@@ -538,14 +538,23 @@ public class TestStaticValuesModification extends CommonTest {
                         .translate(new ApplyGetSetTranslation(runtime)).toString());
 
                 VariableData vd2 = VariableDataImpl.of(s2);
+                assertEquals("""
+                        a.b.X.R.objects#r, a.b.X.R.objects#r[0], a.b.X.method2(java.util.Set<Integer>):0:integers, objects, r\
+                        """, vd2.knownVariableNamesToString());
 
-                VariableInfo vi2set = vd2.variableInfo(method0);
-                assertFalse(vi2set.isModified());
+                VariableInfo vi2rObjects0 = vd2.variableInfo("a.b.X.R.objects#r[0]");
+                assertEquals("E=integers", vi2rObjects0.staticValues().toString());
+
+                VariableInfo vi2rObjects = vd2.variableInfo("a.b.X.R.objects#r");
+                assertEquals("this[0]=integers", vi2rObjects.staticValues().toString());
 
                 VariableInfo vi2r = vd2.variableInfo("r");
                 assertEquals("""
                         Type a.b.X.RI E=new RI(objects) objects[0]=integers, this.objects=objects\
                         """, vi2r.staticValues().toString());
+
+                VariableInfo vi2set = vd2.variableInfo(method0);
+                assertFalse(vi2set.isModified());
             }
             { // modify2(r, 0)
                 Statement s3 = method2.methodBody().statements().get(3);

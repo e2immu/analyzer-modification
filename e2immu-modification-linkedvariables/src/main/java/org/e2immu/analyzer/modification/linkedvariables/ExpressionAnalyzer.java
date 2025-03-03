@@ -134,7 +134,7 @@ class ExpressionAnalyzer {
                 if (!withoutVt.isEmpty()) {
                     builder.merge(assignment.variableTarget(), withoutVt);
                 }
-                setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
+             //   setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
                 if (assignment.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
                     markModified(fr.scopeVariable(), builder);
                 } else if (assignment.variableTarget() instanceof DependentVariable dv && dv.arrayVariable() != null) {
@@ -234,7 +234,7 @@ class ExpressionAnalyzer {
                 or.expressions().forEach(e -> builder.merge(eval(e)));
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
             }
-            if (expression instanceof SwitchExpression se) {
+            if (expression instanceof SwitchExpression) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
                 // TODO! this is a stub.
                 return builder.setStaticValues(NONE).setLinkedVariables(EMPTY).build();
@@ -398,44 +398,6 @@ class ExpressionAnalyzer {
         private boolean notOwnedBy(TypeParameter typeParameter, TypeInfo targetType) {
             if (typeParameter.getOwner().isLeft()) return !targetType.equals(typeParameter.getOwner().getLeft());
             throw new UnsupportedOperationException("NYI");
-        }
-
-        private void setStaticValuesForVariableHierarchy(Assignment assignment, EvaluationResult evalValue, EvaluationResult.Builder builder) {
-            // push values up in the variable hierarchy
-            Variable v = assignment.variableTarget();
-            Expression value = evalValue.staticValues().expression();
-            if (value != null) {
-                Expression indexExpression = null;
-                while (true) {
-                    if (v instanceof DependentVariable dv) {
-                        int arrays = dv.arrayVariableBase().parameterizedType().arrays();
-                        This thisVar = runtime.newThis(currentMethod.typeInfo().asParameterizedType()
-                                .copyWithArrays(arrays)); // irrelevant which type; this is very fake
-                        Variable base = dv.arrayVariableBase();
-                        TranslationMap tm = runtime.newTranslationMapBuilder().put(base, thisVar).build();
-                        Variable indexed = tm.translateVariableRecursively(assignment.variableTarget());
-                        StaticValues newSv = new StaticValuesImpl(null, null, false, Map.of(indexed, value));
-                        builder.merge(dv.arrayVariable(), newSv);
-                        v = dv.arrayVariable();
-                        indexExpression = dv.indexExpression();
-                    } else if (v instanceof FieldReference fr && fr.scope() instanceof VariableExpression ve) {
-                        Variable variable;
-                        This thisVar = runtime.newThis(fr.scopeVariable().parameterizedType());
-                        VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar).setSource(ve.source()).build();
-                        FieldReference newFr = runtime.newFieldReference(fr.fieldInfo(), thisVarVe, fr.parameterizedType());
-                        if (indexExpression != null) {
-                            VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
-                                    .setVariable(newFr).setSource(assignment.target().source()).build();
-                            variable = runtime.newDependentVariable(arrayExpression, indexExpression);
-                        } else {
-                            variable = newFr;
-                        }
-                        StaticValues newSv = new StaticValuesImpl(null, null, false, Map.of(variable, value));
-                        builder.merge(fr.scopeVariable(), newSv);
-                        v = fr.scopeVariable();
-                    } else break;
-                }
-            }
         }
 
         private Expression inferStaticValues(VariableExpression ve) {

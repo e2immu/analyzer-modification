@@ -502,13 +502,13 @@ public class TestStaticValuesAssignment extends CommonTest {
         assertEquals("t.s.r", tsr.toString());
 
         VariableInfo vi0Tsr = vd0.variableInfo(tsr);
-        assertEquals("t.s.r.i=3, this.i=3", vi0Tsr.staticValues().toString());
+        assertEquals("this.i=3", vi0Tsr.staticValues().toString());
 
         VariableInfo vi0Ts = vd0.variableInfo(ts);
-        assertEquals("t.s.r=3, this.r=3", vi0Ts.staticValues().toString());
+        assertEquals("this.r.i=3", vi0Ts.staticValues().toString());
 
         VariableInfo vi0T = vd0.variableInfo(t);
-        assertEquals("t.s=3, this.s.r=3", vi0T.staticValues().toString());
+        assertEquals("this.s.r.i=3", vi0T.staticValues().toString());
     }
 
 }
