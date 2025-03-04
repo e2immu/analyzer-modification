@@ -411,7 +411,7 @@ class ExpressionAnalyzer {
                 Variable variable = ve.variable();
                 VariableInfoContainer vicV = variableDataPrevious.variableInfoContainerOrNull(variable.fullyQualifiedName());
                 if (vicV != null) {
-                    VariableInfo viV = vicV.best();
+                    VariableInfo viV = vicV.best(stageOfPrevious);
                     StaticValues svV = viV.staticValues();
                     if (svV != null && svV.expression() != null) {
                         return svV.expression();
@@ -424,15 +424,21 @@ class ExpressionAnalyzer {
                     VariableInfoContainer vicSv = variableDataPrevious.variableInfoContainerOrNull(fr.scopeVariable()
                             .fullyQualifiedName());
                     if (vicSv != null) {
-                        VariableInfo viV = vicSv.best();
+                        VariableInfo viV = vicSv.best(stageOfPrevious);
                         StaticValues svV = viV.staticValues();
                         if (svV != null) {
                             Map<Variable, Expression> valueMap = new HashMap<>(svV.values());
                             ParameterizedType targetType = fr.scope().parameterizedType();
                             Map<Variable, Expression> completed = augmentWithImplementation(targetType, svV, valueMap);
                             FieldReference newFr = runtime.newFieldReference(fr.fieldInfo());
+                            TypeInfo frBestType = newFr.parameterizedType().bestTypeInfo();
+                            boolean isList = frBestType != null
+                                             && newFr.parameterizedType().arrays() == 0
+                                             && "java.util.List".equals(frBestType.fullyQualifiedName());
+                            ParameterizedType newPt = isList ? newFr.parameterizedType().copyWithArrays(1)
+                                    : newFr.parameterizedType();
                             DependentVariable newDv = runtime.newDependentVariable(runtime.newVariableExpression(newFr),
-                                    dv.indexExpression());
+                                    dv.indexExpression(), newPt);
                             Expression valueForField = completed.get(newDv);
                             if (valueForField != null) {
                                 return valueForField;
@@ -444,7 +450,7 @@ class ExpressionAnalyzer {
                     VariableInfoContainer vicSv = variableDataPrevious.variableInfoContainerOrNull(fr.scopeVariable()
                             .fullyQualifiedName());
                     if (vicSv != null) {
-                        VariableInfo viV = vicSv.best();
+                        VariableInfo viV = vicSv.best(stageOfPrevious);
                         StaticValues svV = viV.staticValues();
                         if (svV != null) {
                             Map<Variable, Expression> valueMap = new HashMap<>(svV.values());

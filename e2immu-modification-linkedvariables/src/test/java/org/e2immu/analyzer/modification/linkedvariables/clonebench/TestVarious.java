@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 
-public class TestNull extends CommonTest {
+public class TestVarious extends CommonTest {
 
     @Language("java")
     private static final String INPUT1 = """
@@ -46,7 +46,7 @@ public class TestNull extends CommonTest {
             import java.nio.ByteBuffer;
             import java.nio.channels.FileChannel;
             
-            public class Function18691649_file82633 {
+            public class X {
               public void read(File f) throws IOException {
                 FileInputStream fis = new FileInputStream(f);
                 FileChannel fc = fis.getChannel();
@@ -97,10 +97,80 @@ public class TestNull extends CommonTest {
             }
             """;
 
-    @DisplayName("??")
     @Test
     public void test2() {
         TypeInfo B = javaInspector.parse(INPUT2);
+        List<Info> ao = prepWork(B);
+        analyzer.doPrimaryType(B, ao);
+    }
+
+
+    @Language("java")
+    private static final String INPUT3 = """
+            import java.util.*;
+            
+            public class X {
+              private boolean addToSortedList(Object element) {
+                int min = 0;
+                int max = size() - 1;
+                boolean found = false;
+                int currentIndex = 0;
+                int compareResult;
+                if (max >= 0) {
+                  do {
+                    currentIndex = (min + max) / 2;
+                    compareResult = ((Comparable) myList.get(currentIndex)).compareTo(element);
+                    if (compareResult < 0) {
+                      min = currentIndex + 1;
+                    } else if (compareResult > 0) {
+                      max = currentIndex - 1;
+                    } else {
+                      found = true;
+                    }
+                  } while ((min <= max) && (found == false));
+                }
+                if (found == false && size() > 0) {
+                  if (((Comparable) element).compareTo(get(currentIndex)) > 0) {
+                    myList.add(currentIndex + 1, element);
+                  } else {
+                    myList.add(currentIndex, element);
+                  }
+                  return true;
+                } else if (found == false) {
+                  myList.add(currentIndex, element);
+                  return true;
+                } else {
+                  System.out.println("Element found in vector already.");
+                  return false;
+                }
+              }
+            
+              private List myList;
+            
+              /**
+               * Get the element at specified index
+               *
+               * @param index element index
+               * @return element from the index
+               */
+              public Object get(int index) {
+                return myList.get(index);
+              }
+            
+              /**
+               * Return the number of elements in the list.
+               *
+               * @return number of elements
+               */
+              public int size() {
+                return myList.size();
+              }
+            }
+            """;
+
+    @Test
+    public void test3() {
+        TypeInfo B = javaInspector.parse(INPUT3);
         List<Info> ao = prepWork(B);
         analyzer.doPrimaryType(B, ao);
     }
