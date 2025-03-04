@@ -259,23 +259,21 @@ public class TestLinkArrays extends CommonTest {
                             """,
                     vd.knownVariableNamesToString());
             VariableInfo viTJI = vd.variableInfo("t[j][i]");
-            assertEquals("*M-2-0M|*-0.0:a, *M-2-0M|*-0:a[i], -1-:a[i][j], *M-2-0M|*-0.0:t, *M-2-0M|*-0:t[j]",
+            assertEquals("*M-2-0M|*-?.?:a, *M-2-0M|*-?:a[i], -1-:a[i][j], *M-2-0M|*-?.?:t, *M-2-0M|*-?:t[j]",
                     viTJI.linkedVariables().toString());
 
             VariableInfo viT = vd.variableInfo("t");
             assertEquals("""
-                    0M-2-0M:a, 0M-2-*M|0-*:a[0], 0-2-0:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-*M|0-*:t[j], 0M-2-*M|0.0-*:t[j][i]\
+                    0M-2-0M:a, 0M-2-*M|0-*:a[0], 0-2-0:a[i], 0M-2-*M|?.?-*:a[i][j], 0M-2-*M|?-*:t[j], 0M-2-*M|?.?-*:t[j][i]\
                     """, viT.linkedVariables().toString());
 
             VariableInfo viA = vd.variableInfo(a);
             assertEquals("""
-                    0M-2-*M|0-*:a[0], 0M-2-*M|0-*:a[i], 0M-2-*M|0.0-*:a[i][j], 0M-2-0M:t, 0-2-0:t[j], 0M-2-*M|0.0-*:t[j][i]\
+                    0M-2-*M|0-*:a[0], 0M-2-*M|?-*:a[i], 0M-2-*M|?.?-*:a[i][j], 0M-2-0M:t, 0-2-0:t[j], 0M-2-*M|?.?-*:t[j][i]\
                     """, viA.linkedVariables().toString());
 
             VariableInfo viA0 = vd.variableInfo("a.b.B.transpose(a.b.B.M[][]):0:a[0]");
-            assertEquals("""
-                    *M-2-0M|*-0:a, -2-:a[i], 0M-2-*M|0-*:a[i][j], 0M-2-0M:t, 0-2-0:t[j], 0M-2-*M|0-*:t[j][i]\
-                    """, viA0.linkedVariables().toString());
+            assertEquals("*M-2-0M|*-0:a", viA0.linkedVariables().toString());
         }
     }
 }

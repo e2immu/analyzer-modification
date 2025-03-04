@@ -15,7 +15,8 @@ import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.*;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.UNSPECIFIED_MODIFICATION_INDICES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 /*
@@ -157,7 +158,7 @@ public class HiddenContentSelector implements Value {
         if (typeIn.typeInfo() == null && typeIn.typeParameter() == null) {
             // type is "?", or "?" extends Object
             return new HiddenContentSelector(hiddenContentTypes,
-                    Map.of(HiddenContentTypes.UNSPECIFIED_EXTENSION, new IndicesImpl(UNSPECIFIED)));
+                    Map.of(HiddenContentTypes.UNSPECIFIED_EXTENSION, UNSPECIFIED_MODIFICATION_INDICES));
         }
 
         boolean haveArrays = typeIn.arrays() > 0;

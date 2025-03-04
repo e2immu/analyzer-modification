@@ -10,12 +10,11 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
+import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.VariableExpression;
-import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.variable.FieldReference;
-import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
@@ -35,8 +34,10 @@ class ComputeLinkCompletion {
 
     private final Cache cache = new GraphCacheImpl(100);
     private final StaticValuesHelper staticValuesHelper;
+    private final AnalysisHelper analysisHelper;
 
-    ComputeLinkCompletion(StaticValuesHelper staticValuesHelper) {
+    ComputeLinkCompletion(AnalysisHelper analysisHelper, StaticValuesHelper staticValuesHelper) {
+        this.analysisHelper = analysisHelper;
         this.staticValuesHelper = staticValuesHelper;
     }
 
@@ -229,19 +230,27 @@ class ComputeLinkCompletion {
         }
 
 
+        /*
+        note that we do immutable checks again, because of downcasts of immutable objects into immutable HC objects
+        (e.g. an object array containing String objects)
+         */
         private Set<Variable> computeModified(VariableData previous,
                                               Stage stageOfPrevious,
                                               Set<Variable> modifiedInEval,
                                               ShortestPath shortestPath) {
-
-            Set<Variable> modified = new HashSet<>(modifiedInEval);
+            Set<Variable> modified = new HashSet<>();
+            for (Variable v : modifiedInEval) {
+                if (isNotImmutable(v)) modified.add(v);
+            }
             if (previous != null) {
                 for (Variable variable : shortestPath.variables()) {
                     VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
                     if (vicPrev != null) {
                         VariableInfo vi = vicPrev.best(stageOfPrevious);
                         if (vi != null && vi.analysis().getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
-                            modified.add(vi.variable());
+                            if (isNotImmutable(vi.variable())) {
+                                modified.add(vi.variable());
+                            }
                         }
                     }
                 }
@@ -256,13 +265,23 @@ class ComputeLinkCompletion {
                     for (Map.Entry<Variable, LV> e : links.entrySet()) {
                         Variable to = e.getKey();
                         if (to != variable && e.getValue().propagateModification()) {
-                            change |= newModified.add(to);
+                            if (isNotImmutable(to)) {
+                                change |= newModified.add(to);
+                            }
                         }
                     }
                 }
                 modified.addAll(newModified);
             }
             return modified;
+        }
+
+        /*
+        immutableHC is passed on, because those types can be downcast to mutable.
+         */
+        private boolean isNotImmutable(Variable variable) {
+            Value.Immutable immutable = analysisHelper.typeImmutable(variable.parameterizedType());
+            return !immutable.isImmutable();
         }
     }
 }

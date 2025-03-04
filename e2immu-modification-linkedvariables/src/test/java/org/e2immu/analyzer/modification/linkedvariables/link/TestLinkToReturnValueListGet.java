@@ -75,7 +75,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 LinkedVariablesImpl.EMPTY));
 
         MethodInfo listGet2 = X.findUniqueMethod("get2", 2);
-        assertEquals("*M-2-0M|*-0:_synthetic_list, -1-:_synthetic_list[i], *M-2-0M|*-0.0:list",
+        assertEquals("*M-2-0M|*-?:_synthetic_list, -1-:_synthetic_list[i], *M-2-0M|*-0.?:list",
                 listGet2.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                         LinkedVariablesImpl.EMPTY).toString());
 
@@ -177,7 +177,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 LinkedVariablesImpl.EMPTY));
 
         MethodInfo listGet2 = X.findUniqueMethod("get2", 2);
-        assertEquals("*M-2-0M|*-0:_synthetic_list, -1-:_synthetic_list[i]",
+        assertEquals("*M-2-0M|*-?:_synthetic_list, -1-:_synthetic_list[i]",
                 listGet2.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                         LinkedVariablesImpl.EMPTY).toString());
 

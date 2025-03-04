@@ -10,15 +10,18 @@ import org.e2immu.util.internal.util.ListUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> {
     public static final int ALL = -1;
+    public static final int UNSPECIFIED_MODIFICATION = -2;
     public static final int NO_MODIFICATION = -3;
     public static final Index ALL_INDEX = new IndexImpl(List.of(ALL));
     public static final Index NO_MODIFICATIO_INDEX = new IndexImpl(List.of(NO_MODIFICATION));
+    public static final Index UNSPECIFIED_MODIFICATION_INDEX = new IndexImpl(List.of(UNSPECIFIED_MODIFICATION));
 
     public static Index createZeroes(int arrays) {
         List<Integer> list = new ArrayList<>(arrays);
@@ -49,8 +52,14 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
 
     @Override
     public String toString() {
-        return list.stream().map(i -> i == ALL ? "*" : i == NO_MODIFICATION ? "X" : i.toString())
-                .collect(Collectors.joining("."));
+        return list.stream().map(IndexImpl::toString).collect(Collectors.joining("."));
+    }
+
+    private static String toString(int value) {
+        if (value == ALL) return "*";
+        if (value == UNSPECIFIED_MODIFICATION) return "?";
+        if (value == NO_MODIFICATION) return "X";
+        return Integer.toString(value);
     }
 
     /*

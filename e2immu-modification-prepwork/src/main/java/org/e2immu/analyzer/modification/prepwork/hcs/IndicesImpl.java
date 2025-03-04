@@ -15,8 +15,8 @@ import java.util.stream.Stream;
 public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices> {
     public static final Indices ALL_INDICES = new IndicesImpl(Set.of(IndexImpl.ALL_INDEX));
     public static final Indices NO_MODIFICATION_INDICES = new IndicesImpl(Set.of(IndexImpl.NO_MODIFICATIO_INDEX));
-
-    public static final int UNSPECIFIED = -2;
+    public static final Indices UNSPECIFIED_MODIFICATION_INDICES
+            = new IndicesImpl(Set.of(IndexImpl.UNSPECIFIED_MODIFICATION_INDEX));
 
     public IndicesImpl {
         assert set != null && !set.isEmpty() && (set.size() == 1 || set instanceof TreeSet);
@@ -51,12 +51,16 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
         return new IndicesImpl(set);
     }
 
-
     @Override
     public String toString() {
         if (isAll()) return "*";
         if (isNoModification()) return "X";
         return set.stream().map(Object::toString).collect(Collectors.joining(";"));
+    }
+
+    @Override
+    public boolean isUnspecified() {
+        return UNSPECIFIED_MODIFICATION_INDICES.equals(this);
     }
 
     @Override
@@ -159,8 +163,12 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
     @Override
     public boolean intersectionNonEmpty(Indices indices) {
         for (Index index : set) {
-            for (Index index1 : indices.set()) {
-                if (index.equals(index1)) return true;
+            if (!IndexImpl.UNSPECIFIED_MODIFICATION_INDEX.equals(index)) {
+                for (Index index1 : indices.set()) {
+                    if (!IndexImpl.UNSPECIFIED_MODIFICATION_INDEX.equals(index1)) {
+                        if (index.equals(index1)) return true;
+                    }
+                }
             }
         }
         return false;
@@ -169,8 +177,8 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
     @Override
     public Indices prepend(Indices modificationAreaTarget) {
         Set<Index> newSet = new TreeSet<>();
-        for(Index mine: set) {
-            for(Index theirs: modificationAreaTarget.set()) {
+        for (Index mine : set) {
+            for (Index theirs : modificationAreaTarget.set()) {
                 newSet.add(mine.prepend(theirs));
             }
         }

@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValue
 import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -291,7 +292,8 @@ class ExpressionAnalyzer {
                 if (dv.indexVariable() != null) {
                     builder.merge(dv.indexVariable(), index.linkedVariables());
                 }
-                fieldIndex = 0;
+                fieldIndex = dv.indexExpression() instanceof IntConstant ic ? ic.constant()
+                        : IndexImpl.UNSPECIFIED_MODIFICATION;
                 fieldType = dv.arrayExpression().parameterizedType().copyWithOneFewerArrays();
             } else {
                 dependentVariable = null;

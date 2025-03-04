@@ -20,6 +20,8 @@ public interface Indices extends Comparable<Indices> {
 
     boolean isNoModification();
 
+    boolean isUnspecified();
+
     Indices merge(Indices indices);
 
     ParameterizedType findInFormal(Runtime runtime, ParameterizedType type);

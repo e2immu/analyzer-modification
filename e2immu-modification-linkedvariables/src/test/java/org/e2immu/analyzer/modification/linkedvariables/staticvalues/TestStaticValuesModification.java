@@ -460,7 +460,7 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s0 = modify.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
-                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:ri",
+                assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:ri",
                         vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
                 assertEquals("E=ri.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
             }
@@ -469,7 +469,7 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
                 assertTrue(vi1Set.isModified());
-                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:ri",
+                assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:ri",
                         vi1Set.linkedVariables().toString());
                 assertEquals("E=ri.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
             }
@@ -497,7 +497,7 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s0 = modify2.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
-                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:r",
+                assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:r",
                         vi0Set.linkedVariables().toString()); // 4 because Object is immutable HC
                 assertEquals("E=r.objects[index]", vi0Set.staticValues().toString()); // this is the result of @GetSet
             }
@@ -506,7 +506,7 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
                 assertTrue(vi1Set.isModified());
-                assertEquals("*M-2-0M|*-0:objects, -1-:objects[index], *M-2-0M|*-0.0:r",
+                assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:r",
                         vi1Set.linkedVariables().toString());
                 assertEquals("E=r.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
             }

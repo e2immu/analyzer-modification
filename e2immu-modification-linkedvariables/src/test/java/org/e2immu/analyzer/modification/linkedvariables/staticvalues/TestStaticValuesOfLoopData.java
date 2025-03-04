@@ -208,7 +208,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             VariableData vd3 = VariableDataImpl.of(modify.methodBody().statements().get(3));
             VariableInfo vi3m = vd3.variableInfo("m");
             assertEquals("E=ld.variables[0] this[a][1]=m[a][0]", vi3m.staticValues().toString());
-            assertEquals("*M-2-0M|*-0.0:ld, 0M-2-*M|0-*:m[a], *M-2-0M|*-0:variables, -1-:variables[0]",
+            assertEquals("*M-2-0M|*-0.0:ld, 0M-2-*M|?-*:m[a], *M-2-0M|*-0:variables, -1-:variables[0]",
                     vi3m.linkedVariables().toString());
             assertTrue(vi3m.isModified());
 
@@ -225,7 +225,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             assertTrue(viLastM.isModified());
 
             VariableInfo viLastModified0 = vdLast.variableInfo(modify0);
-            assertEquals("0M-2-*M|0.0-*:m, 0M-2-*M|0.0.0-*:m[a], 0M-2-*M|0-*:variables, 0M-2-*M|0.0-*:variables[0]",
+            assertEquals("0M-2-*M|0.0-*:m, 0M-2-*M|0.0.?-*:m[a], 0M-2-*M|0-*:variables, 0M-2-*M|0.0-*:variables[0]",
                     viLastModified0.linkedVariables().toString());
             assertTrue(viLastModified0.isModified());
         }

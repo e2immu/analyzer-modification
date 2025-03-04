@@ -66,9 +66,9 @@ public class Analyzer {
         this.runtime = runtime;
         StaticValuesHelper staticValuesHelper = new StaticValuesHelper(runtime);
         expressionAnalyzer = new ExpressionAnalyzer(runtime, staticValuesHelper);
-        computeLinkCompletion = new ComputeLinkCompletion(staticValuesHelper); // has a cache, we want this to be stable
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
         this.analysisHelper = new AnalysisHelper();
+        computeLinkCompletion = new ComputeLinkCompletion(analysisHelper, staticValuesHelper); // has a cache, we want this to be stable
         this.getSetHelper = new GetSetHelper(runtime);
         computeImmutable = new ComputeImmutable();
         this.storeErrorsInPVMap = storeErrorsInPVMap;
