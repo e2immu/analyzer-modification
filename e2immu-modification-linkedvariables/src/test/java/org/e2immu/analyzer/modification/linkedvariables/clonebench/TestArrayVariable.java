@@ -65,7 +65,7 @@ public class TestArrayVariable extends CommonTest {
         the current code would have to use the parameterized type of DV.arrayExpression() rather that
         that of DV.arrayVariable() to allow for -2- links which would propagate the modification.
          */
-        assertFalse(put0.isModified());
+        assertTrue(put0.isModified());
     }
 
     @Language("java")
