@@ -4,6 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
@@ -57,7 +58,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
                        .build();
                    Loop.run(ld);
                }
-
+            
                 private void swap3(float[][] f) {
                    Loop.LoopData ld1 = new Loop.LoopDataImpl.Builder()
                        .body(this::modify)
@@ -83,6 +84,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         }
 
         testRun(loop);
+        testBuilder(loop.findSubType("LoopDataImpl").findSubType("Builder"));
 
         TypeInfo X = javaInspector.parse(INPUT);
         {
@@ -93,6 +95,15 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         testSwap1(X);
         testSwap2(X);
         testSwap3(X);
+    }
+
+    private static void testBuilder(TypeInfo builder) {
+        MethodInfo set = builder.findUniqueMethod("set", 2);
+        Value.FieldValue getSet = set.getSetField();
+        assertEquals("org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder.variables",
+                getSet.field().fullyQualifiedName());
+        assertTrue(getSet.hasIndex());
+        assertTrue(getSet.setter());
     }
 
     private static void testSwap3(TypeInfo X) {
@@ -148,8 +159,10 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         {
             VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
             VariableInfo vi0Ld = vd0.variableInfo("ld");
-            assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl variables[0]=f",
-                    vi0Ld.staticValues().toString());
+            assertEquals("""
+                    Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl \
+                    E=new Builder() variables[0]=f\
+                    """, vi0Ld.staticValues().toString());
         }
         {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));

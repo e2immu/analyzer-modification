@@ -291,7 +291,7 @@ public class TestLinkObjectRecursion extends CommonTest {
                 VariableData vd001 = VariableDataImpl.of(s001);
                 VariableInfo vi001This = vd001.variableInfo(thisVar);
                 VariableInfo vi001NextLd = vd001.variableInfo("nextLd");
-                assertEquals("Type a.b.X.LoopDataImpl", vi001NextLd.staticValues().toString());
+                assertEquals("Type a.b.X.LoopDataImpl E=this", vi001NextLd.staticValues().toString());
 
                 assertEquals("*M-2-3M:this", vi001NextLd.linkedVariables().toString());
                 assertEquals("3M-2-*M:nextLd", vi001This.linkedVariables().toString());
@@ -302,7 +302,7 @@ public class TestLinkObjectRecursion extends CommonTest {
                 VariableInfo vi002This = vd002.variableInfo(thisVar);
                 VariableInfo vi002NextLd = vd002.variableInfo("nextLd");
                 VariableInfo vi002Body = vd002.variableInfo(bodyFr);
-                assertEquals("Type a.b.X.LoopDataImpl", vi002NextLd.staticValues().toString());
+                assertEquals("Type a.b.X.LoopDataImpl E=this", vi002NextLd.staticValues().toString());
 
                 assertEquals("*M-4-0;1M:body, *M-2-3M:this", vi002NextLd.linkedVariables().toString());
                 assertEquals("3-4-0;1:body, 3M-2-*M:nextLd", vi002This.linkedVariables().toString());

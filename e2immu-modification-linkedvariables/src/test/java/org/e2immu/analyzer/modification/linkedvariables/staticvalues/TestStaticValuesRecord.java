@@ -364,7 +364,7 @@ public class TestStaticValuesRecord extends CommonTest {
             LocalVariable r = rLvc.localVariable();
             VariableData vd1 = VariableDataImpl.of(rLvc);
             VariableInfo rVi1 = vd1.variableInfo(r);
-            assertEquals("Type a.b.X.R this.i=3, this.list=List.of(0,1), this.set=in", rVi1.staticValues().toString());
+            assertEquals("Type a.b.X.R E=new Builder() this.i=3, this.list=List.of(0,1), this.set=in", rVi1.staticValues().toString());
         }
     }
 
@@ -436,7 +436,8 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(rLvc);
             VariableInfo rVi1 = vd1.variableInfo(r);
             // code of ExpressionAnalyzer.checkCaseForBuilder
-            assertEquals("Type a.b.X.R this.function=String::length, variables[0]=\"a\"", rVi1.staticValues().toString());
+            assertEquals("Type a.b.X.R E=new Builder() this.function=String::length, variables[0]=\"a\"",
+                    rVi1.staticValues().toString());
         }
         {
             Statement s2 = method.methodBody().statements().get(2);
@@ -501,7 +502,8 @@ public class TestStaticValuesRecord extends CommonTest {
             LocalVariable r = rLvc.localVariable();
             VariableData vd1 = VariableDataImpl.of(rLvc);
             VariableInfo rVi1 = vd1.variableInfo(r);
-            assertEquals("Type a.b.X.RI this.function=String::length, variables[0]=s", rVi1.staticValues().toString());
+            assertEquals("Type a.b.X.RI E=new Builder() this.function=String::length, variables[0]=s",
+                    rVi1.staticValues().toString());
         }
         {
             Statement s2 = method.methodBody().statements().get(2);

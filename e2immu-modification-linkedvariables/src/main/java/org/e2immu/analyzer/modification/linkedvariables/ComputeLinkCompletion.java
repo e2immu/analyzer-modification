@@ -36,8 +36,8 @@ class ComputeLinkCompletion {
     private final Cache cache = new GraphCacheImpl(100);
     private final StaticValuesHelper staticValuesHelper;
 
-    ComputeLinkCompletion(Runtime runtime) {
-        this.staticValuesHelper = new StaticValuesHelper(runtime);
+    ComputeLinkCompletion(StaticValuesHelper staticValuesHelper) {
+        this.staticValuesHelper = staticValuesHelper;
     }
 
     class Builder {

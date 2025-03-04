@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
+import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
@@ -24,7 +25,6 @@ import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.e2immu.language.inspection.impl.parser.GenericsHelperImpl;
@@ -55,13 +55,15 @@ class ExpressionAnalyzer {
     private final AnalysisHelper analysisHelper;
     private final LinkHelperFunctional linkHelperFunctional;
     private final ApplyGetSetTranslation applyGetSetTranslation;
+    private final StaticValuesHelper staticValuesHelper;
 
-    public ExpressionAnalyzer(Runtime runtime) {
+    public ExpressionAnalyzer(Runtime runtime, StaticValuesHelper staticValuesHelper) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper();
         this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
         this.applyGetSetTranslation = new ApplyGetSetTranslation(runtime);
+        this.staticValuesHelper = staticValuesHelper;
     }
 
     public EvaluationResult linkEvaluation(MethodInfo currentMethod,
@@ -135,7 +137,7 @@ class ExpressionAnalyzer {
                 if (!withoutVt.isEmpty()) {
                     builder.merge(assignment.variableTarget(), withoutVt);
                 }
-             //   setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
+                //   setStaticValuesForVariableHierarchy(assignment, evalValue, builder);
                 if (assignment.variableTarget() instanceof FieldReference fr && fr.scopeVariable() != null) {
                     markModified(fr.scopeVariable(), builder);
                 } else if (assignment.variableTarget() instanceof DependentVariable dv && dv.arrayVariable() != null) {
@@ -592,10 +594,6 @@ class ExpressionAnalyzer {
 
         private void methodCallStaticValue(MethodCall mc, EvaluationResult.Builder builder, EvaluationResult leObject,
                                            List<EvaluationResult> leParams) {
-            builder.setStaticValues(NOT_COMPUTED);
-
-            StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
-
             // identity method
             if (mc.methodInfo().isIdentity()) {
                 builder.setStaticValues(leParams.get(0).staticValues());
@@ -605,91 +603,47 @@ class ExpressionAnalyzer {
             assert mc.methodInfo().analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY).field() == null
                     : "Should have been filtered out!";
 
-            // fluent method that sets values, but not technically a setter
-            if (mc.methodInfo().hasReturnValue() && mc.methodInfo().isFluent()
-                && svm.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
-                StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
-                builder.setStaticValues(sv);
-                // we also add to the object, in case we're not picking up on the result (method2)
-                if (mc.object() instanceof VariableExpression veObject && !(veObject.variable() instanceof This)) {
-                    builder.merge(veObject.variable(), sv);
-                }
-                return;
-            }
-
-            // copy into the object, if it is a variable; serves non-fluent setters
-            if (mc.object() instanceof VariableExpression ve
-                && !mc.methodInfo().hasReturnValue()
-                && !(ve.variable() instanceof This)) {
-                StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
-                builder.merge(ve.variable(), sv);
-                return;
-            }
-
-            // and if we have a return value and our object is variable, copy from the object into the return value
-            // adjusting for the object
+            StaticValues svm = mc.methodInfo().analysis().getOrDefault(STATIC_VALUES_METHOD, NONE);
             if (mc.methodInfo().hasReturnValue()) {
-                StaticValues svObject = leObject.staticValues();
-                Map<Variable, Expression> svObjectValues = checkCaseForBuilder(mc, svObject);
-                StaticValues sv = new StaticValuesImpl(svm.type(), null, false, svObjectValues);
-                builder.setStaticValues(sv);
-            }
 
-            if(mc.methodInfo().analysis().getOrDefault(IMMUTABLE_METHOD, ValueImpl.ImmutableImpl.MUTABLE).isAtLeastImmutableHC()) {
-                StaticValues sv = new StaticValuesImpl(svm.type(), mc, false, Map.of());
-                builder.setStaticValues(sv);
-            }
-        }
-
-        private Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {
-
-            // case for builder()
-            Map<Variable, Expression> existingMap = svObject == null ? Map.of() : svObject.values();
-
-            StaticValues sv = mc.methodInfo().analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
-            LOGGER.debug("return value: {}", sv);
-            if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
-                // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
-                return staticValuesInCaseOfABuilder(cc, existingMap);
-            }
-
-            return existingMap;
-        }
-
-        private Map<Variable, Expression> staticValuesInCaseOfABuilder(ConstructorCall cc, Map<Variable, Expression> existingMap) {
-            Map<Variable, Expression> svObjectValues = new HashMap<>();
-            for (ParameterInfo pi : cc.constructor().parameters()) {
-                StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
-                Expression arg = cc.parameterExpressions().get(pi.index());
-
-                // builder situation
-                if (arg instanceof VariableExpression veArg
-                    && svPi.expression() instanceof VariableExpression ve
-                    && ve.variable() instanceof FieldReference fr) {
-                    // replace the value in svObject.values() to this one...
-
-                    // array components, see TestStaticValuesRecord,6
-                    if (fr.parameterizedType().arrays() > 0
-                        && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
-                        // can we add components of the array?
-                        for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
-                            if (entry.getKey() instanceof DependentVariable dv
-                                && dv.arrayVariable().equals(veArg.variable())) {
-                                DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
-                                svObjectValues.put(newDv, entry.getValue());
-                            }
-                        }
-                    } else {
-                        // whole objects
-                        Expression value = existingMap.get(veArg.variable());
-                        if (value != null) {
-                            svObjectValues.put(fr, value);
-                        }
+                // fluent method that sets values, but not technically a setter
+                if (mc.methodInfo().isFluent() && svm.expression() instanceof VariableExpression ve
+                    && ve.variable() instanceof This) {
+                    StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
+                    builder.setStaticValues(sv);
+                    // we also add to the object, in case we're not picking up on the result (method2)
+                    if (mc.object() instanceof VariableExpression veObject && !(veObject.variable() instanceof This)) {
+                        builder.merge(veObject.variable(), sv);
                     }
+                    return;
+                }
+
+                // builders
+                Map<Variable, Expression> svObjectValues = staticValuesHelper.checkCaseForBuilder(mc, leObject.staticValues());
+                if (svObjectValues != null) {
+                    StaticValues sv = new StaticValuesImpl(svm.type(), leObject.staticValues().expression(),
+                            false, svObjectValues);
+                    builder.setStaticValues(sv);
+                    return;
+                }
+
+                // factory methods
+                if (mc.methodInfo().isFactoryMethod() && mc.methodInfo().analysis()
+                        .getOrDefault(IMMUTABLE_METHOD, ValueImpl.ImmutableImpl.MUTABLE).isAtLeastImmutableHC()) {
+                    StaticValues sv = new StaticValuesImpl(svm.type(), mc, false, Map.of());
+                    builder.setStaticValues(sv);
+                    return;
+                }
+
+                builder.setStaticValues(NOT_COMPUTED);
+            } else {
+                if (mc.object() instanceof VariableExpression ve && !(ve.variable() instanceof This)) {
+                    StaticValues sv = makeSvFromMethodCall(mc, leObject, svm);
+                    builder.merge(ve.variable(), sv);
                 }
             }
-            return svObjectValues;
         }
+
 
         private StaticValues makeSvFromMethodCall(MethodCall mc, EvaluationResult leObject, StaticValues svm) {
             Map<Variable, Expression> map = new HashMap<>();

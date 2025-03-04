@@ -6,9 +6,12 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.element.Source;
+import org.e2immu.language.cst.api.expression.ConstructorCall;
 import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.DependentVariable;
@@ -19,6 +22,8 @@ import org.e2immu.support.Either;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 
 public record StaticValuesHelper(Runtime runtime) {
 
@@ -174,5 +179,55 @@ public record StaticValuesHelper(Runtime runtime) {
             return runtime.newVariableExpressionBuilder().setVariable(newFr).setSource(all.source()).build();
         }
         throw new UnsupportedOperationException();
+    }
+
+
+    public Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {
+
+        // case for builder()
+        Map<Variable, Expression> existingMap = svObject == null ? Map.of() : svObject.values();
+
+        StaticValues sv = mc.methodInfo().analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
+        if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
+            // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
+            return staticValuesInCaseOfABuilder(cc, existingMap);
+        }
+
+        return null;
+    }
+
+    private Map<Variable, Expression> staticValuesInCaseOfABuilder(ConstructorCall cc, Map<Variable, Expression> existingMap) {
+        Map<Variable, Expression> svObjectValues = new HashMap<>();
+        for (ParameterInfo pi : cc.constructor().parameters()) {
+            StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
+            Expression arg = cc.parameterExpressions().get(pi.index());
+
+            // builder situation
+            if (arg instanceof VariableExpression veArg
+                && svPi.expression() instanceof VariableExpression ve
+                && ve.variable() instanceof FieldReference fr) {
+                // replace the value in svObject.values() to this one...
+
+                // array components, see TestStaticValuesRecord,6
+                if (fr.parameterizedType().arrays() > 0
+                    && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
+                    // can we add components of the array?
+                    for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
+                        if (entry.getKey() instanceof DependentVariable dv
+                            && dv.arrayVariable().equals(veArg.variable())) {
+                            DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
+                            svObjectValues.put(newDv, entry.getValue());
+                        }
+                    }
+                } else {
+                    // whole objects
+                    Expression value = existingMap.get(veArg.variable());
+                    if (value != null) {
+                        svObjectValues.put(fr, value);
+                    }
+                }
+            }
+        }
+        return svObjectValues;
     }
 }

@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
@@ -63,8 +64,9 @@ public class Analyzer {
 
     public Analyzer(Runtime runtime, boolean storeErrorsInPVMap) {
         this.runtime = runtime;
-        expressionAnalyzer = new ExpressionAnalyzer(runtime);
-        computeLinkCompletion = new ComputeLinkCompletion(runtime); // has a cache, we want this to be stable
+        StaticValuesHelper staticValuesHelper = new StaticValuesHelper(runtime);
+        expressionAnalyzer = new ExpressionAnalyzer(runtime, staticValuesHelper);
+        computeLinkCompletion = new ComputeLinkCompletion(staticValuesHelper); // has a cache, we want this to be stable
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
         this.analysisHelper = new AnalysisHelper();
         this.getSetHelper = new GetSetHelper(runtime);
@@ -412,10 +414,11 @@ public class Analyzer {
                 // see TestStaticValuesAssignment: when returning this, we add the static values of the fields
                 if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof This) {
                     Map<Variable, Expression> map =
-                            previous.variableInfoStream(stageOfPrevious)
-                                    .filter(vi2 -> vi2.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                                    .filter(vi2 -> vi2.staticValues() != null && vi2.staticValues().expression() != null)
-                                    .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi2 -> vi2.staticValues().expression()));
+                            previous == null ? Map.of() :
+                                    previous.variableInfoStream(stageOfPrevious)
+                                            .filter(vi2 -> vi2.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                                            .filter(vi2 -> vi2.staticValues() != null && vi2.staticValues().expression() != null)
+                                            .collect(Collectors.toUnmodifiableMap(VariableInfo::variable, vi2 -> vi2.staticValues().expression()));
                     if (!map.isEmpty()) {
                         clcBuilder.addAssignment(rv, new StaticValuesImpl(null, sv.expression(), false, map));
                     } else {

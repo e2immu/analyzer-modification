@@ -33,7 +33,7 @@ public class TestCloneBench extends CommonTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBench.class);
 
     public TestCloneBench() {
-        super(true, "jmods/java.desktop.jmod",
+        super(false, "jmods/java.desktop.jmod",
                 "jmods/java.compiler.jmod",
                 "jmods/java.datatransfer.jmod",
                 "jmods/java.sql.jmod",

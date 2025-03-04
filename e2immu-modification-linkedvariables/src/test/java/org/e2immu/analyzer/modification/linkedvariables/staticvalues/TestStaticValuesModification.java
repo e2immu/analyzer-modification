@@ -341,7 +341,7 @@ public class TestStaticValuesModification extends CommonTest {
 
                 // FIXME ditto which one is best? "Type a.b.X.RI this.list=l, this.set=s"
                 assertEquals("""
-                        Type a.b.X.RI this.list=new ArrayList<>(), this.set=new HashSet<>()\
+                        Type a.b.X.RI E=new Builder() this.list=new ArrayList<>(), this.set=new HashSet<>()\
                         """, vi4R.staticValues().toString());
                 Variable v0 = vi4R.staticValues().values().keySet().stream().findFirst().orElseThrow();
                 if (v0 instanceof FieldReference fr) {
