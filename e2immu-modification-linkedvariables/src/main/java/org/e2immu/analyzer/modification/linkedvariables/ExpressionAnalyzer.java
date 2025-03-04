@@ -156,6 +156,7 @@ class ExpressionAnalyzer {
                 if (cc.constructor() != null) {
                     return linkEvaluationOfConstructorCall(currentMethod, cc);
                 }
+                return EvaluationResult.EMPTY;
             }
             if (expression instanceof MethodReference mr) {
                 return linkEvaluationOfMethodReference(currentMethod, mr);

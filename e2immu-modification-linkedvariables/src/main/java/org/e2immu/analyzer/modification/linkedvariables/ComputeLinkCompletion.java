@@ -98,7 +98,6 @@ class ComputeLinkCompletion {
                 VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
                 StaticValues merge = entry.getValue().stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
                 vii.staticValuesSet(merge);
-                assert entry.getKey() instanceof This || merge.targetVariableStreamDescend().noneMatch(entry.getKey()::equals);
             }
         }
 

@@ -146,12 +146,4 @@ public record StaticValuesImpl(ParameterizedType type,
         }
         return NONE;
     }
-
-    @Override
-    public Stream<Variable> targetVariableStreamDescend() {
-        Stream<Variable> s1 = expression == null ? Stream.of() : expression.variableStreamDescend();
-        Stream<Variable> s2 = values.entrySet().stream().flatMap(e ->
-                e.getKey().variableStreamDescend());
-        return Stream.concat(s1, s2);
-    }
 }

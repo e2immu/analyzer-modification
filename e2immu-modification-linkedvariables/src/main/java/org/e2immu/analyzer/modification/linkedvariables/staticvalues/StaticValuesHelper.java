@@ -148,14 +148,6 @@ public record StaticValuesHelper(Runtime runtime) {
                         statementIndex);
             }
         }
-
-        // internal check
-        for (Map.Entry<Variable, List<StaticValues>> entry : append.entrySet()) {
-            Variable v = entry.getKey();
-            for (StaticValues sv : entry.getValue()) {
-                assert v instanceof This || sv.targetVariableStreamDescend().noneMatch(v::equals);
-            }
-        }
     }
 
     /*

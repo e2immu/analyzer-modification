@@ -34,9 +34,6 @@ building in expression(), and values 'variables[0] -> i' and 'body -> this::some
 public interface StaticValues extends Value {
     boolean isEmpty();
 
-    // for internal testing
-    Stream<Variable> targetVariableStreamDescend();
-
     /*
             when stored in a VI object, this should be identical to vi.variable().parameterizedType()
             relevant when ephemeral, as in the above example.
