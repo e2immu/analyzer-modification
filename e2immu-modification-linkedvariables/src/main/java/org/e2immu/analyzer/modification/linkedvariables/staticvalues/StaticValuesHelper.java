@@ -14,6 +14,7 @@ import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.translate.TranslationMap;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
@@ -174,21 +175,33 @@ public record StaticValuesHelper(Runtime runtime) {
     }
 
 
-    public Map<Variable, Expression> checkCaseForBuilder(MethodCall mc, StaticValues svObject) {
+    public Map<Variable, Expression> checkCaseForBuilder(MethodCall mc,
+                                                         ParameterizedType thisType,
+                                                         Expression substituteForThis,
+                                                         Map<Variable, Expression> values,
+                                                         Map<Variable, StaticValues> assignments) {
 
         // case for builder()
-        Map<Variable, Expression> existingMap = svObject == null ? Map.of() : svObject.values();
 
         StaticValues sv = mc.methodInfo().analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
         if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
+            Map<Variable, Expression> existingMap = new HashMap<>(values);
+            for(Map.Entry<Variable, StaticValues> e: assignments.entrySet()) {
+                if(e.getValue().expression() != null) {
+                    existingMap.putIfAbsent(e.getKey(), e.getValue().expression());
+                }
+            }
             // do a mapping of svObject.values() to the fields to which the parameters of the constructor call link
-            return staticValuesInCaseOfABuilder(cc, existingMap);
+            return staticValuesInCaseOfABuilder(cc, thisType, substituteForThis, existingMap);
         }
 
         return null;
     }
 
-    private Map<Variable, Expression> staticValuesInCaseOfABuilder(ConstructorCall cc, Map<Variable, Expression> existingMap) {
+    private Map<Variable, Expression> staticValuesInCaseOfABuilder(ConstructorCall cc,
+                                                                   ParameterizedType thisType,
+                                                                   Expression substituteForThis,
+                                                                   Map<Variable, Expression> existingMap) {
         Map<Variable, Expression> svObjectValues = new HashMap<>();
         for (ParameterInfo pi : cc.constructor().parameters()) {
             StaticValues svPi = pi.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
@@ -205,10 +218,16 @@ public record StaticValuesHelper(Runtime runtime) {
                     && pi.parameterizedType().arrays() == fr.parameterizedType().arrays()) {
                     // can we add components of the array?
                     for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
-                        if (entry.getKey() instanceof DependentVariable dv
-                            && dv.arrayVariable().equals(veArg.variable())) {
-                            DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
-                            svObjectValues.put(newDv, entry.getValue());
+                        if (entry.getKey() instanceof DependentVariable dv) {
+                            Variable thisVar = runtime.newThis(thisType);
+                            VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar)
+                                    .setSource(substituteForThis.source()).build();
+                            TranslationMap tm = runtime.newTranslationMapBuilder().put(substituteForThis, thisVarVe).build();
+                            Variable arrayVarTm =((VariableExpression) dv.arrayExpression().translate(tm)).variable();
+                            if (arrayVarTm.equals(veArg.variable())) {
+                                DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
+                                svObjectValues.put(newDv, entry.getValue());
+                            }
                         }
                     }
                 } else {

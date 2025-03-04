@@ -620,7 +620,11 @@ class ExpressionAnalyzer {
                 }
 
                 // builders
-                Map<Variable, Expression> svObjectValues = staticValuesHelper.checkCaseForBuilder(mc, leObject.staticValues());
+                Map<Variable, Expression> svObjectValues = staticValuesHelper.checkCaseForBuilder(mc,
+                        mc.concreteReturnType(),
+                        leObject.staticValues().expression(),
+                        leObject.staticValues().values(),
+                        leObject.assignments());
                 if (svObjectValues != null) {
                     StaticValues sv = new StaticValuesImpl(svm.type(), leObject.staticValues().expression(),
                             false, svObjectValues);

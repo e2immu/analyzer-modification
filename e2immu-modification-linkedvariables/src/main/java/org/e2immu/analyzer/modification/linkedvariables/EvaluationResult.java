@@ -56,6 +56,10 @@ class EvaluationResult {
     Assignment expression.field=value
 
     -> SV E=expression this.field=value
+
+    IMPORTANT: very similar code is already in the builder detection code in StaticValuesHelper.checkCaseForBuilder.
+    However, over there we have a chance to change the value of "this" to the correct one for propagation.
+    Here, we simply collect.
      */
     public StaticValues gatherAllStaticValues(Runtime runtime) {
         Map<Variable, Expression> updatedValueMap = new HashMap<>();

@@ -6,6 +6,9 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
+import org.e2immu.language.cst.api.variable.DependentVariable;
+import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -129,8 +132,12 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         {
             VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
             VariableInfo vi0Ld = vd0.variableInfo("ld");
-            assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl this.body=this::modify, variables[0]=f",
-                    vi0Ld.staticValues().toString());
+            assertEquals("""
+                    Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl \
+                    E=new Builder() this.body=this::modify, variables[0]=f, variables[0]=f\
+                    """, vi0Ld.staticValues().toString());
+            // NOTE the double variables[0]=f is due to different 'this.variables' scope this vars,
+            // with the StaticValuesHelper.checkForBuilder injecting the "correct" one
         }
         {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
@@ -161,13 +168,20 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             VariableInfo vi0Ld = vd0.variableInfo("ld");
             assertEquals("""
                     Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl \
-                    E=new Builder() variables[0]=f\
+                    E=new Builder() variables[0]=f, variables[0]=f\
                     """, vi0Ld.staticValues().toString());
+            // NOTE: there are different "this.variables" here
+            DependentVariable thisVariables0 = (DependentVariable) vi0Ld.staticValues().values().keySet()
+                    .stream().findFirst().orElseThrow();
+            FieldReference thisVariables = (FieldReference) thisVariables0.arrayVariable();
+            This thisVar = (This) thisVariables.scopeVariable();
+            assertEquals("org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder.this",
+                    thisVar.fullyQualifiedName());
         }
         {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
             VariableInfo vi1Ld = vd1.variableInfo("ld");
-            assertTrue(vi1Ld.isModified()); // FIXME check
+            assertTrue(vi1Ld.isModified());
             VariableInfo vi1f = vd1.variableInfo(swap0);
             assertTrue(vi1f.isModified());
         }
