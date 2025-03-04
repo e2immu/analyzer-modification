@@ -115,8 +115,11 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         {
             VariableData vd0 = VariableDataImpl.of(swap.methodBody().statements().get(0));
             VariableInfo vi0Ld = vd0.variableInfo("ld1");
-            assertEquals("Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl this.body=this::modify, variables[0]=f",
-                    vi0Ld.staticValues().toString());
+            assertEquals("""
+                    Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl \
+                    E=new Builder() this.body=this::modify, this.body=this::modify, \
+                    variables[0]=f, variables[0]=f\
+                    """, vi0Ld.staticValues().toString());
         }
         {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
@@ -134,7 +137,8 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             VariableInfo vi0Ld = vd0.variableInfo("ld");
             assertEquals("""
                     Type org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl \
-                    E=new Builder() this.body=this::modify, variables[0]=f, variables[0]=f\
+                    E=new Builder() this.body=this::modify, this.body=this::modify, \
+                    variables[0]=f, variables[0]=f\
                     """, vi0Ld.staticValues().toString());
             // NOTE the double variables[0]=f is due to different 'this.variables' scope this vars,
             // with the StaticValuesHelper.checkForBuilder injecting the "correct" one

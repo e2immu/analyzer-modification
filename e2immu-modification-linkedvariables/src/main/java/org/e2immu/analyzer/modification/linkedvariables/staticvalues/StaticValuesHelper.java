@@ -186,8 +186,8 @@ public record StaticValuesHelper(Runtime runtime) {
         StaticValues sv = mc.methodInfo().analysis().getOrNull(STATIC_VALUES_METHOD, StaticValuesImpl.class);
         if (sv != null && sv.expression() instanceof ConstructorCall cc && cc.constructor() != null) {
             Map<Variable, Expression> existingMap = new HashMap<>(values);
-            for(Map.Entry<Variable, StaticValues> e: assignments.entrySet()) {
-                if(e.getValue().expression() != null) {
+            for (Map.Entry<Variable, StaticValues> e : assignments.entrySet()) {
+                if (e.getValue().expression() != null) {
                     existingMap.putIfAbsent(e.getKey(), e.getValue().expression());
                 }
             }
@@ -223,7 +223,7 @@ public record StaticValuesHelper(Runtime runtime) {
                             VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar)
                                     .setSource(substituteForThis.source()).build();
                             TranslationMap tm = runtime.newTranslationMapBuilder().put(substituteForThis, thisVarVe).build();
-                            Variable arrayVarTm =((VariableExpression) dv.arrayExpression().translate(tm)).variable();
+                            Variable arrayVarTm = ((VariableExpression) dv.arrayExpression().translate(tm)).variable();
                             if (arrayVarTm.equals(veArg.variable())) {
                                 DependentVariable newDv = runtime.newDependentVariable(ve, dv.indexExpression());
                                 svObjectValues.put(newDv, entry.getValue());
@@ -232,9 +232,20 @@ public record StaticValuesHelper(Runtime runtime) {
                     }
                 } else {
                     // whole objects
-                    Expression value = existingMap.get(veArg.variable());
-                    if (value != null) {
-                        svObjectValues.put(fr, value);
+                    for (Map.Entry<Variable, Expression> entry : existingMap.entrySet()) {
+                        // entry.getKey() = new Loop.LoopDataImpl.Builder().body
+                        // veArg.variable = (this of Builder).body
+                        // substitute for this = new Loop.LoopDataImpl.Builder() -> this
+                        // fr = (this of LoopDataImpl).body
+                        Variable thisVar = runtime.newThis(substituteForThis.parameterizedType());
+                        VariableExpression thisVarVe = runtime.newVariableExpressionBuilder().setVariable(thisVar)
+                                .setSource(substituteForThis.source()).build();
+                        TranslationMap tm = runtime.newTranslationMapBuilder().put(substituteForThis, thisVarVe).build();
+                        VariableExpression keyVe = runtime.newVariableExpression(entry.getKey());
+                        Variable keyTm =((VariableExpression)keyVe.translate(tm)).variable();
+                        if (veArg.variable().equals(keyTm)) {
+                            svObjectValues.put(fr, entry.getValue());
+                        }
                     }
                 }
             }

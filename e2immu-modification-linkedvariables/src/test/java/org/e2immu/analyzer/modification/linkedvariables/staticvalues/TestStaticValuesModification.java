@@ -321,7 +321,7 @@ public class TestStaticValuesModification extends CommonTest {
             VariableData vd2 = VariableDataImpl.of(s2);
             VariableInfo vi2B = vd2.variableInfo("b");
             // "this.intSet=s, this.stringList=l"
-            // FIXME which one is to be preferred?
+            // which one is to be preferred?
             assertEquals("""
                     Type a.b.X.Builder E=new Builder() this.intSet=new HashSet<>(), this.stringList=new ArrayList<>()\
                     """, vi2B.staticValues().toString());
@@ -339,7 +339,7 @@ public class TestStaticValuesModification extends CommonTest {
                 // note that we have the fields in RI here, not those of the builder! Code is dedicated to builder-like
                 // methods, ExpressionAnalyzer.checkCaseForBuilder
 
-                // FIXME ditto which one is best? "Type a.b.X.RI this.list=l, this.set=s"
+                // ditto which one is best? "Type a.b.X.RI this.list=l, this.set=s" or the next one:
                 assertEquals("""
                         Type a.b.X.RI E=new Builder() this.list=new ArrayList<>(), this.set=new HashSet<>()\
                         """, vi4R.staticValues().toString());
@@ -354,7 +354,8 @@ public class TestStaticValuesModification extends CommonTest {
 
                 // check that the correct component is modified!
                 VariableInfo vi4s = vd4.variableInfo("s");
-                assertTrue(vi4s.isModified());
+                assertFalse(vi4s.isModified());
+                // NOTE: we don't see this anymore, because this.set=new HashSet<>() rather than this.set=s
 
                 VariableInfo vi4l = vd4.variableInfo("l");
                 assertFalse(vi4l.isModified());
