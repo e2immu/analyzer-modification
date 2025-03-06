@@ -281,7 +281,7 @@ public class Analyzer {
             }
             if (v instanceof This && !methodInfo.hasReturnValue()) {
                 StaticValues staticValues = vi.staticValues();
-                if (staticValues != null) {
+                if (staticValues != null && !methodInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_METHOD)) {
                     StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }

@@ -119,7 +119,7 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
             v = runtime.newFieldReference(getSet.field(), object, object.parameterizedType());
         }
         VariableExpression target = runtime.newVariableExpressionBuilder().setVariable(v).setSource(mc.source()).build();
-        Expression replacedValue = mc.parameterExpressions().get(getSet.parameterIndexOfValue());
+        Expression replacedValue = mc.parameterExpressions().get(getSet.parameterIndexOfValue()).translate(this);
         Assignment assignment = runtime.newAssignmentBuilder()
                 .setSource(mc.source()).
                 setTarget(target).setValue(replacedValue).build();

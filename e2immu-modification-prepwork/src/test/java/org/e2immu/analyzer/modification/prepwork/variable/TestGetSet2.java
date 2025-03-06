@@ -2,16 +2,18 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
+import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestGetSet2 extends CommonTest {
     @Language("java")
@@ -82,5 +84,33 @@ public class TestGetSet2 extends CommonTest {
             assertEquals("this.myList.get(pos)", get1.toString());
             assertEquals("this.get(pos)", mc.parameterExpressions().get(0).toString());
         } else fail();
+    }
+
+    @Language("java")
+    public static final String INPUT2 = """
+            import java.util.ArrayList;import java.util.List;
+            record X(List<String> list, int k) {
+                static X make() {
+                    X x = new X(new ArrayList<>(), 3);
+                    x.list().add("x".repeat(x.k()));
+                    return x;
+                }
+            }
+            """;
+
+    @DisplayName("getters in record")
+    @Test
+    public void test2() {
+        TypeInfo X = javaInspector.parse(INPUT2);
+        new PrepAnalyzer(runtime).doPrimaryType(X);
+        assertTrue(X.typeNature().isRecord());
+        MethodInfo k = X.findUniqueMethod("k", 0);
+        Value.FieldValue fieldValueK = k.getSetField();
+        assertFalse(fieldValueK.setter());
+
+        MethodInfo method = X.findUniqueMethod("make", 0);
+        Expression e1 = method.methodBody().statements().get(1).expression();
+        assertEquals("x.list.add(\"x\".repeat(x.k))",
+                e1.translate(new ApplyGetSetTranslation(runtime)).toString());
     }
 }
