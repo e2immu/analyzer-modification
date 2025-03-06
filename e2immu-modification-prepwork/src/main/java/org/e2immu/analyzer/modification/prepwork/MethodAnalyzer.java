@@ -274,11 +274,12 @@ public class MethodAnalyzer {
         Expression expression = fieldInfo.initializer();
         VariableDataImpl vd = new VariableDataImpl();
         if (!expression.isEmpty()) {
-            Visitor v = new Visitor("0", Set.of(), expression, null, null);
+            InternalVariables iv = new InternalVariables();
+            Visitor v = new Visitor("0", Set.of(), expression, null, null, null, iv);
             expression.visit(v);
             ReadWriteData readWriteData = new ReadWriteData(null, v.seenFirstTime, v.accessorSeenFirstTime,
                     v.read, v.assigned, v.restrictToScope);
-            fromReadWriteDataIntoVd(readWriteData, false, vd, new InternalVariables(),
+            fromReadWriteDataIntoVd(readWriteData, false, vd, iv,
                     null, null, "0");
         }
         fieldInfo.analysisOfInitializer().set(VariableDataImpl.VARIABLE_DATA, vd);
@@ -292,7 +293,7 @@ public class MethodAnalyzer {
         InternalVariables iv = new InternalVariables(ivIn);
         String index = statement.source().index();
         VariableDataImpl vdi = new VariableDataImpl();
-        ReadWriteData readWriteData = analyzeEval(previous, vdi, index, statement, iv);
+        ReadWriteData readWriteData = analyzeEval(methodInfo, previous, vdi, index, statement, iv);
         boolean hasMerge = statement.hasSubBlocks();
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
 
@@ -613,7 +614,8 @@ public class MethodAnalyzer {
         return BEFORE_METHOD;
     }
 
-    private ReadWriteData analyzeEval(VariableData previous,
+    private ReadWriteData analyzeEval(MethodInfo methodInfo,
+                                      VariableData previous,
                                       VariableData current,
                                       String indexIn, Statement statement, InternalVariables iv) {
         String index;
@@ -624,7 +626,7 @@ public class MethodAnalyzer {
             index = indexIn;
         }
         Set<String> knownVariableNames = previous == null ? Set.of() : previous.knownVariableNames();
-        Visitor v = new Visitor(index, knownVariableNames, statement, previous, current);
+        Visitor v = new Visitor(index, knownVariableNames, statement, previous, current, methodInfo, iv);
         boolean eval = true;
         if (statement instanceof ReturnStatement || statement instanceof ThrowStatement) {
             v.assignedAdd(iv.rv);
@@ -704,14 +706,18 @@ public class MethodAnalyzer {
         final Element statement;
         final VariableData previousVariableData;
         final VariableData currentVariableData;
+        final MethodInfo currentMethod;
+        final InternalVariables internalVariables;
 
         Visitor(String index, Set<String> knownVariableNames, Element statement, VariableData previousVariableData,
-                VariableData currentVariableData) {
+                VariableData currentVariableData, MethodInfo currentMethod, InternalVariables internalVariables) {
             this.index = index;
             this.previousVariableData = previousVariableData;
             this.currentVariableData = currentVariableData;
             this.knownVariableNames = Set.copyOf(knownVariableNames); // make sure we do not modify it
             this.statement = statement;
+            this.currentMethod = currentMethod;
+            this.internalVariables = internalVariables;
         }
 
         public void assignedAdd(Variable variable) {
@@ -837,6 +843,17 @@ public class MethodAnalyzer {
             if (e instanceof MethodCall mc) {
                 // also, simply ensure that modified component variables exist
                 copyModifiedComponentsMethod(mc.methodInfo(), mc.object());
+            }
+            if (e instanceof SwitchExpression switchExpression) {
+                switchExpression.selector().visit(this);
+                for (SwitchEntry se : switchExpression.entries()) {
+                    if (se.statement() instanceof Block block) {
+                        doBlock(currentMethod, block, currentVariableData, internalVariables);
+                    } else {
+                        doStatement(currentMethod, se.statement(), currentVariableData, true, internalVariables);
+                    }
+                }
+                return false;
             }
             if (e instanceof CommaExpression ce) {
                 for (Expression comma : ce.expressions()) {

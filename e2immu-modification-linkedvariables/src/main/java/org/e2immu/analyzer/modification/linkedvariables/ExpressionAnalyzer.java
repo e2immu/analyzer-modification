@@ -18,6 +18,8 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.api.statement.Block;
+import org.e2immu.language.cst.api.statement.SwitchEntry;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
@@ -57,14 +59,16 @@ class ExpressionAnalyzer {
     private final LinkHelperFunctional linkHelperFunctional;
     private final ApplyGetSetTranslation applyGetSetTranslation;
     private final StaticValuesHelper staticValuesHelper;
+    private final ModAnalyzer analyzer; // for recursion in switch expression
 
-    public ExpressionAnalyzer(Runtime runtime, StaticValuesHelper staticValuesHelper) {
+    public ExpressionAnalyzer(Runtime runtime, ModAnalyzer analyzer, StaticValuesHelper staticValuesHelper) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper();
         this.linkHelperFunctional = new LinkHelperFunctional(runtime, analysisHelper);
         this.applyGetSetTranslation = new ApplyGetSetTranslation(runtime);
         this.staticValuesHelper = staticValuesHelper;
+        this.analyzer = analyzer;
     }
 
     public EvaluationResult linkEvaluation(MethodInfo currentMethod,
@@ -239,9 +243,17 @@ class ExpressionAnalyzer {
                 or.expressions().forEach(e -> builder.merge(eval(e)));
                 return builder.setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY).build();
             }
-            if (expression instanceof SwitchExpression) {
+            if (expression instanceof SwitchExpression switchExpression) {
                 EvaluationResult.Builder builder = new EvaluationResult.Builder();
-                // TODO! this is a stub.
+                builder.merge(eval(switchExpression.selector()));
+                for (SwitchEntry switchEntry : switchExpression.entries()) {
+                    if (switchEntry.statement() instanceof Block block) {
+                        analyzer.doBlock(currentMethod, block, variableDataPrevious);
+                    } else {
+                        analyzer.doStatement(currentMethod, switchEntry.statement(), variableDataPrevious, true);
+                    }
+                }
+                // TODO what else?
                 return builder.setStaticValues(NOT_COMPUTED).setLinkedVariables(EMPTY).build();
             }
             if (expression instanceof CommaExpression ce) {

@@ -41,7 +41,12 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
     @Override
     public Expression translateExpression(Expression expression) {
         if (expression instanceof Lambda || expression instanceof ConstructorCall cc && cc.anonymousClass() != null) {
-            return null;
+            return null; // keep hands off
+        }
+        if (expression instanceof SwitchExpression se) {
+            Expression tSelect = se.selector().translate(this);
+            if (tSelect == se.selector()) return null; // no change, we'll not go deeper here but someplace else
+            return se.withSelector(tSelect);
         }
         if (expression instanceof MethodCall mc) {
             ensureGetSet(mc.methodInfo());

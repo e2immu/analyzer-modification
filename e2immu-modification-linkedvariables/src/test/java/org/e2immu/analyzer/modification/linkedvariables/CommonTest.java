@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
 import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Function;
 
 import static org.e2immu.language.inspection.integration.JavaInspectorImpl.JAR_WITH_PATH_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -37,7 +35,7 @@ public class CommonTest {
     protected JavaInspector javaInspector;
     protected Runtime runtime;
     protected final String[] extraClassPath;
-    protected Analyzer analyzer;
+    protected ModAnalyzer analyzer;
     protected PrepAnalyzer prepAnalyzer;
     protected final boolean storeErrorsInPVMap;
 
@@ -90,7 +88,7 @@ public class CommonTest {
         runtime = javaInspector.runtime();
         prepAnalyzer = new PrepAnalyzer(runtime);
 
-        analyzer = new Analyzer(runtime, storeErrorsInPVMap);
+        analyzer = new ModAnalyzerImpl(runtime, storeErrorsInPVMap);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {

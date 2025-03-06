@@ -37,7 +37,6 @@ import java.util.stream.Stream;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
@@ -46,8 +45,8 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
-public class Analyzer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Analyzer.class);
+public class ModAnalyzerImpl implements ModAnalyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModAnalyzerImpl.class);
     private static final Logger LOGGER_GRAPH = LoggerFactory.getLogger("graph-algorithm");
 
     private final Runtime runtime;
@@ -62,10 +61,10 @@ public class Analyzer {
     private final Map<String, Integer> histogram = new HashMap<>();
     private final boolean storeErrorsInPVMap;
 
-    public Analyzer(Runtime runtime, boolean storeErrorsInPVMap) {
+    public ModAnalyzerImpl(Runtime runtime, boolean storeErrorsInPVMap) {
         this.runtime = runtime;
         StaticValuesHelper staticValuesHelper = new StaticValuesHelper(runtime);
-        expressionAnalyzer = new ExpressionAnalyzer(runtime, staticValuesHelper);
+        expressionAnalyzer = new ExpressionAnalyzer(runtime, this, staticValuesHelper);
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
         this.analysisHelper = new AnalysisHelper();
         computeLinkCompletion = new ComputeLinkCompletion(analysisHelper, staticValuesHelper); // has a cache, we want this to be stable
@@ -74,6 +73,7 @@ public class Analyzer {
         this.storeErrorsInPVMap = storeErrorsInPVMap;
     }
 
+    @Override
     public void doMethod(MethodInfo methodInfo) {
         LOGGER.info("Do method {}", methodInfo);
         ComputeHCS.safeHcsMethod(runtime, methodInfo);
@@ -353,9 +353,10 @@ public class Analyzer {
                         block -> doBlock(methodInfo, block, vdOfParent)));
     }
 
-    private VariableData doBlock(MethodInfo methodInfo,
-                                 Block block,
-                                 VariableData vdOfParent) {
+    @Override
+    public VariableData doBlock(MethodInfo methodInfo,
+                                Block block,
+                                VariableData vdOfParent) {
         VariableData previous = vdOfParent;
         boolean first = true;
         for (Statement statement : block.statements()) {
@@ -371,10 +372,11 @@ public class Analyzer {
         return previous;
     }
 
-    private VariableData doStatement(MethodInfo methodInfo,
-                                     Statement statement,
-                                     VariableData previous,
-                                     boolean first) {
+    @Override
+    public VariableData doStatement(MethodInfo methodInfo,
+                                    Statement statement,
+                                    VariableData previous,
+                                    boolean first) {
         LOGGER_GRAPH.debug("Statement {}", statement.source());
         Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
         VariableData vd = VariableDataImpl.of(statement);
@@ -553,6 +555,7 @@ public class Analyzer {
     - copy from fields to parameters where relevant
 
      */
+    @Override
     public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
         LOGGER.info("Start primary type {}", primaryType);
         go(analysisOrder);
@@ -562,6 +565,7 @@ public class Analyzer {
     there is no real need to analyze per primary type
      */
 
+    @Override
     public void go(List<Info> analysisOrder) {
         Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
         for (Info info : analysisOrder) {
@@ -668,10 +672,12 @@ public class Analyzer {
         }
     }
 
+    @Override
     public List<Throwable> getProblemsRaised() {
         return List.copyOf(problemsRaised);
     }
 
+    @Override
     public Map<String, Integer> getHistogram() {
         return Map.copyOf(histogram);
     }
