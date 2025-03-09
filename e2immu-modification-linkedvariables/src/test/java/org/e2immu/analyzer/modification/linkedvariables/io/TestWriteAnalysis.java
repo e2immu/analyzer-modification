@@ -153,7 +153,7 @@ public class TestWriteAnalysis extends CommonTest {
         dest.mkdirs();
         Codec codec = new LinkedVariablesCodec(runtime).codec();
         writeAnalysis.write(dest, typeTrie, codec);
-        String written = Files.readString(new File(dest, "ABX.json").toPath());
+        String written = Files.readString(new File(dest, "libs/unclassified/ABX.json").toPath());
         assertEquals(json, written);
     }
 }

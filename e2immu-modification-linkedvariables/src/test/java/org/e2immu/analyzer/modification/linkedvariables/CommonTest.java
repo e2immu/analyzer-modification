@@ -3,10 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfiguration;
-import org.e2immu.analyzer.shallow.analyzer.AnnotatedAPIConfigurationImpl;
-import org.e2immu.analyzer.shallow.analyzer.DecoratorImpl;
-import org.e2immu.analyzer.shallow.analyzer.LoadAnalyzedAnnotatedAPI;
+import org.e2immu.analyzer.shallow.analyzer.*;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.output.Formatter;
@@ -58,17 +55,9 @@ public class CommonTest {
     public void beforeEach() throws IOException {
         javaInspector = new JavaInspectorImpl();
         InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
-                .addClassPath(InputConfigurationImpl.DEFAULT_CLASSPATH)
-                .addClassPath("jmods/java.desktop.jmod")
-                .addClassPath("jmods/java.datatransfer.jmod")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "org/junit/jupiter/api")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "org/apiguardian/api")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "org/junit/platform/commons")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "org/slf4j/event")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "ch/qos/logback/core")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "ch/qos/logback/classic")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "io/codelaser/jfocus/transform/support")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "org/opentest4j");
+                .addClassPath(InputConfigurationImpl.GRADLE_DEFAULT)
+                .addClassPath(ToolChain.CLASSPATH_JUNIT)
+                .addClassPath(ToolChain.CLASSPATH_SLF4J_LOGBACK);
         for (String extra : extraClassPath) {
             builder.addClassPath(extra);
         }
@@ -76,13 +65,11 @@ public class CommonTest {
         javaInspector.initialize(inputConfiguration);
         javaInspector.preload("java.util");
 
-        String JSON = "../../analyzer-shallow/e2immu-shallow-aapi/src/main/resources/json";
-        File file = new File(JSON);
-        assertTrue(file.isDirectory());
         AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
-                .addAnalyzedAnnotatedApiDirs(JSON)
+                .addAnalyzedAnnotatedApiDirs(ToolChain.currentJdkAnalyzedPackages())
+                .addAnalyzedAnnotatedApiDirs(ToolChain.commonLibsAnalyzedPackages())
                 .build();
-        new LoadAnalyzedAnnotatedAPI().go(javaInspector, annotatedAPIConfiguration);
+        new LoadAnalyzedPackageFiles().go(javaInspector, annotatedAPIConfiguration);
 
         javaInspector.parse(JavaInspectorImpl.FAIL_FAST);
         runtime = javaInspector.runtime();

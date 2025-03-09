@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
@@ -40,16 +39,14 @@ public class CommonTest2 {
                         e -> TEST_PROTOCOL_PREFIX + e.getKey() + "/", Map.Entry::getValue));
         javaInspector = new JavaInspectorImpl();
         InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
-                .addClassPath(InputConfigurationImpl.DEFAULT_CLASSPATH)
-                .addClassPath("jmods/java.datatransfer.jmod", "jmods/java.desktop.jmod",
-                        "jmods/java.sql.jmod")
+                .addClassPath(InputConfigurationImpl.GRADLE_DEFAULT)
+                // NOTE: No access to ToolChain
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/junit/jupiter/api")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/apiguardian/api")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/junit/platform/commons")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/slf4j/event")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "ch/qos/logback/core")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "ch/qos/logback/classic")
-                .addClassPath(JAR_WITH_PATH_PREFIX + "io/codelaser/jfocus/transform/support")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/opentest4j");
         sourcesByURIString.keySet().forEach(builder::addSources);
         InputConfiguration inputConfiguration = builder.build();
