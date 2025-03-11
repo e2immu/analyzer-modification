@@ -5,6 +5,7 @@ import org.e2immu.language.cst.api.element.Comment;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.element.Visitor;
+import org.e2immu.language.cst.api.info.InfoMap;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.output.OutputBuilder;
@@ -128,5 +129,10 @@ public class ReturnVariableImpl implements ReturnVariable {
     public void visit(Visitor visitor) {
         visitor.beforeVariable(this);
         visitor.afterVariable(this);
+    }
+
+    @Override
+    public Variable rewire(InfoMap infoMap) {
+        return new ReturnVariableImpl(infoMap.methodInfo(methodInfo));
     }
 }

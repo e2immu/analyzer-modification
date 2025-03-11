@@ -206,6 +206,7 @@ public class ComputeHiddenContent {
     }
 
     private Stream<TypeParameter> typeParameterStream(ParameterizedType type) {
+        assert type != null;
         if (type.isTypeParameter()) return Stream.of(type.typeParameter());
         return type.parameters().stream().flatMap(this::typeParameterStream);
     }
