@@ -99,18 +99,18 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.method(java.util.List<String>), a.b.X.$1->1->a.b.X.$1.accept(String), \
-                a.b.X.$1->1->a.b.X.method(java.util.List<String>), a.b.X.method(java.util.List<String>)->1->a.b.X.$1.accept(String)\
+                a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.method(java.util.List<String>), a.b.X.$0->1->a.b.X.$0.accept(String), \
+                a.b.X.$0->1->a.b.X.method(java.util.List<String>), a.b.X.method(java.util.List<String>)->1->a.b.X.$0.accept(String)\
                 """, graph.toString());
 
         // NOTE: at the moment, both the lambda method and 'method' are marked recursive
-        assertEquals("[a.b.X.$1.accept(String), a.b.X.method(java.util.List<String>)]",
+        assertEquals("[a.b.X.$0.accept(String), a.b.X.method(java.util.List<String>)]",
                 ccg.recursiveMethods().stream().map(MethodInfo::fullyQualifiedName).sorted().toList().toString());
 
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         List<Info> analysisOrder = cao.go(graph);
         assertEquals("""
-                [a.b.X.$1.accept(String), a.b.X.<init>(), a.b.X.method(java.util.List<String>), a.b.X, a.b.X.$1]\
+                [a.b.X.$0.accept(String), a.b.X.<init>(), a.b.X.method(java.util.List<String>), a.b.X, a.b.X.$0]\
                 """, analysisOrder.toString());
     }
 

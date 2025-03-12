@@ -52,12 +52,15 @@ public class TestLambda extends CommonTest {
         Lambda lambda = (Lambda) ((MethodCall) s0.expression()).parameterExpressions().get(1);
         assertTrue(lambda.methodInfo().typeInfo().analysis().getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
                 MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).isEmpty());
-        assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
+        assertEquals("a.b.X.$0.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<b.length;", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
         VariableData vdL0 = VariableDataImpl.of(l0);
-        assertEquals("a.b.X.$1.test(int), a.b.X.$1.test(int):0:i, a.b.X.method(byte[]):0:b",
+        assertEquals("a.b.X.$0.test(int), a.b.X.$0.test(int):0:i, a.b.X.method(byte[]):0:b",
                 vdL0.knownVariableNamesToString());
+
+        Lambda lambda2 = (Lambda) ((MethodCall) s0.expression()).parameterExpressions().get(2);
+        assertEquals("a.b.X.$1.applyAsInt(int)", lambda2.methodInfo().fullyQualifiedName());
     }
 
 
@@ -174,11 +177,11 @@ public class TestLambda extends CommonTest {
         assertEquals("max", lambda.methodInfo().typeInfo().analysis()
                 .getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
                         MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).sortedByFqn());
-        assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
+        assertEquals("a.b.X.$0.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<max;", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
         VariableData vdL0 = VariableDataImpl.of(l0);
-        assertEquals("a.b.X.$1.test(int), a.b.X.$1.test(int):0:i, max", vdL0.knownVariableNamesToString());
+        assertEquals("a.b.X.$0.test(int), a.b.X.$0.test(int):0:i, max", vdL0.knownVariableNamesToString());
     }
 
 
@@ -211,11 +214,11 @@ public class TestLambda extends CommonTest {
         assertEquals("max", lambda.methodInfo().typeInfo().analysis()
                 .getOrDefault(MethodAnalyzer.VARIABLES_OF_ENCLOSING_METHOD,
                         MethodAnalyzer.EMPTY_VARIABLE_INFO_MAP).sortedByFqn());
-        assertEquals("a.b.X.$1.test(int)", lambda.methodInfo().fullyQualifiedName());
+        assertEquals("a.b.X.$0.test(int)", lambda.methodInfo().fullyQualifiedName());
         Statement l0 = lambda.methodInfo().methodBody().statements().get(0);
         assertEquals("return i<max[0];", l0.print(runtime.qualificationFullyQualifiedNames()).toString());
         VariableData vdL0 = VariableDataImpl.of(l0);
-        assertEquals("a.b.X.$1.test(int), a.b.X.$1.test(int):0:i, max, max[0]", vdL0.knownVariableNamesToString());
+        assertEquals("a.b.X.$0.test(int), a.b.X.$0.test(int):0:i, max, max[0]", vdL0.knownVariableNamesToString());
 
         VariableInfo max0 = vd1.variableInfo("max[0]");
         assertEquals("1", max0.reads().toString());

@@ -46,7 +46,7 @@ public class TestSyntheticConstructor extends CommonTest {
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = new PrepAnalyzer(runtime).doPrimaryType(B);
-        assertEquals("X.$1.<init>(),X.$1.run(),X.<init>(),X.systemCall(String),X,X.$1",
+        assertEquals("X.$0.<init>(),X.$0.run(),X.<init>(),X.systemCall(String),X,X.$0",
                 ao.stream().map(Info::fullyQualifiedName).collect(Collectors.joining(",")));
         MethodInfo methodInfo = (MethodInfo) ao.get(0);
         assertTrue(methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD));
@@ -90,14 +90,14 @@ public class TestSyntheticConstructor extends CommonTest {
             }
             """;
 
-    @DisplayName("overwriting $1 HC")
+    @DisplayName("overwriting $0 HC")
     @Test
     public void test2() {
         ((Logger) LoggerFactory.getLogger(PrepAnalyzer.class)).setLevel(Level.DEBUG);
 
         TypeInfo B = javaInspector.parse(INPUT2);
         List<Info> ao = new PrepAnalyzer(runtime).doPrimaryType(B);
-        assertEquals("B.$1.$1.apply(String),B.<init>(),B.$1.accept(java.util.jar.JarEntry),B.$1.$1,B.main(String[]),B,B.$1",
+        assertEquals("B.$0.$0.apply(String),B.<init>(),B.$0.accept(java.util.jar.JarEntry),B.$0.$0,B.main(String[]),B,B.$0",
                 ao.stream().map(Info::fullyQualifiedName).collect(Collectors.joining(",")));
         MethodInfo methodInfo = (MethodInfo) ao.get(0);
         assertTrue(methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD));

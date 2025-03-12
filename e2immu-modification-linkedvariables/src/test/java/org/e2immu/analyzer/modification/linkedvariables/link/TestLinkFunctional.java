@@ -138,9 +138,14 @@ public class TestLinkFunctional extends CommonTest {
         assertEquals("0=0,1=*", hcsFilter.detailed());
 
         MethodInfo test = (MethodInfo) analysisOrder.stream()
-                .filter(i -> "a.b.X.$1.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
+                .filter(i -> "a.b.X.$0.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
         HiddenContentTypes hctTest = test.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=Stream, 1=M - ", hctTest.detailedSortedTypes());
+
+        MethodInfo test1 = (MethodInfo) analysisOrder.stream()
+                .filter(i -> "a.b.X.$1.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
+        HiddenContentTypes hctTest1 = test1.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
+        assertEquals("0=Stream, 1=M, 2=Optional - ", hctTest1.detailedSortedTypes());
 
         MethodInfo m3 = X.findUniqueMethod("m3", 1);
         HiddenContentTypes hctM3 = m3.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);

@@ -147,7 +147,7 @@ public class TestFieldInitializers extends CommonTest {
         List<Info> analysisOrder = prepAnalyzer.doPrimaryType(B);
         FieldInfo concatWithKey = B.getFieldByName("concatWithKey", true);
         Lambda lambda = (Lambda) concatWithKey.initializer();
-        assertEquals("Map_Compute.$3.apply(String,String)", lambda.methodInfo().fullyQualifiedName());
+        assertEquals("Map_Compute.$2.apply(String,String)", lambda.methodInfo().fullyQualifiedName());
         VariableData vdConcat = concatWithKey.analysisOfInitializer().getOrNull(VariableDataImpl.VARIABLE_DATA,
                 VariableDataImpl.class);
         assertNotNull(vdConcat);

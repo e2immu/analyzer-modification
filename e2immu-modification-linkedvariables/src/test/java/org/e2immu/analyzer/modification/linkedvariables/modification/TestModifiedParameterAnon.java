@@ -82,8 +82,8 @@ public class TestModifiedParameterAnon extends CommonTest {
         MethodInfo preVisitDirectory = anon.findUniqueMethod("preVisitDirectory", 2);
         VariableData vdLast = VariableDataImpl.of(preVisitDirectory.methodBody().lastStatement());
         assertEquals("""
-                a.b.X.$1.preVisitDirectory(java.nio.file.Path,java.nio.file.attribute.BasicFileAttributes), \
-                a.b.X.$1.preVisitDirectory(java.nio.file.Path,java.nio.file.attribute.BasicFileAttributes):0:p, \
+                a.b.X.$0.preVisitDirectory(java.nio.file.Path,java.nio.file.attribute.BasicFileAttributes), \
+                a.b.X.$0.preVisitDirectory(java.nio.file.Path,java.nio.file.attribute.BasicFileAttributes):0:p, \
                 java.nio.file.FileVisitResult.CONTINUE, list\
                 """, vdLast.knownVariableNamesToString());
         VariableInfo viList = vdLast.variableInfo("list");
