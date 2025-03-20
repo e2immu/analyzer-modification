@@ -174,4 +174,33 @@ public class TestVarious extends CommonTest {
         List<Info> ao = prepWork(B);
         analyzer.doPrimaryType(B, ao);
     }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            import java.nio.charset.StandardCharsets;
+            public class X {
+                final static char [] HEX_CHAR_TABLE = { '0', 'a'};
+                public String toHexString(byte[] bytes) {
+                  byte[] hex = new byte[2 * bytes.length];
+                  int index = 0;
+                  for (byte b : bytes) {
+                    int v = b & 0xFF;
+                    hex[index++] = HEX_CHAR_TABLE[v >>> 4];
+                    hex[index++] = HEX_CHAR_TABLE[v & 0xF];
+                  }
+                  return new String(hex, StandardCharsets.US_ASCII);
+                }
+            }
+            """;
+
+    @DisplayName("parameterized type issue in compute linked variables, for-loop")
+    @Test
+    public void test4() {
+        TypeInfo B = javaInspector.parse(INPUT4);
+        List<Info> ao = prepWork(B);
+        analyzer.doPrimaryType(B, ao);
+    }
+
 }

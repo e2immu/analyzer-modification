@@ -470,7 +470,8 @@ public class ModAnalyzerImpl implements ModAnalyzer {
             Source source = forEach.expression().source();
             ParameterizedType initType = forEach.initializer().localVariable().parameterizedType();
             MethodInfo iterableIterator = iterableType.findUniqueMethod("iterator", 0);
-            ParameterizedType concreteIteratorType = runtime.newParameterizedType(iterator, List.of(initType));
+            ParameterizedType concreteIteratorType = runtime.newParameterizedType(iterator,
+                    List.of(initType.ensureBoxed(runtime)));
             MethodCall mcIterator = runtime.newMethodCallBuilder()
                     .setSource(source)
                     .setObject(forEach.expression())
