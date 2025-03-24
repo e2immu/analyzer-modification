@@ -238,7 +238,8 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
             } else if (v instanceof This
-                       || v instanceof FieldReference fr && fr.scopeIsRecursivelyThis()
+                       || (v instanceof FieldReference fr && (fr.scopeIsRecursivelyThis() || fr.isStatic()))
+                          && fr.fieldInfo().analysis().getOrDefault(IGNORE_MODIFICATIONS_FIELD, FALSE).isFalse()
                        || vi.isVariableInClosure()) {
                 boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
                 boolean assignment = !vi.assignments().isEmpty();
