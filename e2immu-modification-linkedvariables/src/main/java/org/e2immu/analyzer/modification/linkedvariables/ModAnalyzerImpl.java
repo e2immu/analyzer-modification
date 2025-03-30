@@ -23,7 +23,10 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.variable.*;
+import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.LocalVariable;
+import org.e2immu.language.cst.api.variable.This;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
@@ -34,6 +37,9 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.Independent;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.SetOfInfo;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.VariableBooleanMap;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
@@ -75,7 +81,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
 
     @Override
     public void doMethod(MethodInfo methodInfo) {
-        LOGGER.info("Do method {}", methodInfo);
+        LOGGER.debug("Do method {}", methodInfo);
         ComputeHCS.safeHcsMethod(runtime, methodInfo);
         assert methodInfo.parameters().stream().allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER))
                 : "Method with a parameter without HCS: " + methodInfo;
@@ -559,7 +565,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
      */
     @Override
     public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
-        LOGGER.info("Start primary type {}", primaryType);
+        LOGGER.debug("Start primary type {}", primaryType);
         go(analysisOrder);
     }
 
@@ -581,7 +587,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                             ValueImpl.SetOfInfoImpl.class);
                     doField(fi, svMap.get(fi), partOfConstruction);
                 } else if (info instanceof TypeInfo ti) {
-                    LOGGER.info("Do type {}", ti);
+                    LOGGER.debug("Do type {}", ti);
                     fromNonFinalFieldToParameter(ti);
                     computeImmutable.go(ti);
                 }
@@ -655,7 +661,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                 : staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
         if (!fieldInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_FIELD)) {
             fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
-            LOGGER.info("Do field {}: set {}", fieldInfo, reduced);
+            LOGGER.debug("Do field {}: set {}", fieldInfo, reduced);
         }
         if (!fieldInfo.analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
             boolean modified = fieldInfo.owner().primaryType().recursiveMethodStream()
