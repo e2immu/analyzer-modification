@@ -76,7 +76,8 @@ public class ComputeCallGraph {
     A. from type to its methods, fields, interfaces, parent, type-parameter bounds
     B. from non-static subtype to its enclosing type (this holds for inner classes and anonymous classes, lambdas)
     C. from method/constructor/field to any type referenced in it, different from the owner (see A, other direction)
-    D. from method body/field initializer to any method referenced (as method call, constructor call, method reference).
+        this includes the types of method parameters
+    D. from method body/field initializer to any method or field referenced (as method call, constructor call, method reference).
 
     FIXME
         we don't want types referenced as static type expressions, or types of 'this' when represents the type itself
@@ -99,23 +100,23 @@ public class ComputeCallGraph {
         typeInfo.typeParameters().forEach(tp -> tp.typeBounds().forEach(pt -> addType(typeInfo, pt))); // A
 
         typeInfo.constructorAndMethodStream().forEach(mi -> {
-            mi.exceptionTypes().forEach(pt -> addType(mi, pt));
-            mi.parameters().forEach(pi -> addType(mi, pi.parameterizedType()));
-            if (mi.hasReturnValue()) {
+            mi.exceptionTypes().forEach(pt -> addType(mi, pt)); // C
+            mi.parameters().forEach(pi -> addType(mi, pi.parameterizedType())); // C
+            if (mi.hasReturnValue()) { // C
                 addType(mi, mi.returnType()); // needed because of immutable computation in independent
             }
 
             builder.add(typeInfo, List.of(mi)); // A
             Visitor visitor = new Visitor(mi);
-            mi.methodBody().visit(visitor);
+            mi.methodBody().visit(visitor); // D
         });
         typeInfo.fields().forEach(fi -> {
-            addType(fi, fi.type());
+            addType(fi, fi.type()); // C
             builder.addVertex(fi);
             builder.add(typeInfo, List.of(fi)); // A
             if (fi.initializer() != null && !fi.initializer().isEmpty()) {
                 Visitor visitor = new Visitor(fi);
-                fi.initializer().visit(visitor);
+                fi.initializer().visit(visitor); // D
             }
         });
     }
