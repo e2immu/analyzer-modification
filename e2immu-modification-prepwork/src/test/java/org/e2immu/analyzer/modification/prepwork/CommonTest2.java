@@ -36,10 +36,11 @@ public class CommonTest2 {
     protected List<Info> init(Map<String, String> sourcesByFqn) throws IOException {
         Map<String, String> sourcesByURIString = sourcesByFqn.entrySet()
                 .stream().collect(Collectors.toUnmodifiableMap(
-                        e -> TEST_PROTOCOL_PREFIX + e.getKey() + "/", Map.Entry::getValue));
+                        e -> TEST_PROTOCOL_PREFIX + e.getKey(), Map.Entry::getValue));
         javaInspector = new JavaInspectorImpl();
         InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
                 .addClassPath(InputConfigurationImpl.GRADLE_DEFAULT)
+                .addClassPath(JavaInspectorImpl.E2IMMU_SUPPORT)
                 // NOTE: No access to ToolChain
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/junit/jupiter/api")
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/apiguardian/api")

@@ -53,6 +53,7 @@ public class CommonTest {
         javaInspector = new JavaInspectorImpl();
         InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
                 .addClassPath(InputConfigurationImpl.GRADLE_DEFAULT)
+                .addClassPath(JavaInspectorImpl.E2IMMU_SUPPORT)
                 .addClassPath(ToolChain.CLASSPATH_JUNIT)
                 .addClassPath(ToolChain.CLASSPATH_SLF4J_LOGBACK);
         for (String extra : extraClassPath) {
