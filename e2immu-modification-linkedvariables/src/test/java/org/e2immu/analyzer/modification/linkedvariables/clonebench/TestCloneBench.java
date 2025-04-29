@@ -33,14 +33,14 @@ public class TestCloneBench extends CommonTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBench.class);
 
     public TestCloneBench() {
-        super(true, "jmod:java.desktop.jmod",
-                "jmod:java.compiler.jmod",
-                "jmod:java.datatransfer.jmod",
-                "jmod:java.sql.jmod",
-                "jmod:java.logging.jmod",
-                "jmod:java.instrument.jmod",
-                "jmod:java.rmi.jmod",
-                "jmod:java.management.jmod");
+        super(true, "jmod:java.desktop",
+                "jmod:java.compiler",
+                "jmod:java.datatransfer",
+                "jmod:java.sql",
+                "jmod:java.logging",
+                "jmod:java.instrument",
+                "jmod:java.rmi",
+                "jmod:java.management");
     }
 
     public void process(String name, AtomicInteger counter, Map<MethodInfo, Integer> typeHistogram) throws IOException {
