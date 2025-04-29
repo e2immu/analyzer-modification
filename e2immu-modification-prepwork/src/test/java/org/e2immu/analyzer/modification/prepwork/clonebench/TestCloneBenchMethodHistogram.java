@@ -29,14 +29,14 @@ public class TestCloneBenchMethodHistogram extends CommonTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestCloneBenchMethodHistogram.class);
 
     public TestCloneBenchMethodHistogram() {
-        super("jmods/java.desktop.jmod",
-                "jmods/java.compiler.jmod",
-                "jmods/java.datatransfer.jmod",
-                "jmods/java.sql.jmod",
-                "jmods/java.logging.jmod",
-                "jmods/java.instrument.jmod",
-                "jmods/java.rmi.jmod",
-                "jmods/java.management.jmod");
+        super("jmod:java.desktop.jmod",
+                "jmod:java.compiler.jmod",
+                "jmod:java.datatransfer.jmod",
+                "jmod:java.sql.jmod",
+                "jmod:java.logging.jmod",
+                "jmod:java.instrument.jmod",
+                "jmod:java.rmi.jmod",
+                "jmod:java.management.jmod");
     }
 
     public void process(String name, Map<String, Integer> methodHistogram) throws IOException {
