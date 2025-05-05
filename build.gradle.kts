@@ -17,3 +17,7 @@ tasks.register("publish") {
      dependsOn(gradle.includedBuild("e2immu-modification-prepwork").task(":publish"))
      dependsOn(gradle.includedBuild("e2immu-modification-linkedvariables").task(":publish"))
 }
+tasks.register("publishToMavenLocal") {
+     dependsOn(gradle.includedBuild("e2immu-modification-prepwork").task(":publishToMavenLocal"))
+     dependsOn(gradle.includedBuild("e2immu-modification-linkedvariables").task(":publishToMavenLocal"))
+}
