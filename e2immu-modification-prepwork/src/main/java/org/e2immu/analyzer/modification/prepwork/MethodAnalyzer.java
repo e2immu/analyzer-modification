@@ -336,7 +336,8 @@ public class MethodAnalyzer {
             vdi.put(v, vic);
             String limitedScope = readWriteData.restrictToScope.get(v);
             if (limitedScope != null) {
-                iv.limitedScopeOfPatternVariablesPut(v, i, limitedScope);
+                assert iv.parent != null;
+                iv.parent.limitedScopeOfPatternVariablesPut(v, i, limitedScope);
             }
         });
 

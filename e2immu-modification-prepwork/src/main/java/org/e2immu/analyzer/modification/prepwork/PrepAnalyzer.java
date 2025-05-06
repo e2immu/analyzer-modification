@@ -42,6 +42,7 @@ public class PrepAnalyzer {
     private final ComputeHCS computeHCS;
     private final Runtime runtime;
     final boolean recurseIntoAnonymous;
+    private int typesProcessed;
 
     public PrepAnalyzer(Runtime runtime) {
         this(runtime, true);
@@ -92,10 +93,11 @@ public class PrepAnalyzer {
     }
 
     void doType(TypeInfo typeInfo) {
-        List<MethodInfo> gettersAndSetters = new LinkedList<>();
-        List<MethodInfo> otherConstructorsAndMethods = new LinkedList<>();
+        try {
+            List<MethodInfo> gettersAndSetters = new LinkedList<>();
+            List<MethodInfo> otherConstructorsAndMethods = new LinkedList<>();
 
-        doType(typeInfo, gettersAndSetters, otherConstructorsAndMethods);
+            doType(typeInfo, gettersAndSetters, otherConstructorsAndMethods);
 
         /* now do the methods: first getters and setters, then the others
            why? because we must create variables in VariableData for each call to a getter
@@ -105,8 +107,13 @@ public class PrepAnalyzer {
            the "linkedvariables" analyzer requires a more complicated one, computed in the statements below.
         */
 
-        gettersAndSetters.forEach(this::doMethod);
-        otherConstructorsAndMethods.forEach(this::doMethod);
+            gettersAndSetters.forEach(this::doMethod);
+            otherConstructorsAndMethods.forEach(this::doMethod);
+            ++typesProcessed;
+        } catch (RuntimeException re) {
+            LOGGER.error("Caught exception in prep analyzer. Processed {}, failing on type {}", typesProcessed, typeInfo);
+            throw re;
+        }
     }
 
     private void doType(TypeInfo typeInfo, List<MethodInfo> gettersAndSetters, List<MethodInfo> otherConstructorsAndMethods) {
