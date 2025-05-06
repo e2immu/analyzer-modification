@@ -97,7 +97,11 @@ public class TestSyntheticConstructor extends CommonTest {
 
         TypeInfo B = javaInspector.parse(INPUT2);
         List<Info> ao = new PrepAnalyzer(runtime).doPrimaryType(B);
-        assertEquals("B.$0.$0.apply(String),B.<init>(),B.$0.accept(java.util.jar.JarEntry),B.$0.$0,B.main(String[]),B,B.$0",
+        assertEquals(
+                // new path since a lambda only causes a variable context rather than a type context
+                // see ParseLambdaExpression, line 67
+                //"B.$0.$0.apply(String),B.<init>(),B.$0.accept(java.util.jar.JarEntry),B.$0.$0,B.main(String[]),B,B.$0",
+                "B.$1.apply(String),B.<init>(),B.$0.accept(java.util.jar.JarEntry),B.$1,B.main(String[]),B,B.$0",
                 ao.stream().map(Info::fullyQualifiedName).collect(Collectors.joining(",")));
         MethodInfo methodInfo = (MethodInfo) ao.get(0);
         assertTrue(methodInfo.analysis().haveAnalyzedValueFor(HiddenContentSelector.HCS_METHOD));
