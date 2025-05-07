@@ -5,7 +5,7 @@
  */
 
 plugins {
-    java
+    `java-library`
     `maven-publish`
 }
 
@@ -28,31 +28,34 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+val slf4jVersion = project.findProperty("slf4jVersion") as String
+val jupiterApiVersion = project.findProperty("jupiterApiVersion") as String
+val jupiterEngineVersion = project.findProperty("jupiterEngineVersion") as String
+val logbackClassicVersion = project.findProperty("logbackClassicVersion") as String
+val jetBrainsAnnotationsVersion = project.findProperty("jetBrainsAnnotationsVersion") as String
+
 dependencies {
-    implementation("org.e2immu:e2immu-external-support:${version}")
-    implementation("org.e2immu:e2immu-internal-graph:${version}")
-    implementation("org.e2immu:e2immu-internal-util:${version}")
-    implementation("org.e2immu:e2immu-cst-api:${version}")
-    implementation("org.e2immu:e2immu-cst-analysis:${version}")
-    implementation("org.e2immu:e2immu-cst-io:${version}")
-    implementation("org.e2immu:e2immu-cst-impl:${version}")
-    implementation("org.e2immu:e2immu-inspection-api:${version}")
-    implementation("org.slf4j:slf4j-api:2.0.7")
+    api("org.e2immu:e2immu-external-support:$version")
+    api("org.e2immu:e2immu-cst-api:$version")
+    api("org.e2immu:e2immu-inspection-api:$version")
+    implementation("org.e2immu:e2immu-internal-graph:$version")
+    implementation("org.e2immu:e2immu-internal-util:$version")
+    implementation("org.e2immu:e2immu-cst-analysis:$version")
+    implementation("org.e2immu:e2immu-cst-io:$version")
+    implementation("org.e2immu:e2immu-cst-impl:$version")
+    implementation("org.slf4j:slf4j-api:$slf4jVersion")
 
-    testImplementation("org.jetbrains:annotations:24.1.0")
-    testImplementation("org.e2immu:e2immu-cst-print:${version}")
-    testImplementation("org.e2immu:e2immu-inspection-parser:${version}")
-    testImplementation("org.e2immu:e2immu-internal-util:${version}")
-    testImplementation("org.e2immu:e2immu-internal-graph:${version}")
-    testImplementation("org.e2immu:e2immu-java-parser:${version}")
-    testImplementation("org.e2immu:e2immu-java-bytecode:${version}")
-    testImplementation("org.e2immu:e2immu-inspection-integration:${version}")
-    testImplementation("org.e2immu:e2immu-inspection-api:${version}")
-    testImplementation("org.e2immu:e2immu-inspection-resource:${version}")
+    testImplementation("org.jetbrains:annotations:$jetBrainsAnnotationsVersion")
+    testImplementation("org.e2immu:e2immu-cst-print:$version")
+    testImplementation("org.e2immu:e2immu-inspection-parser:$version")
+    testImplementation("org.e2immu:e2immu-java-parser:$version")
+    testImplementation("org.e2immu:e2immu-java-bytecode:$version")
+    testImplementation("org.e2immu:e2immu-inspection-integration:$version")
+    testImplementation("org.e2immu:e2immu-inspection-resource:$version")
 
-    testImplementation("ch.qos.logback:logback-classic:1.5.8")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterApiVersion")
+    testImplementation("ch.qos.logback:logback-classic:$logbackClassicVersion")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jupiterEngineVersion")
 }
 
 tasks.test {
