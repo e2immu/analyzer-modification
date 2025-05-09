@@ -110,8 +110,8 @@ public class TestCloneBench extends CommonTest {
         }
 
         LOGGER.warn("JDK calls:");
-        Composer composer = new Composer(javaInspector.runtime(),
-                "org.e2immu.analyzer.shallow.aapi.java", w -> w.access().isPublic());
+        Composer composer = new Composer(javaInspector,
+                set -> "org.e2immu.analyzer.shallow.aapi.java", w -> w.access().isPublic());
         List<TypeInfo> toCompose =
                 typeHistogram.entrySet().stream()
                         .sorted((e1, e2) -> e2.getValue() - e1.getValue())
@@ -127,7 +127,7 @@ public class TestCloneBench extends CommonTest {
                             return null;
                         }).filter(Objects::nonNull).distinct().toList();
         Collection<TypeInfo> aapiTypes = composer.compose(toCompose);
-        composer.write(aapiTypes, "build/aapis", () -> null);
+        composer.write(aapiTypes, "build/aapis", null);
 
         Map<String, Integer> problemHistogram = analyzer.getProblemsRaised().stream()
                 .collect(Collectors.toUnmodifiableMap(t -> t == null || t.getMessage() == null ? "?" : t.getMessage(), t -> 1, Integer::sum));
