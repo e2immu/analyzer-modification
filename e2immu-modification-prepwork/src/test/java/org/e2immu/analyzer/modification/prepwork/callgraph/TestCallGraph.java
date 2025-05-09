@@ -1,14 +1,10 @@
 package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
-import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -16,9 +12,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestCallGraph extends CommonTest {
@@ -164,6 +157,43 @@ public class TestCallGraph extends CommonTest {
         List<Info> analysisOrder = cao.go(graph);
         assertEquals("""
                 [a.b.X.initList(int), a.b.X.print(), a.b.X.sleep(), a.b.X.X(int), a.b.X.list, a.b.X.rest(), a.b.X]\
+                """, analysisOrder.toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT4 = """
+            package a.b;
+            class X {
+                interface I { int i(); }
+                record Y(int i) implements I {}
+                record Z(Y y) {}
+                Z z;
+                Z getZ() { return z; }
+            }
+            """;
+
+    @DisplayName("subtypes in call graph")
+    @Test
+    public void test4() {
+        TypeInfo X = javaInspector.parse(INPUT4);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
+        G<Info> graph = ccg.go().graph();
+        assertEquals("""
+                a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.getZ(), a.b.X->1->a.b.X.z, a.b.X.I->1->a.b.X.I.i(), \
+                a.b.X.Y->1->a.b.X.I, a.b.X.Y->1->a.b.X.Y.<init>(int), a.b.X.Y->1->a.b.X.Y.i, a.b.X.Y->1->a.b.X.Y.i(), \
+                a.b.X.Y.i->1->a.b.X.Y.i(), a.b.X.Y.i->2->a.b.X.Y.<init>(int), a.b.X.Z->1->a.b.X.Z.<init>(a.b.X.Y), \
+                a.b.X.Z->1->a.b.X.Z.y, a.b.X.Z->1->a.b.X.Z.y(), a.b.X.Z.<init>(a.b.X.Y)->1->a.b.X.Y, \
+                a.b.X.Z.y()->1->a.b.X.Y, a.b.X.Z.y->1->a.b.X.Y, a.b.X.Z.y->1->a.b.X.Z.y(), \
+                a.b.X.Z.y->2->a.b.X.Z.<init>(a.b.X.Y), a.b.X.getZ()->1->a.b.X.Z, a.b.X.z->1->a.b.X.Z, \
+                a.b.X.z->1->a.b.X.getZ()\
+                """, graph.toString());
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        List<Info> analysisOrder = cao.go(graph);
+        assertEquals("""
+                [a.b.X.<init>(), a.b.X.I.i(), a.b.X.Y.<init>(int), a.b.X.Y.i(), a.b.X.I, a.b.X.Y.i, a.b.X.Y, \
+                a.b.X.Z.<init>(a.b.X.Y), a.b.X.Z.y(), a.b.X.Z.y, a.b.X.Z, a.b.X.getZ(), a.b.X.z, a.b.X]\
                 """, analysisOrder.toString());
     }
 }
