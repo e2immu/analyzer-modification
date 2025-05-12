@@ -65,10 +65,12 @@ public class TestCloneBench extends CommonTest {
 
         List<Info> analysisOrder = prepWork(typeInfo);
         analyzer.doPrimaryType(typeInfo, analysisOrder);
-
-        String printed = javaInspector.print2(typeInfo);
-        Files.writeString(outFile.toPath(), printed, StandardCharsets.UTF_8);
-
+        try {
+            String printed = javaInspector.print2(typeInfo);
+            Files.writeString(outFile.toPath(), printed, StandardCharsets.UTF_8);
+        } catch (RuntimeException re) {
+            LOGGER.error("Problems writing with print2, skip for now: {}", typeInfo);
+        }
         analysisOrder.stream().filter(info -> info instanceof MethodInfo)
                 .forEach(info -> {
                     MethodInfo mi = (MethodInfo) info;

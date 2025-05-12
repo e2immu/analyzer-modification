@@ -61,6 +61,8 @@ dependencies {
     testImplementation("org.e2immu:e2immu-inspection-resource:$version")
     testImplementation("org.e2immu:e2immu-modification-io:$version")
 
+    testRuntimeOnly("org.e2immu:e2immu-aapi-archive:$version")
+
     testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterApiVersion")
     testImplementation("ch.qos.logback:logback-classic:$logbackClassicVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jupiterEngineVersion")
