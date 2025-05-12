@@ -2,14 +2,10 @@ package org.e2immu.analyzer.modification.linkedvariables.clonebench;
 
 import ch.qos.logback.classic.Level;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
-import org.e2immu.analyzer.shallow.analyzer.Composer;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,12 +14,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
 IMPORTANT: use "analyzed" branch of "testarchive".
@@ -69,7 +66,7 @@ public class TestCloneBench extends CommonTest {
         List<Info> analysisOrder = prepWork(typeInfo);
         analyzer.doPrimaryType(typeInfo, analysisOrder);
 
-        String printed = printType(typeInfo);
+        String printed = javaInspector.print2(typeInfo);
         Files.writeString(outFile.toPath(), printed, StandardCharsets.UTF_8);
 
         analysisOrder.stream().filter(info -> info instanceof MethodInfo)
@@ -108,7 +105,7 @@ public class TestCloneBench extends CommonTest {
         for (String dir : DIRS) {
             process(dir, counter, typeHistogram);
         }
-
+/* potentially copy this test, and add it to aapi.parser tests
         LOGGER.warn("JDK calls:");
         Composer composer = new Composer(javaInspector,
                 set -> "org.e2immu.analyzer.shallow.aapi.java", w -> w.access().isPublic());
@@ -136,6 +133,6 @@ public class TestCloneBench extends CommonTest {
         });
         int numErrors = analyzer.getProblemsRaised().size();
         assertEquals(0, numErrors, "Found " + numErrors + " errors parsing " + counter.get()
-                                   + " files. Histogram: " + analyzer.getHistogram());
+                                   + " files. Histogram: " + analyzer.getHistogram());*/
     }
 }

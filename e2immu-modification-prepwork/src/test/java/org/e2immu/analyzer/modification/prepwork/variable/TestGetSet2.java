@@ -2,7 +2,7 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;

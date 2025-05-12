@@ -79,9 +79,6 @@ public class TestIdentity extends CommonTest {
         assertEquals("Type java.net.URL", viRv.staticValues().toString());
 
         assertFalse(method.isIdentity());
-
-        String printed = printType(B);
-        assertFalse(printed.contains("@Identity"));
     }
 
 

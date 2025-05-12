@@ -45,7 +45,7 @@ dependencies {
     implementation("org.e2immu:e2immu-internal-graph:$version")
     implementation("org.e2immu:e2immu-cst-io:$version")
     implementation("org.e2immu:e2immu-cst-analysis:$version")
-    implementation("org.e2immu:e2immu-shallow-analyzer:$version")
+    implementation("org.e2immu:e2immu-modification-common:$version")
     implementation("org.e2immu:e2immu-modification-prepwork:$version")
     implementation("org.e2immu:e2immu-inspection-parser:$version")
     implementation("org.slf4j:slf4j-api:$slf4jVersion")
@@ -59,6 +59,7 @@ dependencies {
     testImplementation("org.e2immu:e2immu-java-bytecode:$version")
     testImplementation("org.e2immu:e2immu-inspection-integration:$version")
     testImplementation("org.e2immu:e2immu-inspection-resource:$version")
+    testImplementation("org.e2immu:e2immu-modification-io:$version")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterApiVersion")
     testImplementation("ch.qos.logback:logback-classic:$logbackClassicVersion")

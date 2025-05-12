@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork.getset;
+package org.e2immu.analyzer.modification.common.getset;
 
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Source;
@@ -7,7 +7,6 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;

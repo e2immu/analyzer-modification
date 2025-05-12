@@ -1,5 +1,6 @@
-package org.e2immu.analyzer.modification.prepwork;
+package org.e2immu.analyzer.modification.io;
 
+import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.analysis.Codec;
@@ -12,11 +13,6 @@ import org.e2immu.language.cst.io.CodecImpl;
 
 import java.util.Map;
 import java.util.function.BiFunction;
-
-import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
-import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
 public class PrepWorkCodec {
 
@@ -43,10 +39,10 @@ public class PrepWorkCodec {
     }
 
     private static final Map<String, Property> PROPERTY_MAP = Map.of(
-            HIDDEN_CONTENT_TYPES.key(), HIDDEN_CONTENT_TYPES,
-            HCS_METHOD.key(), HCS_METHOD,
-            HCS_PARAMETER.key(), HCS_PARAMETER,
-            PART_OF_CONSTRUCTION.key(), PART_OF_CONSTRUCTION);
+            HiddenContentTypes.HIDDEN_CONTENT_TYPES.key(), HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+            HiddenContentSelector.HCS_METHOD.key(), HiddenContentSelector.HCS_METHOD,
+            HiddenContentSelector.HCS_PARAMETER.key(), HiddenContentSelector.HCS_PARAMETER,
+            ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION.key(), ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION);
 
     static class P implements Codec.PropertyProvider {
         @Override

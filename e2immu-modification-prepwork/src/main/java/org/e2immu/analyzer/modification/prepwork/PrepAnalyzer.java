@@ -3,7 +3,7 @@ package org.e2immu.analyzer.modification.prepwork;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
-import org.e2immu.analyzer.modification.prepwork.getset.GetSetHelper;
+import org.e2immu.analyzer.modification.common.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;

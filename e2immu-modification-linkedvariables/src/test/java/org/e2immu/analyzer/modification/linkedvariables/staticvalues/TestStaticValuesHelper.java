@@ -2,7 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.expression.Assignment;

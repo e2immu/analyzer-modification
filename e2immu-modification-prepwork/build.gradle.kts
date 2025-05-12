@@ -43,6 +43,7 @@ dependencies {
     implementation("org.e2immu:e2immu-cst-analysis:$version")
     implementation("org.e2immu:e2immu-cst-io:$version")
     implementation("org.e2immu:e2immu-cst-impl:$version")
+    implementation("org.e2immu:e2immu-modification-common:$version")
     implementation("org.slf4j:slf4j-api:$slf4jVersion")
 
     testImplementation("org.jetbrains:annotations:$jetBrainsAnnotationsVersion")

@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.prepwork.getset;
+package org.e2immu.analyzer.modification.common.getset;
 
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Assignment;

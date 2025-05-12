@@ -2,8 +2,9 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.language.inspection.integration.ToolChain;
+import org.e2immu.analyzer.modification.io.LoadAnalyzedPackageFiles;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.analyzer.shallow.analyzer.*;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.output.Formatter;
@@ -63,11 +64,8 @@ public class CommonTest {
         javaInspector.initialize(inputConfiguration);
         javaInspector.preload("java.util");
 
-        AnnotatedAPIConfiguration annotatedAPIConfiguration = new AnnotatedAPIConfigurationImpl.Builder()
-                .addAnalyzedAnnotatedApiDirs(ToolChain.currentJdkAnalyzedPackages())
-                .addAnalyzedAnnotatedApiDirs(ToolChain.commonLibsAnalyzedPackages())
-                .build();
-        new LoadAnalyzedPackageFiles().go(javaInspector, annotatedAPIConfiguration);
+        new LoadAnalyzedPackageFiles().go(javaInspector, List.of(ToolChain.currentJdkAnalyzedPackages(),
+                ToolChain.commonLibsAnalyzedPackages()));
 
         javaInspector.parse(JavaInspectorImpl.FAIL_FAST);
         runtime = javaInspector.runtime();
@@ -82,13 +80,5 @@ public class CommonTest {
         prepAnalyzer.initialize(typesLoaded);
 
         return prepAnalyzer.doPrimaryType(typeInfo);
-    }
-
-    protected String printType(TypeInfo newType) {
-        Qualification.Decorator decorator = new DecoratorImpl(runtime);
-        OutputBuilder ob = runtime.newTypePrinter(newType, false).print(javaInspector.importComputer(4),
-                runtime.qualificationQualifyFromPrimaryType(decorator), true);
-        Formatter formatter = new FormatterImpl(runtime, new FormattingOptionsImpl.Builder().build());
-        return formatter.write(ob);
     }
 }

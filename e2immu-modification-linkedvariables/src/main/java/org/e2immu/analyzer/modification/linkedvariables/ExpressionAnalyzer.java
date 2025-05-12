@@ -2,14 +2,14 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
-import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
-import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;

@@ -1,11 +1,8 @@
-package org.e2immu.analyzer.modification.linkedvariables.io;
+package org.e2immu.analyzer.modification.io;
 
-import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.LinkedVariablesCodec;
-import org.e2immu.analyzer.shallow.analyzer.WriteAnalysis;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.util.internal.util.Trie;
 import org.intellij.lang.annotations.Language;
@@ -18,9 +15,8 @@ import java.nio.file.Files;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class TestWriteAnalysis extends CommonTest {
+public class TestWriteAnalysis2 extends CommonTest {
 
     @Language("java")
     private static final String INPUT1 = """
@@ -103,8 +99,8 @@ public class TestWriteAnalysis extends CommonTest {
                 record R(Set<Integer> set, int i, List<String> list) { }
                 void setAdd(@Modified X.R r) { r.set.add(r.i); }
                 void method() {
-                    List<String> l = new ArrayList<>();
-                    Set<Integer> s = new HashSet<>();
+                    List<String> l = new ArrayList<> ();
+                    Set<Integer> s = new HashSet<> ();
                     X.R r = new X.R(s, 3, l);
                     setAdd(r);
                 }
@@ -144,7 +140,7 @@ public class TestWriteAnalysis extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.doPrimaryType(X, analysisOrder);
 
-        String s = printType(X);
+        String s = javaInspector.print2(X, new DecoratorImpl(runtime), javaInspector.importComputer(4));
         assertEquals(output, s);
         Trie<TypeInfo> typeTrie = new Trie<>();
         typeTrie.add(X.fullyQualifiedName().split("\\."), X);
@@ -153,7 +149,7 @@ public class TestWriteAnalysis extends CommonTest {
         dest.mkdirs();
         Codec codec = new LinkedVariablesCodec(runtime).codec();
         writeAnalysis.write(dest, typeTrie, codec);
-        String written = Files.readString(new File(dest, "libs/unclassified/ABX.json").toPath());
+        String written = Files.readString(new File(dest, "ABX.json").toPath());
         assertEquals(json, written);
     }
 }

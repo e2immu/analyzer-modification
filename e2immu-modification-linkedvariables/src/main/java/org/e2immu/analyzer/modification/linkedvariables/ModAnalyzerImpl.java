@@ -9,8 +9,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
-import org.e2immu.analyzer.shallow.analyzer.ShallowMethodAnalyzer;
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.defaults.ShallowMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
@@ -71,7 +71,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
         this.runtime = runtime;
         StaticValuesHelper staticValuesHelper = new StaticValuesHelper(runtime);
         expressionAnalyzer = new ExpressionAnalyzer(runtime, this, staticValuesHelper);
-        shallowMethodAnalyzer = new ShallowMethodAnalyzer(Element::annotations);
+        shallowMethodAnalyzer = new ShallowMethodAnalyzer(runtime, Element::annotations);
         this.analysisHelper = new AnalysisHelper();
         computeLinkCompletion = new ComputeLinkCompletion(analysisHelper, staticValuesHelper); // has a cache, we want this to be stable
         this.getSetHelper = new GetSetHelper(runtime);

@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.prepwork;
 
 import org.e2immu.analyzer.modification.prepwork.escape.ComputeAlwaysEscapes;
-import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
 import org.e2immu.language.cst.api.analysis.Codec;

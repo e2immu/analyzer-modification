@@ -10,7 +10,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
-import org.e2immu.analyzer.shallow.analyzer.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.VariableExpression;

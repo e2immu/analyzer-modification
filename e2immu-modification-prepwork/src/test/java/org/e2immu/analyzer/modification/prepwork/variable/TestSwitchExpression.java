@@ -2,10 +2,7 @@ package org.e2immu.analyzer.modification.prepwork.variable;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.analyzer.modification.prepwork.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.SwitchExpression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -41,8 +38,8 @@ public class TestSwitchExpression extends CommonTest {
         assertTrue(X.typeNature().isRecord());
 
         MethodInfo method = X.findUniqueMethod("method", 0);
-        SwitchExpression switchExpression = (SwitchExpression) method.methodBody().statements().get(0).expression();
-        Statement s0 = switchExpression.entries().get(0).statement();
+        SwitchExpression switchExpression = (SwitchExpression) method.methodBody().statements().getFirst().expression();
+        Statement s0 = switchExpression.entries().getFirst().statement();
         assertEquals("5-23:5-42", s0.source().compact2());
         VariableData vd0 = VariableDataImpl.of(s0);
         assertEquals("X.list, X.this, java.util.List._synthetic_list#X.list, java.util.List._synthetic_list#X.list[0]",

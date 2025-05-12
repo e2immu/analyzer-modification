@@ -6,7 +6,8 @@ tasks.register("test") {
     dependsOn(gradle.includedBuild("e2immu-java-parser").task(":test"))
     dependsOn(gradle.includedBuild("e2immu-java-bytecode").task(":test"))
     dependsOn(gradle.includedBuild("e2immu-inspection-integration").task(":test"))
-    dependsOn(gradle.includedBuild("e2immu-shallow-analyzer").task(":test"))
+    dependsOn(gradle.includedBuild("e2immu-modification-common").task(":test"))
+    dependsOn(gradle.includedBuild("e2immu-modification-io").task(":test"))
     dependsOn(gradle.includedBuild("e2immu-modification-prepwork").task(":test"))
     dependsOn(gradle.includedBuild("e2immu-modification-linkedvariables").task(":test"))
 }

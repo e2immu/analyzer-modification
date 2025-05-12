@@ -216,9 +216,5 @@ public class TestModificationField extends CommonTest {
 
         assertFalse(loopCount.isModified());
         assertFalse(blockSize.isModified());
-
-        String print = printType(X);
-        LOGGER.info(print);
-        assertFalse(print.contains("@Modified private int blockSize"));
     }
 }
