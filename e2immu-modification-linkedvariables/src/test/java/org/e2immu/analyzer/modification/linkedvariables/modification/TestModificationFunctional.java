@@ -67,7 +67,7 @@ public class TestModificationFunctional extends CommonTest {
         analyzer.doPrimaryType(X, analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
-        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
 
         MethodInfo run = X.findUniqueMethod("run", 2);
         ParameterInfo s = run.parameters().get(0);
@@ -86,9 +86,9 @@ public class TestModificationFunctional extends CommonTest {
             VariableInfo vi1Function = vd1.variableInfo(function);
             assertSame(TRUE, vi1Function.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
         }
-        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
-        assertSame(TRUE, function.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-        assertSame(FALSE, s.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
+        assertSame(TRUE, function.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, s.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
 
         // finally, we copy the modification status of 'parse' onto 'this'
         MethodInfo go = X.findUniqueMethod("go", 1);
@@ -98,16 +98,16 @@ public class TestModificationFunctional extends CommonTest {
             VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X.asParameterizedType()));
             assertSame(TRUE, vi0This.analysis().getOrDefault(VariableInfoImpl.MODIFIED_VARIABLE, FALSE));
             // as a consequence, 'go' becomes modified
-            assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+            assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         }
         {
             MethodInfo indirection = X.findUniqueMethod("indirection", 2);
             ParameterInfo iP1 = indirection.parameters().get(1);
-            assertSame(TRUE, iP1.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+            assertSame(TRUE, iP1.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
         }
         {
             MethodInfo goIndirection = X.findUniqueMethod("goWithIndirection", 1);
-            assertSame(TRUE, goIndirection.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+            assertSame(TRUE, goIndirection.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         }
     }
 
@@ -155,7 +155,7 @@ public class TestModificationFunctional extends CommonTest {
         TypeInfo R = X.findSubType("R");
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
-        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
 
         MethodInfo run = X.findUniqueMethod("run", 2);
         ParameterInfo runS = run.parameters().get(0);
@@ -168,16 +168,16 @@ public class TestModificationFunctional extends CommonTest {
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
         }
         {
-            assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+            assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
             assertEquals("this.function=true", runR.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class).toString());
-            assertSame(FALSE, runR.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
-            assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+            assertSame(FALSE, runR.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
+            assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         }
         MethodInfo go = X.findUniqueMethod("go", 1);
-        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         ParameterInfo goIn = go.parameters().get(0);
-        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
     }
 
     @Language("java")
@@ -215,7 +215,7 @@ public class TestModificationFunctional extends CommonTest {
         TypeInfo R = X.findSubType("R");
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
-        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
 
         MethodInfo run = X.findUniqueMethod("run", 2);
         ParameterInfo runS = run.parameters().get(1);
@@ -227,10 +227,10 @@ public class TestModificationFunctional extends CommonTest {
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
         }
 
-        assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
         assertEquals("this.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.class).toString());
-        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
 
         MethodInfo go = X.findUniqueMethod("go", 1);
         {
@@ -251,9 +251,9 @@ public class TestModificationFunctional extends CommonTest {
             assertEquals("Type a.b.X.S E=new S(r) this.r=r", vi1S.staticValues().toString());
         }
 
-        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         ParameterInfo goIn = go.parameters().get(0);
-        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
     }
 
 
@@ -310,7 +310,7 @@ public class TestModificationFunctional extends CommonTest {
         assertTrue(rInSImpl.overrides().contains(rInS));
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
-        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
 
         MethodInfo go = X.findUniqueMethod("go", 1);
         {
@@ -341,15 +341,15 @@ public class TestModificationFunctional extends CommonTest {
                     .getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, EMPTY).toString());
         }
 
-        assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, runS.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
         assertEquals("this.r.function=true", runS.analysis().getOrNull(MODIFIED_FI_COMPONENTS_PARAMETER,
                 ValueImpl.VariableBooleanMapImpl.class).toString());
-        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(FALSE, run.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
 
 
 
-        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, FALSE));
+        assertSame(TRUE, go.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         ParameterInfo goIn = go.parameters().get(0);
-        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, goIn.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
     }
 }

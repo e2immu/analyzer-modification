@@ -38,12 +38,12 @@ public class TestWriteAnalysis {
         TypeInfo typeInfo = runtime.newTypeInfo(cu, "C");
 
         typeInfo.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE);
-        typeInfo.analysis().set(PropertyImpl.SHALLOW_ANALYZER, ValueImpl.BoolImpl.TRUE);
+        typeInfo.analysis().set(PropertyImpl.DEFAULTS_ANALYZER, ValueImpl.BoolImpl.TRUE);
         typeInfo.analysis().set(PropertyImpl.COMMUTABLE_METHODS,
                 new ValueImpl.CommutableDataImpl("p1", "p2,p3", "p4"));
 
         MethodInfo methodInfo = runtime.newMethod(typeInfo, "m1", runtime.methodTypeMethod());
-        methodInfo.analysis().set(PropertyImpl.SHALLOW_ANALYZER, ValueImpl.BoolImpl.TRUE);
+        methodInfo.analysis().set(PropertyImpl.DEFAULTS_ANALYZER, ValueImpl.BoolImpl.TRUE);
         typeInfo.builder().addMethod(methodInfo);
 
         WriteAnalysis wa = new WriteAnalysis(runtime);

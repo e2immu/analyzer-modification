@@ -702,7 +702,8 @@ class ExpressionAnalyzer {
 
         private void methodCallModified(MethodCall mc, EvaluationResult.Builder builder) {
             if (mc.object() instanceof VariableExpression ve) {
-                boolean modifying = mc.methodInfo().analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
+                // FIXME aapi2
+                boolean modifying = mc.methodInfo().analysis().getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue();
                 if (ve.variable().parameterizedType().isFunctionalInterface()
                     && ve.variable() instanceof FieldReference fr
                     && !fr.isStatic() && !(fr.scopeVariable() instanceof This)) {
@@ -713,7 +714,8 @@ class ExpressionAnalyzer {
                 }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
-                if (pi.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue()) {
+                // FIXME aapi2
+                if (pi.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue()) {
                     if (pi.isVarArgs()) {
                         for (int i = mc.methodInfo().parameters().size() - 1; i < mc.parameterExpressions().size(); i++) {
                             Expression pe = mc.parameterExpressions().get(i);

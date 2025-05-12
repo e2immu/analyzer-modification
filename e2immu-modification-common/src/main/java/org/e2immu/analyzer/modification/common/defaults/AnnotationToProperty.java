@@ -22,12 +22,12 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.stream.Stream;
 
-class CommonAnalyzer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CommonAnalyzer.class);
+class AnnotationToProperty {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AnnotationToProperty.class);
 
     protected final AnnotationProvider annotationProvider;
     protected final Runtime runtime;
-    CommonAnalyzer(Runtime runtime, AnnotationProvider annotationProvider) {
+    AnnotationToProperty(Runtime runtime, AnnotationProvider annotationProvider) {
         this.annotationProvider = annotationProvider;
         this.runtime = runtime;
     }
@@ -47,7 +47,7 @@ class CommonAnalyzer {
         Value.Bool container = null;
         Value.Bool fluent = null;
         Value.Bool identity = null;
-        Value.Bool modified = null;
+        Value.Bool unmodified = null;
         Value.Bool ignoreModifications = null;
         Value.Bool isFinal = null;
         Value.FieldValue getSetField = null;
@@ -104,9 +104,9 @@ class CommonAnalyzer {
                     }
                 }
             } else if (NotModified.class.getCanonicalName().equals(fqn)) {
-                modified = ValueImpl.BoolImpl.from(isAbsent);
+                unmodified = valueForTrue;
             } else if (Modified.class.getCanonicalName().equals(fqn)) {
-                modified = valueForTrue;
+                unmodified = ValueImpl.BoolImpl.from(isAbsent);
                 String value = ae.extractString("value", "");
                 if (!value.isBlank()) {
                     FieldInfo fieldInfo = info.typeInfo().getFieldByName(value, false);
@@ -205,7 +205,7 @@ class CommonAnalyzer {
             }
             if (container != null) map.put(PropertyImpl.CONTAINER_METHOD, container);
             if (notNull != null) map.put(PropertyImpl.NOT_NULL_METHOD, notNull);
-            if (modified != null) map.put(PropertyImpl.MODIFIED_METHOD, modified);
+            if (unmodified != null) map.put(PropertyImpl.NON_MODIFYING_METHOD, unmodified);
             if (allowInterrupt != null) map.put(PropertyImpl.METHOD_ALLOWS_INTERRUPTS, allowInterrupt);
             if (staticSideEffects != null) map.put(PropertyImpl.STATIC_SIDE_EFFECTS_METHOD, staticSideEffects);
             if (getSetEquivalent != null) map.put(PropertyImpl.GET_SET_EQUIVALENT, getSetEquivalent);
@@ -221,7 +221,7 @@ class CommonAnalyzer {
             }
             if (container != null) map.put(PropertyImpl.CONTAINER_FIELD, container);
             if (notNull != null) map.put(PropertyImpl.NOT_NULL_FIELD, notNull);
-            if (modified != null) map.put(PropertyImpl.MODIFIED_FIELD, modified);
+            if (unmodified != null) map.put(PropertyImpl.UNMODIFIED_FIELD, unmodified);
             if (isFinal != null) map.put(PropertyImpl.FINAL_FIELD, isFinal);
             if (ignoreModifications != null) map.put(PropertyImpl.IGNORE_MODIFICATIONS_FIELD, ignoreModifications);
             return map;
@@ -231,7 +231,7 @@ class CommonAnalyzer {
             if (independent != null) map.put(PropertyImpl.INDEPENDENT_PARAMETER, independent);
             if (container != null) map.put(PropertyImpl.CONTAINER_PARAMETER, container);
             if (notNull != null) map.put(PropertyImpl.NOT_NULL_PARAMETER, notNull);
-            if (modified != null) map.put(PropertyImpl.MODIFIED_PARAMETER, modified);
+            if (unmodified != null) map.put(PropertyImpl.UNMODIFIED_PARAMETER, unmodified);
             if (ignoreModifications != null) map.put(PropertyImpl.IGNORE_MODIFICATIONS_PARAMETER, ignoreModifications);
             if (modifiedComponents != null) map.put(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER, modifiedComponents);
             return map;

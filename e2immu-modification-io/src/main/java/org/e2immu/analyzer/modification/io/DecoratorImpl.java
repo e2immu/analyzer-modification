@@ -26,8 +26,8 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DE
 public class DecoratorImpl implements Qualification.Decorator {
     private final Runtime runtime;
     private final AnalysisHelper analysisHelper;
-    private final AnnotationExpression modifiedAnnotation;
-    private final TypeInfo modifiedTi;
+    private final AnnotationExpression notModifiedAnnotation;
+    private final TypeInfo notModifiedTi;
     private final TypeInfo immutableTi;
     private final TypeInfo independentTi;
     private final TypeInfo finalTi;
@@ -37,7 +37,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final AnnotationExpression containerAnnotation;
 
     private boolean needContainerImport;
-    private boolean needModifiedImport;
+    private boolean needUnmodifiedImport;
     private boolean needImmutableImport;
     private boolean needIndependentImport;
     private boolean needFinalImport;
@@ -53,8 +53,8 @@ public class DecoratorImpl implements Qualification.Decorator {
     public DecoratorImpl(Runtime runtime, Map<Info, Info> translationMap) {
         this.runtime = runtime;
         analysisHelper = new AnalysisHelper();
-        modifiedTi = runtime.getFullyQualified(Modified.class, true);
-        modifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(modifiedTi).build();
+        notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
+        notModifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(notModifiedTi).build();
         independentTi = runtime.getFullyQualified(Independent.class, true);
         immutableTi = runtime.getFullyQualified(Immutable.class, true);
         finalTi = runtime.getFullyQualified(Final.class, true);
@@ -79,7 +79,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     @Override
     public List<AnnotationExpression> annotations(Info infoIn) {
         Info info = translationMap == null ? infoIn : translationMap.getOrDefault(infoIn, infoIn);
-        boolean modified;
+        boolean unmodified;
         Value.Immutable immutable;
         Value.Independent independent;
         boolean isFinal;
@@ -88,7 +88,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         PropertyValueMap analysis = info.analysis();
         switch (info) {
             case MethodInfo methodInfo -> {
-                modified = !methodInfo.isConstructor() && analysis.getOrDefault(MODIFIED_METHOD, FALSE).isTrue();
+                unmodified = !methodInfo.isConstructor() && analysis.getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue();
                 immutable = null;
                 independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT), methodInfo.typeInfo(),
                         methodInfo.returnType());
@@ -97,7 +97,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 isContainer = false;
             }
             case FieldInfo fieldInfo -> {
-                modified = analysis.getOrDefault(MODIFIED_FIELD, FALSE).isTrue();
+                unmodified = analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue();
                 immutable = null;
                 independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT),
                         fieldInfo.owner(), fieldInfo.type());
@@ -106,7 +106,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 isIdentity = false;
             }
             case ParameterInfo pi -> {
-                modified = analysis.getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue();
+                unmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue();
                 immutable = null;
                 independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT), pi.typeInfo(),
                         pi.parameterizedType());
@@ -115,7 +115,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 isIdentity = false;
             }
             case TypeInfo typeInfo -> {
-                modified = false;
+                unmodified = false;
                 immutable = analysis.getOrDefault(IMMUTABLE_TYPE, MUTABLE);
                 independent = nonTrivialIndependentType(analysis.getOrDefault(INDEPENDENT_TYPE, DEPENDENT), immutable);
                 isContainer = analysis.getOrDefault(CONTAINER_TYPE, FALSE).isTrue();
@@ -160,9 +160,9 @@ public class DecoratorImpl implements Qualification.Decorator {
             }
             list.add(b.build());
         }
-        if (modified) {
-            this.needModifiedImport = true;
-            list.add(modifiedAnnotation);
+        if (unmodified) {
+            this.needUnmodifiedImport = true;
+            list.add(notModifiedAnnotation);
         }
         return list;
     }
@@ -204,8 +204,8 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (needImmutableContainerImport) {
             list.add(runtime.newImportStatementBuilder().setImport(immutableContainerTi.fullyQualifiedName()).build());
         }
-        if (needModifiedImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(modifiedTi.fullyQualifiedName()).build());
+        if (needUnmodifiedImport) {
+            list.add(runtime.newImportStatementBuilder().setImport(notModifiedTi.fullyQualifiedName()).build());
         }
         return list;
     }

@@ -5,7 +5,9 @@ import org.e2immu.annotation.Independent;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.AnnotationExpression;
-import org.e2immu.language.cst.api.info.*;
+import org.e2immu.language.cst.api.info.FieldInfo;
+import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -21,11 +23,12 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.IMMUTABLE_HC;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.NotNullImpl.NOT_NULL;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.NotNullImpl.NULLABLE;
 
-public class ShallowTypeAnalyzer extends CommonAnalyzer {
+public class ShallowTypeAnalyzer extends AnnotationToProperty {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShallowTypeAnalyzer.class);
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
     private final AtomicInteger warnings = new AtomicInteger();
@@ -36,10 +39,10 @@ public class ShallowTypeAnalyzer extends CommonAnalyzer {
 
     public void analyze(TypeInfo typeInfo) {
         LOGGER.debug("Analyzing type {}", typeInfo);
-        if (typeInfo.analysis().getOrDefault(SHALLOW_ANALYZER, FALSE).isTrue()) {
+        if (typeInfo.analysis().getOrDefault(DEFAULTS_ANALYZER, FALSE).isTrue()) {
             return; // already done
         }
-        typeInfo.analysis().set(SHALLOW_ANALYZER, TRUE);
+        typeInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
 
         boolean isExtensible = typeInfo.isExtensible();
         List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);
@@ -67,12 +70,14 @@ public class ShallowTypeAnalyzer extends CommonAnalyzer {
 
     public void analyzeFields(TypeInfo typeInfo) {
         boolean isEnum = typeInfo.typeNature().isEnum();
+        Value.Immutable ownerImmutable = analysisHelper.typeImmutable(typeInfo.asParameterizedType());
+
         for (FieldInfo fieldInfo : typeInfo.fields()) {
             if (!fieldInfo.access().isPublic()) continue;
-            if (fieldInfo.analysis().getOrDefault(SHALLOW_ANALYZER, FALSE).isTrue()) {
+            if (fieldInfo.analysis().getOrDefault(DEFAULTS_ANALYZER, FALSE).isTrue()) {
                 continue; // already done
             }
-            fieldInfo.analysis().set(SHALLOW_ANALYZER, TRUE);
+            fieldInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
 
             List<AnnotationExpression> fieldAnnotations = annotationProvider.annotations(fieldInfo);
             Map<Property, Value> fieldMap = annotationsToMap(fieldInfo, fieldAnnotations);
@@ -80,7 +85,7 @@ public class ShallowTypeAnalyzer extends CommonAnalyzer {
 
             Value.Bool ff = (Value.Bool) fieldMap.get(FINAL_FIELD);
             if (ff == null || ff.isFalse()) {
-                if (enumField || fieldInfo.isFinal()) {
+                if (enumField || fieldInfo.isFinal() || ownerImmutable.isAtLeastImmutableHC()) {
                     fieldMap.put(FINAL_FIELD, TRUE);
                 } else if (ff == null) {
                     fieldMap.put(FINAL_FIELD, FALSE);
@@ -102,14 +107,21 @@ public class ShallowTypeAnalyzer extends CommonAnalyzer {
                     fieldMap.put(CONTAINER_FIELD, FALSE);
                 }
             }
+
+            Value.Immutable formallyImmutable = analysisHelper.typeImmutable(fieldInfo.type());
+            if (formallyImmutable == null) {
+                LOGGER.warn("Have no @Immutable value for {}", fieldInfo.type());
+                formallyImmutable = MUTABLE;
+            }
+
+            Value.Bool um = (Value.Bool) fieldMap.get(UNMODIFIED_FIELD);
+            if (um != null && um.isTrue() || formallyImmutable.isAtLeastImmutableHC()
+                || ownerImmutable.isAtLeastImmutableHC()) {
+                fieldMap.put(UNMODIFIED_FIELD, TRUE);
+            }
             Value.Immutable imm = (Value.Immutable) fieldMap.get(IMMUTABLE_FIELD);
             if (imm == null || !imm.isImmutable()) {
-                Value.Immutable formally = analysisHelper.typeImmutable(fieldInfo.type());
-                if (formally == null) {
-                    LOGGER.warn("Have no @Immutable value for {}", fieldInfo.type());
-                    formally = MUTABLE;
-                }
-                fieldMap.put(IMMUTABLE_FIELD, formally.max(imm));
+                fieldMap.put(IMMUTABLE_FIELD, formallyImmutable.max(imm));
             }
             Value.Independent ind = (Value.Independent) fieldMap.get(INDEPENDENT_FIELD);
             if (ind == null || !ind.isIndependent()) {
@@ -143,13 +155,13 @@ public class ShallowTypeAnalyzer extends CommonAnalyzer {
                 warnings.incrementAndGet();
             }
             for (FieldInfo fieldInfo : typeInfo.fields()) {
-                if (fieldInfo.analysis().getOrDefault(MODIFIED_FIELD, FALSE).isTrue()) {
+                if (fieldInfo.analysis().getOrDefault(UNMODIFIED_FIELD, FALSE).isFalse()) {
                     LOGGER.warn("Have @Modified field {} in @Immutable type {}", fieldInfo.name(), typeInfo);
                     warnings.incrementAndGet();
                 }
             }
             for (MethodInfo methodInfo : typeInfo.methods()) {
-                if (methodInfo.analysis().getOrDefault(MODIFIED_METHOD, FALSE).isTrue()) {
+                if (methodInfo.analysis().getOrDefault(NON_MODIFYING_METHOD, FALSE).isFalse()) {
                     LOGGER.warn("Have @Modified method {} in @Immutable type {}", methodInfo.name(), typeInfo);
                     warnings.incrementAndGet();
                 }

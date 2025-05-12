@@ -210,9 +210,10 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                         pi.analysis().set(LINKED_VARIABLES_PARAMETER, filteredLvs);
                     }
                 }
-                if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_PARAMETER)) {
+                // FIXME aapi2
+                if (!pi.analysis().haveAnalyzedValueFor(UNMODIFIED_PARAMETER)) {
                     boolean modified = vi.isModified();
-                    pi.analysis().set(MODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                    pi.analysis().set(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
                 }
                 // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
                 // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
@@ -250,16 +251,18 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                 boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
                 boolean assignment = !vi.assignments().isEmpty();
                 if ((modification || assignment) && !methodInfo.isConstructor()) {
-                    if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_METHOD)) {
-                        methodInfo.analysis().set(MODIFIED_METHOD, TRUE);
+                    // FIXME aapi2
+                    if (!methodInfo.analysis().haveAnalyzedValueFor(NON_MODIFYING_METHOD)) {
+                        methodInfo.analysis().set(NON_MODIFYING_METHOD, TRUE);
                     }
                     if (v instanceof FieldReference || vi.isVariableInClosure()) {
                         modifiedComponentsMethod.put(v, true);
                     }
                 }
                 if (modification && v instanceof FieldReference fr
-                    && !fr.fieldInfo().analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
-                    fr.fieldInfo().analysis().set(MODIFIED_FIELD, TRUE);
+                    // FIXME aapi2
+                    && !fr.fieldInfo().analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
+                    fr.fieldInfo().analysis().set(UNMODIFIED_FIELD, TRUE);
                 }
                 if (modification && vi.isVariableInClosure()) {
                     VariableData vd = vi.variableInfoInClosure();
@@ -663,7 +666,8 @@ public class ModAnalyzerImpl implements ModAnalyzer {
             fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
             LOGGER.debug("Do field {}: set {}", fieldInfo, reduced);
         }
-        if (!fieldInfo.analysis().haveAnalyzedValueFor(MODIFIED_FIELD)) {
+        // FIXME aapi2
+        if (!fieldInfo.analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
             boolean modified = fieldInfo.owner().primaryType().recursiveMethodStream()
                     .filter(mi -> !partOfConstruction.infoSet().contains(mi))
                     .filter(mi -> !mi.methodBody().isEmpty())
@@ -675,7 +679,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                                                                       && vi.isModified());
                     });
             if (modified) {
-                fieldInfo.analysis().set(MODIFIED_FIELD, TRUE);
+                fieldInfo.analysis().set(UNMODIFIED_FIELD, TRUE);
             }
         }
     }

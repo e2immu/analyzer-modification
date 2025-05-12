@@ -31,7 +31,7 @@ import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelecto
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.MODIFIED_PARAMETER;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.UNMODIFIED_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.junit.jupiter.api.Assertions.*;
@@ -62,7 +62,7 @@ public class TestLinkBasics extends CommonTest {
         ParameterInfo set = setAdd.parameters().get(0);
         Statement s0 = setAdd.methodBody().statements().get(0);
         MethodCall mc = (MethodCall) s0.expression();
-        assertTrue(mc.methodInfo().analysis().getOrDefault(PropertyImpl.MODIFIED_METHOD, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(mc.methodInfo().analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, ValueImpl.BoolImpl.FALSE).isTrue());
 
         VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo viSet0 = vd0.variableInfo(set);
@@ -70,7 +70,7 @@ public class TestLinkBasics extends CommonTest {
         assertEquals(LinkedVariablesImpl.EMPTY, viSet0.linkedVariables());
 
         // this should have reached the method
-        assertTrue(set.analysis().getOrDefault(PropertyImpl.MODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(set.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isTrue());
     }
 
 
@@ -121,13 +121,13 @@ public class TestLinkBasics extends CommonTest {
         TypeInfo collections = javaInspector.compiledTypesManager().get(Collections.class);
         MethodInfo addAll = collections.findUniqueMethod("addAll", 2);
         ParameterInfo addAll0 = addAll.parameters().get(0);
-        assertTrue(addAll0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE).isTrue());
+        assertTrue(addAll0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue());
         Value.Independent i0 = addAll0.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
                 ValueImpl.IndependentImpl.DEPENDENT);
         assertEquals(1, i0.linkToParametersReturnValue().size());
 
         ParameterInfo addAll1 = addAll.parameters().get(1);
-        assertSame(FALSE, addAll1.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, addAll1.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
 
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
@@ -154,11 +154,11 @@ public class TestLinkBasics extends CommonTest {
                 t1.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
         assertFalse(vi0t1.isModified());
 
-        assertSame(TRUE, list.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+        assertSame(TRUE, list.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertTrue(list.isModified());
-        assertSame(FALSE, t1.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, t1.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertFalse(t1.isModified());
-        assertSame(FALSE, t2.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, t2.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertFalse(t2.isModified());
     }
 
@@ -339,7 +339,7 @@ public class TestLinkBasics extends CommonTest {
             VariableInfo vi2p0 = vd2.variableInfo(listAdd0);
             assertSame(TRUE, vi2p0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
             // and propagation to the parameter itself
-            assertSame(TRUE, listAdd0.analysis().getOrDefault(MODIFIED_PARAMETER, FALSE));
+            assertSame(TRUE, listAdd0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         }
         {
             MethodInfo listAddM = X.findUniqueMethod("listAddM", 2);
