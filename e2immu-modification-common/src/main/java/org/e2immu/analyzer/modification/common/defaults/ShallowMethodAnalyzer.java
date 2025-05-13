@@ -457,6 +457,11 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         if (fluent != null && fluent.valueAsBool().isTrue()) return DEFAULT_FALSE; // modifying--what else would it do?
         boolean nonStaticVoid = !methodInfo.isStatic() && methodInfo.noReturnValue();
         if (nonStaticVoid) return DEFAULT_FALSE; // modifying--what else would it do?
+
+        Value.Immutable typeImmutable = methodInfo.typeInfo().analysis().getOrDefault(IMMUTABLE_TYPE,
+                ValueImpl.ImmutableImpl.MUTABLE);
+        if (typeImmutable.isAtLeastImmutableHC()) return FROM_TYPE_TRUE;
+
         return commonBooleanFromOverride(NON_MODIFYING_METHOD, methodInfo);
     }
 

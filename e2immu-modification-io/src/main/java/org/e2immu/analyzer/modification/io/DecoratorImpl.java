@@ -26,7 +26,6 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DE
 
 public class DecoratorImpl implements Qualification.Decorator {
     private final Runtime runtime;
-    private final AnalysisHelper analysisHelper;
     private final AnnotationExpression notModifiedAnnotation;
     private final TypeInfo notModifiedTi;
     private final TypeInfo immutableTi;
@@ -53,7 +52,6 @@ public class DecoratorImpl implements Qualification.Decorator {
 
     public DecoratorImpl(Runtime runtime, Map<Info, Info> translationMap) {
         this.runtime = runtime;
-        analysisHelper = new AnalysisHelper();
         notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
         notModifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(notModifiedTi).build();
         independentTi = runtime.getFullyQualified(Independent.class, true);
