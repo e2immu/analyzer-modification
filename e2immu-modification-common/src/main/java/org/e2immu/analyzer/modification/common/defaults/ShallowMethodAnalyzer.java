@@ -56,7 +56,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         for (ParameterInfo parameterInfo : methodInfo.parameters()) {
             Map<Property, ValueOrigin> parameterVoMap = handleParameter(parameterInfo, voMap, explicitlyEmpty);
             ShallowAnalyzer.InfoData parameterData = new ShallowAnalyzer.InfoData(new HashMap<>());
-            dataMap.put(methodInfo, parameterData);
+            dataMap.put(parameterInfo, parameterData);
             parameterVoMap.forEach((p, vo) -> {
                 parameterInfo.analysis().set(p, vo.value());
                 parameterData.put(p, vo.origin());

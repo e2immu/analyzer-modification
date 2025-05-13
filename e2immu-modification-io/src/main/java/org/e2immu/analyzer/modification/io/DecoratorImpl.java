@@ -102,30 +102,29 @@ public class DecoratorImpl implements Qualification.Decorator {
                         ? NON_MODIFYING_METHOD : null;
                 immutable = null;
                 propertyImmutable = null;
-                independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT), methodInfo.typeInfo(),
-                        methodInfo.returnType());
+                independent = independent(analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT), methodInfo.returnType());
                 propertyIndependent = INDEPENDENT_METHOD;
                 propertyFinalField = null;
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
                 propertyContainer = null;
             }
             case FieldInfo fieldInfo -> {
-                propertyUnmodified = analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue() ? UNMODIFIED_FIELD : null;
+                propertyUnmodified = !fieldInfo.type().isPrimitiveStringClass()
+                                     && analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue() ? UNMODIFIED_FIELD : null;
                 immutable = null;
                 propertyImmutable = null;
-                independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT),
-                        fieldInfo.owner(), fieldInfo.type());
+                independent = independent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT), fieldInfo.type());
                 propertyIndependent = INDEPENDENT_FIELD;
                 propertyFinalField = !fieldInfo.isFinal() && fieldInfo.isPropertyFinal() ? FINAL_FIELD : null;
                 propertyContainer = null;
                 propertyIdentity = null;
             }
             case ParameterInfo pi -> {
-                propertyUnmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue() ? UNMODIFIED_PARAMETER : null;
+                propertyUnmodified = !pi.parameterizedType().isPrimitiveStringClass() &&
+                                     analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue() ? UNMODIFIED_PARAMETER : null;
                 immutable = null;
                 propertyImmutable = null;
-                independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT), pi.typeInfo(),
-                        pi.parameterizedType());
+                independent = independent(analysis.getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT), pi.parameterizedType());
                 propertyIndependent = INDEPENDENT_PARAMETER;
                 propertyFinalField = null;
                 propertyContainer = null;
@@ -187,12 +186,8 @@ public class DecoratorImpl implements Qualification.Decorator {
     }
 
     // we're only showing INDEPENDENT when both the type and the current type are not immutable (hc or not).
-    private Value.Independent nonTrivialIndependent(Value.Independent independent, TypeInfo currentType, ParameterizedType parameterizedType) {
+    private Value.Independent independent(Value.Independent independent, ParameterizedType parameterizedType) {
         if (parameterizedType.isVoidOrJavaLangVoid() || parameterizedType.isPrimitiveStringClass()) return null;
-        Value.Immutable immutable = analysisHelper.typeImmutable(currentType, parameterizedType);
-        if (immutable.isAtLeastImmutableHC()) return null; // no need
-        Value.Immutable immutableCurrent = currentType.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE);
-        if (immutableCurrent.isAtLeastImmutableHC()) return null; // no need
         return independent;
     }
 
