@@ -40,7 +40,10 @@ class AnnotationToProperty {
     protected static final ValueOrigin FROM_OWNER_TRUE = new ValueOrigin(TRUE, FROM_OWNER);
     protected static final ValueOrigin FROM_FIELD_TRUE = new ValueOrigin(TRUE, FROM_FIELD);
     protected static final ValueOrigin FROM_METHOD_TRUE = new ValueOrigin(TRUE, FROM_METHOD);
+    protected static final ValueOrigin FROM_OVERRIDE_TRUE = new ValueOrigin(TRUE, FROM_OVERRIDE);
     protected static final ValueOrigin FROM_TYPE_TRUE = new ValueOrigin(TRUE, FROM_TYPE);
+    protected static final ValueOrigin NULLABLE_DEFAULT = new ValueOrigin(ValueImpl.NotNullImpl.NULLABLE, DEFAULT);
+    protected static final ValueOrigin NOT_NULL_FROM_OVERRIDE = new ValueOrigin(ValueImpl.NotNullImpl.NOT_NULL, FROM_OVERRIDE);
 
     protected final AnnotationProvider annotationProvider;
     protected final Runtime runtime;

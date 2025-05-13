@@ -29,7 +29,6 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTA
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.NotNullImpl.NOT_NULL;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.NotNullImpl.NULLABLE;
 
 public class ShallowTypeAnalyzer extends AnnotationToProperty {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShallowTypeAnalyzer.class);
@@ -107,7 +106,7 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
                 } else if (fieldInfo.type().isPrimitiveExcludingVoid()) {
                     fieldMap.put(NOT_NULL_FIELD, new ValueOrigin(NOT_NULL, FROM_TYPE));
                 } else if (nn == null) {
-                    fieldMap.put(NOT_NULL_FIELD, new ValueOrigin(NULLABLE, DEFAULT));
+                    fieldMap.put(NOT_NULL_FIELD, NULLABLE_DEFAULT);
                 }
             }
             ValueOrigin c = fieldMap.get(CONTAINER_FIELD);

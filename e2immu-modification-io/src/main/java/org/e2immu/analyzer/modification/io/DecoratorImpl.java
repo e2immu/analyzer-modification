@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.io;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.annotation.*;
+import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Comment;
@@ -76,67 +77,85 @@ public class DecoratorImpl implements Qualification.Decorator {
         return List.of();
     }
 
+    protected record AnnotationProperty(AnnotationExpression annotationExpression, Property property) {
+    }
+
     @Override
-    public List<AnnotationExpression> annotations(Info infoIn) {
+    public List<AnnotationExpression> annotations(Info info) {
+        return annotationAndProperties(info).stream().map(AnnotationProperty::annotationExpression).toList();
+    }
+
+    protected List<AnnotationProperty> annotationAndProperties(Info infoIn) {
         Info info = translationMap == null ? infoIn : translationMap.getOrDefault(infoIn, infoIn);
-        boolean unmodified;
+        Property propertyUnmodified;
         Value.Immutable immutable;
+        Property propertyImmutable;
         Value.Independent independent;
-        boolean isFinal;
-        boolean isContainer;
-        boolean isIdentity;
+        Property propertyIndependent;
+        Property propertyFinalField;
+        Property propertyContainer;
+        Property propertyIdentity;
         PropertyValueMap analysis = info.analysis();
         switch (info) {
             case MethodInfo methodInfo -> {
-                unmodified = !methodInfo.isConstructor() && analysis.getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue();
+                propertyUnmodified = !methodInfo.isConstructor() && analysis.getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue()
+                        ? NON_MODIFYING_METHOD : null;
                 immutable = null;
+                propertyImmutable = null;
                 independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT), methodInfo.typeInfo(),
                         methodInfo.returnType());
-                isFinal = false;
-                isIdentity = methodInfo.isIdentity();
-                isContainer = false;
+                propertyIndependent = INDEPENDENT_METHOD;
+                propertyFinalField = null;
+                propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
+                propertyContainer = null;
             }
             case FieldInfo fieldInfo -> {
-                unmodified = analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue();
+                propertyUnmodified = analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue() ? UNMODIFIED_FIELD : null;
                 immutable = null;
+                propertyImmutable = null;
                 independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT),
                         fieldInfo.owner(), fieldInfo.type());
-                isFinal = !fieldInfo.isFinal() && fieldInfo.isPropertyFinal();
-                isContainer = false;
-                isIdentity = false;
+                propertyIndependent = INDEPENDENT_FIELD;
+                propertyFinalField = !fieldInfo.isFinal() && fieldInfo.isPropertyFinal() ? FINAL_FIELD : null;
+                propertyContainer = null;
+                propertyIdentity = null;
             }
             case ParameterInfo pi -> {
-                unmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue();
+                propertyUnmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue() ? UNMODIFIED_PARAMETER : null;
                 immutable = null;
+                propertyImmutable = null;
                 independent = nonTrivialIndependent(analysis.getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT), pi.typeInfo(),
                         pi.parameterizedType());
-                isFinal = false;
-                isContainer = false;
-                isIdentity = false;
+                propertyIndependent = INDEPENDENT_PARAMETER;
+                propertyFinalField = null;
+                propertyContainer = null;
+                propertyIdentity = null;
             }
             case TypeInfo typeInfo -> {
-                unmodified = false;
+                propertyUnmodified = null;
                 immutable = analysis.getOrDefault(IMMUTABLE_TYPE, MUTABLE);
+                propertyImmutable = IMMUTABLE_TYPE;
                 independent = nonTrivialIndependentType(analysis.getOrDefault(INDEPENDENT_TYPE, DEPENDENT), immutable);
-                isContainer = analysis.getOrDefault(CONTAINER_TYPE, FALSE).isTrue();
-                isFinal = false;
-                isIdentity = false;
+                propertyIndependent = INDEPENDENT_TYPE;
+                propertyContainer = analysis.getOrDefault(CONTAINER_TYPE, FALSE).isTrue() ? CONTAINER_TYPE : null;
+                propertyFinalField = null;
+                propertyIdentity = null;
             }
             default -> throw new UnsupportedOperationException();
         }
 
-        List<AnnotationExpression> list = new ArrayList<>();
-        if (isFinal) {
+        List<AnnotationProperty> list = new ArrayList<>();
+        if (propertyFinalField != null) {
             needFinalImport = true;
-            list.add(finalAnnotation);
+            list.add(new AnnotationProperty(finalAnnotation, propertyFinalField));
         }
-        if(isIdentity) {
+        if (propertyIdentity != null) {
             needIdentityImport = true;
-            list.add(identityAnnotation);
+            list.add(new AnnotationProperty(identityAnnotation, propertyIdentity));
         }
         if (immutable != null && !immutable.isMutable()) {
             TypeInfo ti;
-            if (isContainer) {
+            if (propertyContainer != null) {
                 ti = immutableContainerTi;
                 this.needImmutableContainerImport = true;
             } else {
@@ -147,10 +166,10 @@ public class DecoratorImpl implements Qualification.Decorator {
             if (immutable.isImmutableHC()) {
                 b.addKeyValuePair("hc", runtime.constantTrue());
             }
-            list.add(b.build());
-        } else if (isContainer) {
+            list.add(new AnnotationProperty(b.build(), propertyImmutable));
+        } else if (propertyContainer != null) {
             needContainerImport = true;
-            list.add(containerAnnotation);
+            list.add(new AnnotationProperty(containerAnnotation, propertyContainer));
         }
         if (independent != null && !independent.isDependent()) {
             this.needIndependentImport = true;
@@ -158,11 +177,11 @@ public class DecoratorImpl implements Qualification.Decorator {
             if (independent.isIndependentHc()) {
                 b.addKeyValuePair("hc", runtime.constantTrue());
             }
-            list.add(b.build());
+            list.add(new AnnotationProperty(b.build(), propertyIndependent));
         }
-        if (unmodified) {
+        if (propertyUnmodified != null) {
             this.needUnmodifiedImport = true;
-            list.add(notModifiedAnnotation);
+            list.add(new AnnotationProperty(notModifiedAnnotation, propertyUnmodified));
         }
         return list;
     }
@@ -192,7 +211,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (needFinalImport) {
             list.add(runtime.newImportStatementBuilder().setImport(finalTi.fullyQualifiedName()).build());
         }
-        if(needIdentityImport) {
+        if (needIdentityImport) {
             list.add(runtime.newImportStatementBuilder().setImport(identityAnnotation.typeInfo().fullyQualifiedName()).build());
         }
         if (needIndependentImport) {

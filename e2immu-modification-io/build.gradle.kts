@@ -42,7 +42,6 @@ dependencies {
     implementation("org.e2immu:e2immu-internal-util:$version")
     implementation("org.e2immu:e2immu-cst-analysis:$version")
     implementation("org.e2immu:e2immu-cst-io:$version")
-    implementation("org.e2immu:e2immu-cst-impl:$version")
 
     implementation("org.e2immu:e2immu-inspection-integration:$version")
 
@@ -59,6 +58,8 @@ dependencies {
     testImplementation("org.e2immu:e2immu-inspection-integration:$version")
     testImplementation("org.e2immu:e2immu-inspection-resource:$version")
     testImplementation("org.e2immu:e2immu-modification-linkedvariables:$version")
+    testImplementation("org.e2immu:e2immu-cst-impl:$version")
+
     testRuntimeOnly("org.e2immu:e2immu-aapi-archive:$version")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterApiVersion")

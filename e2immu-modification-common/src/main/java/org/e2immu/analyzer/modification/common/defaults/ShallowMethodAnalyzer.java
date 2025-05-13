@@ -24,8 +24,6 @@ import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.NotNullImpl.NOT_NULL;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.NotNullImpl.NULLABLE;
 
 public class ShallowMethodAnalyzer extends AnnotationToProperty {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShallowMethodAnalyzer.class);
@@ -136,14 +134,14 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         }
         ValueOrigin fluent = map.get(FLUENT_METHOD);
         if (fluent.valueAsBool().isTrue()) return NOT_NULL_FROM_METHOD;
-        Value.NotNull v = NULLABLE;
+        Value.NotNull v = ValueImpl.NotNullImpl.NULLABLE;
         for (MethodInfo mi : methodInfo.overrides()) {
             if (mi.isPublic()) {
-                Value.NotNull nn = mi.analysis().getOrDefault(NOT_NULL_METHOD, NULLABLE);
+                Value.NotNull nn = mi.analysis().getOrDefault(NOT_NULL_METHOD, ValueImpl.NotNullImpl.NULLABLE);
                 v = v.max(nn);
             }
         }
-        return new ValueOrigin(v, v == NULLABLE ? DEFAULT : FROM_OVERRIDE);
+        return new ValueOrigin(v, v == ValueImpl.NotNullImpl.NULLABLE ? DEFAULT : FROM_OVERRIDE);
     }
 
     private static final ValueOrigin MUTABLE_DEFAULT = new ValueOrigin(ValueImpl.ImmutableImpl.MUTABLE, DEFAULT);
@@ -276,12 +274,11 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
             }
 
             ValueOrigin nonModifying = map.get(NON_MODIFYING_METHOD);
-            if (nonModifying != null) {
-                if (nonModifying.valueAsBool().isFalse() && explicitlyEmpty) {
-                    messages.add(MessageImpl.warn(methodInfo,
-                            "Impossible! how can a method without statements be @Modified?"));
-                }
-            } else {
+            if ((nonModifying == null || nonModifying.valueAsBool().isFalse()) && explicitlyEmpty) {
+                messages.add(MessageImpl.warn(methodInfo,
+                        "Impossible! how can a method without statements be @Modified?"));
+            }
+            if (nonModifying == null) {
                 map.put(NON_MODIFYING_METHOD, explicitlyEmpty ? FROM_METHOD_TRUE
                         : computeMethodNonModifying(methodInfo, map));
             }
@@ -297,154 +294,167 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         }
     }
 
+
     private Map<Property, ValueOrigin> handleParameter(ParameterInfo parameterInfo,
                                                        Map<Property, ValueOrigin> methodMap,
                                                        boolean explicitlyEmpty) {
         List<AnnotationExpression> annotations = annotationProvider.annotations(parameterInfo);
-        Map<Property, Value> map = annotationsToMap(parameterInfo, annotations);
-        Map<Property, ValueOrigin> voMap = new HashMap<>();
-        map.forEach((p, v) -> voMap.put(p, new ValueOrigin(v, ShallowAnalyzer.AnnotationOrigin.ANNOTATED)));
+        Map<Property, Value> annotatedMap = annotationsToMap(parameterInfo, annotations);
+        Map<Property, ValueOrigin> map = new HashMap<>();
+        annotatedMap.forEach((p, v) -> map.put(p, new ValueOrigin(v, ShallowAnalyzer.AnnotationOrigin.ANNOTATED)));
 
         if (explicitlyEmpty) {
-            Value.Independent ind = (Value.Independent) map.get(INDEPENDENT_PARAMETER);
-            if (ind != null && ind != INDEPENDENT) {
+            ValueOrigin ind = map.get(INDEPENDENT_PARAMETER);
+            if (ind != null && !ind.value().equals(INDEPENDENT)) {
                 LOGGER.warn("Parameter {} must be independent", parameterInfo);
             }
-            map.put(INDEPENDENT_PARAMETER, INDEPENDENT);
-            Value.Bool modified = (Value.Bool) map.get(UNMODIFIED_PARAMETER);
-            if (modified != null && modified.isTrue()) {
+            map.put(INDEPENDENT_PARAMETER, INDEPENDENT_FROM_METHOD);
+            ValueOrigin unmodified = map.get(UNMODIFIED_PARAMETER);
+            if (unmodified == null || unmodified.valueAsBool().isFalse()) {
                 LOGGER.warn("Parameter {} cannot be @Modified", parameterInfo);
             }
-            map.put(UNMODIFIED_PARAMETER, FALSE);
-            map.put(NOT_NULL_PARAMETER, analysisHelper.notNullOfType(parameterInfo.parameterizedType()));
-            map.putIfAbsent(IGNORE_MODIFICATIONS_PARAMETER, FALSE);
+            map.put(UNMODIFIED_PARAMETER, FROM_METHOD_TRUE);
+            Value.NotNull notNullOfType = analysisHelper.notNullOfType(parameterInfo.parameterizedType());
+            map.put(NOT_NULL_PARAMETER, notNullOfType.isNullable() ? NULLABLE_DEFAULT :
+                    new ValueOrigin(notNullOfType, FROM_TYPE));
+            map.putIfAbsent(IGNORE_MODIFICATIONS_PARAMETER, DEFAULT_FALSE);
         } else {
-            Value.Immutable imm = (Value.Immutable) map.get(IMMUTABLE_PARAMETER);
+            ValueOrigin imm = map.get(IMMUTABLE_PARAMETER);
             if (imm == null) {
                 Immutable value = analysisHelper.typeImmutable(parameterInfo.parameterizedType());
                 if (value == null) {
                     LOGGER.warn("Have no @Immutable value for {}", parameterInfo.parameterizedType());
                     value = ValueImpl.ImmutableImpl.MUTABLE;
                 }
-                map.put(IMMUTABLE_PARAMETER, value);
+                map.put(IMMUTABLE_PARAMETER, value.equals(ValueImpl.ImmutableImpl.MUTABLE) ? MUTABLE_DEFAULT
+                        : new ValueOrigin(value, FROM_TYPE));
             }
-            Value.Independent ind = (Value.Independent) map.get(INDEPENDENT_PARAMETER);
+
+            ValueOrigin ind = map.get(INDEPENDENT_PARAMETER);
             if (ind == null) {
                 map.put(INDEPENDENT_PARAMETER, computeParameterIndependent(parameterInfo, methodMap, map));
             }
-            Value.Bool mod = (Value.Bool) map.get(UNMODIFIED_PARAMETER);
+            ValueOrigin mod = map.get(UNMODIFIED_PARAMETER);
             if (mod == null) {
                 map.put(UNMODIFIED_PARAMETER, computeParameterUnmodified(parameterInfo));
             }
-            Value.NotNull nn = (NotNull) map.get(NOT_NULL_PARAMETER);
+            ValueOrigin nn = map.get(NOT_NULL_PARAMETER);
             if (nn == null) {
                 map.put(NOT_NULL_PARAMETER, computeParameterNotNull(parameterInfo));
             }
-            Value.Bool ign = (Bool) map.get(IGNORE_MODIFICATIONS_PARAMETER);
+            ValueOrigin ign = map.get(IGNORE_MODIFICATIONS_PARAMETER);
             if (ign == null) {
                 map.put(IGNORE_MODIFICATIONS_PARAMETER, computeParameterIgnoreModifications(parameterInfo));
             }
-            Value.Bool c = (Bool) map.get(CONTAINER_PARAMETER);
+            ValueOrigin c = map.get(CONTAINER_PARAMETER);
             if (c == null) {
                 map.put(CONTAINER_PARAMETER, computeParameterContainer(parameterInfo));
             }
         }
-        return voMap;
+        return map;
     }
 
-    private Value computeParameterContainer(ParameterInfo parameterInfo) {
-        return analysisHelper.typeContainer(parameterInfo.parameterizedType());
+    private ValueOrigin computeParameterContainer(ParameterInfo parameterInfo) {
+        Value.Bool container = analysisHelper.typeContainer(parameterInfo.parameterizedType());
+        return container.isFalse() ? DEFAULT_FALSE : FROM_TYPE_TRUE;
     }
 
-    private Value computeParameterIgnoreModifications(ParameterInfo parameterInfo) {
+    private ValueOrigin computeParameterIgnoreModifications(ParameterInfo parameterInfo) {
         ParameterizedType pt = parameterInfo.parameterizedType();
-        return ValueImpl.BoolImpl.from(pt.isFunctionalInterface()
-                                       && "java.util.function".equals(pt.typeInfo().packageName()));
+        Value.Bool b = ValueImpl.BoolImpl.from(pt.isFunctionalInterface()
+                                               && "java.util.function".equals(pt.typeInfo().packageName()));
+        return b.isFalse() ? DEFAULT_FALSE : FROM_TYPE_TRUE;
     }
 
-    private Value.NotNull computeParameterNotNull(ParameterInfo parameterInfo) {
+    private ValueOrigin computeParameterNotNull(ParameterInfo parameterInfo) {
         ParameterizedType pt = parameterInfo.parameterizedType();
-        if (pt.isPrimitiveExcludingVoid()) return NOT_NULL;
+        if (pt.isPrimitiveExcludingVoid()) return NOT_NULL_FROM_TYPE;
         MethodInfo methodInfo = parameterInfo.methodInfo();
-        return methodInfo.overrides().stream()
+        Value.NotNull fromOverride = methodInfo.overrides().stream()
                 .filter(MethodInfo::isPublic)
                 .map(mi -> mi.parameters().get(parameterInfo.index()))
                 .filter(pi -> pi.analysis().haveAnalyzedValueFor(NOT_NULL_PARAMETER, () -> {
                     if (hierarchyProblems.computeIfAbsent(methodInfo.typeInfo(), t -> new HashSet<>()).add(pi.methodInfo().typeInfo())) {
                         LOGGER.warn("Have no @NotNull value for the parameters of {}, overridden by {}", pi, methodInfo);
+                        messages.add(MessageImpl.warn(pi, "@NotNull value missing"));
                     }
                 }))
-                .map(pi -> pi.analysis().getOrDefault(NOT_NULL_PARAMETER, NULLABLE))
-                .reduce(NULLABLE, Value.NotNull::max);
+                .map(pi -> pi.analysis().getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE))
+                .reduce(ValueImpl.NotNullImpl.NULLABLE, Value.NotNull::max);
+        return fromOverride.isNullable() ? NULLABLE_DEFAULT : NOT_NULL_FROM_OVERRIDE;
     }
 
-    private Value.Bool computeParameterUnmodified(ParameterInfo parameterInfo) {
+    private ValueOrigin computeParameterUnmodified(ParameterInfo parameterInfo) {
         MethodInfo methodInfo = parameterInfo.methodInfo();
         Value.Bool typeContainer = methodInfo.typeInfo().analysis().getOrDefault(CONTAINER_TYPE, FALSE);
         if (typeContainer.isTrue()) {
-            return TRUE;
+            return FROM_OWNER_TRUE;
         }
         ParameterizedType type = parameterInfo.parameterizedType();
         if (type.isPrimitiveStringClass()) {
-            return TRUE;
+            return FROM_TYPE_TRUE;
         }
         Value.Immutable typeImmutable = analysisHelper.typeImmutable(type);
         if (typeImmutable != null && typeImmutable.isAtLeastImmutableHC()) {
-            return TRUE;
+            return FROM_TYPE_TRUE;
         }
         Value.Bool override = methodInfo.overrides().stream()
                 .map(mi -> mi.parameters().get(parameterInfo.index()))
                 .map(pi -> pi.analysis().getOrDefault(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.NO_VALUE))
                 .reduce(ValueImpl.BoolImpl.NO_VALUE, Value.Bool::or);
-        if (override.hasAValue()) {
-            return override;
+        if (override.isTrue()) {
+            return FROM_OVERRIDE_TRUE;
         }
-        return FALSE;
+        return DEFAULT_FALSE;
     }
 
     private ValueOrigin computeParameterIndependent(ParameterInfo parameterInfo,
                                                     Map<Property, ValueOrigin> methodMap,
                                                     Map<Property, ValueOrigin> map) {
         ParameterizedType type = parameterInfo.parameterizedType();
-        Value.Immutable immutable = (Value.Immutable) map.get(PropertyImpl.IMMUTABLE_PARAMETER);
+        Value.Immutable immutable = (Immutable) map.get(PropertyImpl.IMMUTABLE_PARAMETER).value();
         MethodInfo methodInfo = parameterInfo.methodInfo();
 
-        Value.Independent value;
         if (type.isPrimitiveExcludingVoid() || immutable.isImmutable()) {
-            value = INDEPENDENT;
-        } else {
-            // @Modified needs to be marked explicitly
-            Value.Bool modifiedMethod = (Value.Bool) methodMap.get(PropertyImpl.NON_MODIFYING_METHOD);
-            if (modifiedMethod.isTrue() || methodInfo.isFactoryMethod()) {
-                // note that an unbound type parameter is by default @Dependent, not @Independent1!!
-                Value.Independent independentFromImmutable = immutable.toCorrespondingIndependent();
-                TypeInfo ownerType = parameterInfo.methodInfo().typeInfo();
-                Value.Independent independentType = ownerType.analysis().getOrDefault(INDEPENDENT_TYPE, DEPENDENT);
-                value = independentType.max(independentFromImmutable);
-            } else {
-                value = INDEPENDENT;
-            }
+            return INDEPENDENT_FROM_TYPE;
         }
+
+
+        Value.Bool nonModifyingMethod = methodMap.get(PropertyImpl.NON_MODIFYING_METHOD).valueAsBool();
+        if (nonModifyingMethod.isTrue() && !methodInfo.isFactoryMethod()) {
+            return INDEPENDENT_FROM_METHOD;
+        }
+
+        // note that an unbound type parameter is by default @Dependent, not @Independent1!!
+        Value.Independent independentFromImmutable = immutable.toCorrespondingIndependent();
+        TypeInfo ownerType = parameterInfo.methodInfo().typeInfo();
+        Value.Independent independentType = ownerType.analysis().getOrDefault(INDEPENDENT_TYPE, DEPENDENT);
         Value.Independent override = methodInfo.overrides().stream()
                 .filter(MethodInfo::isPublic)
                 .map(mi -> mi.parameters().get(parameterInfo.index()))
                 .filter(pi -> pi.analysis().haveAnalyzedValueFor(INDEPENDENT_PARAMETER, () -> {
                     if (hierarchyProblems.computeIfAbsent(methodInfo.typeInfo(), t -> new HashSet<>()).add(pi.methodInfo().typeInfo())) {
                         LOGGER.warn("Have no @Independent value for the parameters of {}, overridden by {}", pi, methodInfo);
+                        messages.add(MessageImpl.warn(pi, "@Independent value missing"));
                     }
                 }))
                 .map(pi -> pi.analysis().getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT))
                 .reduce(DEPENDENT, Value.Independent::max);
-        return override.max(value);
+        Value.Independent max = override.max(independentType.max(independentFromImmutable));
+        if (max.isDependent()) return DEPENDENT_DEFAULT;
+        if (!max.equals(override)) return new ValueOrigin(max, FROM_TYPE);
+        return new ValueOrigin(max, FROM_OVERRIDE);
     }
 
 
     private ValueOrigin computeMethodNonModifying(MethodInfo methodInfo, Map<Property, ValueOrigin> map) {
         if (methodInfo.isConstructor()) return DEFAULT_FALSE; // almost by default, constructors modify the fields
-        Value.Bool sse = (Value.Bool) map.get(STATIC_SIDE_EFFECTS_METHOD);
-        if (sse != null && sse.isTrue()) return DEFAULT_TRUE; // static side effects do not make modifications
-        Value.Bool fluent = (Value.Bool) map.get(FLUENT_METHOD);
-        if (fluent != null && fluent.isTrue()) return DEFAULT_FALSE; // modifying--what else would it do?
+        ValueOrigin sse = map.get(STATIC_SIDE_EFFECTS_METHOD);
+        if (sse != null && sse.valueAsBool().isTrue()) {
+            return FROM_METHOD_TRUE; // static side effects do not make modifications
+        }
+        ValueOrigin fluent = map.get(FLUENT_METHOD);
+        if (fluent != null && fluent.valueAsBool().isTrue()) return DEFAULT_FALSE; // modifying--what else would it do?
         boolean nonStaticVoid = !methodInfo.isStatic() && methodInfo.noReturnValue();
         if (nonStaticVoid) return DEFAULT_FALSE; // modifying--what else would it do?
         return commonBooleanFromOverride(NON_MODIFYING_METHOD, methodInfo);
@@ -469,7 +479,6 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
 
     private ValueOrigin commonBooleanFromOverride(Property property, MethodInfo methodInfo) {
         Value.Bool v = FALSE;
-        ShallowAnalyzer.AnnotationOrigin origin = DEFAULT;
         for (MethodInfo mi : methodInfo.overrides()) {
             if (mi.isPublic()) {
                 Value.Bool o = mi.analysis().getOrNull(property, ValueImpl.BoolImpl.class);
@@ -477,18 +486,14 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
                     if (hierarchyProblems.computeIfAbsent(methodInfo.typeInfo(),
                             t -> new HashSet<>()).add(mi.typeInfo())) {
                         LOGGER.warn("Have no {} value for {}, overridden by {}", property.key(), mi, methodInfo);
+                        messages.add(MessageImpl.warn(mi, "Have no value for " + property));
                     }
                 } else {
                     v = v.or(o);
-                    origin = FROM_OVERRIDE;
                 }
             }
         }
-        return new ValueOrigin(v, origin);
-    }
-
-    public Map<TypeInfo, Set<TypeInfo>> getHierarchyProblems() {
-        return hierarchyProblems;
+        return v.isFalse() ? DEFAULT_FALSE : FROM_OVERRIDE_TRUE;
     }
 
     public List<Message> messages() {

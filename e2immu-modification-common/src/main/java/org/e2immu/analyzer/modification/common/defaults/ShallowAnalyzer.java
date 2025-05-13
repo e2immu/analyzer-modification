@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.common.defaults;
 
 import org.e2immu.language.cst.api.analysis.Message;
 import org.e2immu.language.cst.api.analysis.Property;
-import org.e2immu.language.cst.api.expression.AnnotationExpression;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -28,8 +27,8 @@ public class ShallowAnalyzer {
     public enum AnnotationOrigin {ANNOTATED, FROM_OVERRIDE, FROM_TYPE, FROM_OWNER, FROM_PARAMETER, FROM_METHOD, FROM_FIELD, DEFAULT}
 
     public record InfoData(Map<Property, AnnotationOrigin> originMap) {
-        public AnnotationOrigin origin(AnnotationExpression ae) {
-            return originMap.getOrDefault(ae.typeInfo(), AnnotationOrigin.DEFAULT);
+        public AnnotationOrigin origin(Property property) {
+            return originMap.getOrDefault(property, AnnotationOrigin.DEFAULT);
         }
 
         public void put(Property property, AnnotationOrigin origin) {
