@@ -22,11 +22,29 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.stream.Stream;
 
+import static org.e2immu.analyzer.modification.common.defaults.ShallowAnalyzer.AnnotationOrigin.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
+
 class AnnotationToProperty {
     private static final Logger LOGGER = LoggerFactory.getLogger(AnnotationToProperty.class);
 
+    protected record ValueOrigin(Value value, ShallowAnalyzer.AnnotationOrigin origin) {
+        public Value.Bool valueAsBool() {
+            return (Value.Bool) value;
+        }
+    }
+
+    protected static final ValueOrigin DEFAULT_FALSE = new ValueOrigin(FALSE, DEFAULT);
+    protected static final ValueOrigin FROM_TYPE_NO_VALUE = new ValueOrigin(ValueImpl.BoolImpl.NO_VALUE, FROM_TYPE);
+    protected static final ValueOrigin FROM_OWNER_TRUE = new ValueOrigin(TRUE, FROM_OWNER);
+    protected static final ValueOrigin FROM_FIELD_TRUE = new ValueOrigin(TRUE, FROM_FIELD);
+    protected static final ValueOrigin FROM_METHOD_TRUE = new ValueOrigin(TRUE, FROM_METHOD);
+    protected static final ValueOrigin FROM_TYPE_TRUE = new ValueOrigin(TRUE, FROM_TYPE);
+
     protected final AnnotationProvider annotationProvider;
     protected final Runtime runtime;
+
     AnnotationToProperty(Runtime runtime, AnnotationProvider annotationProvider) {
         this.annotationProvider = annotationProvider;
         this.runtime = runtime;
