@@ -12,9 +12,10 @@ import org.e2immu.support.EventuallyFinal;
 import org.e2immu.support.SetOnce;
 
 public class VariableInfoImpl implements VariableInfo {
-    public static final Property MODIFIED_VARIABLE = new PropertyImpl("modifiedVariable");
-    public static final Property MODIFIED_FI_COMPONENTS_VARIABLE = new PropertyImpl("modifiedFunctionalInterfaceComponentsVariable",
-            ValueImpl.VariableBooleanMapImpl.EMPTY);
+    public static final Property UNMODIFIED_VARIABLE = new PropertyImpl("unmodifiedVariable");
+    public static final Property MODIFIED_FI_COMPONENTS_VARIABLE =
+            new PropertyImpl("modifiedFunctionalInterfaceComponentsVariable",
+                    ValueImpl.VariableBooleanMapImpl.EMPTY);
 
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
     private final SetOnce<StaticValues> staticValues = new SetOnce<>();
@@ -114,8 +115,8 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     @Override
-    public boolean isModified() {
-        return analysis.getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue();
+    public boolean isUnmodified() {
+        return analysis.getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue();
     }
 
     @Override

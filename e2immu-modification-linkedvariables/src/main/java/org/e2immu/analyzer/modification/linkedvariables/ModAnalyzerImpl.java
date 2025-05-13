@@ -1,5 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.defaults.ShallowMethodAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
@@ -9,8 +11,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
-import org.e2immu.analyzer.modification.common.defaults.ShallowMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
@@ -29,6 +29,7 @@ import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.e2immu.util.internal.graph.G;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,15 +38,15 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.Independent;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.SetOfInfo;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.VariableBooleanMap;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
@@ -66,8 +67,10 @@ public class ModAnalyzerImpl implements ModAnalyzer {
     private final List<Throwable> problemsRaised = new LinkedList<>();
     private final Map<String, Integer> histogram = new HashMap<>();
     private final boolean storeErrorsInPVMap;
+    private final boolean noInformationIsNonModifying;
+    private final G.Builder<Info> waitingFor = new G.Builder<>(Long::sum);
 
-    public ModAnalyzerImpl(Runtime runtime, boolean storeErrorsInPVMap) {
+    public ModAnalyzerImpl(Runtime runtime, boolean storeErrorsInPVMap, boolean noInformationIsNonModifying) {
         this.runtime = runtime;
         StaticValuesHelper staticValuesHelper = new StaticValuesHelper(runtime);
         expressionAnalyzer = new ExpressionAnalyzer(runtime, this, staticValuesHelper);
@@ -77,6 +80,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
         this.getSetHelper = new GetSetHelper(runtime);
         computeImmutable = new ComputeImmutable();
         this.storeErrorsInPVMap = storeErrorsInPVMap;
+        this.noInformationIsNonModifying = noInformationIsNonModifying;
     }
 
     @Override
@@ -200,6 +204,7 @@ public class ModAnalyzerImpl implements ModAnalyzer {
 
     private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
         Map<Variable, Boolean> modifiedComponentsMethod = new HashMap<>();
+        boolean allFieldsUnmodified = true;
         for (VariableInfo vi : variableData.variableInfoStream().toList()) {
             Variable v = vi.variable();
             if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
@@ -210,10 +215,9 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                         pi.analysis().set(LINKED_VARIABLES_PARAMETER, filteredLvs);
                     }
                 }
-                // FIXME aapi2
                 if (!pi.analysis().haveAnalyzedValueFor(UNMODIFIED_PARAMETER)) {
-                    boolean modified = vi.isModified();
-                    pi.analysis().set(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.from(modified));
+                    boolean unmodified = vi.isUnmodified();
+                    pi.analysis().set(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.from(unmodified));
                 }
                 // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
                 // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
@@ -248,23 +252,20 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                        || (v instanceof FieldReference fr && (fr.scopeIsRecursivelyThis() || fr.isStatic()))
                           && fr.fieldInfo().analysis().getOrDefault(IGNORE_MODIFICATIONS_FIELD, FALSE).isFalse()
                        || vi.isVariableInClosure()) {
-                boolean modification = vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue();
+                boolean modification = vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, FALSE).isFalse();
                 boolean assignment = !vi.assignments().isEmpty();
                 if ((modification || assignment) && !methodInfo.isConstructor()) {
-                    // FIXME aapi2
-                    if (!methodInfo.analysis().haveAnalyzedValueFor(NON_MODIFYING_METHOD)) {
-                        methodInfo.analysis().set(NON_MODIFYING_METHOD, TRUE);
-                    }
+                    allFieldsUnmodified = false;
                     if (v instanceof FieldReference || vi.isVariableInClosure()) {
                         modifiedComponentsMethod.put(v, true);
                     }
                 }
-                if (modification && v instanceof FieldReference fr
+                if (!modification && v instanceof FieldReference fr
                     // FIXME aapi2
                     && !fr.fieldInfo().analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
                     fr.fieldInfo().analysis().set(UNMODIFIED_FIELD, TRUE);
                 }
-                if (modification && vi.isVariableInClosure()) {
+                if (unmodified && vi.isVariableInClosure()) {
                     VariableData vd = vi.variableInfoInClosure();
                     VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
                     if (!outerVi.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
@@ -296,6 +297,9 @@ public class ModAnalyzerImpl implements ModAnalyzer {
                     methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
                 }
             }
+        }
+        if (allFieldsUnmodified && !methodInfo.analysis().haveAnalyzedValueFor(NON_MODIFYING_METHOD)) {
+            methodInfo.analysis().set(NON_MODIFYING_METHOD, TRUE);
         }
         if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_METHOD) && !modifiedComponentsMethod.isEmpty()) {
             methodInfo.analysis().set(MODIFIED_COMPONENTS_METHOD, new ValueImpl.VariableBooleanMapImpl(modifiedComponentsMethod));
@@ -692,5 +696,10 @@ public class ModAnalyzerImpl implements ModAnalyzer {
     @Override
     public Map<String, Integer> getHistogram() {
         return Map.copyOf(histogram);
+    }
+
+    @Override
+    public G<Info> buildWaitingFor() {
+        return waitingFor.build();
     }
 }

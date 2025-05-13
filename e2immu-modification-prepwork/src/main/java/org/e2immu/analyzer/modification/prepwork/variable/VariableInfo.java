@@ -47,5 +47,5 @@ public interface VariableInfo {
     // for later
     //int modificationTime();
 
-    boolean isModified();
+    boolean isUnmodified();
 }

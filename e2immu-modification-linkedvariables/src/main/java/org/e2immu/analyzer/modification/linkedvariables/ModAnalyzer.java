@@ -6,6 +6,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Block;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.util.internal.graph.G;
 
 import java.util.List;
 import java.util.Map;
@@ -37,4 +38,6 @@ public interface ModAnalyzer {
     List<Throwable> getProblemsRaised();
 
     void go(List<Info> analysisOrder);
+
+    G<Info> buildWaitingFor();
 }
