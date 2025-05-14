@@ -1,10 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
-import org.e2immu.analyzer.modification.linkedvariables.Analyzer;
-import org.e2immu.analyzer.modification.linkedvariables.FieldAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.MethodModAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.PrimaryTypeModIndyAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.*;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -55,8 +52,10 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
     private final MethodModAnalyzer methodModAnalyzer;
     private final FieldAnalyzer fieldAnalyzer;
 
-    public PrimaryTypeModIndyAnalyzerImpl(Runtime runtime) {
+    public PrimaryTypeModIndyAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
         this.runtime = runtime;
+        this.methodModAnalyzer = new MethodModAnalyzerImpl(runtime, configuration);
+        this.fieldAnalyzer = new FieldAnalyzerImpl(runtime);
     }
 
     private record OutputImpl(boolean resolvedInternalCycles) implements Analyzer.Output {
@@ -68,6 +67,9 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
 
     @Override
     public Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
+        
+        me
+
         primaryType.recursiveSubTypeStream().forEach(this::go);
         return null;
     }

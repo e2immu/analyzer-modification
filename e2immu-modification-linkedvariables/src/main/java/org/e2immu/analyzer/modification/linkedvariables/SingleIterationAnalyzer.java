@@ -43,6 +43,8 @@ Phases.
 
 5. Type misc. Derivative annotations such as @UtilityClass, @Singleton. They cause no waitFor.
 
+6. abstract types and methods: reverse computation
+
  */
 public interface SingleIterationAnalyzer extends Analyzer {
 

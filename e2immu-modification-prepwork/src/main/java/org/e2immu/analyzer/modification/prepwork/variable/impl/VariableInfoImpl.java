@@ -18,6 +18,8 @@ public class VariableInfoImpl implements VariableInfo {
             new PropertyImpl("modifiedFunctionalInterfaceComponentsVariable",
                     ValueImpl.VariableBooleanMapImpl.EMPTY);
 
+    public static final Property DOWNCAST_VARIABLE = new PropertyImpl("downcastVariable", ValueImpl.SetOfTypeInfoImpl.EMPTY);
+
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
     private final SetOnce<StaticValues> staticValues = new SetOnce<>();
 
