@@ -16,7 +16,7 @@ public interface TypeContainerAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
 
-        Set<MethodInfo> externalWaitingForCannotCauseCycles();
+        Set<MethodInfo> externalWaitForCannotCauseCycles();
 
     }
 

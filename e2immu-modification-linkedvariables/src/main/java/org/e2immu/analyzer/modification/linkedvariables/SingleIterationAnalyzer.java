@@ -18,7 +18,7 @@ Phases.
     NOTE: this analyzer also deals with @Identity, @Fluent
 
 2. Field modification, linking and independence. WaitFor: internal methods.
-    NOTE: when a field is not private, we don't bother computing any other value; therefore all waiting is internal.
+    NOTE: when a field is non-private non-final, we don't bother computing any other value.
 
 3. Primary type, modification and independence of all its components.
     WaitFor: nothing. Either the values are there, or they are not. If they're not, they should be covered by the
@@ -27,7 +27,8 @@ Phases.
 
 4.1. Primary type @Immutable, @Independence
 
-    This waitingFor cannot cause cycles, because it is tied to Java's strictly enforced type hierarchy DAG.
+    This waitingFor can cause cycles only for non-private fields, which must be of immutable type for the owner to
+    be immutable (one constraint among many).
 
 4.2. Type @Container. Once phase 3 has provided sufficient values, we can compute the @Container property of a type
     from the modification state of its method's parameters.

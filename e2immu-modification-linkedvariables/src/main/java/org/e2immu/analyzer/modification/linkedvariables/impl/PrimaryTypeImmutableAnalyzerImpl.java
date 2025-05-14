@@ -9,30 +9,35 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.UNMODIFIED_FIELD;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.*;
 
 public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeImmutableAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
 
-    private record OutputImpl(List<Throwable> problemsRaised,
-                              Set<FieldInfo> internalWaitFor,
+    private record OutputImpl(Set<FieldInfo> internalWaitFor,
                               Set<TypeInfo> externalWaitFor) implements Output {
+        @Override
+        public List<Throwable> problemsRaised() {
+            return List.of();
+        }
     }
 
     @Override
     public Output go(TypeInfo primaryType) {
         ComputeImmutable ci = new ComputeImmutable();
         primaryType.recursiveSubTypeStream().forEach(this::go);
-        return new OutputImpl(ci.problemsRaised, ci.internalWaitFor, ci.externalWaitFor);
+        return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
     }
 
+
     private class ComputeImmutable {
-        List<Throwable> problemsRaised = new LinkedList<>();
         Set<FieldInfo> internalWaitFor = new HashSet<>();
         Set<TypeInfo> externalWaitFor = new HashSet<>();
 
@@ -55,6 +60,8 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
             if (fieldsAssignableFromOutside) {
                 return MUTABLE;
             }
+
+            // hierarchy
 
             TypeInfo parent = typeInfo.parentClass().typeInfo();
             Value.Immutable immutableParent = parent.analysis().getOrNull(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
@@ -82,9 +89,9 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
                 return null;
             }
 
-            // are any of the fields modified outside of construction?
-            // are any of the fields exposed?
-            Boolean isImmutable = isImmutable(typeInfo);
+            // fields
+
+            Boolean isImmutable = loopOverFields(typeInfo);
             if (isImmutable == null) return null;
 
             assert worst != null;
@@ -98,12 +105,13 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
             return mine.min(worst);
         }
 
-
-        private Boolean isImmutable(TypeInfo typeInfo) {
+        private Boolean loopOverFields(TypeInfo typeInfo) {
             // fields should be private, or immutable for the type to be immutable
-            // fields should not be @Modified
+            // fields should not be @Modified nor assigned to
+            // fields should not be @Dependent
             boolean undecided = false;
             for (FieldInfo fieldInfo : typeInfo.fields()) {
+                if (!fieldInfo.isPropertyFinal()) return false;
                 if (!fieldInfo.access().isPrivate()) {
                     Immutable immutable = analysisHelper.typeImmutableNullIfUndecided(fieldInfo.type());
                     if (immutable == null) {
@@ -118,6 +126,14 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
                     internalWaitFor.add(fieldInfo);
                     undecided = true;
                 } else if (fieldUnmodified.isFalse()) {
+                    return false;
+                }
+                Value.Independent fieldIndependent = fieldInfo.analysis().getOrNull(INDEPENDENT_FIELD,
+                        ValueImpl.IndependentImpl.class);
+                if (fieldIndependent == null) {
+                    internalWaitFor.add(fieldInfo);
+                    undecided = true;
+                } else if (fieldIndependent.isDependent()) {
                     return false;
                 }
             }
