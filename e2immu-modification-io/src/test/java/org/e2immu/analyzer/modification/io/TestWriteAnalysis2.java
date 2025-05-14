@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.io;
 
-import org.e2immu.analyzer.modification.linkedvariables.LinkedVariablesCodec;
+import org.e2immu.analyzer.modification.linkedvariables.io.LinkedVariablesCodec;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;

@@ -7,7 +7,7 @@ import org.e2immu.util.internal.graph.op.Cycles;
 import java.util.List;
 import java.util.Map;
 
-public interface IteratingModAnalyzer {
+public interface IteratingAnalyzer extends Analyzer {
 
     interface Configuration {
         int maxIterations();
@@ -15,10 +15,12 @@ public interface IteratingModAnalyzer {
         // the alternative is: set all to non-modifying
         boolean stopWhenCycleDetectedAndNoImprovements();
 
-        boolean storeErrorsInPVMap();
+        boolean storeErrors();
+
+        CycleBreakingStrategy cycleBreakingStrategy();
     }
 
-    interface Output {
+    interface Output extends Analyzer.Output {
         G<Info> waitingFor();
 
         default int unresolved() {
@@ -30,8 +32,6 @@ public interface IteratingModAnalyzer {
         int iterations();
 
         Map<String, Integer> infoHistogram();
-
-        List<Throwable> problemsRaised();
     }
 
     Output analyze(List<Info> analysisOrder, Configuration configuration);

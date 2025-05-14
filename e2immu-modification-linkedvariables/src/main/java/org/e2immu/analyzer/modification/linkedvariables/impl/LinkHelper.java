@@ -1,5 +1,6 @@
-package org.e2immu.analyzer.modification.linkedvariables;
+package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.linkedvariables.EvaluationResult;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;

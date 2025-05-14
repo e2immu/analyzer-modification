@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.linkedvariables;
+package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.linkedvariables.graph.Cache;
 import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 
 /*
 given a number of links, build a graph, and compute the shortest path between all combinations,
@@ -143,9 +143,10 @@ class ComputeLinkCompletion {
                     } else {
                         vii.setLinkedVariables(linkedVariables);
                     }
-                    if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.MODIFIED_VARIABLE)) {
+                    if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.UNMODIFIED_VARIABLE)) {
                         boolean isModified = modifying.contains(variable);
-                        vii.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                        // FIXME
+                        vii.analysis().set(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
                     }
                     Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
                     if (mfiComponents != null
@@ -247,7 +248,8 @@ class ComputeLinkCompletion {
                     VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
                     if (vicPrev != null) {
                         VariableInfo vi = vicPrev.best(stageOfPrevious);
-                        if (vi != null && vi.analysis().getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
+                        // FIXME
+                        if (vi != null && vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
                             if (isNotImmutable(vi.variable())) {
                                 modified.add(vi.variable());
                             }

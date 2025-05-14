@@ -1,4 +1,4 @@
-package org.e2immu.analyzer.modification.linkedvariables;
+package org.e2immu.analyzer.modification.linkedvariables.io;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;

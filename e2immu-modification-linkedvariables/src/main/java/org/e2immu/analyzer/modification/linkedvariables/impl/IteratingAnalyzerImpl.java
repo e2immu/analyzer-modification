@@ -1,8 +1,7 @@
-package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
+package org.e2immu.analyzer.modification.linkedvariables.impl;
 
-import org.e2immu.analyzer.modification.linkedvariables.IteratingModAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.ModAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.ModAnalyzerImpl;
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.SingleIterationAnalyzer;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.util.internal.graph.G;
@@ -11,22 +10,24 @@ import org.e2immu.util.internal.graph.op.Linearize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class IteratingModAnalyzerImpl implements IteratingModAnalyzer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(IteratingModAnalyzerImpl.class);
+public class IteratingAnalyzerImpl implements IteratingAnalyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IteratingAnalyzerImpl.class);
 
     private final Runtime runtime;
 
-    public IteratingModAnalyzerImpl(Runtime runtime) {
+    public IteratingAnalyzerImpl(Runtime runtime) {
         this.runtime = runtime;
     }
 
     public record ConfigurationImpl(int maxIterations,
                                     boolean stopWhenCycleDetectedAndNoImprovements,
-                                    boolean storeErrorsInPVMap) implements Configuration {
+                                    boolean storeErrors,
+                                    CycleBreakingStrategy cycleBreakingStrategy) implements Configuration {
     }
 
     public static class OutputImpl implements Output {
@@ -78,18 +79,18 @@ public class IteratingModAnalyzerImpl implements IteratingModAnalyzer {
     public Output analyze(List<Info> analysisOrder, Configuration configuration) {
         int iterations = 0;
         int prevWaitingForSize = Integer.MAX_VALUE;
+        SingleIterationAnalyzer singleIterationAnalyzer = new SingleIterationAnalyzerImpl(runtime, configuration);
+        List<Throwable> problemsRaised = new LinkedList<>();
         while (true) {
             ++iterations;
-            ModAnalyzer modAnalyzer = new ModAnalyzerImpl(runtime, configuration.storeErrorsInPVMap(),
-                    false);
-            modAnalyzer.go(analysisOrder);
-            G<Info> waitingFor = modAnalyzer.buildWaitingFor();
-
+            SingleIterationAnalyzer.Output output = singleIterationAnalyzer.go(analysisOrder, false);
+            G<Info> waitingFor = output.waitFor();
+            problemsRaised.addAll(output.problemsRaised());
             boolean done = waitingFor.vertices().isEmpty();
             if (iterations == configuration.maxIterations() || done) {
                 LOGGER.info("Stop iterating after {} iterations, done? {}", iterations, done);
                 return new OutputImpl(waitingFor, new Cycles<>(Set.of()), iterations,
-                        modAnalyzer.getHistogram(), modAnalyzer.getProblemsRaised());
+                        output.infoHistogram(), problemsRaised);
             }
             int waitingForSize = waitingFor.vertices().size();
             if (waitingForSize >= prevWaitingForSize) {
@@ -98,16 +99,16 @@ public class IteratingModAnalyzerImpl implements IteratingModAnalyzer {
                 LOGGER.info("No improvements anymore, have {} cycles", cycles.size());
                 assert !cycles.isEmpty();
                 if (configuration.stopWhenCycleDetectedAndNoImprovements()) {
-                    return new OutputImpl(waitingFor, cycles, iterations, modAnalyzer.getHistogram(),
-                            modAnalyzer.getProblemsRaised());
+                    return new OutputImpl(waitingFor, cycles, iterations, output.infoHistogram(), problemsRaised);
                 }
                 ++iterations;
-                ModAnalyzer modAnalyzer2 = new ModAnalyzerImpl(runtime, configuration.storeErrorsInPVMap(),
-                        true);
-                G<Info> waitingFor2 = modAnalyzer2.buildWaitingFor();
-                assert waitingFor2.vertices().isEmpty();
-                return new OutputImpl(waitingFor2, new Cycles<>(Set.of()), iterations,
-                        modAnalyzer.getHistogram(), modAnalyzer.getProblemsRaised());
+                SingleIterationAnalyzer.Output output2 = singleIterationAnalyzer.go(analysisOrder, true);
+                problemsRaised.addAll(output.problemsRaised());
+
+                G<Info> waitFor2 = output2.waitFor();
+                assert waitFor2.vertices().isEmpty();
+                return new OutputImpl(waitFor2, new Cycles<>(Set.of()), iterations,
+                        output.infoHistogram(), problemsRaised);
             }
             LOGGER.info("WaitingFor now {}, iterating again", waitingForSize);
             prevWaitingForSize = waitingForSize;

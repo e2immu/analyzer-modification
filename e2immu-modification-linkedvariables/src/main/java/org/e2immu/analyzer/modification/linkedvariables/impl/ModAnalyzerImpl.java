@@ -1,7 +1,8 @@
-package org.e2immu.analyzer.modification.linkedvariables;
+package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.common.defaults.ShallowMethodAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.ModAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;

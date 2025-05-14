@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.modification;
 
-import org.e2immu.analyzer.modification.linkedvariables.ModAnalyzerImpl;
+import org.e2immu.analyzer.modification.linkedvariables.impl.ModAnalyzerImpl;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.language.cst.api.info.Info;
