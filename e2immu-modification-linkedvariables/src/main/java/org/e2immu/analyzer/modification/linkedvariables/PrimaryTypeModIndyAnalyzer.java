@@ -1,6 +1,10 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+
+import java.util.Map;
+import java.util.Set;
 
 /*
 Phase 3:
@@ -11,5 +15,10 @@ and forward the modification of fields to the parameters linked to it.
  */
 public interface PrimaryTypeModIndyAnalyzer extends Analyzer {
 
-    Output go(TypeInfo primaryType);
+    interface Output extends Analyzer.Output {
+        boolean resolvedInternalCycles();
+
+    }
+
+    Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor);
 }

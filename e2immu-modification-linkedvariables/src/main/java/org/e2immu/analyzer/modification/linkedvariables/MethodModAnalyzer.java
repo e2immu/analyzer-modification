@@ -1,25 +1,27 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /*
 Phase 1.
 Single method analyzer.
 
 Analyzes statements in a method, and tries to determine if the method is @Modified.
+Computes linking.
 
-It is NOT concerned with solving the @Independent property of the method, because to do that, the linking info
-of the fields must be known.
+While it could also write out method independence and parameter independence, this code sits in Phase 3.
  */
 public interface MethodModAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
 
-        Collection<MethodInfo> waitingFor();
+        Set<MethodInfo> waitForMethods();
+
+        Set<TypeInfo> waitForIndependenceOfTypes();
 
         Map<String, Integer> infoHistogram();
     }

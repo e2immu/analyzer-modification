@@ -4,7 +4,6 @@ import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.common.defaults.ShallowMethodAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.MethodModAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
@@ -13,14 +12,16 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.expression.VariableExpression;
-import org.e2immu.language.cst.api.info.*;
+import org.e2immu.language.cst.api.info.Info;
+import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.*;
 import org.e2immu.language.cst.api.translate.TranslationMap;
@@ -29,29 +30,23 @@ import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.Independent;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.SetOfInfo;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.VariableBooleanMap;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
-import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyzerForTesting {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodModAnalyzerImpl.class);
@@ -79,7 +74,8 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
         this.cycleBreakingStrategy = configuration.cycleBreakingStrategy();
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised, Collection<MethodInfo> waitingFor,
+    private record OutputImpl(List<Throwable> problemsRaised, Set<MethodInfo> waitForMethods,
+                              Set<TypeInfo> waitForIndependenceOfTypes,
                               Map<String, Integer> infoHistogram) implements Output {
     }
 
@@ -87,12 +83,14 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
     public Output go(MethodInfo methodInfo, boolean activateCycleBreaking) {
         MethodAnalyzer methodAnalyzer = new MethodAnalyzer(activateCycleBreaking);
         methodAnalyzer.doMethod(methodInfo);
-        return new OutputImpl(methodAnalyzer.problemsRaised, methodAnalyzer.waitFor, methodAnalyzer.infoHistogram);
+        return new OutputImpl(methodAnalyzer.problemsRaised, methodAnalyzer.waitForMethods,
+                methodAnalyzer.waitForIndependenceOfTypes, methodAnalyzer.infoHistogram);
     }
 
     class MethodAnalyzer implements InternalMethodModAnalyzer {
         private final List<Throwable> problemsRaised = new LinkedList<>();
-        private final Set<MethodInfo> waitFor = new HashSet<>();
+        private final Set<MethodInfo> waitForMethods = new HashSet<>();
+        private final Set<TypeInfo> waitForIndependenceOfTypes = new HashSet<>();
         private final Map<String, Integer> infoHistogram = new HashMap<>();
         private final boolean activateCycleBreaking;
         private final ExpressionAnalyzer expressionAnalyzer;
@@ -117,107 +115,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                 if (variableData != null) {
                     copyFromVariablesIntoMethod(methodInfo, variableData);
                 } // else: can be null for empty synthetic constructors, for example
-
-                doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
-                        e -> e instanceof VariableExpression ve
-                             && ve.variable() instanceof ParameterInfo pi
-                             && pi.methodInfo() == methodInfo
-                             && pi.index() == 0);
-                doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
-                        e -> e instanceof VariableExpression ve
-                             && ve.variable() instanceof This thisVar
-                             && thisVar.typeInfo() == methodInfo.typeInfo());
-                doIndependent(methodInfo, variableData);
             }
-        }
-
-        private void doFluentIdentityAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock,
-                                              Property property, Predicate<Expression> predicate) {
-            if (!methodInfo.analysis().haveAnalyzedValueFor(property)) {
-                boolean identityFluent;
-                if (lastOfMainBlock == null) {
-                    identityFluent = false;
-                } else {
-                    VariableInfoContainer vicRv = lastOfMainBlock.variableInfoContainerOrNull(methodInfo.fullyQualifiedName());
-                    if (vicRv != null) {
-                        VariableInfo viRv = vicRv.best();
-                        StaticValues svRv = viRv.staticValues();
-                        identityFluent = svRv != null && predicate.test(svRv.expression());
-                    } else {
-                        identityFluent = false;
-                    }
-                }
-                methodInfo.analysis().set(property, ValueImpl.BoolImpl.from(identityFluent));
-            }
-        }
-
-        /*
-        constructors: independent
-        void methods: independent
-        fluent methods: because we return the same object that the caller already has, no more opportunity to make
-            changes is leaked than what as already there. Independent!
-        accessors: independent directly related to the immutability of the field being returned
-        normal methods: does a modification to the return value imply any modification in the method's object?
-            independent directly related to the immutability of the fields to which the return value links.
-         */
-        private void doIndependent(MethodInfo methodInfo, VariableData lastOfMainBlock) {
-            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)) {
-                Independent independent = doIndependentMethod(methodInfo, lastOfMainBlock);
-                methodInfo.analysis().set(PropertyImpl.INDEPENDENT_METHOD, independent);
-            }
-            for (ParameterInfo pi : methodInfo.parameters()) {
-                if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)) {
-                    Independent independent = doIndependentParameter(pi, lastOfMainBlock);
-                    pi.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, independent);
-                }
-            }
-        }
-
-        private Independent doIndependentParameter(ParameterInfo pi, VariableData lastOfMainBlock) {
-            boolean typeIsImmutable = analysisHelper.typeImmutable(pi.parameterizedType()).isImmutable();
-            if (typeIsImmutable) return INDEPENDENT;
-            if (pi.methodInfo().isAbstract() || pi.methodInfo().methodBody().isEmpty()) return DEPENDENT;
-            return worstLinkToFields(lastOfMainBlock, pi.fullyQualifiedName());
-        }
-
-        private Independent doIndependentMethod(MethodInfo methodInfo, VariableData lastOfMainBlock) {
-            if (methodInfo.isConstructor() || methodInfo.noReturnValue()) return INDEPENDENT;
-            if (methodInfo.isAbstract()) {
-                return DEPENDENT; // must be annotated otherwise
-            }
-            boolean fluent = methodInfo.analysis().getOrDefault(FLUENT_METHOD, FALSE).isTrue();
-            if (fluent) return INDEPENDENT;
-            boolean typeIsImmutable = analysisHelper.typeImmutable(methodInfo.returnType()).isImmutable();
-            if (typeIsImmutable) return INDEPENDENT;
-            // TODO this is a temporary fail-safe, to avoid problems
-            //  in case of a synthetic method without variables, INDEPENDENT would be correct.
-            //  in case of a synthetic method without code, DEPENDENT may be the best choice
-            if (lastOfMainBlock == null) return DEPENDENT; // happens in some synthetic cases
-            return worstLinkToFields(lastOfMainBlock, methodInfo.fullyQualifiedName());
-        }
-
-        private Independent worstLinkToFields(VariableData lastOfMainBlock, String variableFqn) {
-            assert lastOfMainBlock != null;
-            VariableInfoContainer vic = lastOfMainBlock.variableInfoContainerOrNull(variableFqn);
-            if (vic == null) return INDEPENDENT; // variable does not occur.
-            VariableInfo viRv = vic.best();
-            LV worstLinkToFields = viRv.linkedVariables().stream()
-                    .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                    .map(Map.Entry::getValue)
-                    .min(LV::compareTo).orElse(LVImpl.LINK_INDEPENDENT);
-            if (worstLinkToFields.isStaticallyAssignedOrAssigned()) {
-                Value.Immutable immField = viRv.linkedVariables().stream()
-                        .filter(e -> e.getValue().isStaticallyAssignedOrAssigned())
-                        .map(Map.Entry::getKey)
-                        .filter(v -> v instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                        .map(v -> analysisHelper.typeImmutable(v.parameterizedType()))
-                        .findFirst().orElseThrow();
-                return immField.toCorrespondingIndependent();
-            }
-            if (worstLinkToFields.equals(LVImpl.LINK_INDEPENDENT)) return INDEPENDENT;
-            if (worstLinkToFields.isCommonHC()) return INDEPENDENT_HC;
-
-            return DEPENDENT;
         }
 
         private void copyFromVariablesIntoMethod(MethodInfo methodInfo, VariableData variableData) {
@@ -590,9 +488,9 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
 
      */
     @Override
-    public void doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
+    public List<Throwable> doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
         LOGGER.debug("Start primary type {}", primaryType);
-        go(analysisOrder);
+        return go(analysisOrder);
     }
 
     /*
@@ -600,28 +498,17 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
      */
 
     @Override
-    public void go(List<Info> analysisOrder) {
-        Map<FieldInfo, List<StaticValues>> svMap = new HashMap<>();
+    public List<Throwable> go(List<Info> analysisOrder) {
+        MethodAnalyzer methodAnalyzer = new MethodAnalyzer(false);
         for (Info info : analysisOrder) {
             try {
                 if (info instanceof MethodInfo mi) {
-                    doMethod(mi);
-                    appendToFieldStaticValueMap(mi, svMap);
-                } else if (info instanceof FieldInfo fi) {
-                    TypeInfo primaryType = fi.owner().primaryType();
-                    Value.SetOfInfo partOfConstruction = primaryType.analysis().getOrNull(PART_OF_CONSTRUCTION,
-                            ValueImpl.SetOfInfoImpl.class);
-                    doField(fi, svMap.get(fi), partOfConstruction);
-                } else if (info instanceof TypeInfo ti) {
-                    LOGGER.debug("Do type {}", ti);
-                    fromNonFinalFieldToParameter(ti);
-                    computeImmutable.go(ti);
+                    methodAnalyzer.doMethod(mi);
                 }
-                histogram.merge(info.info(), 1, Integer::sum);
             } catch (Exception | AssertionError problem) {
                 LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
                 if (storeErrors) {
-                    problemsRaised.add(problem);
+                    methodAnalyzer.problemsRaised.add(problem);
                     String errorMessage = Objects.requireNonNullElse(problem.getMessage(), "<no message>");
                     String fullMessage = "ANALYZER ERROR: " + errorMessage;
                     info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
@@ -630,80 +517,6 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                 }
             }
         }
-    }
-
-    private void fromNonFinalFieldToParameter(TypeInfo typeInfo) {
-        Map<ParameterInfo, StaticValues> svMapParameters = collectReverseFromNonFinalFieldsToParameters(typeInfo);
-        svMapParameters.forEach((pi, sv) -> {
-            if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
-                pi.analysis().set(STATIC_VALUES_PARAMETER, sv);
-            }
-            if (sv.expression() instanceof VariableExpression ve && ve.variable() instanceof FieldReference fr && fr.scopeIsThis()) {
-                if (!pi.analysis().haveAnalyzedValueFor(PARAMETER_ASSIGNED_TO_FIELD)) {
-                    pi.analysis().set(PARAMETER_ASSIGNED_TO_FIELD, new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
-                }
-            }
-        });
-    }
-
-    private Map<ParameterInfo, StaticValues> collectReverseFromNonFinalFieldsToParameters(TypeInfo typeInfo) {
-        Map<ParameterInfo, StaticValues> svMapParameters = new HashMap<>();
-        typeInfo.fields()
-                .stream()
-                .filter(f -> !f.isPropertyFinal())
-                .forEach(fieldInfo -> {
-                    StaticValues sv = fieldInfo.analysis().getOrNull(STATIC_VALUES_FIELD, StaticValuesImpl.class);
-                    if (sv != null
-                        && sv.expression() instanceof VariableExpression ve
-                        && ve.variable() instanceof ParameterInfo pi) {
-                        VariableExpression reverseVe = runtime.newVariableExpressionBuilder()
-                                .setVariable(runtime.newFieldReference(fieldInfo))
-                                .setSource(pi.source())
-                                .build();
-                        StaticValues reverse = StaticValuesImpl.of(reverseVe);
-                        StaticValues prev = svMapParameters.put(pi, reverse);
-                        if (prev != null && !prev.equals(sv)) throw new UnsupportedOperationException("TODO");
-                    }
-                });
-        return svMapParameters;
-    }
-
-    private void appendToFieldStaticValueMap(MethodInfo methodInfo, Map<FieldInfo, List<StaticValues>> svMap) {
-        if (methodInfo.methodBody().isEmpty()) return;
-        Statement lastStatement = methodInfo.methodBody().lastStatement();
-        VariableData vd = VariableDataImpl.of(lastStatement);
-        vd.variableInfoStream()
-                .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                .filter(vi -> vi.staticValues() != null)
-                .forEach(vi -> {
-                    FieldInfo fieldInfo = ((FieldReference) vi.variable()).fieldInfo();
-                    svMap.computeIfAbsent(fieldInfo, l -> new ArrayList<>()).add(vi.staticValues());
-                });
-    }
-
-    private void doField(FieldInfo fieldInfo, List<StaticValues> staticValuesList, SetOfInfo partOfConstruction) {
-        // initial field assignments
-        StaticValues reduced = staticValuesList == null ? NONE
-                : staticValuesList.stream().reduce(StaticValuesImpl.NONE, StaticValues::merge);
-        if (!fieldInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_FIELD)) {
-            fieldInfo.analysis().set(STATIC_VALUES_FIELD, reduced);
-            LOGGER.debug("Do field {}: set {}", fieldInfo, reduced);
-        }
-        // FIXME aapi2
-        if (!fieldInfo.analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
-            boolean modified = fieldInfo.owner().primaryType().recursiveMethodStream()
-                    .filter(mi -> !partOfConstruction.infoSet().contains(mi))
-                    .filter(mi -> !mi.methodBody().isEmpty())
-                    .anyMatch(mi -> {
-                        Statement lastStatement = mi.methodBody().lastStatement();
-                        VariableData vd = VariableDataImpl.of(lastStatement);
-                        return vd.variableInfoStream().anyMatch(vi -> vi.variable() instanceof FieldReference fr
-                                                                      && fr.fieldInfo() == fieldInfo
-                                                                      && vi.isComputedModified());
-                    });
-            if (modified) {
-                fieldInfo.analysis().set(UNMODIFIED_FIELD, TRUE);
-            }
-        }
+        return methodAnalyzer.problemsRaised;
     }
 }

@@ -21,7 +21,7 @@ Is a field @Independent?
 - so we compute this linking first, then write the @Independent property if all data is present
 
 Independence and modification of parameters is directly influenced by the values computed here,
-but the actual computation for parameters is done in the ParameterAnalyzer.
+but the actual computation for parameters is done in the next phase.
 
 This analyzer does not concern itself with solving internal cycles.
 It writes out results, if any, in the field's analysis() object.
