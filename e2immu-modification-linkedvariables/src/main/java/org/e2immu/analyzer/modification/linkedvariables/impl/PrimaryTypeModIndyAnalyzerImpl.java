@@ -15,6 +15,7 @@ import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
@@ -34,10 +35,11 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 /*
 Phase 3.
 
-Does modification and independence of parameters, and independence of methods, and breaks internal cycles.
+Does modification and independence of parameters, and independence, fluent, identity of methods.
+Also breaks internal cycles.
 
-Modification of methods is done in Phase 1
-Modification and independence of fields is done in Phase 2
+Modification of methods and linking of variables is done in Phase 1.
+Linking, modification and independence of fields is done in Phase 2.
 Immutable, independence of types is done in Phase 4.1.
 
 Strategy:
@@ -47,6 +49,11 @@ parameter modification is computed as the combination of links to fields and loc
  */
 public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeModIndyAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
+    private final Runtime runtime;
+
+    public PrimaryTypeModIndyAnalyzerImpl(Runtime runtime) {
+        this.runtime = runtime;
+    }
 
     private record OutputImpl(boolean resolvedInternalCycles) implements Analyzer.Output {
         @Override
@@ -57,26 +64,34 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
 
     @Override
     public Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
-        primaryType.recursiveSubTypeStream().forEach(ti -> go(ti));
+        primaryType.recursiveSubTypeStream().forEach(this::go);
         return null;
     }
 
     private void go(TypeInfo typeInfo) {
-
+        for (MethodInfo methodInfo : typeInfo.constructorsAndMethods()) {
+            go(methodInfo);
+        }
     }
 
     private void go(MethodInfo methodInfo) {
+        if (methodInfo.isAbstract()) {
 
-        doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
-                e -> e instanceof VariableExpression ve
-                     && ve.variable() instanceof ParameterInfo pi
-                     && pi.methodInfo() == methodInfo
-                     && pi.index() == 0);
-        doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
-                e -> e instanceof VariableExpression ve
-                     && ve.variable() instanceof This thisVar
-                     && thisVar.typeInfo() == methodInfo.typeInfo());
-        doIndependent(methodInfo, variableData);
+        } else if (methodInfo.explicitlyEmptyMethod()) {
+
+        } else {
+            VariableData variableData = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
+            doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
+                    e -> e instanceof VariableExpression ve
+                         && ve.variable() instanceof ParameterInfo pi
+                         && pi.methodInfo() == methodInfo
+                         && pi.index() == 0);
+            doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
+                    e -> e instanceof VariableExpression ve
+                         && ve.variable() instanceof This thisVar
+                         && thisVar.typeInfo() == methodInfo.typeInfo());
+            doIndependent(methodInfo, variableData);
+        }
     }
 
 
