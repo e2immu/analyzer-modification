@@ -87,12 +87,12 @@ public class TestModificationParameter extends CommonTest {
 
         Statement s201 = methodInfo.methodBody().statements().get(2).block().statements().get(1);
         VariableInfo viReader201 = VariableDataImpl.of(s201).variableInfo(reader);
-        assertTrue(viReader201.isModified());
+        assertTrue(viReader201.isComputedModified());
 
         VariableData vd = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
         VariableInfo viReader = vd.variableInfo(reader);
         assertEquals("2+0, 2.0.1-E, 2.0.1;E", viReader.reads().toString());
-        assertTrue(viReader.isModified());
+        assertTrue(viReader.isComputedModified());
 
         assertTrue(reader.isModified());
     }

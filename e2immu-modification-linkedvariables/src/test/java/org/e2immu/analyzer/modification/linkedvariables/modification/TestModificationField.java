@@ -73,7 +73,7 @@ public class TestModificationField extends CommonTest {
         Statement s200 = fastForward.methodBody().statements().get(2).block().statements().get(0);
         VariableData vd200 = VariableDataImpl.of(s200);
         VariableInfo vi200BuffRead = vd200.variableInfo(runtime.newFieldReference(buffRead));
-        assertTrue(vi200BuffRead.isModified());
+        assertTrue(vi200BuffRead.isComputedModified());
 
         assertTrue(fastForward.isModifying());
         assertTrue(buffRead.isModified());
@@ -191,7 +191,7 @@ public class TestModificationField extends CommonTest {
             Statement s000 = readNetscapeExt.methodBody().statements().get(0).block().statements().get(0);
             VariableData vd000 = VariableDataImpl.of(s000);
             VariableInfo viBlockSize = vd000.variableInfo(blockSizeFr);
-            assertFalse(viBlockSize.isModified()); // it is assigned, not modified!!
+            assertFalse(viBlockSize.isComputedModified()); // it is assigned, not modified!!
         }
         Statement s00102 = readNetscapeExt.methodBody().statements().get(0).block().statements().get(1).block().statements().get(2);
         VariableData vds00102 = VariableDataImpl.of(s00102);
@@ -202,10 +202,10 @@ public class TestModificationField extends CommonTest {
             Statement last = readNetscapeExt.methodBody().lastStatement();
             VariableInfo viLastLoopCount = VariableDataImpl.of(last).variableInfo(loopCountFr);
             assertEquals(viLoopCount.assignments(), viLastLoopCount.assignments());
-            assertFalse(viLastLoopCount.isModified());
+            assertFalse(viLastLoopCount.isComputedModified());
 
             VariableInfo viLastBlockSize = VariableDataImpl.of(last).variableInfo(blockSizeFr);
-            assertFalse(viLastBlockSize.isModified());
+            assertFalse(viLastBlockSize.isComputedModified());
         }
         Value.SetOfInfo poc = X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION);
         assertFalse(poc.infoSet().contains(readNetscapeExt));

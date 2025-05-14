@@ -8,12 +8,8 @@ import org.e2immu.language.cst.api.expression.ConstructorCall;
 import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.intellij.lang.annotations.Language;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 
@@ -87,7 +83,7 @@ public class TestModifiedParameterAnon extends CommonTest {
                 java.nio.file.FileVisitResult.CONTINUE, list\
                 """, vdLast.knownVariableNamesToString());
         VariableInfo viList = vdLast.variableInfo("list");
-        assertTrue(viList.isModified());
+        assertTrue(viList.isComputedModified());
 
         assertTrue(preVisitDirectory.isModifying());
 

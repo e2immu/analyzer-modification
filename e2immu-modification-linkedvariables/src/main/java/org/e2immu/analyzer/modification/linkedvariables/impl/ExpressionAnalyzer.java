@@ -1,8 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
-import org.e2immu.analyzer.modification.linkedvariables.ModAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.linking.LinkHelper;
-import org.e2immu.analyzer.modification.linkedvariables.linking.LinkHelperFunctional;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
@@ -62,9 +59,9 @@ class ExpressionAnalyzer {
     private final LinkHelperFunctional linkHelperFunctional;
     private final ApplyGetSetTranslation applyGetSetTranslation;
     private final StaticValuesHelper staticValuesHelper;
-    private final ModAnalyzer analyzer; // for recursion in switch expression
+    private final InternalMethodModAnalyzer analyzer; // for recursion in switch expression
 
-    public ExpressionAnalyzer(Runtime runtime, ModAnalyzer analyzer, StaticValuesHelper staticValuesHelper) {
+    public ExpressionAnalyzer(Runtime runtime, InternalMethodModAnalyzer analyzer, StaticValuesHelper staticValuesHelper) {
         this.runtime = runtime;
         this.genericsHelper = new GenericsHelperImpl(runtime);
         this.analysisHelper = new AnalysisHelper();

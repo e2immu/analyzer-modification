@@ -29,6 +29,36 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
                                     boolean storeErrors,
                                     CycleBreakingStrategy cycleBreakingStrategy) implements Configuration {
     }
+    public static class ConfigurationBuilder{
+        private int maxIterations = 1;
+        private boolean stopWhenCycleDetectedAndNoImprovements;
+        private boolean storeErrors;
+        private CycleBreakingStrategy cycleBreakingStrategy = CycleBreakingStrategy.NONE;
+
+        public ConfigurationBuilder setStoreErrors(boolean storeErrors) {
+            this.storeErrors = storeErrors;
+            return this;
+        }
+
+        public ConfigurationBuilder setCycleBreakingStrategy(CycleBreakingStrategy cycleBreakingStrategy) {
+            this.cycleBreakingStrategy = cycleBreakingStrategy;
+            return this;
+        }
+
+        public ConfigurationBuilder setStopWhenCycleDetectedAndNoImprovements(boolean stopWhenCycleDetectedAndNoImprovements) {
+            this.stopWhenCycleDetectedAndNoImprovements = stopWhenCycleDetectedAndNoImprovements;
+            return this;
+        }
+
+        public ConfigurationBuilder setMaxIterations(int maxIterations) {
+            this.maxIterations = maxIterations;
+            return this;
+        }
+
+        public Configuration build() {
+            return new ConfigurationImpl(maxIterations, stopWhenCycleDetectedAndNoImprovements, storeErrors, cycleBreakingStrategy);
+        }
+    }
 
     public static class OutputImpl implements Output {
         private final G<Info> waitingFor;

@@ -48,4 +48,6 @@ public interface VariableInfo {
     //int modificationTime();
 
     boolean isUnmodified();
+
+    boolean isComputedModified();
 }

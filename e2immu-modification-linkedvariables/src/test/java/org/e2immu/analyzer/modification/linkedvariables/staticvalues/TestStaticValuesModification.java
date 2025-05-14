@@ -71,7 +71,7 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s0 = setAdd.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0r = vd0.variableInfo(setAdd0);
-                assertTrue(vi0r.isModified());
+                assertTrue(vi0r.isComputedModified());
                 assertEquals("0M-2-*M|0-*:set", vi0r.linkedVariables().toString());
                 assertEquals("a.b.X.R.i#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                         vd0.knownVariableNamesToString());
@@ -87,11 +87,11 @@ public class TestStaticValuesModification extends CommonTest {
 
             VariableData vdSetAdd0 = VariableDataImpl.of(setAdd.methodBody().lastStatement());
             VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
-            assertTrue(viSetAdd0R.isModified());
+            assertTrue(viSetAdd0R.isComputedModified());
             assertEquals("a.b.X.R.i#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                     vdSetAdd0.knownVariableNamesToString());
             VariableInfo viRSet = vdSetAdd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
-            assertTrue(viRSet.isModified());
+            assertTrue(viRSet.isComputedModified());
 
             Value.VariableBooleanMap modificationMap = setAdd0.analysis().getOrNull(MODIFIED_COMPONENTS_PARAMETER,
                     ValueImpl.VariableBooleanMapImpl.class);
@@ -109,17 +109,17 @@ public class TestStaticValuesModification extends CommonTest {
             Statement s2 = method.methodBody().statements().get(2);
             VariableData vd2 = VariableDataImpl.of(s2);
             VariableInfo vd2S = vd2.variableInfo("s");
-            assertFalse(vd2S.isModified());
+            assertFalse(vd2S.isComputedModified());
             assertEquals("*M-2-0M|*-0:r", vd2S.linkedVariables().toString());
             assertEquals("Type java.util.HashSet<Integer> E=new HashSet<>()", vd2S.staticValues().toString());
 
             VariableInfo vd2L = vd2.variableInfo("l");
             assertEquals("*M-2-1M|*-2:r", vd2L.linkedVariables().toString());
             assertEquals("Type java.util.ArrayList<String> E=new ArrayList<>()", vd2L.staticValues().toString());
-            assertFalse(vd2L.isModified());
+            assertFalse(vd2L.isComputedModified());
 
             VariableInfo vd2R = vd2.variableInfo("r");
-            assertFalse(vd2R.isModified());
+            assertFalse(vd2R.isComputedModified());
             assertEquals("1M-2-*M|2-*:l, 0M-2-*M|0-*:s", vd2R.linkedVariables().toString());
             assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vd2R.staticValues().toString());
         }
@@ -129,15 +129,15 @@ public class TestStaticValuesModification extends CommonTest {
             VariableInfo vi3R = vd3.variableInfo("r");
             assertEquals("Type a.b.X.R E=new R(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
             assertEquals("1M-2-*M|2-*:l, 0M-2-*M|0-*:s", vi3R.linkedVariables().toString());
-            assertTrue(vi3R.isModified());
+            assertTrue(vi3R.isComputedModified());
 
             VariableInfo vd3L = vd3.variableInfo("l");
             assertEquals("*M-2-1M|*-2:r", vd3L.linkedVariables().toString());
-            assertFalse(vd3L.isModified());
+            assertFalse(vd3L.isComputedModified());
 
             VariableInfo vd3S = vd3.variableInfo("s");
             assertEquals("*M-2-0M|*-0:r", vd3S.linkedVariables().toString());
-            assertTrue(vd3S.isModified());
+            assertTrue(vd3S.isComputedModified());
         }
     }
 
@@ -187,7 +187,7 @@ public class TestStaticValuesModification extends CommonTest {
             Statement s0 = setAdd.methodBody().statements().get(0);
             VariableData vdSetAdd0 = VariableDataImpl.of(s0);
             VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
-            assertTrue(viSetAdd0R.isModified());
+            assertTrue(viSetAdd0R.isComputedModified());
             assertEquals("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                     vdSetAdd0.knownVariableNamesToString());
         }
@@ -201,11 +201,11 @@ public class TestStaticValuesModification extends CommonTest {
         VariableInfo vi3R = vd3.variableInfo("r");
         assertEquals("Type a.b.X.RI E=new RI(s,3,l) this.i=3, this.list=l, this.set=s", vi3R.staticValues().toString());
         assertEquals("1M-2-*M|2-*:l, 0M-2-*M|0-*:s", vi3R.linkedVariables().toString());
-        assertTrue(vi3R.isModified());
+        assertTrue(vi3R.isComputedModified());
 
         VariableInfo vd3S = vd3.variableInfo("s");
         assertEquals("*M-2-0M|*-0:r", vd3S.linkedVariables().toString());
-        assertTrue(vd3S.isModified());
+        assertTrue(vd3S.isComputedModified());
     }
 
 
@@ -303,13 +303,13 @@ public class TestStaticValuesModification extends CommonTest {
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0r = vd0.variableInfo(setAdd0);
                 // we expect to see a modification on r.set (via ExpressionAnalyzer,markModified)
-                assertTrue(vi0r.isModified());
+                assertTrue(vi0r.isComputedModified());
                 // we expect the r.set variable to exist (see MethodAnalyzer.Visitor.beforeExpression,MC.)
                 assertEquals("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r, a.b.X.setAdd(a.b.X.R):0:r",
                         vd0.knownVariableNamesToString());
                 // we expect to see a modification on r.set (via ExpressionAnalyzer.propagateMethodComponents)
                 VariableInfo vi0rSet = vd0.variableInfo("a.b.X.R.set#a.b.X.setAdd(a.b.X.R):0:r");
-                assertTrue(vi0rSet.isModified());
+                assertTrue(vi0rSet.isComputedModified());
             }
             assertTrue(setAdd0.isModified());
             assertEquals("this.set=true", setAdd0.analysis().getOrDefault(MODIFIED_COMPONENTS_PARAMETER,
@@ -335,7 +335,7 @@ public class TestStaticValuesModification extends CommonTest {
                         """, vd4.knownVariableNamesToString());
 
                 VariableInfo vi4R = vd4.variableInfo("r");
-                assertTrue(vi4R.isModified());
+                assertTrue(vi4R.isComputedModified());
                 // note that we have the fields in RI here, not those of the builder! Code is dedicated to builder-like
                 // methods, ExpressionAnalyzer.checkCaseForBuilder
 
@@ -354,11 +354,11 @@ public class TestStaticValuesModification extends CommonTest {
 
                 // check that the correct component is modified!
                 VariableInfo vi4s = vd4.variableInfo("s");
-                assertFalse(vi4s.isModified());
+                assertFalse(vi4s.isComputedModified());
                 // NOTE: we don't see this anymore, because this.set=new HashSet<>() rather than this.set=s
 
                 VariableInfo vi4l = vd4.variableInfo("l");
-                assertFalse(vi4l.isModified());
+                assertFalse(vi4l.isComputedModified());
             }
 
         }
@@ -468,7 +468,7 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s1 = modify.methodBody().statements().get(1);
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
-                assertTrue(vi1Set.isModified());
+                assertTrue(vi1Set.isComputedModified());
                 assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:ri",
                         vi1Set.linkedVariables().toString());
                 assertEquals("E=ri.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
@@ -505,7 +505,7 @@ public class TestStaticValuesModification extends CommonTest {
                 Statement s1 = modify2.methodBody().statements().get(1);
                 VariableData vd1 = VariableDataImpl.of(s1);
                 VariableInfo vi1Set = vd1.variableInfo("set");
-                assertTrue(vi1Set.isModified());
+                assertTrue(vi1Set.isComputedModified());
                 assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:r",
                         vi1Set.linkedVariables().toString());
                 assertEquals("E=r.objects[index]", vi1Set.staticValues().toString()); // this is the result of @GetSet
@@ -555,7 +555,7 @@ public class TestStaticValuesModification extends CommonTest {
                         """, vi2r.staticValues().toString());
 
                 VariableInfo vi2set = vd2.variableInfo(method0);
-                assertFalse(vi2set.isModified());
+                assertFalse(vi2set.isComputedModified());
             }
             { // modify2(r, 0)
                 Statement s3 = method2.methodBody().statements().get(3);
@@ -563,7 +563,7 @@ public class TestStaticValuesModification extends CommonTest {
 
                 // modification has been propagated via the parameter
                 VariableInfo vi3set = vd3.variableInfo(method0);
-                assertTrue(vi3set.isModified());
+                assertTrue(vi3set.isComputedModified());
             }
             assertTrue(method0.isModified());
         }

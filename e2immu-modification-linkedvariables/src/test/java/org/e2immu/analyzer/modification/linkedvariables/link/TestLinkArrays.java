@@ -47,7 +47,7 @@ public class TestLinkArrays extends CommonTest {
             assertEquals("*-4-0:array, -1-:array[0]", vi0T0.linkedVariables().toString());
             VariableInfo vi0Array = vd0.variableInfo(array);
             assertEquals("0-4-*:array[0], 0-4-*:t0", vi0Array.linkedVariables().toString());
-            assertFalse(vi0Array.isModified());
+            assertFalse(vi0Array.isComputedModified());
         }
         {
             VariableData vd1 = VariableDataImpl.of(method.methodBody().statements().get(1));
@@ -57,7 +57,7 @@ public class TestLinkArrays extends CommonTest {
             assertEquals("*-4-0:array, -1-:array[1]", vi1T.linkedVariables().toString());
             VariableInfo vi1Array = vd1.variableInfo(array);
             assertEquals("0-4-*:array[0], 0-4-*:array[1], 0-4-*:t, 0-4-*:t0", vi1Array.linkedVariables().toString());
-            assertTrue(vi1Array.isModified());
+            assertTrue(vi1Array.isComputedModified());
         }
     }
 
@@ -104,22 +104,22 @@ public class TestLinkArrays extends CommonTest {
 
             VariableInfo vi0Array = vd0.variableInfo(i);
             assertEquals("0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0]", vi0Array.linkedVariables().toString());
-            assertFalse(vi0Array.isModified());
+            assertFalse(vi0Array.isComputedModified());
         }
         {
             VariableData vd1 = VariableDataImpl.of(method.methodBody().statements().get(1));
             VariableInfo vi1T0 = vd1.variableInfo("t0");
             assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[0]", vi1T0.linkedVariables().toString());
-            assertFalse(vi1T0.isModified());
+            assertFalse(vi1T0.isComputedModified());
 
             VariableInfo vi1T = vd1.variableInfo(t);
             assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
-            assertFalse(vi1T.isModified());
+            assertFalse(vi1T.isComputedModified());
 
             VariableInfo vi1Array = vd1.variableInfo(i);
             assertEquals("0M-4-*M:t, 0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0], 0M-4-*M:variables[1]",
                     vi1Array.linkedVariables().toString());
-            assertTrue(vi1Array.isModified());
+            assertTrue(vi1Array.isComputedModified());
         }
     }
 
@@ -166,22 +166,22 @@ public class TestLinkArrays extends CommonTest {
             assertEquals("-1-:variables[0]", vi0T0.linkedVariables().toString());
             VariableInfo vi0Array = vd0.variableInfo(i);
             assertEquals("0M-2-*M|0-*:variables", vi0Array.linkedVariables().toString());
-            assertFalse(vi0Array.isModified());
+            assertFalse(vi0Array.isComputedModified());
         }
         {
             VariableData vd1 = VariableDataImpl.of(method2.methodBody().statements().get(1));
             VariableInfo vi1T0 = vd1.variableInfo("t0");
             assertEquals("-1-:variables[0]", vi1T0.linkedVariables().toString());
-            assertFalse(vi1T0.isModified());
+            assertFalse(vi1T0.isComputedModified());
 
             VariableInfo vi1T = vd1.variableInfo(t);
             assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[1]", vi1T.linkedVariables().toString());
-            assertFalse(vi1T.isModified());
+            assertFalse(vi1T.isComputedModified());
 
             VariableInfo vi1Array = vd1.variableInfo(i);
             assertEquals("0M-4-*M:t, 0M-2-*M|0-*:variables, 0M-4-*M:variables[1]",
                     vi1Array.linkedVariables().toString());
-            assertTrue(vi1Array.isModified());
+            assertTrue(vi1Array.isComputedModified());
         }
     }
 

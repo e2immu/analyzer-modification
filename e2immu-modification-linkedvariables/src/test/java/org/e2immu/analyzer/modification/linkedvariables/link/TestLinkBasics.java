@@ -146,13 +146,13 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0-4-*:t1, 0-4-*:t2", vi0list.linkedVariables().toString());
         assertEquals(vi0list.linkedVariables(),
                 list.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
-        assertTrue(vi0list.isModified());
+        assertTrue(vi0list.isComputedModified());
 
         VariableInfo vi0t1 = vd0.variableInfo(t1);
         assertEquals("*-4-0:list", vi0t1.linkedVariables().toString());
         assertEquals(vi0t1.linkedVariables(),
                 t1.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
-        assertFalse(vi0t1.isModified());
+        assertFalse(vi0t1.isComputedModified());
 
         assertSame(TRUE, list.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertTrue(list.isModified());
@@ -314,7 +314,7 @@ public class TestLinkBasics extends CommonTest {
             VariableInfo vi1p0 = vd1.variableInfo(listAdd0);
             assertEquals("0-2-0:l, 0-4-*:t", vi1p0.linkedVariables().toString());
             // propagation of @Modified via graph
-            assertTrue(vi1p0.isModified());
+            assertTrue(vi1p0.isComputedModified());
 
             VariableInfo vi1p1 = vd1.variableInfo(t1);
             assertEquals("*-4-0:l, *-4-0:list", vi1p1.linkedVariables().toString());

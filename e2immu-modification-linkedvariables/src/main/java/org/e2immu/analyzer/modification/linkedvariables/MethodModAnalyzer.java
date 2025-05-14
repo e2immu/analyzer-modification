@@ -4,6 +4,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /*
 Phase 1.
@@ -17,6 +18,11 @@ of the fields must be known.
 public interface MethodModAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
+
         Collection<MethodInfo> waitingFor();
+
+        Map<String, Integer> infoHistogram();
     }
+
+    Output go(MethodInfo methodInfo, boolean activateCycleBreaking);
 }

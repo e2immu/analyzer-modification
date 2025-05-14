@@ -2,9 +2,10 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.e2immu.analyzer.modification.linkedvariables.impl.ModAnalyzerImpl;
-import org.e2immu.language.inspection.integration.ToolChain;
 import org.e2immu.analyzer.modification.io.LoadAnalyzedPackageFiles;
+import org.e2immu.analyzer.modification.linkedvariables.impl.IteratingAnalyzerImpl;
+import org.e2immu.analyzer.modification.linkedvariables.impl.MethodModAnalyzerForTesting;
+import org.e2immu.analyzer.modification.linkedvariables.impl.MethodModAnalyzerImpl;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -12,13 +13,14 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.inspection.api.integration.JavaInspector;
 import org.e2immu.language.inspection.api.resource.InputConfiguration;
 import org.e2immu.language.inspection.integration.JavaInspectorImpl;
+import org.e2immu.language.inspection.integration.ToolChain;
 import org.e2immu.language.inspection.resource.InputConfigurationImpl;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,17 +28,17 @@ public class CommonTest {
     protected JavaInspector javaInspector;
     protected Runtime runtime;
     protected final String[] extraClassPath;
-    protected ModAnalyzer analyzer;
+    protected MethodModAnalyzerForTesting analyzer;
     protected PrepAnalyzer prepAnalyzer;
-    protected final boolean storeErrorsInPVMap;
+    protected final boolean storeErrors;
 
     protected CommonTest(String... extraClassPath) {
         this(false, extraClassPath);
     }
 
-    protected CommonTest(boolean storeErrorsInPVMap, String... extraClassPath) {
+    protected CommonTest(boolean storeErrors, String... extraClassPath) {
         this.extraClassPath = extraClassPath;
-        this.storeErrorsInPVMap = storeErrorsInPVMap;
+        this.storeErrors = storeErrors;
     }
 
     @BeforeAll
@@ -67,7 +69,10 @@ public class CommonTest {
         runtime = javaInspector.runtime();
         prepAnalyzer = new PrepAnalyzer(runtime);
 
-        analyzer = new ModAnalyzerImpl(runtime, storeErrorsInPVMap);
+        IteratingAnalyzer.Configuration configuration = new IteratingAnalyzerImpl.ConfigurationBuilder()
+                .setStoreErrors(storeErrors)
+                .build();
+        analyzer = new MethodModAnalyzerImpl(runtime, configuration);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {

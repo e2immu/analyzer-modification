@@ -559,11 +559,11 @@ public class TestStaticValuesRecord extends CommonTest {
 
             VariableInfo vi2Set = vd2.variableInfo("set");
             assertEquals("*M,0-2-1M,0|*-0:r", vi2Set.linkedVariables().toString());
-            assertFalse(vi2Set.isModified());
+            assertFalse(vi2Set.isComputedModified());
 
             VariableInfo vi2List = vd2.variableInfo("list");
             assertEquals("*M,0-2-2M,0|*-1:r", vi2List.linkedVariables().toString());
-            assertFalse(vi2List.isModified());
+            assertFalse(vi2List.isComputedModified());
         }
         {
             Statement s4 = method.methodBody().statements().get(4);
@@ -579,11 +579,11 @@ public class TestStaticValuesRecord extends CommonTest {
             // should never link to 'list'!!
             assertEquals("*M,0-2-1M,0|*-0:r, -2-:s, -2-:set2, 0-4-*:t", vi4Set.linkedVariables().toString());
 
-            assertTrue(vi4Set.isModified());
+            assertTrue(vi4Set.isComputedModified());
 
             VariableInfo vi4List = vd4.variableInfo("list");
             assertEquals("*M,0-2-2M,0|*-1:r", vi4List.linkedVariables().toString());
-            assertFalse(vi4List.isModified());
+            assertFalse(vi4List.isComputedModified());
         }
     }
 
@@ -631,11 +631,11 @@ public class TestStaticValuesRecord extends CommonTest {
 
             VariableInfo vi2Set = vd0.variableInfo(set);
             assertEquals("*M,0-2-1M,0|*-0:r", vi2Set.linkedVariables().toString());
-            assertFalse(vi2Set.isModified());
+            assertFalse(vi2Set.isComputedModified());
 
             VariableInfo vi2List = vd0.variableInfo(list);
             assertEquals("*M,0-2-2M,0|*-1:r", vi2List.linkedVariables().toString());
-            assertFalse(vi2List.isModified());
+            assertFalse(vi2List.isComputedModified());
         }
         {
             Statement s2 = method.methodBody().statements().get(2);
@@ -649,11 +649,11 @@ public class TestStaticValuesRecord extends CommonTest {
 
             VariableInfo vi4Set = vd2.variableInfo(set);
             assertEquals("*M,0-2-1M,0|*-0:r, -2-:s, -2-:set2, 0-4-*:t", vi4Set.linkedVariables().toString());
-            assertTrue(vi4Set.isModified());
+            assertTrue(vi4Set.isComputedModified());
 
             VariableInfo vi4List = vd2.variableInfo(list);
             assertEquals("*M,0-2-2M,0|*-1:r", vi4List.linkedVariables().toString());
-            assertFalse(vi4List.isModified());
+            assertFalse(vi4List.isComputedModified());
         }
     }
 }

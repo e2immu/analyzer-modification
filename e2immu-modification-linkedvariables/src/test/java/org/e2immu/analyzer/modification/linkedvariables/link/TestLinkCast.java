@@ -50,14 +50,14 @@ public class TestLinkCast extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viObject0 = vd0.variableInfo(object);
             assertEquals("-1-:set", viObject0.linkedVariables().toString());
-            assertFalse(viObject0.isModified());
+            assertFalse(viObject0.isComputedModified());
         }
         {
             Statement s1 = setAdd.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo viObject1 = vd1.variableInfo(object);
             assertEquals("-1-:set", viObject1.linkedVariables().toString());
-            assertTrue(viObject1.isModified());
+            assertTrue(viObject1.isComputedModified());
         }
         assertTrue(object.isModified());
     }
@@ -91,16 +91,16 @@ public class TestLinkCast extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Set = vd0.variableInfo("set");
             assertEquals("-1-:object, *M-2-0M|*-0:r", vi0Set.linkedVariables().toString());
-            assertFalse(vi0Set.isModified());
+            assertFalse(vi0Set.isComputedModified());
         }
         {
             Statement s1 = setAdd.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
             VariableInfo vi1Set = vd1.variableInfo("set");
             assertEquals("-1-:object, *M-2-0M|*-0:r", vi1Set.linkedVariables().toString());
-            assertTrue(vi1Set.isModified());
+            assertTrue(vi1Set.isComputedModified());
             VariableInfo vi1R = vd1.variableInfo(r);
-            assertTrue(vi1R.isModified());
+            assertTrue(vi1R.isComputedModified());
         }
         assertTrue(r.isModified());
         Value.VariableBooleanMap map = r.analysis().getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.EMPTY);
@@ -166,7 +166,7 @@ public class TestLinkCast extends CommonTest {
             VariableInfo vi0Set = vd0.variableInfo("set");
             assertEquals("-1-:object, *M-2-0M|*-0:r", vi0Set.linkedVariables().toString());
             assertEquals("E=r.object", vi0Set.staticValues().toString());
-            assertFalse(vi0Set.isModified());
+            assertFalse(vi0Set.isComputedModified());
         }
         {
             Statement s1 = setAdd.methodBody().statements().get(1);
@@ -174,9 +174,9 @@ public class TestLinkCast extends CommonTest {
             VariableInfo vi1Set = vd1.variableInfo("set");
             assertEquals("-1-:object, *M-2-0M|*-0:r", vi1Set.linkedVariables().toString());
             assertEquals("E=r.object", vi1Set.staticValues().toString());
-            assertTrue(vi1Set.isModified());
+            assertTrue(vi1Set.isComputedModified());
             VariableInfo vi1R = vd1.variableInfo(r);
-            assertTrue(vi1R.isModified());
+            assertTrue(vi1R.isComputedModified());
         }
         assertTrue(r.isModified());
         Value.VariableBooleanMap map = r.analysis().getOrDefault(PropertyImpl.MODIFIED_COMPONENTS_PARAMETER,

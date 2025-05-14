@@ -48,7 +48,7 @@ public class TestLinkLoop extends CommonTest {
 
         VariableData vd000 = VariableDataImpl.of(s000);
         VariableInfo viT = vd000.variableInfo("t");
-        assertFalse(viT.isModified());
+        assertFalse(viT.isComputedModified());
         assertEquals("*-4-0:set", viT.linkedVariables().toString());
         VariableInfo viSet = vd000.variableInfo(set);
         assertEquals("0-4-*:t", viSet.linkedVariables().toString());

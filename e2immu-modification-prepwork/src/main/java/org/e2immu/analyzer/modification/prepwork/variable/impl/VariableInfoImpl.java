@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
+import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -117,6 +118,12 @@ public class VariableInfoImpl implements VariableInfo {
     @Override
     public boolean isUnmodified() {
         return analysis.getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue();
+    }
+
+    @Override
+    public boolean isComputedModified() {
+        Value.Bool unmodified = analysis.getOrNull(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.class);
+        return unmodified != null && unmodified.isFalse();
     }
 
     @Override
