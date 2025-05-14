@@ -6,6 +6,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /*
 Level 2:
@@ -28,7 +29,7 @@ It writes out results, if any, in the field's analysis() object.
 public interface FieldAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
-        Collection<MethodInfo> waitingFor();
+        Set<MethodInfo> waitFor();
     }
 
     Output go(@Modified FieldInfo fieldInfo);

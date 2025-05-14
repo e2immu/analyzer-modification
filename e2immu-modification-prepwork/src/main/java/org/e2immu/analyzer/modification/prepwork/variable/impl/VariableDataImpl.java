@@ -6,7 +6,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfoContainer;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.element.Element;
-import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.support.SetOnceMap;
@@ -63,6 +62,12 @@ public class VariableDataImpl implements VariableData {
     @Override
     public String knownVariableNamesToString() {
         return knownVariableNames().stream().map(Object::toString).sorted().collect(Collectors.joining(", "));
+    }
+
+    @Override
+    public Iterable<VariableInfo> variableInfoIterable() {
+        Stream<VariableInfo> stream = vicByFqn.valueStream().map(vic -> vic.best(Stage.MERGE));
+        return stream::iterator;
     }
 
     @Override

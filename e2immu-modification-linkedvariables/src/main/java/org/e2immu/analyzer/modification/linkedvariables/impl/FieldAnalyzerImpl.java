@@ -1,76 +1,187 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.FieldAnalyzer;
-import org.e2immu.analyzer.modification.prepwork.variable.ReturnVariable;
-import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.variable.FieldReference;
+import org.e2immu.language.cst.api.variable.LocalVariable;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
+import java.util.*;
+
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.EMPTY_PART_OF_CONSTRUCTION;
 import static org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField.PART_OF_CONSTRUCTION;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
-public class FieldAnalyzerImpl implements FieldAnalyzer {
+public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyzer {
+    private final Runtime runtime;
+    private final AnalysisHelper analysisHelper = new AnalysisHelper();
+
+    public FieldAnalyzerImpl(Runtime runtime) {
+        this.runtime = runtime;
+    }
+
+    private record OutputImpl(Set<MethodInfo> waitFor) implements Output {
+
+        @Override
+        public List<Throwable> problemsRaised() {
+            return List.of();
+        }
+    }
+
+
     @Override
     public Output go(FieldInfo fieldInfo) {
-        return null;
+        InternalFieldAnalyzer analyzer = new InternalFieldAnalyzer();
+        analyzer.go(fieldInfo);
+        return new OutputImpl(analyzer.waitFor);
     }
 
-    private void fieldModified() {
-        // fields should not be modified outside of construction
-        Value.SetOfInfo poc = typeInfo.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION);
-        for (MethodInfo methodInfo : typeInfo.methods()) {
-            if (!poc.infoSet().contains(methodInfo)) {
-                if (!methodInfo.methodBody().isEmpty() && modifiesOrExposesField(typeInfo, methodInfo)) {
-                    return false;
+    private class InternalFieldAnalyzer {
+        private final Set<MethodInfo> waitFor = new HashSet<>();
+
+        private void go(FieldInfo fieldInfo) {
+            if (!fieldInfo.isPropertyFinal()) {
+                return;
+            }
+            LinkedVariables linkedVariablesDone = fieldInfo.analysis()
+                    .getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, LinkedVariablesImpl.class);
+            Value.Bool unmodifiedDone = fieldInfo.analysis().getOrNull(PropertyImpl.UNMODIFIED_FIELD,
+                    ValueImpl.BoolImpl.class);
+            Value.Bool independentDone = fieldInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_FIELD,
+                    ValueImpl.BoolImpl.class);
+            if (linkedVariablesDone != null && unmodifiedDone != null && independentDone != null) {
+                return;
+            }
+            List<MethodInfo> methodsReferringToField = fieldInfo.owner().primaryType()
+                    .recursiveSubTypeStream()
+                    .flatMap(TypeInfo::constructorAndMethodStream)
+                    .filter(mi -> notEmptyOrSyntheticAccessorAndReferringTo(mi, fieldInfo))
+                    .toList();
+
+            if (unmodifiedDone == null) {
+                Value.Bool unmodified = computeUnmodified(fieldInfo, methodsReferringToField);
+                if (unmodified != null) {
+                    fieldInfo.analysis().set(PropertyImpl.UNMODIFIED_FIELD, unmodified);
+                    DECIDE.debug("Decide on @NotModified of field {}: {}", fieldInfo, unmodified);
+                } else {
+                    UNDECIDED.debug("@NotModified of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
-                if (methodInfo.isModifying()) return false;
-                if (methodInfo.hasReturnValue()) {
-                    Value.Independent independentResult = methodInfo.analysis()
-                            .getOrDefault(PropertyImpl.INDEPENDENT_METHOD, ValueImpl.IndependentImpl.DEPENDENT);
-                    if (independentResult.isDependent()) return false;
-                }
-                for (ParameterInfo parameterInfo : methodInfo.parameters()) {
-                    Value.Independent independentParameter = parameterInfo.analysis()
-                            .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
-                    if (independentParameter.isDependent()) return false;
+            }
+
+            LinkedVariables linkedVariables = linkedVariablesDone != null ? linkedVariablesDone
+                    : computeLinkedVariables(fieldInfo, methodsReferringToField);
+            if (linkedVariables == null) {
+                UNDECIDED.debug("Linked variables of field {} undecided, wait for {}", fieldInfo, waitFor);
+                return;
+            }
+            if (independentDone == null) {
+                Value.Independent independent = computeIndependent(fieldInfo, linkedVariables);
+                if (independent != null) {
+                    fieldInfo.analysis().set(PropertyImpl.INDEPENDENT_FIELD, independent);
+                    DECIDE.debug("Decide on @Independent of field {}: {}", fieldInfo, independent);
+                } else {
+                    UNDECIDED.debug("@Independent of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
             }
         }
-    }
 
-    private boolean modifiesOrExposesField(TypeInfo typeInfo, MethodInfo methodInfo) {
-        VariableData vd = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
-        return vd.variableInfoStream().anyMatch(vi -> {
-            // modified
-            if (vi.variable() instanceof FieldReference fr && inHierarchy(typeInfo, fr.fieldInfo().owner())
-                && vi.isComputedModified()) {
-                return true;
+        private boolean notEmptyOrSyntheticAccessorAndReferringTo(MethodInfo mi, FieldInfo fieldInfo) {
+            if (!mi.methodBody().isEmpty()) {
+                VariableData vd = VariableDataImpl.of(mi.methodBody().lastStatement());
+                return vd.variableInfoStream().anyMatch(vi ->
+                        vi.variable() instanceof FieldReference fr && fr.fieldInfo() == fieldInfo);
             }
-            // exposed via the return variable
-            if ((vi.variable() instanceof ReturnVariable || vi.variable() instanceof ParameterInfo)
-                && vi.linkedVariables() != null
-                && vi.linkedVariables().assignedOrDependentVariables()
-                        .anyMatch(v -> v instanceof FieldReference fr && inHierarchy(typeInfo, fr.fieldInfo().owner()))) {
-                Value.Immutable immutable = analysisHelper.typeImmutable(vi.variable().parameterizedType());
-                return !immutable.isAtLeastImmutableHC();
-            }
-            return false;
-        });
-    }
-
-    private boolean inHierarchy(TypeInfo typeInfo, TypeInfo fieldOwner) {
-        if (typeInfo == fieldOwner) return true;
-        if (typeInfo.parentClass() != null) {
-            return inHierarchy(typeInfo.parentClass().typeInfo(), fieldOwner);
+            Value.FieldValue fieldValue = mi.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD,
+                    ValueImpl.GetSetValueImpl.EMPTY);
+            return fieldValue.field() == fieldInfo;
         }
-        return false;
+
+        private LinkedVariables computeLinkedVariables(FieldInfo fieldInfo, List<MethodInfo> methodsReferringToField) {
+            Map<Variable, LV> map = new HashMap<>();
+            boolean undecided = false;
+            for (MethodInfo methodInfo : methodsReferringToField) {
+                Value.FieldValue fieldValue = methodInfo.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD,
+                        ValueImpl.GetSetValueImpl.EMPTY);
+                if (fieldInfo == fieldValue.field()) {
+                    assert !fieldValue.setter() : "Field cannot be @Final";
+                    map.put(runtime.newFieldReference(fieldInfo), LVImpl.LINK_DEPENDENT);
+                } else {
+                    assert !methodInfo.methodBody().isEmpty();
+                    VariableData vd = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
+                    for (VariableInfo vi : vd.variableInfoIterable()) {
+                        if (vi.variable() instanceof FieldReference fr && fr.fieldInfo() == fieldInfo) {
+                            LinkedVariables lv = vi.linkedVariables();
+                            if (lv == null) {
+                                // no linked variables yet
+                                waitFor.add(methodInfo);
+                                undecided = true;
+                            } else if (!lv.isEmpty()) {
+                                // we're only interested in parameters, other fields, return values
+                                for (Map.Entry<Variable, LV> entry : lv) {
+                                    if (!(entry.getKey() instanceof LocalVariable)) {
+                                        map.put(entry.getKey(), entry.getValue());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return undecided ? null : LinkedVariablesImpl.of(map);
+        }
+
+
+        private Value.Bool computeUnmodified(FieldInfo fieldInfo, List<MethodInfo> methodsReferringToField) {
+            Value.SetOfInfo poc = fieldInfo.owner().analysis().getOrDefault(PART_OF_CONSTRUCTION,
+                    EMPTY_PART_OF_CONSTRUCTION);
+            boolean undecided = false;
+            for (MethodInfo methodInfo : methodsReferringToField) {
+                if (!methodInfo.isConstructor() && !poc.infoSet().contains(methodInfo)) {
+                    VariableData vd = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
+                    for (VariableInfo vi : vd.variableInfoIterable()) {
+                        Value.Bool v = vi.analysis().getOrNull(VariableInfoImpl.UNMODIFIED_VARIABLE,
+                                ValueImpl.BoolImpl.class);
+                        if (v == null) {
+                            waitFor.add(methodInfo);
+                            undecided = true;
+                        } else if (v.isFalse()) {
+                            return FALSE;
+                        }
+                    }
+                }
+            }
+            return undecided ? null : TRUE;
+        }
+
+        private Value.Independent computeIndependent(FieldInfo fieldInfo, LinkedVariables linkedVariables) {
+            Value.Independent independentOfType = analysisHelper.typeIndependent(fieldInfo.type());
+            assert independentOfType != null : "Otherwise, we would not have been able to compute linked variables";
+            if (independentOfType.isIndependent()) return INDEPENDENT;
+            Value.Independent independent = INDEPENDENT;
+            for (Map.Entry<Variable, LV> entry : linkedVariables) {
+                if (entry.getKey() instanceof ParameterInfo pi && !pi.methodInfo().access().isPrivate()
+                    || entry.getKey() instanceof ReturnVariable rv && !rv.methodInfo().access().isPrivate()) {
+                    LV lv = entry.getValue();
+                    independent = independent.min(lv.isCommonHC() ? INDEPENDENT_HC : DEPENDENT);
+                }
+            }
+            return independentOfType.max(independent);
+        }
     }
 }

@@ -25,6 +25,8 @@ public interface VariableData extends Value {
 
     Stream<VariableInfoContainer> variableInfoContainerStream();
 
+    Iterable<VariableInfo> variableInfoIterable();
+
     default Stream<VariableInfo> variableInfoStream() {
         return variableInfoStream(Stage.MERGE);
     }

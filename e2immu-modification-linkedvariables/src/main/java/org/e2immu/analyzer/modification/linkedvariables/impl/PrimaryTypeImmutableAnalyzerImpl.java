@@ -55,9 +55,8 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
 
 
         private Value.Immutable computeImmutableType(TypeInfo typeInfo) {
-            boolean fieldsAssignableFromOutside = typeInfo.fields().stream()
-                    .anyMatch(fi -> !fi.isPropertyFinal() && !fi.access().isPrivate());
-            if (fieldsAssignableFromOutside) {
+            boolean fieldsAssignable = typeInfo.fields().stream().anyMatch(fi -> !fi.isPropertyFinal());
+            if (fieldsAssignable) {
                 return MUTABLE;
             }
 
@@ -100,9 +99,7 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
                 assert hct != null;
                 return hct.hasHiddenContent() ? IMMUTABLE_HC : IMMUTABLE;
             }
-            boolean allFieldsFinal = typeInfo.fields().stream().allMatch(FieldInfo::isPropertyFinal);
-            Value.Immutable mine = allFieldsFinal ? FINAL_FIELDS : MUTABLE;
-            return mine.min(worst);
+            return FINAL_FIELDS.min(worst);
         }
 
         private Boolean loopOverFields(TypeInfo typeInfo) {

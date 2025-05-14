@@ -47,6 +47,11 @@ public class ReturnVariableImpl implements ReturnVariable {
                fqn.equals(that.fullyQualifiedName());
     }
 
+    @Override
+    public MethodInfo methodInfo() {
+        return methodInfo;
+    }
+
     public TypeInfo getOwningType() {
         return methodInfo.typeInfo();
     }
