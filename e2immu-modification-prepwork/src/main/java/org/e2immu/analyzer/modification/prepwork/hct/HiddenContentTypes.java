@@ -39,6 +39,12 @@ public class HiddenContentTypes implements Value {
     private final Map<NamedType, Integer> typeToIndex;
     private final Map<Integer, NamedType> indexToType;
 
+    public static boolean hasHc(TypeInfo typeInfo) {
+        HiddenContentTypes hct = typeInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+        assert hct != null;
+        return hct.hasHiddenContent();
+    }
+
     static HiddenContentTypes of(TypeInfo typeInfo) {
         return new HiddenContentTypes(typeInfo, false, Map.of(), Map.of());
     }

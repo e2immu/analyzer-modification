@@ -23,5 +23,5 @@ public interface PrimaryTypeImmutableAnalyzer extends Analyzer {
         Set<TypeInfo> externalWaitFor();
     }
 
-    Output go(TypeInfo primaryType);
+    Output go(TypeInfo primaryType, boolean activateCycleBreaking);
 }

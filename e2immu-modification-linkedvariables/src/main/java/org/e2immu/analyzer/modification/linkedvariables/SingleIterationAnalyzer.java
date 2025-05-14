@@ -15,7 +15,7 @@ Phases.
 
     NOTE: this waitFor is the ONLY cause of cyclic computation issues in the analyzer.
 
-    NOTE: this analyzer also deals with @Identity, @Fluent
+    NOTE: this analyzer also deals with @Identity, @Fluent, and static values
 
 2. Field modification, linking and independence. WaitFor: internal methods.
     NOTE: when a field is non-final, we don't bother computing any other value.

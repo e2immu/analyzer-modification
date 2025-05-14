@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.PrimaryTypeImmutableAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -11,15 +12,18 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
-import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.*;
 
 public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeImmutableAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
+    private final IteratingAnalyzer.Configuration configuration;
+
+    public PrimaryTypeImmutableAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
+        this.configuration = configuration;
+    }
 
     private record OutputImpl(Set<FieldInfo> internalWaitFor,
                               Set<TypeInfo> externalWaitFor) implements Output {
@@ -30,9 +34,9 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
     }
 
     @Override
-    public Output go(TypeInfo primaryType) {
+    public Output go(TypeInfo primaryType, boolean activateCycleBreaking) {
         ComputeImmutable ci = new ComputeImmutable();
-        primaryType.recursiveSubTypeStream().forEach(this::go);
+        primaryType.recursiveSubTypeStream().forEach(ti -> go(ti, activateCycleBreaking));
         return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
     }
 
@@ -41,9 +45,9 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
         Set<FieldInfo> internalWaitFor = new HashSet<>();
         Set<TypeInfo> externalWaitFor = new HashSet<>();
 
-        void go(TypeInfo typeInfo) {
+        void go(TypeInfo typeInfo, boolean activateCycleBreaking) {
             if (typeInfo.analysis().haveAnalyzedValueFor(IMMUTABLE_TYPE)) return;
-            Value.Immutable immutable = computeImmutableType(typeInfo);
+            Value.Immutable immutable = computeImmutableType(typeInfo, activateCycleBreaking);
             if (immutable != null) {
                 DECIDE.debug("Decide immutable = {} for type {}", immutable, typeInfo);
                 typeInfo.analysis().set(IMMUTABLE_TYPE, immutable);
@@ -54,7 +58,7 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
         }
 
 
-        private Value.Immutable computeImmutableType(TypeInfo typeInfo) {
+        private Value.Immutable computeImmutableType(TypeInfo typeInfo, boolean activateCycleBreaking) {
             boolean fieldsAssignable = typeInfo.fields().stream().anyMatch(fi -> !fi.isPropertyFinal());
             if (fieldsAssignable) {
                 return MUTABLE;
@@ -64,25 +68,49 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
 
             TypeInfo parent = typeInfo.parentClass().typeInfo();
             Value.Immutable immutableParent = parent.analysis().getOrNull(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
+            Value.Immutable immutableParentBroken;
             boolean stopExternal = false;
             if (immutableParent == null) {
-                externalWaitFor.add(parent);
-                stopExternal = true;
+                if (activateCycleBreaking) {
+                    if (configuration.cycleBreakingStrategy() == CycleBreakingStrategy.NO_INFORMATION_IS_NON_MODIFYING) {
+                        immutableParentBroken = HiddenContentTypes.hasHc(parent) ? IMMUTABLE_HC : IMMUTABLE;
+                    } else {
+                        immutableParentBroken = MUTABLE;
+                    }
+                } else {
+                    externalWaitFor.add(parent);
+                    stopExternal = true;
+                    immutableParentBroken = MUTABLE;
+                }
             } else if (MUTABLE.equals(immutableParent)) {
                 return MUTABLE;
+            } else {
+                immutableParentBroken = immutableParent;
             }
 
-            Value.Immutable worst = Objects.requireNonNullElse(immutableParent, MUTABLE);
+            Value.Immutable worst = immutableParentBroken;
             for (ParameterizedType superType : typeInfo.interfacesImplemented()) {
                 Value.Immutable immutableSuper = superType.typeInfo().analysis().getOrNull(IMMUTABLE_TYPE,
                         ValueImpl.ImmutableImpl.class);
+                Value.Immutable immutableSuperBroken;
                 if (immutableSuper == null) {
-                    externalWaitFor.add(superType.typeInfo());
+                    if (activateCycleBreaking) {
+                        if (configuration.cycleBreakingStrategy() == CycleBreakingStrategy.NO_INFORMATION_IS_NON_MODIFYING) {
+                            immutableSuperBroken = HiddenContentTypes.hasHc(superType.typeInfo()) ? IMMUTABLE_HC : IMMUTABLE;
+                        } else {
+                            immutableSuperBroken = MUTABLE;
+                        }
+                    } else {
+                        externalWaitFor.add(superType.typeInfo());
+                        immutableSuperBroken = MUTABLE;
+                    }
                     stopExternal = true;
                 } else if (MUTABLE.equals(immutableSuper)) {
                     return MUTABLE;
+                } else {
+                    immutableSuperBroken = immutableSuper;
                 }
-                worst = worst.min(immutableSuper);
+                worst = worst.min(immutableSuperBroken);
             }
             if (stopExternal) {
                 return null;
@@ -95,9 +123,7 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
 
             assert worst != null;
             if (isImmutable && worst.isAtLeastImmutableHC()) {
-                HiddenContentTypes hct = typeInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-                assert hct != null;
-                return hct.hasHiddenContent() ? IMMUTABLE_HC : IMMUTABLE;
+                return HiddenContentTypes.hasHc(typeInfo) ? IMMUTABLE_HC : IMMUTABLE;
             }
             return FINAL_FIELDS.min(worst);
         }
