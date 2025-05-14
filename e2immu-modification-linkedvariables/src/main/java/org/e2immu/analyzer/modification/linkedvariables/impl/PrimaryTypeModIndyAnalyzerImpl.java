@@ -2,6 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.Analyzer;
+import org.e2immu.analyzer.modification.linkedvariables.FieldAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.MethodModAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.PrimaryTypeModIndyAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
@@ -50,6 +52,8 @@ parameter modification is computed as the combination of links to fields and loc
 public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeModIndyAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
     private final Runtime runtime;
+    private final MethodModAnalyzer methodModAnalyzer;
+    private final FieldAnalyzer fieldAnalyzer;
 
     public PrimaryTypeModIndyAnalyzerImpl(Runtime runtime) {
         this.runtime = runtime;

@@ -18,6 +18,10 @@ public interface PrimaryTypeModIndyAnalyzer extends Analyzer {
     interface Output extends Analyzer.Output {
         boolean resolvedInternalCycles();
 
+        Map<MethodInfo, Set<MethodInfo>> waitForMethodModifications();
+
+        Map<MethodInfo, Set<TypeInfo>> waitForTypeIndependence();
+
     }
 
     Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor);
