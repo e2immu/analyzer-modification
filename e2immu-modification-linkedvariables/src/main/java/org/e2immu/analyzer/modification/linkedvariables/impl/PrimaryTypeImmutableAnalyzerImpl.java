@@ -16,7 +16,13 @@ import java.util.Set;
 
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT;
 
+/*
+Phase 4.1 Primary type immutable, independent
+
+ */
 public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeImmutableAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
     private final IteratingAnalyzer.Configuration configuration;
@@ -40,77 +46,100 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
         return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
     }
 
+    private record ImmIndy(Value.Immutable immutable, Value.Independent independent) {
+    }
 
     private class ComputeImmutable {
         Set<FieldInfo> internalWaitFor = new HashSet<>();
         Set<TypeInfo> externalWaitFor = new HashSet<>();
 
         void go(TypeInfo typeInfo, boolean activateCycleBreaking) {
-            if (typeInfo.analysis().haveAnalyzedValueFor(IMMUTABLE_TYPE)) return;
-            Value.Immutable immutable = computeImmutableType(typeInfo, activateCycleBreaking);
-            if (immutable != null) {
-                DECIDE.debug("Decide immutable = {} for type {}", immutable, typeInfo);
-                typeInfo.analysis().set(IMMUTABLE_TYPE, immutable);
+            if (typeInfo.analysis().haveAnalyzedValueFor(IMMUTABLE_TYPE)) {
+                assert typeInfo.analysis().haveAnalyzedValueFor(INDEPENDENT_TYPE);
+                return;
+            }
+            ImmIndy immIndy = computeImmutableType(typeInfo, activateCycleBreaking);
+            if (immIndy != null) {
+                DECIDE.debug("Decide immutable = {}, independent = {} for type {}", immIndy.immutable,
+                        immIndy.independent, typeInfo);
+                typeInfo.analysis().set(IMMUTABLE_TYPE, immIndy.immutable);
+                typeInfo.analysis().set(INDEPENDENT_TYPE, immIndy.independent);
+
             } else {
-                UNDECIDED.debug("Immutable of type {} undecided, wait for internal {}, external {}", typeInfo,
+                UNDECIDED.debug("Immutable+independent of type {} undecided, wait for internal {}, external {}", typeInfo,
                         internalWaitFor, externalWaitFor);
             }
         }
 
 
-        private Value.Immutable computeImmutableType(TypeInfo typeInfo, boolean activateCycleBreaking) {
+        private ImmIndy computeImmutableType(TypeInfo typeInfo, boolean activateCycleBreaking) {
             boolean fieldsAssignable = typeInfo.fields().stream().anyMatch(fi -> !fi.isPropertyFinal());
-            if (fieldsAssignable) {
-                return MUTABLE;
-            }
+            Value.Immutable immutable = IMMUTABLE;
+            if (fieldsAssignable) immutable = MUTABLE;
+            Value.Independent independent = INDEPENDENT;
 
             // hierarchy
 
             TypeInfo parent = typeInfo.parentClass().typeInfo();
+
             Value.Immutable immutableParent = parent.analysis().getOrNull(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
             Value.Immutable immutableParentBroken;
+            Value.Independent independentParent = parent.analysis().getOrNull(INDEPENDENT_TYPE, ValueImpl.IndependentImpl.class);
+            Value.Independent independentParentBroken;
+
+            assert (immutableParent == null) == (independentParent == null);
             boolean stopExternal = false;
             if (immutableParent == null) {
                 if (activateCycleBreaking) {
                     if (configuration.cycleBreakingStrategy() == CycleBreakingStrategy.NO_INFORMATION_IS_NON_MODIFYING) {
                         immutableParentBroken = HiddenContentTypes.hasHc(parent) ? IMMUTABLE_HC : IMMUTABLE;
+                        independentParentBroken = INDEPENDENT;
                     } else {
                         immutableParentBroken = MUTABLE;
+                        independentParentBroken = DEPENDENT;
                     }
                 } else {
                     externalWaitFor.add(parent);
                     stopExternal = true;
-                    immutableParentBroken = MUTABLE;
+                    immutableParentBroken = MUTABLE; // not relevant
+                    independentParentBroken = DEPENDENT; // not relevant
                 }
-            } else if (MUTABLE.equals(immutableParent)) {
-                return MUTABLE;
             } else {
                 immutableParentBroken = immutableParent;
+                independentParentBroken = independentParent;
             }
+            immutable = immutableParentBroken.min(immutable);
+            independent = independentParentBroken.min(independent);
 
-            Value.Immutable worst = immutableParentBroken;
             for (ParameterizedType superType : typeInfo.interfacesImplemented()) {
                 Value.Immutable immutableSuper = superType.typeInfo().analysis().getOrNull(IMMUTABLE_TYPE,
                         ValueImpl.ImmutableImpl.class);
+                Value.Independent independentSuper = superType.typeInfo().analysis().getOrNull(INDEPENDENT_TYPE,
+                        ValueImpl.IndependentImpl.class);
+                assert (immutableSuper == null) == (independentSuper == null);
                 Value.Immutable immutableSuperBroken;
+                Value.Independent independentSuperBroken;
                 if (immutableSuper == null) {
                     if (activateCycleBreaking) {
                         if (configuration.cycleBreakingStrategy() == CycleBreakingStrategy.NO_INFORMATION_IS_NON_MODIFYING) {
                             immutableSuperBroken = HiddenContentTypes.hasHc(superType.typeInfo()) ? IMMUTABLE_HC : IMMUTABLE;
+                            independentSuperBroken = INDEPENDENT;
                         } else {
                             immutableSuperBroken = MUTABLE;
+                            independentSuperBroken = DEPENDENT;
                         }
                     } else {
                         externalWaitFor.add(superType.typeInfo());
-                        immutableSuperBroken = MUTABLE;
+                        immutableSuperBroken = MUTABLE; // not relevant
+                        independentSuperBroken = DEPENDENT; // not relevant
                     }
                     stopExternal = true;
-                } else if (MUTABLE.equals(immutableSuper)) {
-                    return MUTABLE;
                 } else {
                     immutableSuperBroken = immutableSuper;
+                    independentSuperBroken = independentSuper;
                 }
-                worst = worst.min(immutableSuperBroken);
+                immutable = immutableSuperBroken.min(immutable);
+                independent = independentSuperBroken.min(independent);
             }
             if (stopExternal) {
                 return null;
@@ -118,30 +147,39 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
 
             // fields
 
-            Boolean isImmutable = loopOverFields(typeInfo);
-            if (isImmutable == null) return null;
+            IsImmIndy isImmIndy = loopOverFields(typeInfo);
+            if (isImmIndy == null) return null;
 
-            assert worst != null;
-            if (isImmutable && worst.isAtLeastImmutableHC()) {
-                return HiddenContentTypes.hasHc(typeInfo) ? IMMUTABLE_HC : IMMUTABLE;
+            assert immutable != null;
+            assert independent != null;
+            if (isImmIndy.isImmutable && immutable.isAtLeastImmutableHC()) {
+                immutable = HiddenContentTypes.hasHc(typeInfo) ? IMMUTABLE_HC : IMMUTABLE;
             }
-            return FINAL_FIELDS.min(worst);
+            if (!isImmIndy.isIndependent) {
+                independent = DEPENDENT;
+            }
+            return new ImmIndy(FINAL_FIELDS.min(immutable), independent);
         }
 
-        private Boolean loopOverFields(TypeInfo typeInfo) {
+        private record IsImmIndy(boolean isImmutable, boolean isIndependent) {
+        }
+
+        private IsImmIndy loopOverFields(TypeInfo typeInfo) {
             // fields should be private, or immutable for the type to be immutable
             // fields should not be @Modified nor assigned to
             // fields should not be @Dependent
             boolean undecided = false;
+            boolean isImmutable = true;
+            boolean isIndependent = true;
             for (FieldInfo fieldInfo : typeInfo.fields()) {
-                if (!fieldInfo.isPropertyFinal()) return false;
-                if (!fieldInfo.access().isPrivate()) {
+                if (!fieldInfo.isPropertyFinal()) isImmutable = false;
+                else if (!fieldInfo.access().isPrivate()) {
                     Immutable immutable = analysisHelper.typeImmutableNullIfUndecided(fieldInfo.type());
                     if (immutable == null) {
                         externalWaitFor.add(fieldInfo.type().bestTypeInfo());
                         undecided = true;
                     } else if (!immutable.isAtLeastImmutableHC()) {
-                        return false;
+                        isImmutable = false;
                     }
                 }
                 Value.Bool fieldUnmodified = fieldInfo.analysis().getOrNull(UNMODIFIED_FIELD, ValueImpl.BoolImpl.class);
@@ -149,7 +187,7 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
                     internalWaitFor.add(fieldInfo);
                     undecided = true;
                 } else if (fieldUnmodified.isFalse()) {
-                    return false;
+                    isImmutable = false;
                 }
                 Value.Independent fieldIndependent = fieldInfo.analysis().getOrNull(INDEPENDENT_FIELD,
                         ValueImpl.IndependentImpl.class);
@@ -157,10 +195,13 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
                     internalWaitFor.add(fieldInfo);
                     undecided = true;
                 } else if (fieldIndependent.isDependent()) {
-                    return false;
+                    isIndependent = false;
+                    isImmutable = false;
                 }
+
+                if (!undecided && !isImmutable && !isIndependent) return new IsImmIndy(false, false);
             }
-            return undecided ? null : true;
+            return undecided ? null : new IsImmIndy(isImmutable, isIndependent);
         }
 
     }
