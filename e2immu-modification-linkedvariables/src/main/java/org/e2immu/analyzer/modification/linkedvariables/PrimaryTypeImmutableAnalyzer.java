@@ -13,13 +13,15 @@ Given the modification and independence state of the fields of a type, compute i
 This analyzer computes @Immutable across all subtypes, because the fields are visible across the subtypes,
 hence their modification and independence status is shared.
 
-It is still possible to have to wait for other type's @Immutable status, because of extensions.
+It is possible to have to wait for other type's @Immutable status, because of extensions and non-private fields.
  */
 public interface PrimaryTypeImmutableAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
 
-        Set<FieldInfo> internalWaitingFor();
-        Set<TypeInfo> externalWaitingForCannotCauseCycles();
+        Set<FieldInfo> internalWaitFor();
+        Set<TypeInfo> externalWaitFor();
     }
+
+    Output go(TypeInfo primaryType);
 }

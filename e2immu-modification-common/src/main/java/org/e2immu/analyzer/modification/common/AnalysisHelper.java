@@ -12,7 +12,9 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
 public class AnalysisHelper {
+    public Value.Immutable typeImmutableNullIfUndecided(ParameterizedType parameterizedType) {
 
+    }
     public Value.Immutable typeImmutable(ParameterizedType parameterizedType) {
         return typeImmutable(parameterizedType, Map.of());
     }
