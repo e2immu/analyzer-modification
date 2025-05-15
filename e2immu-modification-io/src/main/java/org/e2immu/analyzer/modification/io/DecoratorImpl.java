@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.io;
 
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.annotation.*;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
@@ -32,7 +31,9 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final TypeInfo independentTi;
     private final TypeInfo finalTi;
     private final TypeInfo immutableContainerTi;
+    private final TypeInfo notNullTi;
     private final AnnotationExpression identityAnnotation;
+    private final AnnotationExpression fluentAnnotation;
     private final AnnotationExpression finalAnnotation;
     private final AnnotationExpression containerAnnotation;
 
@@ -43,6 +44,8 @@ public class DecoratorImpl implements Qualification.Decorator {
     private boolean needFinalImport;
     private boolean needImmutableContainerImport;
     private boolean needIdentityImport;
+    private boolean needFluentImport;
+    private boolean needNotNullImport;
 
     private final Map<Info, Info> translationMap;
 
@@ -63,6 +66,9 @@ public class DecoratorImpl implements Qualification.Decorator {
         containerAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(containerTi).build();
         TypeInfo identityTi = runtime.getFullyQualified(Identity.class, true);
         identityAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(identityTi).build();
+        TypeInfo fluentTi = runtime.getFullyQualified(Fluent.class, true);
+        fluentAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(fluentTi).build();
+        notNullTi = runtime.getFullyQualified(NotNull.class, true);
         this.translationMap = translationMap;
     }
 
@@ -93,6 +99,9 @@ public class DecoratorImpl implements Qualification.Decorator {
         Property propertyFinalField;
         Property propertyContainer;
         Property propertyIdentity;
+        Property propertyFluent;
+        Value.NotNull notNull;
+        Property propertyNotNull;
         PropertyValueMap analysis = info.analysis();
         switch (info) {
             case MethodInfo methodInfo -> {
@@ -105,6 +114,9 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyFinalField = null;
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
                 propertyContainer = null;
+                propertyFluent = methodInfo.isFluent() ? FLUENT_METHOD : null;
+                notNull = analysis.getOrDefault(NOT_NULL_METHOD, ValueImpl.NotNullImpl.NULLABLE);
+                propertyNotNull = NOT_NULL_METHOD;
             }
             case FieldInfo fieldInfo -> {
                 propertyUnmodified = !fieldInfo.type().isPrimitiveStringClass()
@@ -116,6 +128,9 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyFinalField = !fieldInfo.isFinal() && fieldInfo.isPropertyFinal() ? FINAL_FIELD : null;
                 propertyContainer = null;
                 propertyIdentity = null;
+                propertyFluent = null;
+                propertyNotNull = NOT_NULL_FIELD;
+                notNull = analysis.getOrDefault(NOT_NULL_FIELD, ValueImpl.NotNullImpl.NULLABLE);
             }
             case ParameterInfo pi -> {
                 propertyUnmodified = !pi.parameterizedType().isPrimitiveStringClass() &&
@@ -127,6 +142,9 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyFinalField = null;
                 propertyContainer = null;
                 propertyIdentity = null;
+                propertyFluent = null;
+                propertyNotNull = NOT_NULL_PARAMETER;
+                notNull = analysis.getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE);
             }
             case TypeInfo typeInfo -> {
                 propertyUnmodified = null;
@@ -137,6 +155,9 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyContainer = analysis.getOrDefault(CONTAINER_TYPE, FALSE).isTrue() ? CONTAINER_TYPE : null;
                 propertyFinalField = null;
                 propertyIdentity = null;
+                propertyFluent = null;
+                notNull = null;
+                propertyNotNull = null;
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -149,6 +170,10 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (propertyIdentity != null) {
             needIdentityImport = true;
             list.add(new AnnotationProperty(identityAnnotation, propertyIdentity));
+        }
+        if (propertyFluent != null) {
+            needFluentImport = true;
+            list.add(new AnnotationProperty(fluentAnnotation, propertyFluent));
         }
         if (immutable != null && !immutable.isMutable()) {
             TypeInfo ti;
@@ -180,6 +205,14 @@ public class DecoratorImpl implements Qualification.Decorator {
             this.needUnmodifiedImport = true;
             list.add(new AnnotationProperty(notModifiedAnnotation, propertyUnmodified));
         }
+        if (notNull != null && !notNull.isNullable()) {
+            this.needNotNullImport = true;
+            AnnotationExpression.Builder b = runtime.newAnnotationExpressionBuilder().setTypeInfo(notNullTi);
+            if (notNull.equals(ValueImpl.NotNullImpl.CONTENT_NOT_NULL)) {
+                b.addKeyValuePair("content", runtime.constantTrue());
+            }
+            list.add(new AnnotationProperty(b.build(), propertyNotNull));
+        }
         return list;
     }
 
@@ -204,6 +237,9 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (needFinalImport) {
             list.add(runtime.newImportStatementBuilder().setImport(finalTi.fullyQualifiedName()).build());
         }
+        if (needFluentImport) {
+            list.add(runtime.newImportStatementBuilder().setImport(fluentAnnotation.typeInfo().fullyQualifiedName()).build());
+        }
         if (needIdentityImport) {
             list.add(runtime.newImportStatementBuilder().setImport(identityAnnotation.typeInfo().fullyQualifiedName()).build());
         }
@@ -215,6 +251,9 @@ public class DecoratorImpl implements Qualification.Decorator {
         }
         if (needImmutableContainerImport) {
             list.add(runtime.newImportStatementBuilder().setImport(immutableContainerTi.fullyQualifiedName()).build());
+        }
+        if (needNotNullImport) {
+            list.add(runtime.newImportStatementBuilder().setImport(notNullTi.fullyQualifiedName()).build());
         }
         if (needUnmodifiedImport) {
             list.add(runtime.newImportStatementBuilder().setImport(notModifiedTi.fullyQualifiedName()).build());
