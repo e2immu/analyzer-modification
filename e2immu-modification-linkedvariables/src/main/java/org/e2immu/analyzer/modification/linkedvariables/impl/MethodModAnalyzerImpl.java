@@ -55,9 +55,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
     private final Runtime runtime;
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
-    private final AnalysisHelper analysisHelper;
     private final GetSetHelper getSetHelper;
-    private final ComputeImmutable computeImmutable;
     private final boolean storeErrors;
     private final CycleBreakingStrategy cycleBreakingStrategy;
     private final StaticValuesHelper staticValuesHelper;
@@ -66,10 +64,8 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
         this.runtime = runtime;
         staticValuesHelper = new StaticValuesHelper(runtime);
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(runtime, Element::annotations);
-        this.analysisHelper = new AnalysisHelper();
-        computeLinkCompletion = new ComputeLinkCompletion(analysisHelper, staticValuesHelper); // has a cache, we want this to be stable
+        computeLinkCompletion = new ComputeLinkCompletion(new AnalysisHelper(), staticValuesHelper); // has a cache, we want this to be stable
         this.getSetHelper = new GetSetHelper(runtime);
-        computeImmutable = new ComputeImmutable();
         this.storeErrors = configuration.storeErrors();
         this.cycleBreakingStrategy = configuration.cycleBreakingStrategy();
     }
@@ -103,10 +99,12 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
         public void doMethod(MethodInfo methodInfo) {
             LOGGER.debug("Do method {}", methodInfo);
             ComputeHCS.safeHcsMethod(runtime, methodInfo);
-            assert methodInfo.parameters().stream().allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER))
+            assert methodInfo.parameters().stream()
+                    .allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER))
                     : "Method with a parameter without HCS: " + methodInfo;
 
             if (methodInfo.isAbstract()) {
+                // NOTE: the shallow analyzers only write out non-default values
                 shallowMethodAnalyzer.analyze(methodInfo);
                 // TODO consider moving this into the shallow analyzer!
                 getSetHelper.copyStaticValuesForGetSet(methodInfo);
@@ -131,9 +129,8 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                             pi.analysis().set(LINKED_VARIABLES_PARAMETER, filteredLvs);
                         }
                     }
-                    if (!pi.analysis().haveAnalyzedValueFor(UNMODIFIED_PARAMETER)) {
-                        boolean unmodified = vi.isUnmodified();
-                        pi.analysis().set(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.from(unmodified));
+                    if (!pi.analysis().haveAnalyzedValueFor(UNMODIFIED_PARAMETER) && vi.isUnmodified()) {
+                        pi.analysis().set(UNMODIFIED_PARAMETER, TRUE);
                     }
                     // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
                     // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
@@ -156,7 +153,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                     if (linkedVariables != null) {
                         LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
                         if (filteredLvs != null) {
-                            methodInfo.analysis().set(LINKED_VARIABLES_METHOD, filteredLvs);
+                            methodInfo.analysis().setAllowControlledOverwrite(LINKED_VARIABLES_METHOD, filteredLvs);
                         }
                     }
                     StaticValues staticValues = vi.staticValues();
@@ -176,16 +173,16 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                             modifiedComponentsMethod.put(v, true);
                         }
                     }
-                    if (!modification && v instanceof FieldReference fr
-                        // FIXME aapi2
+                    if (!modification
+                        && v instanceof FieldReference fr
                         && !fr.fieldInfo().analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
                         fr.fieldInfo().analysis().set(UNMODIFIED_FIELD, TRUE);
                     }
-                    if (unmodified && vi.isVariableInClosure()) {
+                    if (!modification && vi.isVariableInClosure()) {
                         VariableData vd = vi.variableInfoInClosure();
                         VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
-                        if (!outerVi.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
-                            outerVi.analysis().set(MODIFIED_VARIABLE, TRUE);
+                        if (!outerVi.analysis().haveAnalyzedValueFor(UNMODIFIED_VARIABLE)) {
+                            outerVi.analysis().set(UNMODIFIED_VARIABLE, TRUE);
                         }
                     }
                 }
@@ -202,7 +199,8 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                             pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
                         }
                         if (!pi.analysis().haveAnalyzedValueFor(PARAMETER_ASSIGNED_TO_FIELD)) {
-                            pi.analysis().set(PARAMETER_ASSIGNED_TO_FIELD, new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
+                            pi.analysis().set(PARAMETER_ASSIGNED_TO_FIELD,
+                                    new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
                         }
                     }
                 }
@@ -244,10 +242,10 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
             if (pi.parameterizedType().isTypeParameter()) return Map.of();
             Stream<Variable> step1 = variableData.variableInfoStream()
                     .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursively(pi))
-                    .filter(VariableInfo::isComputedModified)
+                    .filter(vi -> !vi.isUnmodified())
                     .map(VariableInfo::variable);
             Stream<Variable> step2 = variableData.variableInfoStream()
-                    .filter(VariableInfo::isComputedModified)
+                    .filter(vi -> !vi.isUnmodified())
                     .map(vi -> {
                         StaticValues sv = vi.staticValues();
                         if (sv != null && sv.expression() instanceof VariableExpression ve && ve.variable().scopeIsRecursively(pi)) {
@@ -279,7 +277,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
             return blockStream
                     .filter(b -> !b.isEmpty())
                     .collect(Collectors.toUnmodifiableMap(
-                            block -> block.statements().get(0).source().index(),
+                            block -> block.statements().getFirst().source().index(),
                             block -> doBlock(methodInfo, block, vdOfParent)));
         }
 
@@ -434,13 +432,15 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
             StaticValues reducedSv = computeStaticValuesMerge(lastOfEachSubBlock, variable);
             merge.staticValuesSet(reducedSv);
 
-            if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_VARIABLE)) {
-                boolean modified = lastOfEachSubBlock.values().stream()
+            if (!merge.analysis().haveAnalyzedValueFor(UNMODIFIED_VARIABLE)) {
+                boolean unmodified = lastOfEachSubBlock.values().stream()
                         .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
                         .filter(Objects::nonNull)
                         .map(VariableInfoContainer::best)
-                        .anyMatch(vi -> vi.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE).isTrue());
-                merge.analysis().set(MODIFIED_VARIABLE, ValueImpl.BoolImpl.from(modified));
+                        .allMatch(vi -> vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, FALSE).isTrue());
+                if (unmodified) {
+                    merge.analysis().set(UNMODIFIED_VARIABLE, TRUE);
+                }
             }
             if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
                 Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()

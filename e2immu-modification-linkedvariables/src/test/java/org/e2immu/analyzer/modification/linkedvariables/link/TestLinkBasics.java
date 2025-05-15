@@ -30,7 +30,6 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariable
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.UNMODIFIED_PARAMETER;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
@@ -62,15 +61,15 @@ public class TestLinkBasics extends CommonTest {
         ParameterInfo set = setAdd.parameters().get(0);
         Statement s0 = setAdd.methodBody().statements().get(0);
         MethodCall mc = (MethodCall) s0.expression();
-        assertTrue(mc.methodInfo().analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(mc.methodInfo().analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, ValueImpl.BoolImpl.FALSE).isFalse());
 
         VariableData vd0 = VariableDataImpl.of(s0);
         VariableInfo viSet0 = vd0.variableInfo(set);
-        assertTrue(viSet0.analysis().getOrDefault(MODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(viSet0.isModified());
         assertEquals(LinkedVariablesImpl.EMPTY, viSet0.linkedVariables());
 
         // this should have reached the method
-        assertTrue(set.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isTrue());
+        assertTrue(set.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.FALSE).isFalse());
     }
 
 
@@ -121,13 +120,13 @@ public class TestLinkBasics extends CommonTest {
         TypeInfo collections = javaInspector.compiledTypesManager().get(Collections.class);
         MethodInfo addAll = collections.findUniqueMethod("addAll", 2);
         ParameterInfo addAll0 = addAll.parameters().get(0);
-        assertTrue(addAll0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue());
+        assertTrue(addAll0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isFalse());
         Value.Independent i0 = addAll0.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
                 ValueImpl.IndependentImpl.DEPENDENT);
         assertEquals(1, i0.linkToParametersReturnValue().size());
 
         ParameterInfo addAll1 = addAll.parameters().get(1);
-        assertSame(FALSE, addAll1.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
+        assertSame(TRUE, addAll1.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
 
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
@@ -146,19 +145,19 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0-4-*:t1, 0-4-*:t2", vi0list.linkedVariables().toString());
         assertEquals(vi0list.linkedVariables(),
                 list.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
-        assertTrue(vi0list.isComputedModified());
+        assertTrue(vi0list.isModified());
 
         VariableInfo vi0t1 = vd0.variableInfo(t1);
         assertEquals("*-4-0:list", vi0t1.linkedVariables().toString());
         assertEquals(vi0t1.linkedVariables(),
                 t1.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY));
-        assertFalse(vi0t1.isComputedModified());
+        assertFalse(vi0t1.isModified());
 
-        assertSame(TRUE, list.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
+        assertSame(FALSE, list.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertTrue(list.isModified());
-        assertSame(FALSE, t1.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
+        assertSame(TRUE, t1.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertFalse(t1.isModified());
-        assertSame(FALSE, t2.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
+        assertSame(TRUE, t2.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         assertFalse(t2.isModified());
     }
 
@@ -308,13 +307,13 @@ public class TestLinkBasics extends CommonTest {
 
             VariableInfo vi1 = vd1.variableInfo("l");
             assertEquals("0-2-0:list, 0-4-*:t", vi1.linkedVariables().toString());
-            assertSame(TRUE, vi1.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertTrue(vi1.isModified());
 
             // this one can only be computed through the graph algorithm
             VariableInfo vi1p0 = vd1.variableInfo(listAdd0);
             assertEquals("0-2-0:l, 0-4-*:t", vi1p0.linkedVariables().toString());
             // propagation of @Modified via graph
-            assertTrue(vi1p0.isComputedModified());
+            assertTrue(vi1p0.isModified());
 
             VariableInfo vi1p1 = vd1.variableInfo(t1);
             assertEquals("*-4-0:l, *-4-0:list", vi1p1.linkedVariables().toString());
@@ -335,11 +334,11 @@ public class TestLinkBasics extends CommonTest {
             VariableData vd2 = VariableDataImpl.of(s2);
 
             VariableInfo vi2l = vd2.variableInfo("l");
-            assertSame(TRUE, vi2l.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertTrue(vi2l.isModified());
             VariableInfo vi2p0 = vd2.variableInfo(listAdd0);
-            assertSame(TRUE, vi2p0.analysis().getOrDefault(MODIFIED_VARIABLE, FALSE));
+            assertTrue(vi2p0.isModified());
             // and propagation to the parameter itself
-            assertSame(TRUE, listAdd0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
+            assertSame(FALSE, listAdd0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE));
         }
         {
             MethodInfo listAddM = X.findUniqueMethod("listAddM", 2);

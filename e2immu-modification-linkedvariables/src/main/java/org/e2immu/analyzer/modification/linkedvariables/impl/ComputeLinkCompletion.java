@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.graph.Cache;
 import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
@@ -9,8 +10,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
-import org.e2immu.analyzer.modification.prepwork.variable.impl.*;
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.VariableExpression;
@@ -26,8 +26,12 @@ import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableIn
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 
 /*
-given a number of links, build a graph, and compute the shortest path between all combinations,
+Given a number of links, build a graph, and compute the shortest path between all combinations,
 to be stored in the VariableInfo objects.
+
+The computeModified() method propagates modification through the graph, using vi.unmodified() to block
+traversal of edges and typeIsNotImmutable() to allow them.
+
  */
 class ComputeLinkCompletion {
     private static final Logger LOGGER = LoggerFactory.getLogger("graph-algorithm");
@@ -107,20 +111,21 @@ class ComputeLinkCompletion {
             if (previous != null) {
                 // copy previous link data into the graph, but only for variables that are known to the current one
                 // (some variables disappear after a statement, e.g. pattern variables)
-                previous.variableInfoStream(stageOfPrevious)
-                        .forEach(vi -> {
-                            if (variableData.isKnown(vi.variable().fullyQualifiedName()) && vi.linkedVariables() != null) {
-                                Map<Variable, LV> map = new HashMap<>();
-                                vi.linkedVariables().stream().filter(e -> variableData.isKnown(e.getKey().fullyQualifiedName()))
-                                        .forEach(e -> map.put(e.getKey(), e.getValue()));
-                                weightedGraph.addNode(vi.variable(), map);
-                            }
-                        });
+                previous.variableInfoStream(stageOfPrevious).forEach(vi -> {
+                    if (variableData.isKnown(vi.variable().fullyQualifiedName()) && vi.linkedVariables() != null) {
+                        Map<Variable, LV> map = new HashMap<>();
+                        vi.linkedVariables().stream()
+                                .filter(e -> variableData.isKnown(e.getKey().fullyQualifiedName()))
+                                .forEach(e -> map.put(e.getKey(), e.getValue()));
+                        weightedGraph.addNode(vi.variable(), map);
+                    }
+                });
             }
             LOGGER.debug("WG: {}", weightedGraph);
 
             // ensure that all variables known at this stage, are present
-            variableData.variableInfoStream(stage).forEach(vi -> weightedGraph.addNode(vi.variable(), Map.of()));
+            variableData.variableInfoStream(stage).forEach(vi ->
+                    weightedGraph.addNode(vi.variable(), Map.of()));
 
             WeightedGraph wgForModification = weightedGraph.copyForModification();
             ShortestPath shortestPathForMod = wgForModification.shortestPath();
@@ -144,15 +149,20 @@ class ComputeLinkCompletion {
                         vii.setLinkedVariables(linkedVariables);
                     }
                     if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.UNMODIFIED_VARIABLE)) {
-                        boolean isModified = modifying.contains(variable);
-                        // FIXME
-                        vii.analysis().set(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.from(isModified));
+                        boolean unmodified = !modifying.contains(variable);
+                        if (unmodified) {
+                            // do not write when not unmodified, because that info may change in the next iteration
+                            vii.analysis().set(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.TRUE);
+                        }
                     }
                     Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
                     if (mfiComponents != null
                         && !mfiComponents.isEmpty()
                         && !vii.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
-                        vii.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(mfiComponents));
+                        // do a controlled overwrite: as the iterations go, fewer variables become modified
+                        // so we allow to overwrite with less
+                        vii.analysis().setAllowControlledOverwrite(MODIFIED_FI_COMPONENTS_VARIABLE,
+                                new ValueImpl.VariableBooleanMapImpl(mfiComponents));
                     }
                 } // is possible: artificially created break variable (see e.g. TestBreakVariable)
             }
@@ -248,8 +258,7 @@ class ComputeLinkCompletion {
                     VariableInfoContainer vicPrev = previous.variableInfoContainerOrNull(variable.fullyQualifiedName());
                     if (vicPrev != null) {
                         VariableInfo vi = vicPrev.best(stageOfPrevious);
-                        // FIXME
-                        if (vi != null && vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE).isTrue()) {
+                        if (vi != null && !vi.isUnmodified()) {
                             if (isNotImmutable(vi.variable())) {
                                 modified.add(vi.variable());
                             }

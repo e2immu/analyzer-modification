@@ -1,5 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.modification;
 
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.impl.IteratingAnalyzerImpl;
 import org.e2immu.analyzer.modification.linkedvariables.impl.MethodModAnalyzerImpl;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
@@ -32,7 +34,7 @@ public class TestModificationBasics extends CommonTest {
         e2immuAnalysis(X);
         MethodInfo m = X.findUniqueMethod("m", 1);
         assertFalse(m.isModifying());
-        assertFalse(m.parameters().get(0).isModified());
+        assertFalse(m.parameters().getFirst().isModified());
     }
 
     public void e2immuAnalysis(TypeInfo typeInfo) {
@@ -40,7 +42,8 @@ public class TestModificationBasics extends CommonTest {
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.initialize(typesLoaded);
         List<Info> ao = prepAnalyzer.doPrimaryType(typeInfo);
-        MethodModAnalyzerImpl analyzer = new MethodModAnalyzerImpl(runtime, false);
+        IteratingAnalyzer.Configuration configuration = new IteratingAnalyzerImpl.ConfigurationBuilder().build();
+        MethodModAnalyzerImpl analyzer = new MethodModAnalyzerImpl(runtime, configuration);
         analyzer.doPrimaryType(typeInfo, ao);
     }
 

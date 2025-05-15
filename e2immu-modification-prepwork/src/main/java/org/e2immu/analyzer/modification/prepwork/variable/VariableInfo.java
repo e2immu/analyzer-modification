@@ -49,5 +49,8 @@ public interface VariableInfo {
 
     boolean isUnmodified();
 
-    boolean isComputedModified();
+    // for testing only
+    default boolean isModified() {
+        return !isUnmodified();
+    }
 }

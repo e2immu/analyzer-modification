@@ -54,7 +54,9 @@ public record StaticValuesHelper(Runtime runtime) {
              Variable variable, List<StaticValues> staticValues, Map<Variable, List<StaticValues>> append) {
         if (variable instanceof FieldReference fr) {
             recursivelyAdd1(append, fr, source, staticValues, variableData, statementIndex);
-        } else if (variable instanceof DependentVariable dv && !staticValues.isEmpty() && staticValues.get(0).expression() != null) {
+        } else if (variable instanceof DependentVariable dv
+                   && !staticValues.isEmpty()
+                   && staticValues.getFirst().expression() != null) {
             Variable base = dv.arrayVariableBase();
             int arrays = dv.arrayVariableBase().parameterizedType().arrays();
             This thisVar = runtime.newThis(runtime.objectParameterizedType().copyWithArrays(arrays)); // fake!!!
@@ -62,7 +64,7 @@ public record StaticValuesHelper(Runtime runtime) {
             Variable indexed = tm.translateVariableRecursively(variable);
             boolean multiple = staticValues.size() > 1;
             StaticValues newSv = new StaticValuesImpl(null, null, multiple,
-                    Map.of(indexed, staticValues.get(0).expression()));
+                    Map.of(indexed, staticValues.getFirst().expression()));
             append.computeIfAbsent(base, b -> new ArrayList<>()).add(newSv);
             add(source, variableData, statementIndex, base, List.of(newSv), append);
         }

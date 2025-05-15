@@ -270,13 +270,13 @@ public class TestLinkModificationArea extends CommonTest {
             Statement s2 = modifyA.methodBody().statements().get(2);
             VariableData vd2 = VariableDataImpl.of(s2);
             VariableInfo viA = vd2.variableInfo("aa");
-            assertTrue(viA.isComputedModified());
+            assertTrue(viA.isModified());
 
             VariableInfo viR = vd2.variableInfo(r);
-            assertTrue(viR.isComputedModified());
+            assertTrue(viR.isModified());
 
             VariableInfo viB = vd2.variableInfo("bb");
-            assertFalse(viB.isComputedModified());
+            assertFalse(viB.isModified());
         }
     }
 
@@ -333,13 +333,13 @@ public class TestLinkModificationArea extends CommonTest {
             Statement s2 = modifyA.methodBody().statements().get(2);
             VariableData vd2 = VariableDataImpl.of(s2);
             VariableInfo viA = vd2.variableInfo("aa");
-            assertTrue(viA.isComputedModified());
+            assertTrue(viA.isModified());
 
             VariableInfo viR = vd2.variableInfo(r);
-            assertTrue(viR.isComputedModified());
+            assertTrue(viR.isModified());
 
             VariableInfo viB = vd2.variableInfo("bb");
-            assertFalse(viB.isComputedModified());
+            assertFalse(viB.isModified());
         }
     }
 
@@ -429,7 +429,7 @@ public class TestLinkModificationArea extends CommonTest {
             VariableInfo vi1Array = vd1.variableInfo("array");
             assertEquals("Type a.b.X.M[] E=new M[2] this[0]=m1", vi1Array.staticValues().toString());
             assertEquals("0M-2-*M|0-*:array[0], 0M-2-*M|0-*:m1", vi1Array.linkedVariables().toString());
-            assertTrue(vi1Array.isComputedModified());
+            assertTrue(vi1Array.isModified());
         }
         {
             VariableData vd2 = VariableDataImpl.of(method.methodBody().statements().get(2));
@@ -437,20 +437,20 @@ public class TestLinkModificationArea extends CommonTest {
             assertEquals("Type a.b.X.M[] E=new M[2] this[0]=m1, this[1]=m2", vi2Array.staticValues().toString());
             assertEquals("0M-2-*M|0-*:array[0], 0M-2-*M|1-*:array[1], 0M-2-*M|0-*:m1, 0M-2-*M|1-*:m2",
                     vi2Array.linkedVariables().toString());
-            assertTrue(vi2Array.isComputedModified());
+            assertTrue(vi2Array.isModified());
             VariableInfo vi2M1 = vd2.variableInfo(m1);
-            assertFalse(vi2M1.isComputedModified());
+            assertFalse(vi2M1.isModified());
             VariableInfo vi2M2 = vd2.variableInfo(m2);
-            assertFalse(vi2M2.isComputedModified());
+            assertFalse(vi2M2.isModified());
         }
         {
             VariableData vd3 = VariableDataImpl.of(method.methodBody().statements().get(3));
             VariableInfo vi3Array = vd3.variableInfo("array");
-            assertTrue(vi3Array.isComputedModified());
+            assertTrue(vi3Array.isModified());
             VariableInfo vi3M1 = vd3.variableInfo(m1);
-            assertTrue(vi3M1.isComputedModified());
+            assertTrue(vi3M1.isModified());
             VariableInfo vi2M2 = vd3.variableInfo(m2);
-            assertFalse(vi2M2.isComputedModified());
+            assertFalse(vi2M2.isModified());
         }
     }
 
@@ -486,7 +486,7 @@ public class TestLinkModificationArea extends CommonTest {
             VariableInfo vi1Array = vd1.variableInfo("array");
             assertEquals("Type a.b.X.M[] E=new M[2] this[i]=m1", vi1Array.staticValues().toString());
             assertEquals("0M-2-*M|?-*:array[i], 0M-2-*M|?-*:m1", vi1Array.linkedVariables().toString());
-            assertTrue(vi1Array.isComputedModified());
+            assertTrue(vi1Array.isModified());
         }
         {
             VariableData vd2 = VariableDataImpl.of(method.methodBody().statements().get(2));
@@ -494,20 +494,20 @@ public class TestLinkModificationArea extends CommonTest {
             assertEquals("Type a.b.X.M[] E=new M[2] this[i+1]=m2, this[i]=m1", vi2Array.staticValues().toString());
             assertEquals("0M-2-*M|?-*:array[i+1], 0M-2-*M|?-*:array[i], 0M-2-*M|?-*:m1, 0M-2-*M|?-*:m2",
                     vi2Array.linkedVariables().toString());
-            assertTrue(vi2Array.isComputedModified());
+            assertTrue(vi2Array.isModified());
             VariableInfo vi2M1 = vd2.variableInfo(m1);
-            assertFalse(vi2M1.isComputedModified());
+            assertFalse(vi2M1.isModified());
             VariableInfo vi2M2 = vd2.variableInfo(m2);
-            assertFalse(vi2M2.isComputedModified());
+            assertFalse(vi2M2.isModified());
         }
         {
             VariableData vd3 = VariableDataImpl.of(method.methodBody().statements().get(3));
             VariableInfo vi3Array = vd3.variableInfo("array");
-            assertTrue(vi3Array.isComputedModified());
+            assertTrue(vi3Array.isModified());
             VariableInfo vi3M1 = vd3.variableInfo(m1);
-            assertTrue(vi3M1.isComputedModified());
+            assertTrue(vi3M1.isModified());
             VariableInfo vi2M2 = vd3.variableInfo(m2);
-            assertFalse(vi2M2.isComputedModified());
+            assertFalse(vi2M2.isModified());
         }
     }
 

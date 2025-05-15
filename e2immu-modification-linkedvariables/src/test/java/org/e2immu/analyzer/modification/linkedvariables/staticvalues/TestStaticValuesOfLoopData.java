@@ -125,7 +125,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
             VariableInfo vi1f = vd1.variableInfo(swap0);
             // compared to testSwap2, 'ld' has a different name :-)
-            assertTrue(vi1f.isComputedModified());
+            assertTrue(vi1f.isModified());
         }
     }
 
@@ -151,7 +151,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
 
             // we have all the information to make this work!
             // main code in ExpressionAnalyzer.propagateComponents -> EA.propagateModificationOfParameter
-            assertTrue(vi1f.isComputedModified());
+            assertTrue(vi1f.isModified());
         }
     }
 
@@ -185,9 +185,9 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         {
             VariableData vd1 = VariableDataImpl.of(swap.methodBody().statements().get(1));
             VariableInfo vi1Ld = vd1.variableInfo("ld");
-            assertTrue(vi1Ld.isComputedModified());
+            assertTrue(vi1Ld.isModified());
             VariableInfo vi1f = vd1.variableInfo(swap0);
-            assertTrue(vi1f.isComputedModified());
+            assertTrue(vi1f.isModified());
         }
     }
 
@@ -210,24 +210,24 @@ public class TestStaticValuesOfLoopData extends CommonTest {
             assertEquals("E=ld.variables[0] this[a][1]=m[a][0]", vi3m.staticValues().toString());
             assertEquals("*M-2-0M|*-0.0:ld, 0M-2-*M|?-*:m[a], *M-2-0M|*-0:variables, -1-:variables[0]",
                     vi3m.linkedVariables().toString());
-            assertTrue(vi3m.isComputedModified());
+            assertTrue(vi3m.isModified());
 
             VariableInfo vi3Variables = vd3.variableInfo(LD_VARIABLES);
-            assertTrue(vi3Variables.isComputedModified()); // this follows the 2 link
+            assertTrue(vi3Variables.isModified()); // this follows the 2 link
 
             VariableInfo vi3ld = vd3.variableInfo(modify0);
             // NOT following the -4- link! FIXME there is no -4- link anymore
-            assertTrue(vi3ld.isComputedModified());
+            assertTrue(vi3ld.isModified());
         }
         {
             VariableData vdLast = VariableDataImpl.of(modify.methodBody().lastStatement());
             VariableInfo viLastM = vdLast.variableInfo("m");
-            assertTrue(viLastM.isComputedModified());
+            assertTrue(viLastM.isModified());
 
             VariableInfo viLastModified0 = vdLast.variableInfo(modify0);
             assertEquals("0M-2-*M|0.0-*:m, 0M-2-*M|0.0.?-*:m[a], 0M-2-*M|0-*:variables, 0M-2-*M|0.0-*:variables[0]",
                     viLastModified0.linkedVariables().toString());
-            assertTrue(viLastModified0.isComputedModified());
+            assertTrue(viLastModified0.isModified());
         }
         assertTrue(modify0.isModified()); // FIXME check
         // the modified components parameter will be our gateway to propagating the modifications

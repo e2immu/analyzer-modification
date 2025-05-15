@@ -56,6 +56,11 @@ public class HiddenContentSelector implements Value {
     }
 
     @Override
+    public boolean isDefault() {
+        return map.isEmpty() && hiddenContentTypes.isDefault();
+    }
+
+    @Override
     public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
         Map<Codec.EncodedValue, Codec.EncodedValue> mapOfEncoded = map.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(e -> codec.encodeInt(context, e.getKey()),

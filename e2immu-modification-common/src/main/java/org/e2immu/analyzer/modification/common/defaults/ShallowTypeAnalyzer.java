@@ -61,13 +61,17 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         if (ind == null) {
             map.put(INDEPENDENT_TYPE, DEPENDENT);
         }
-        map.forEach(typeInfo.analysis()::set);
+        map.forEach((p, v) -> {
+            // not writing out default values, we may want to overwrite in AbstractInfoAnalyzer
+            if (!v.isDefault()) typeInfo.analysis().set(p, v);
+        });
 
         boolean immutableDeterminedByTypeParameters = typeInfo.typeParameters().stream()
                 .anyMatch(tp -> tp.annotations().stream().anyMatch(ae ->
                         Independent.class.getCanonicalName().equals(ae.typeInfo().fullyQualifiedName())));
-        typeInfo.analysis().set(IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS,
-                ValueImpl.BoolImpl.from(immutableDeterminedByTypeParameters));
+        if (immutableDeterminedByTypeParameters) {
+            typeInfo.analysis().set(IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS, TRUE);
+        }
         return dataMap;
     }
 
@@ -166,7 +170,7 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
             // copy into relevant place
             ShallowAnalyzer.InfoData infoData = new ShallowAnalyzer.InfoData(new HashMap<>());
             fieldMap.forEach((p, vo) -> {
-                fieldInfo.analysis().set(p, vo.value());
+                if (!vo.value().isDefault()) fieldInfo.analysis().set(p, vo.value());
                 infoData.put(p, vo.origin());
             });
             dataMap.put(fieldInfo, infoData);

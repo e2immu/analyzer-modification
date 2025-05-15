@@ -1,15 +1,15 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
-import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
@@ -39,11 +39,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.EMPTY;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
@@ -408,7 +408,7 @@ class ExpressionAnalyzer {
             if (typeParameter != null && depVar instanceof FieldReference fr && notOwnedBy(typeParameter, targetType)) {
                 FieldInfo fieldInTargetType = fr.fieldInfo();
                 ParameterizedType ptFTT = fieldInTargetType.type();
-                return ptFTT.parameters().get(0);
+                return ptFTT.parameters().getFirst();
             }
             return fieldType;
         }
@@ -485,7 +485,7 @@ class ExpressionAnalyzer {
             MethodInfo sami = anonymousTypeImplementsFunctionalInterface(anonymousTypeInfo);
             if (sami == null) return EvaluationResult.EMPTY;
 
-            ParameterizedType cft = anonymousTypeInfo.interfacesImplemented().get(0);
+            ParameterizedType cft = anonymousTypeInfo.interfacesImplemented().getFirst();
             Value.Independent indepOfMethod = sami.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
             HiddenContentSelector hcsMethod = sami.analysis().getOrNull(HCS_METHOD, HiddenContentSelector.class);
             EvaluationResult evaluationResultObject = eval(cc.object());
@@ -512,11 +512,11 @@ class ExpressionAnalyzer {
             if (!typeInfo.parentClass().isJavaLangObject()) return null;
             if (!typeInfo.interfacesImplemented().isEmpty()) {
                 if (typeInfo.interfacesImplemented().size() > 1) return null;
-                if (!typeInfo.interfacesImplemented().get(0).isFunctionalInterface()) return null;
+                if (!typeInfo.interfacesImplemented().getFirst().isFunctionalInterface()) return null;
             }
             List<MethodInfo> methods = typeInfo.methods();
             if (methods.size() != 1) return null;
-            return methods.get(0);
+            return methods.getFirst();
         }
 
         private EvaluationResult linkEvaluationOfLambda(Lambda lambda) {
@@ -617,7 +617,7 @@ class ExpressionAnalyzer {
                                            List<EvaluationResult> leParams) {
             // identity method
             if (mc.methodInfo().isIdentity()) {
-                builder.setStaticValues(leParams.get(0).staticValues());
+                builder.setStaticValues(leParams.getFirst().staticValues());
                 return;
             }
 
@@ -674,7 +674,9 @@ class ExpressionAnalyzer {
             Map<Variable, Expression> map = new HashMap<>();
             for (Map.Entry<Variable, Expression> entry : svm.values().entrySet()) {
                 Variable variable;
-                if (entry.getKey() instanceof DependentVariable dv && dv.indexVariable() instanceof ParameterInfo pi && pi.methodInfo() == mc.methodInfo()) {
+                if (entry.getKey() instanceof DependentVariable dv
+                    && dv.indexVariable() instanceof ParameterInfo pi
+                    && pi.methodInfo() == mc.methodInfo()) {
                     //dv: this.objects[i]; mc arguments: 0, set -> objects[0]=set
                     Expression concreteIndex = mc.parameterExpressions().get(pi.index());
                     variable = runtime.newDependentVariable(dv.arrayExpression(), concreteIndex);
@@ -702,8 +704,7 @@ class ExpressionAnalyzer {
 
         private void methodCallModified(MethodCall mc, EvaluationResult.Builder builder) {
             if (mc.object() instanceof VariableExpression ve) {
-                // FIXME aapi2
-                boolean modifying = mc.methodInfo().analysis().getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue();
+                boolean modifying = mc.methodInfo().analysis().getOrDefault(NON_MODIFYING_METHOD, FALSE).isFalse();
                 if (ve.variable().parameterizedType().isFunctionalInterface()
                     && ve.variable() instanceof FieldReference fr
                     && !fr.isStatic() && !(fr.scopeVariable() instanceof This)) {
@@ -714,8 +715,7 @@ class ExpressionAnalyzer {
                 }
             }
             for (ParameterInfo pi : mc.methodInfo().parameters()) {
-                // FIXME aapi2
-                if (pi.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue()) {
+                if (pi.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isFalse()) {
                     if (pi.isVarArgs()) {
                         for (int i = mc.methodInfo().parameters().size() - 1; i < mc.parameterExpressions().size(); i++) {
                             Expression pe = mc.parameterExpressions().get(i);
@@ -732,23 +732,25 @@ class ExpressionAnalyzer {
                 On top of that, if the parameters of this method have modified components, we check if we have
                 a value for these components, so that we can propagate their modification too.
                  */
-                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi, (e, mapValue, map) -> {
-                    if (e instanceof MethodReference mr) {
-                        if (mapValue) {
-                            propagateModificationOfObject(mr, builder);
-                            for (ParameterInfo mrPi : mr.methodInfo().parameters()) {
-                                propagateModificationOfParameter(builder, pi, map, mrPi);
+                propagateComponents(MODIFIED_FI_COMPONENTS_PARAMETER, mc, pi,
+                        (e, mapValue, map) -> {
+                            if (e instanceof MethodReference mr) {
+                                if (mapValue) {
+                                    propagateModificationOfObject(mr, builder);
+                                    for (ParameterInfo mrPi : mr.methodInfo().parameters()) {
+                                        propagateModificationOfParameter(builder, pi, map, mrPi);
+                                    }
+                                } else {
+                                    ensureNotModifying(mr, builder);
+                                }
                             }
-                        } else {
-                            ensureNotModifying(mr, builder);
-                        }
-                    }
-                });
-                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, pi, (e, mapValue, map) -> {
-                    if (e instanceof VariableExpression ve2 && mapValue) {
-                        markModified(ve2.variable(), builder);
-                    }
-                });
+                        });
+                propagateComponents(MODIFIED_COMPONENTS_PARAMETER, mc, pi,
+                        (e, mapValue, map) -> {
+                            if (e instanceof VariableExpression ve2 && mapValue) {
+                                markModified(ve2.variable(), builder);
+                            }
+                        });
             }
         }
 
@@ -919,7 +921,8 @@ class ExpressionAnalyzer {
         If that fails, we try to find an identically named field.
          */
         private FieldInfo liftField(FieldInfo fieldInfo) {
-            MethodInfo accessor = fieldInfo.typeInfo().methodStream().filter(mi -> accessorOf(mi) == fieldInfo).findFirst().orElse(null);
+            MethodInfo accessor = fieldInfo.typeInfo().methodStream()
+                    .filter(mi -> accessorOf(mi) == fieldInfo).findFirst().orElse(null);
             if (accessor != null && !accessor.overrides().isEmpty()) {
                 MethodInfo override = accessor.overrides().stream().findFirst().orElseThrow();
                 FieldInfo fieldOfOverride = accessorOf(override);
@@ -969,12 +972,13 @@ class ExpressionAnalyzer {
                 Map<Variable, Expression> extra = new HashMap<>();
                 for (Map.Entry<Variable, Expression> entry : result.entrySet()) {
                     if (entry.getValue() instanceof VariableExpression ve && !result.containsKey(ve.variable())) {
-                        VariableInfoContainer vic = variableDataPrevious.variableInfoContainerOrNull(ve.variable().fullyQualifiedName());
+                        VariableInfoContainer vic = variableDataPrevious.variableInfoContainerOrNull(ve.variable()
+                                .fullyQualifiedName());
                         if (vic != null) {
                             VariableInfo vi = vic.best(stageOfPrevious);
                             if (vi.staticValues() != null) {
-                                vi.staticValues().values()
-                                        .entrySet().stream().filter(e -> e.getKey() instanceof FieldReference)
+                                vi.staticValues().values().entrySet().stream()
+                                        .filter(e -> e.getKey() instanceof FieldReference)
                                         .forEach(e -> {
                                             FieldReference fr = (FieldReference) e.getKey();
                                             VariableExpression scope = runtime.newVariableExpressionBuilder()

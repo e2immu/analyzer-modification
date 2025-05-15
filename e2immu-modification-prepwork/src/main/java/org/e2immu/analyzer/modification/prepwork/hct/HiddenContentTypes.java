@@ -106,6 +106,11 @@ public class HiddenContentTypes implements Value {
         typeToIndex = Map.copyOf(t2i);
     }
 
+    @Override
+    public boolean isDefault() {
+        return equals(NO_VALUE);
+    }
+
     public static HiddenContentTypes decode(Codec codec, Codec.Context context, Codec.EncodedValue encodedValue) {
         Map<Codec.EncodedValue, Codec.EncodedValue> map = codec.decodeMap(context, encodedValue);
         boolean isExtensible = false;

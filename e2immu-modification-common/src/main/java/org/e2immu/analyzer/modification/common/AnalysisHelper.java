@@ -14,10 +14,11 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 public class AnalysisHelper {
 
     public Value.Immutable typeImmutableNullIfUndecided(ParameterizedType parameterizedType) {
-
+        return typeImmutable(parameterizedType, Map.of(), true);
     }
+
     public Value.Immutable typeImmutable(ParameterizedType parameterizedType) {
-        return typeImmutable(parameterizedType, Map.of());
+        return typeImmutable(parameterizedType, Map.of(), false);
     }
 
     /*
@@ -27,6 +28,12 @@ public class AnalysisHelper {
      */
     public Value.Immutable typeImmutable(ParameterizedType parameterizedType,
                                          Map<ParameterizedType, Value.Immutable> dynamicValues) {
+        return typeImmutable(parameterizedType, dynamicValues, false);
+    }
+
+    private Value.Immutable typeImmutable(ParameterizedType parameterizedType,
+                                          Map<ParameterizedType, Value.Immutable> dynamicValues,
+                                          boolean nullIfUndecided) {
         if (parameterizedType.arrays() > 0) {
             return ValueImpl.ImmutableImpl.FINAL_FIELDS;
         }
@@ -46,7 +53,13 @@ public class AnalysisHelper {
         if (immutableOfCurrent != null) {
             dynamicBaseValue = immutableOfCurrent;
         } else {
-            dynamicBaseValue = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE);
+            Value.Immutable inMap = bestType.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
+            if (inMap == null) {
+                if (nullIfUndecided) return null;
+                dynamicBaseValue = ValueImpl.ImmutableImpl.MUTABLE;
+            } else {
+                dynamicBaseValue = inMap;
+            }
         }
         if (dynamicBaseValue.isAtLeastImmutableHC() && !parameterizedType.parameters().isEmpty()) {
             Value.Bool useBool = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS,

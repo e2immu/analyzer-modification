@@ -197,6 +197,6 @@ public class AbstractInfoAnalyzerImpl extends CommonAnalyzerImpl implements Abst
     }
 
     private Set<TypeInfo> resolve(TypeInfo methodInfo, Set<TypeInfo> concreteExtensions) {
-
+        throw new UnsupportedOperationException();
     }
 }

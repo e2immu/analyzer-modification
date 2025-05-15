@@ -25,6 +25,11 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
+/*
+Important to note that, because it is used in the modification analyzer (first called by MethodModAnalyzer
+then values are overwritten by the AbstractInfoAnalyzer), only non-default values are to be written to the
+property-value map (analysis()).
+ */
 public class ShallowMethodAnalyzer extends AnnotationToProperty {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShallowMethodAnalyzer.class);
     private final AnalysisHelper analysisHelper;
@@ -58,7 +63,9 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
             ShallowAnalyzer.InfoData parameterData = new ShallowAnalyzer.InfoData(new HashMap<>());
             dataMap.put(parameterInfo, parameterData);
             parameterVoMap.forEach((p, vo) -> {
-                parameterInfo.analysis().set(p, vo.value());
+                if (!vo.value().isDefault()) {
+                    parameterInfo.analysis().set(p, vo.value());
+                }
                 parameterData.put(p, vo.origin());
             });
         }
@@ -68,7 +75,9 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         ShallowAnalyzer.InfoData methodData = new ShallowAnalyzer.InfoData(new HashMap<>());
         dataMap.put(methodInfo, methodData);
         voMap.forEach((p, vo) -> {
-            methodInfo.analysis().set(p, vo.value());
+            if (!vo.value().isDefault()) {
+                methodInfo.analysis().set(p, vo.value());
+            }
             methodData.put(p, vo.origin());
         });
         return dataMap;

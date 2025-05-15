@@ -67,9 +67,6 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
 
     @Override
     public Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
-        
-        me
-
         primaryType.recursiveSubTypeStream().forEach(this::go);
         return null;
     }

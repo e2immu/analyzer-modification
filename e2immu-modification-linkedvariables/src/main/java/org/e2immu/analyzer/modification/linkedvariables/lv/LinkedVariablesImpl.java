@@ -50,6 +50,22 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
     }
 
     @Override
+    public boolean isDefault() {
+        return this == NOT_YET_SET;
+    }
+
+    // in the next iteration, a type may become independent rather than dependent
+    @Override
+    public boolean overwriteAllowed(Value newValue) {
+        LinkedVariables other = (LinkedVariables) newValue;
+        if (other.isDefault()) return true;
+        return variables.entrySet().stream().allMatch(e -> {
+            LV lv = other.value(e.getKey());
+            return lv == null || lv.ge(e.getValue());
+        });
+    }
+
+    @Override
     public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
         return null;// not yet streamed
     }

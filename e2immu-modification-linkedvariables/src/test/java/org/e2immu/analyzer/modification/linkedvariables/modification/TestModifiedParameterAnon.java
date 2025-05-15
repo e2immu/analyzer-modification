@@ -83,7 +83,7 @@ public class TestModifiedParameterAnon extends CommonTest {
                 java.nio.file.FileVisitResult.CONTINUE, list\
                 """, vdLast.knownVariableNamesToString());
         VariableInfo viList = vdLast.variableInfo("list");
-        assertTrue(viList.isComputedModified());
+        assertTrue(viList.isModified());
 
         assertTrue(preVisitDirectory.isModifying());
 

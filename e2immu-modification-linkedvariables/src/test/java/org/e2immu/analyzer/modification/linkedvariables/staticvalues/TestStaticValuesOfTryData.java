@@ -234,7 +234,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi3i = vd3.variableInfo("i");
             assertEquals("-1-:variables[0]", vi3i.linkedVariables().toString());
-            assertFalse(vi3i.isComputedModified());
+            assertFalse(vi3i.isModified());
         }
         {   // list2.remove(i);
             Statement s4 = body.methodBody().statements().get(4);
@@ -248,7 +248,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             VariableInfo vi4i = vd4.variableInfo("i");
             assertEquals("-1-:variables[0]", vi4i.linkedVariables().toString());
             assertEquals("E=td.variables[0]", vi4i.staticValues().toString());
-            assertFalse(vi4i.isComputedModified());
+            assertFalse(vi4i.isModified());
 
             VariableInfo vi4List2 = vd4.variableInfo("list2");
             assertEquals("*M-2-2M|*-2.1:td, *M-2-0M|*-1:variables, -1-:variables[1]",
@@ -261,7 +261,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo viLastList2 = vdLast.variableInfo("list2");
             assertEquals("E=td.variables[1]", viLastList2.staticValues().toString());
-            assertTrue(viLastList2.isComputedModified());
+            assertTrue(viLastList2.isModified());
         }
         ParameterInfo body0 = body.parameters().get(0);
         assertEquals("this.variables=true, this.variables[1]=true", body0.analysis()
@@ -283,7 +283,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi0This = vd0.variableInfo(new ThisImpl(X.asParameterizedType()));
             assertEquals("", vi0This.linkedVariables().toString());
-            assertFalse(vi0This.isComputedModified());
+            assertFalse(vi0This.isModified());
         }
         {
             Statement s1 = method.methodBody().statements().get(1);
@@ -300,9 +300,9 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
             VariableInfo vi2This = vd2.variableInfo(new ThisImpl(X.asParameterizedType()));
             assertEquals("", vi2This.linkedVariables().toString());
-            assertTrue(vi2This.isComputedModified());
+            assertTrue(vi2This.isModified());
             VariableInfo vi2Method1 = vd2.variableInfo(method1);
-            assertTrue(vi2Method1.isComputedModified()); // propagation via MODIFIED_COMPONENTS_PARAMETER
+            assertTrue(vi2Method1.isModified()); // propagation via MODIFIED_COMPONENTS_PARAMETER
         }
         assertTrue(method1.isModified());
     }
@@ -369,10 +369,10 @@ public class TestStaticValuesOfTryData extends CommonTest {
                 Statement s0 = body.methodBody().statements().get(0);
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0 = vd0.variableInfo(body0);
-                assertFalse(vi0.isComputedModified());
+                assertFalse(vi0.isModified());
                 assertEquals("-1-:bodyThrowingFunction", vi0.linkedVariables().toString()); // link to the field
                 VariableInfo viBtf0 = vd0.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
-                assertFalse(viBtf0.isComputedModified()); // assignment is not a modification!
+                assertFalse(viBtf0.isModified()); // assignment is not a modification!
             }
             {
                 Statement s1 = body.methodBody().statements().get(1);
@@ -385,8 +385,8 @@ public class TestStaticValuesOfTryData extends CommonTest {
                 VariableInfo vi1Btf = vd1.variableInfo(new FieldReferenceImpl(bodyThrowingFunction));
                 assertEquals("-1-:throwingFunction", vi1Btf.linkedVariables().toString());
 
-                assertFalse(vi1.isComputedModified());
-                assertFalse(vi1Btf.isComputedModified()); // assignment is not a modification!
+                assertFalse(vi1.isModified());
+                assertFalse(vi1Btf.isModified()); // assignment is not a modification!
             }
             assertTrue(body.isFluent());
             assertEquals("E=this this.bodyThrowingFunction=throwingFunction", body.analysis()

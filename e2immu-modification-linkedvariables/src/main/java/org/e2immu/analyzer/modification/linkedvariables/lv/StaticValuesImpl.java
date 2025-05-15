@@ -5,7 +5,6 @@ import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
-import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -16,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public record StaticValuesImpl(ParameterizedType type,
                                Expression expression,
@@ -37,6 +35,23 @@ public record StaticValuesImpl(ParameterizedType type,
 
     public static StaticValues of(Expression e) {
         return new StaticValuesImpl(null, e, false, Map.of());
+    }
+
+    @Override
+    public boolean isDefault() {
+        return isEmpty();
+    }
+
+    @Override
+    public boolean overwriteAllowed(Value newValue) {
+        StaticValues sv = (StaticValues) newValue;
+        return (sv.type() == null || sv.type().equals(type))
+               && (sv.expression() == null || sv.expression().equals(expression))
+               && (!sv.multipleExpressions() || multipleExpressions)
+               && values.entrySet().stream().allMatch(e -> {
+            Expression inSv = sv.values().get(e.getKey());
+            return inSv == null || inSv.equals(e.getValue());
+        });
     }
 
     @Override

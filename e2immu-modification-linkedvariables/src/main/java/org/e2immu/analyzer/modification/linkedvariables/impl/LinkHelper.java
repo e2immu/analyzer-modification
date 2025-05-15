@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
-import org.e2immu.analyzer.modification.linkedvariables.EvaluationResult;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
@@ -373,7 +372,7 @@ class LinkHelper {
         ParameterizedType sourceType = parameterExpressions.get(pi.index()).parameterizedType();
         LinkedVariables sourceLvs = linkedVariablesOfParameter(pi.parameterizedType(),
                 parameterExpressions.get(pi.index()).parameterizedType(),
-                linkedVariables.get(pi.index()).linkedVariables(), hcsSource, sourceIsVarArgs);
+                linkedVariables.get(pi.index()).linkedVariables(), hcsSource, false);
 
         lv.stream().forEach(e -> {
             ParameterInfo target = (ParameterInfo) e.getKey();
@@ -501,7 +500,7 @@ class LinkHelper {
 
         // RULE 2: @Identity links to the 1st parameter
         if (methodInfo.isIdentity()) {
-            return linkedVariables.get(0).maximum(LINK_ASSIGNED);
+            return linkedVariables.getFirst().maximum(LINK_ASSIGNED);
         }
         LinkedVariables linkedVariablesOfObject = linkedVariablesOfObjectIn.maximum(LINK_ASSIGNED);
 
@@ -559,7 +558,7 @@ class LinkHelper {
                 Expression array = runtime.newVariableExpressionBuilder()
                         .setVariable(fr).setSource(methodCall.object().source())
                         .build();
-                Expression index = methodCall.parameterExpressions().get(0);
+                Expression index = methodCall.parameterExpressions().getFirst();
                 assert index.parameterizedType().isMathematicallyInteger();
                 variable = runtime.newDependentVariable(array, index, returnType);
                 Immutable immutableMethodReturnType = analysisHelper.typeImmutable(returnType);
