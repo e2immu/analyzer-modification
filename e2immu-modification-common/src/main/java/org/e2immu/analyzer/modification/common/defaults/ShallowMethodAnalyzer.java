@@ -131,8 +131,10 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         }
     }
 
-    private static final ValueOrigin NOT_NULL_FROM_METHOD = new ValueOrigin(ValueImpl.NotNullImpl.NO_VALUE, ShallowAnalyzer.AnnotationOrigin.FROM_METHOD);
-    private static final ValueOrigin NOT_NULL_FROM_TYPE = new ValueOrigin(ValueImpl.NotNullImpl.NO_VALUE, ShallowAnalyzer.AnnotationOrigin.FROM_TYPE);
+    private static final ValueOrigin NOT_NULL_FROM_METHOD = new ValueOrigin(ValueImpl.NotNullImpl.NOT_NULL,
+            ShallowAnalyzer.AnnotationOrigin.FROM_METHOD);
+    private static final ValueOrigin NOT_NULL_FROM_TYPE = new ValueOrigin(ValueImpl.NotNullImpl.NOT_NULL,
+            ShallowAnalyzer.AnnotationOrigin.FROM_TYPE);
 
     private ValueOrigin computeMethodNotNull(MethodInfo methodInfo, Map<Property, ValueOrigin> map) {
         if (methodInfo.isConstructor() || methodInfo.isVoid()) {

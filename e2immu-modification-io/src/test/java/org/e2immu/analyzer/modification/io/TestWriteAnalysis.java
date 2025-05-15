@@ -26,11 +26,11 @@ public class TestWriteAnalysis {
 
     @Language("json")
     private static final String EXPECT = """
-           [
-           {"name": "Torg.e2immu.C", "data":{"commutableMethods":["p1","p2,p3","p4"],"immutableType":3,"shallowAnalyzer":1}, "sub":
-            {"name": "Mm1(0)", "data":{"shallowAnalyzer":1}}}
-           ]
-           """;
+            [
+            {"name": "Torg.e2immu.C", "data":{"commutableMethods":["p1","p2,p3","p4"],"defaultsAnalyzer":1,"immutableType":3}, "sub":
+             {"name": "Mm1(0)", "data":{"defaultsAnalyzer":1}}}
+            ]
+            """;
 
     @Test
     public void test() throws IOException {
