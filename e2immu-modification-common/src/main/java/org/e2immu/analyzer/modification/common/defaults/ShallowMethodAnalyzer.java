@@ -247,7 +247,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         if (methodInfo.isConstructor()) {
             map.put(FLUENT_METHOD, DEFAULT_FALSE);
             map.put(IDENTITY_METHOD, DEFAULT_FALSE);
-            map.put(NON_MODIFYING_METHOD, FROM_METHOD_TRUE);
+            map.put(NON_MODIFYING_METHOD, DEFAULT_FALSE);
             map.putIfAbsent(METHOD_ALLOWS_INTERRUPTS, DEFAULT_FALSE);
         } else {
             ValueOrigin fluent = map.get(FLUENT_METHOD);

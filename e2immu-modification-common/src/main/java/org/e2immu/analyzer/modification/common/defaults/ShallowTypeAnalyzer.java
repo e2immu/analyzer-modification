@@ -47,14 +47,20 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         typeInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
         Map<Info, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
         boolean isExtensible = typeInfo.isExtensible();
-        List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);Map<Property, Value> map = annotationsToMap(typeInfo, annotations);
+        List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);
+        Map<Property, Value> map = annotationsToMap(typeInfo, annotations);
+        ShallowAnalyzer.InfoData typeData = new ShallowAnalyzer.InfoData(new HashMap<>());
+        map.forEach((p, v) -> typeData.put(p, ANNOTATED));
+        dataMap.put(typeInfo, typeData);
 
-        map.putIfAbsent(CONTAINER_TYPE, FALSE);
+        if (!map.containsKey(CONTAINER_TYPE)) {
+            ValueOrigin container = computeContainer(typeInfo);
+            typeData.put(CONTAINER_TYPE, container.origin());
+            map.put(CONTAINER_TYPE, container.value());
+        }
         Value.Immutable imm = (Value.Immutable) map.get(IMMUTABLE_TYPE);
         if (imm != null && imm.isImmutable() && isExtensible) {
             map.put(IMMUTABLE_TYPE, IMMUTABLE_HC);
-        } else if (imm == null) {
-            map.put(IMMUTABLE_TYPE, MUTABLE);
         }
         Value.Independent ind = (Value.Independent) map.get(INDEPENDENT_TYPE);
         if (ind == null) {
@@ -72,6 +78,13 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
             typeInfo.analysis().set(IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS, TRUE);
         }
         return dataMap;
+    }
+
+    private ValueOrigin computeContainer(TypeInfo typeInfo) {
+        if (typeInfo.constructorAndMethodStream().allMatch(mi -> mi.parameters().isEmpty())) {
+            return FROM_METHOD_TRUE;
+        }
+        return DEFAULT_FALSE;
     }
 
     public Map<Info, ShallowAnalyzer.InfoData> analyzeFields(TypeInfo typeInfo) {
