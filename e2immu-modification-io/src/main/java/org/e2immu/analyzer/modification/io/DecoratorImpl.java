@@ -113,20 +113,30 @@ public class DecoratorImpl implements Qualification.Decorator {
         Property propertyUtilityClass;
         switch (info) {
             case MethodInfo methodInfo -> {
+                boolean noReturn = methodInfo.isConstructor() || !methodInfo.hasReturnValue();
+                if (noReturn) {
+                    immutable = null;
+                    independent = null;
+                    notNull = null;
+                    linkToParametersReturnValue = null;
+                } else {
+                    immutable = immutable(analysis.getOrDefault(IMMUTABLE_METHOD, MUTABLE),
+                            methodInfo.returnType());
+                    Value.Independent independentValue = analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
+                    independent = independent(independentValue, methodInfo.returnType());
+                    linkToParametersReturnValue = independentValue.linkToParametersReturnValue();
+                    notNull = notNull(analysis.getOrDefault(NOT_NULL_METHOD, ValueImpl.NotNullImpl.NULLABLE),
+                            methodInfo.returnType());
+                }
+                propertyIndependent = INDEPENDENT_METHOD;
+                propertyNotNull = NOT_NULL_METHOD;
+                propertyImmutable = IMMUTABLE_METHOD;
                 propertyUnmodified = !methodInfo.isConstructor() && analysis.getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue()
                         ? NON_MODIFYING_METHOD : null;
-                immutable = immutable(analysis.getOrDefault(IMMUTABLE_METHOD, MUTABLE), methodInfo.returnType());
-                propertyImmutable = IMMUTABLE_METHOD;
-                Value.Independent independentValue = analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
-                independent = independent(independentValue, methodInfo.returnType());
-                linkToParametersReturnValue = independentValue.linkToParametersReturnValue();
-                propertyIndependent = INDEPENDENT_METHOD;
-                propertyFinalField = null;
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
-                propertyContainer = null;
                 propertyFluent = methodInfo.isFluent() ? FLUENT_METHOD : null;
-                notNull = analysis.getOrDefault(NOT_NULL_METHOD, ValueImpl.NotNullImpl.NULLABLE);
-                propertyNotNull = NOT_NULL_METHOD;
+                propertyContainer = null;
+                propertyFinalField = null;
                 propertyUtilityClass = null;
             }
             case FieldInfo fieldInfo -> {
@@ -141,7 +151,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyIdentity = null;
                 propertyFluent = null;
                 propertyNotNull = NOT_NULL_FIELD;
-                notNull = analysis.getOrDefault(NOT_NULL_FIELD, ValueImpl.NotNullImpl.NULLABLE);
+                notNull = notNull(analysis.getOrDefault(NOT_NULL_FIELD, ValueImpl.NotNullImpl.NULLABLE), fieldInfo.type());
                 linkToParametersReturnValue = null;
                 propertyUtilityClass = null;
             }
@@ -159,7 +169,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyIdentity = null;
                 propertyFluent = null;
                 propertyNotNull = NOT_NULL_PARAMETER;
-                notNull = analysis.getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE);
+                notNull = notNull(analysis.getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE), pi.parameterizedType());
                 propertyUtilityClass = null;
             }
             case TypeInfo typeInfo -> {
@@ -267,6 +277,11 @@ public class DecoratorImpl implements Qualification.Decorator {
             list.add(new AnnotationProperty(utilityClassAnnotation, propertyUtilityClass));
         }
         return list;
+    }
+
+    private Value.NotNull notNull(Value.NotNull notNull, ParameterizedType parameterizedType) {
+        if (parameterizedType.isPrimitiveExcludingVoid()) return null;
+        return notNull;
     }
 
     // we're only showing IMMUTABLE in non-trivial cases

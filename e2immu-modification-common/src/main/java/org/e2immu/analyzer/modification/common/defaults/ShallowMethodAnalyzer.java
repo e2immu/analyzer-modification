@@ -63,7 +63,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
             ShallowAnalyzer.InfoData parameterData = new ShallowAnalyzer.InfoData(new HashMap<>());
             dataMap.put(parameterInfo, parameterData);
             parameterVoMap.forEach((p, vo) -> {
-                if (!vo.value().isDefault()) {
+                if (!vo.value().isDefault() || vo.origin() == ANNOTATED) {
                     parameterInfo.analysis().set(p, vo.value());
                 }
                 parameterData.put(p, vo.origin());
@@ -75,7 +75,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         ShallowAnalyzer.InfoData methodData = new ShallowAnalyzer.InfoData(new HashMap<>());
         dataMap.put(methodInfo, methodData);
         voMap.forEach((p, vo) -> {
-            if (!vo.value().isDefault()) {
+            if (!vo.value().isDefault() || vo.origin() == ANNOTATED) {
                 methodInfo.analysis().set(p, vo.value());
             }
             methodData.put(p, vo.origin());
