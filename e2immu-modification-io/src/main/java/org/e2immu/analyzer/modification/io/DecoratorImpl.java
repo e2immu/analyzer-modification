@@ -297,7 +297,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     }
 
     private Value.Independent nonTrivialIndependentType(Value.Independent independent, Value.Immutable immutable) {
-        if (immutable.isAtLeastImmutableHC()) return null;
+        if (immutable.isImmutable() || immutable.isImmutableHC() && independent.isIndependentHc()) return null;
         return independent;
     }
 

@@ -462,8 +462,6 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         if (methodInfo.isConstructor()) return DEFAULT_FALSE; // almost by default, constructors modify the fields
         ValueOrigin fluent = map.get(FLUENT_METHOD);
         if (fluent != null && fluent.valueAsBool().isTrue()) return DEFAULT_FALSE; // modifying--what else would it do?
-        boolean nonStaticVoid = !methodInfo.isStatic() && methodInfo.noReturnValue();
-        if (nonStaticVoid) return DEFAULT_FALSE; // modifying--what else would it do?
 
         Value.Immutable typeImmutable = methodInfo.typeInfo().analysis().getOrDefault(IMMUTABLE_TYPE,
                 ValueImpl.ImmutableImpl.MUTABLE);
