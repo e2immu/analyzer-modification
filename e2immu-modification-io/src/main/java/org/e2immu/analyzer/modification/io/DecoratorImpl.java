@@ -17,9 +17,7 @@ import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
@@ -29,10 +27,8 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DE
 public class DecoratorImpl implements Qualification.Decorator {
     private final Runtime runtime;
     private final AnnotationExpression notModifiedAnnotation;
-    private final TypeInfo notModifiedTi;
     private final TypeInfo immutableTi;
     private final TypeInfo independentTi;
-    private final TypeInfo finalTi;
     private final TypeInfo immutableContainerTi;
     private final TypeInfo notNullTi;
     private final AnnotationExpression ignoreModifications;
@@ -42,16 +38,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final AnnotationExpression containerAnnotation;
     private final AnnotationExpression utilityClassAnnotation;
 
-    private boolean needContainerImport;
-    private boolean needUnmodifiedImport;
-    private boolean needImmutableImport;
-    private boolean needIndependentImport;
-    private boolean needFinalImport;
-    private boolean needImmutableContainerImport;
-    private boolean needIdentityImport;
-    private boolean needFluentImport;
-    private boolean needNotNullImport;
-    private boolean needUtilityClassImport;
+    private final Set<Class<?>> importsNeeded = new HashSet<>();
 
     private final Map<Info, Info> translationMap;
 
@@ -61,11 +48,11 @@ public class DecoratorImpl implements Qualification.Decorator {
 
     public DecoratorImpl(Runtime runtime, Map<Info, Info> translationMap) {
         this.runtime = runtime;
-        notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
+        TypeInfo notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
         notModifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(notModifiedTi).build();
         independentTi = runtime.getFullyQualified(Independent.class, true);
         immutableTi = runtime.getFullyQualified(Immutable.class, true);
-        finalTi = runtime.getFullyQualified(Final.class, true);
+        TypeInfo finalTi = runtime.getFullyQualified(Final.class, true);
         TypeInfo containerTi = runtime.getFullyQualified(Container.class, true);
         immutableContainerTi = runtime.getFullyQualified(ImmutableContainer.class, true);
         finalAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(finalTi).build();
@@ -208,28 +195,29 @@ public class DecoratorImpl implements Qualification.Decorator {
 
         List<AnnotationProperty> list = new ArrayList<>();
         if (propertyFinalField != null) {
-            needFinalImport = true;
+            importsNeeded.add(Final.class);
             list.add(new AnnotationProperty(finalAnnotation, propertyFinalField));
         }
         if (propertyIdentity != null) {
-            needIdentityImport = true;
+            importsNeeded.add(Identity.class);
             list.add(new AnnotationProperty(identityAnnotation, propertyIdentity));
         }
         if (propertyFluent != null) {
-            needFluentImport = true;
+            importsNeeded.add(Fluent.class);
             list.add(new AnnotationProperty(fluentAnnotation, propertyFluent));
         }
         if (propertyIgnoreModifications != null) {
+            importsNeeded.add(IgnoreModifications.class);
             list.add(new AnnotationProperty(ignoreModifications, propertyIgnoreModifications));
         }
         if (propertyImmutable != null && immutable != null && !immutable.isMutable()) {
             TypeInfo ti;
             if (propertyContainer != null) {
                 ti = immutableContainerTi;
-                this.needImmutableContainerImport = true;
+                importsNeeded.add(ImmutableContainer.class);
             } else {
                 ti = immutableTi;
-                this.needImmutableImport = true;
+                importsNeeded.add(Immutable.class);
             }
             AnnotationExpression.Builder b = runtime.newAnnotationExpressionBuilder().setTypeInfo(ti);
             if (immutable.isImmutableHC()) {
@@ -237,11 +225,11 @@ public class DecoratorImpl implements Qualification.Decorator {
             }
             list.add(new AnnotationProperty(b.build(), propertyImmutable));
         } else if (propertyContainer != null) {
-            needContainerImport = true;
+            importsNeeded.add(Container.class);
             list.add(new AnnotationProperty(containerAnnotation, propertyContainer));
         }
         if (propertyIndependent != null && independent != null && !independent.isDependent()) {
-            this.needIndependentImport = true;
+            importsNeeded.add(Independent.class);
             AnnotationExpression.Builder b = runtime.newAnnotationExpressionBuilder().setTypeInfo(independentTi);
 
             if (linkToParametersReturnValue != null && !linkToParametersReturnValue.isEmpty()) {
@@ -273,11 +261,11 @@ public class DecoratorImpl implements Qualification.Decorator {
             list.add(new AnnotationProperty(b.build(), propertyIndependent));
         }
         if (propertyUnmodified != null) {
-            this.needUnmodifiedImport = true;
+            importsNeeded.add(NotModified.class);
             list.add(new AnnotationProperty(notModifiedAnnotation, propertyUnmodified));
         }
         if (notNull != null && !notNull.isNullable()) {
-            this.needNotNullImport = true;
+            importsNeeded.add(NotNull.class);
             AnnotationExpression.Builder b = runtime.newAnnotationExpressionBuilder().setTypeInfo(notNullTi);
             if (notNull.equals(ValueImpl.NotNullImpl.CONTENT_NOT_NULL)) {
                 b.addKeyValuePair("content", runtime.constantTrue());
@@ -285,7 +273,7 @@ public class DecoratorImpl implements Qualification.Decorator {
             list.add(new AnnotationProperty(b.build(), propertyNotNull));
         }
         if (propertyUtilityClass != null) {
-            this.needUtilityClassImport = true;
+            importsNeeded.add(UtilityClass.class);
             list.add(new AnnotationProperty(utilityClassAnnotation, propertyUtilityClass));
         }
         return list;
@@ -313,40 +301,10 @@ public class DecoratorImpl implements Qualification.Decorator {
         return independent;
     }
 
-
     @Override
     public List<ImportStatement> importStatements() {
-        List<ImportStatement> list = new ArrayList<>();
-        if (needContainerImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(containerAnnotation.typeInfo().fullyQualifiedName()).build());
-        }
-        if (needFinalImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(finalTi.fullyQualifiedName()).build());
-        }
-        if (needFluentImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(fluentAnnotation.typeInfo().fullyQualifiedName()).build());
-        }
-        if (needIdentityImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(identityAnnotation.typeInfo().fullyQualifiedName()).build());
-        }
-        if (needIndependentImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(independentTi.fullyQualifiedName()).build());
-        }
-        if (needImmutableImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(immutableTi.fullyQualifiedName()).build());
-        }
-        if (needImmutableContainerImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(immutableContainerTi.fullyQualifiedName()).build());
-        }
-        if (needNotNullImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(notNullTi.fullyQualifiedName()).build());
-        }
-        if (needUnmodifiedImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(notModifiedTi.fullyQualifiedName()).build());
-        }
-        if (needUtilityClassImport) {
-            list.add(runtime.newImportStatementBuilder().setImport(utilityClassAnnotation.typeInfo().fullyQualifiedName()).build());
-        }
-        return list;
+        return importsNeeded.stream().map(Class::getCanonicalName).sorted()
+                .map(s -> runtime.newImportStatementBuilder().setImport(s).build())
+                .toList();
     }
 }
