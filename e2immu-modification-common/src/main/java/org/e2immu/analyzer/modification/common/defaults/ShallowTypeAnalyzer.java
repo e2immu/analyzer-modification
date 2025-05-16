@@ -47,8 +47,7 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         typeInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
         Map<Info, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
         boolean isExtensible = typeInfo.isExtensible();
-        List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);
-        Map<Property, Value> map = annotationsToMap(typeInfo, annotations);
+        List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);Map<Property, Value> map = annotationsToMap(typeInfo, annotations);
 
         map.putIfAbsent(CONTAINER_TYPE, FALSE);
         Value.Immutable imm = (Value.Immutable) map.get(IMMUTABLE_TYPE);

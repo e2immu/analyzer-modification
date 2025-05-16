@@ -77,6 +77,7 @@ class AnnotationToProperty {
         Value.CommutableData commutableData = null;
         Value.VariableBooleanMap modifiedComponents = null;
         Value.Bool staticSideEffects = null;
+        Value.Bool utilityClass = null;
 
         for (AnnotationExpression ae : annotations) {
             boolean isAbsent = ae.extractBoolean("absent");
@@ -121,7 +122,8 @@ class AnnotationToProperty {
                     if (map.isEmpty()) {
                         independent = hc ? ValueImpl.IndependentImpl.INDEPENDENT_HC : ValueImpl.IndependentImpl.INDEPENDENT;
                     } else {
-                        independent = new ValueImpl.IndependentImpl(hc ? 1 : 0, map);
+                        boolean hcFromMap = map.values().stream().anyMatch(v -> v == 1);
+                        independent = new ValueImpl.IndependentImpl(hcFromMap ? 1 : 0, map);
                     }
                 }
             } else if (NotModified.class.getCanonicalName().equals(fqn)) {
@@ -193,7 +195,7 @@ class AnnotationToProperty {
             } else if (UtilityClass.class.getCanonicalName().equals(fqn)) {
                 immutable = ValueImpl.ImmutableImpl.IMMUTABLE;
                 independent = ValueImpl.IndependentImpl.INDEPENDENT;
-                //extensible = ValueImpl.BoolImpl.FALSE;
+                utilityClass = valueForTrue;
             } else if (AllowsInterrupt.class.getCanonicalName().equals(fqn)) {
                 allowInterrupt = valueForTrue;
             } else if (StaticSideEffects.class.getCanonicalName().equals(fqn)) {
@@ -213,6 +215,7 @@ class AnnotationToProperty {
                 map.put(PropertyImpl.INDEPENDENT_TYPE, independent);
             }
             if (container != null) map.put(PropertyImpl.CONTAINER_TYPE, container);
+            if (utilityClass != null) map.put(PropertyImpl.UTILITY_CLASS, utilityClass);
             return map;
         }
         if (info instanceof MethodInfo) {
