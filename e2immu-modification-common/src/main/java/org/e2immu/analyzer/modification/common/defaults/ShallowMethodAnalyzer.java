@@ -273,15 +273,15 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
                         ? DEFAULT_FALSE : computeMethodIdentity(methodInfo));
             }
 
-            ValueOrigin staticSideEffects = map.get(STATIC_SIDE_EFFECTS_METHOD);
-            if (staticSideEffects != null) {
-                if (staticSideEffects.valueAsBool().isTrue() && explicitlyEmpty) {
+            ValueOrigin ignoreModification = map.get(IGNORE_MODIFICATION_METHOD);
+            if (ignoreModification != null) {
+                if (ignoreModification.valueAsBool().isTrue() && explicitlyEmpty) {
                     messages.add(MessageImpl.warn(methodInfo,
-                            "Impossible! how can a method without statements be @StaticSideEffects?"));
+                            "Impossible! how can a method without statements need @IgnoreModifications?"));
                 }
             } else {
-                map.put(STATIC_SIDE_EFFECTS_METHOD, explicitlyEmpty ? DEFAULT_FALSE
-                        : computeStaticSideEffects(methodInfo));
+                map.put(IGNORE_MODIFICATION_METHOD, explicitlyEmpty ? DEFAULT_FALSE
+                        : computeIgnoreModificationMethod(methodInfo));
             }
 
             ValueOrigin nonModifying = map.get(NON_MODIFYING_METHOD);
@@ -460,10 +460,6 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
 
     private ValueOrigin computeMethodNonModifying(MethodInfo methodInfo, Map<Property, ValueOrigin> map) {
         if (methodInfo.isConstructor()) return DEFAULT_FALSE; // almost by default, constructors modify the fields
-        ValueOrigin sse = map.get(STATIC_SIDE_EFFECTS_METHOD);
-        if (sse != null && sse.valueAsBool().isTrue()) {
-            return FROM_METHOD_TRUE; // static side effects do not make modifications
-        }
         ValueOrigin fluent = map.get(FLUENT_METHOD);
         if (fluent != null && fluent.valueAsBool().isTrue()) return DEFAULT_FALSE; // modifying--what else would it do?
         boolean nonStaticVoid = !methodInfo.isStatic() && methodInfo.noReturnValue();
@@ -485,8 +481,8 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         return commonBooleanFromOverride(IDENTITY_METHOD, methodInfo);
     }
 
-    private ValueOrigin computeStaticSideEffects(MethodInfo methodInfo) {
-        return commonBooleanFromOverride(STATIC_SIDE_EFFECTS_METHOD, methodInfo);
+    private ValueOrigin computeIgnoreModificationMethod(MethodInfo methodInfo) {
+        return commonBooleanFromOverride(IGNORE_MODIFICATION_METHOD, methodInfo);
     }
 
     private ValueOrigin computeAllowInterrupt(MethodInfo methodInfo) {

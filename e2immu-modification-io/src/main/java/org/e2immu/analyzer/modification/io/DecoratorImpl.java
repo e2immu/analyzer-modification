@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.io;
 
 import org.e2immu.annotation.*;
+import org.e2immu.annotation.rare.IgnoreModifications;
 import org.e2immu.annotation.type.UtilityClass;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
@@ -34,6 +35,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final TypeInfo finalTi;
     private final TypeInfo immutableContainerTi;
     private final TypeInfo notNullTi;
+    private final AnnotationExpression ignoreModifications;
     private final AnnotationExpression identityAnnotation;
     private final AnnotationExpression fluentAnnotation;
     private final AnnotationExpression finalAnnotation;
@@ -76,6 +78,8 @@ public class DecoratorImpl implements Qualification.Decorator {
         this.translationMap = translationMap;
         TypeInfo utilityClassTi = runtime.getFullyQualified(UtilityClass.class, true);
         utilityClassAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(utilityClassTi).build();
+        TypeInfo ignoreModsTi = runtime.getFullyQualified(IgnoreModifications.class, true);
+        ignoreModifications = runtime.newAnnotationExpressionBuilder().setTypeInfo(ignoreModsTi).build();
     }
 
     @Override
@@ -111,6 +115,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         Property propertyNotNull;
         PropertyValueMap analysis = info.analysis();
         Property propertyUtilityClass;
+        Property propertyIgnoreModifications;
         switch (info) {
             case MethodInfo methodInfo -> {
                 boolean noReturn = methodInfo.isConstructor() || !methodInfo.hasReturnValue();
@@ -135,6 +140,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                         ? NON_MODIFYING_METHOD : null;
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
                 propertyFluent = methodInfo.isFluent() ? FLUENT_METHOD : null;
+                propertyIgnoreModifications = methodInfo.isIgnoreModification() ? IGNORE_MODIFICATION_METHOD : null;
                 propertyContainer = null;
                 propertyFinalField = null;
                 propertyUtilityClass = null;
@@ -147,6 +153,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 independent = independent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT), fieldInfo.type());
                 propertyIndependent = INDEPENDENT_FIELD;
                 propertyFinalField = !fieldInfo.isFinal() && fieldInfo.isPropertyFinal() ? FINAL_FIELD : null;
+                propertyIgnoreModifications = fieldInfo.isIgnoreModifications() ? IGNORE_MODIFICATIONS_FIELD : null;
                 propertyContainer = null;
                 propertyIdentity = null;
                 propertyFluent = null;
@@ -171,6 +178,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyNotNull = NOT_NULL_PARAMETER;
                 notNull = notNull(analysis.getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE), pi.parameterizedType());
                 propertyUtilityClass = null;
+                propertyIgnoreModifications = pi.isIgnoreModifications() ? IGNORE_MODIFICATIONS_PARAMETER : null;
             }
             case TypeInfo typeInfo -> {
                 propertyUnmodified = null;
@@ -193,6 +201,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 notNull = null;
                 propertyNotNull = null;
                 linkToParametersReturnValue = null;
+                propertyIgnoreModifications = null;
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -209,6 +218,9 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (propertyFluent != null) {
             needFluentImport = true;
             list.add(new AnnotationProperty(fluentAnnotation, propertyFluent));
+        }
+        if (propertyIgnoreModifications != null) {
+            list.add(new AnnotationProperty(ignoreModifications, propertyIgnoreModifications));
         }
         if (propertyImmutable != null && immutable != null && !immutable.isMutable()) {
             TypeInfo ti;

@@ -4,7 +4,6 @@ import org.e2immu.annotation.*;
 import org.e2immu.annotation.method.GetSet;
 import org.e2immu.annotation.rare.AllowsInterrupt;
 import org.e2immu.annotation.rare.IgnoreModifications;
-import org.e2immu.annotation.rare.StaticSideEffects;
 import org.e2immu.annotation.type.UtilityClass;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -76,7 +75,6 @@ class AnnotationToProperty {
         Value.GetSetEquivalent getSetEquivalent = null;
         Value.CommutableData commutableData = null;
         Value.VariableBooleanMap modifiedComponents = null;
-        Value.Bool staticSideEffects = null;
         Value.Bool utilityClass = null;
 
         for (AnnotationExpression ae : annotations) {
@@ -198,8 +196,6 @@ class AnnotationToProperty {
                 utilityClass = valueForTrue;
             } else if (AllowsInterrupt.class.getCanonicalName().equals(fqn)) {
                 allowInterrupt = valueForTrue;
-            } else if (StaticSideEffects.class.getCanonicalName().equals(fqn)) {
-                staticSideEffects = valueForTrue;
             }
         }
 
@@ -231,7 +227,7 @@ class AnnotationToProperty {
             if (notNull != null) map.put(PropertyImpl.NOT_NULL_METHOD, notNull);
             if (unmodified != null) map.put(PropertyImpl.NON_MODIFYING_METHOD, unmodified);
             if (allowInterrupt != null) map.put(PropertyImpl.METHOD_ALLOWS_INTERRUPTS, allowInterrupt);
-            if (staticSideEffects != null) map.put(PropertyImpl.STATIC_SIDE_EFFECTS_METHOD, staticSideEffects);
+            if (ignoreModifications != null) map.put(PropertyImpl.IGNORE_MODIFICATION_METHOD, ignoreModifications);
             if (getSetEquivalent != null) map.put(PropertyImpl.GET_SET_EQUIVALENT, getSetEquivalent);
             if (commutableData != null) map.put(PropertyImpl.COMMUTABLE_METHODS, commutableData);
             if (modifiedComponents != null) map.put(PropertyImpl.MODIFIED_COMPONENTS_METHOD, modifiedComponents);
