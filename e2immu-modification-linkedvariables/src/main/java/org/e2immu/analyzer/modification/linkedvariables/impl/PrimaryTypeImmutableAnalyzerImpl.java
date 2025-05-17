@@ -42,7 +42,7 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
     @Override
     public Output go(TypeInfo primaryType, boolean activateCycleBreaking) {
         ComputeImmutable ci = new ComputeImmutable();
-        primaryType.recursiveSubTypeStream().forEach(ti -> go(ti, activateCycleBreaking));
+        primaryType.recursiveSubTypeStream().forEach(ti -> ci.go(ti, activateCycleBreaking));
         return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
     }
 
