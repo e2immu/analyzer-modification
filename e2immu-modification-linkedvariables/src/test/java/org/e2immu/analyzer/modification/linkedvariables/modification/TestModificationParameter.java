@@ -50,7 +50,7 @@ public class TestModificationParameter extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo methodInfo = X.findUniqueMethod("method", 5);
         ParameterInfo dest = methodInfo.parameters().get(0);
 
@@ -81,7 +81,7 @@ public class TestModificationParameter extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo methodInfo = X.findUniqueMethod("readFully", 1);
         ParameterInfo reader = methodInfo.parameters().get(0);
 

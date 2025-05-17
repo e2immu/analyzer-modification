@@ -123,12 +123,6 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     @Override
-    public boolean isModified() {
-        Value.Bool unmodified = analysis.getOrNull(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.class);
-        return unmodified != null && unmodified.isFalse();
-    }
-
-    @Override
     public VariableData variableInfoInClosure() {
         return variableInClosure;
     }

@@ -76,7 +76,7 @@ public class TestAssignToField extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo A = X.findSubType("A");
         MethodInfo constructorA = A.findConstructor(2);

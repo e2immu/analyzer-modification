@@ -59,7 +59,7 @@ public class TestModificationField extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo bufferedReader = javaInspector.compiledTypesManager().get(BufferedReader.class);
         assertTrue(bufferedReader.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
@@ -70,7 +70,7 @@ public class TestModificationField extends CommonTest {
         MethodInfo fastForward = X.findUniqueMethod("fastForward", 2);
         FieldInfo buffRead = X.getFieldByName("buffRead", true);
 
-        Statement s200 = fastForward.methodBody().statements().get(2).block().statements().get(0);
+        Statement s200 = fastForward.methodBody().statements().get(2).block().statements().getFirst();
         VariableData vd200 = VariableDataImpl.of(s200);
         VariableInfo vi200BuffRead = vd200.variableInfo(runtime.newFieldReference(buffRead));
         assertTrue(vi200BuffRead.isModified());
@@ -166,7 +166,7 @@ public class TestModificationField extends CommonTest {
                 field:status, method:<init>, method:err, method:read, method:readBlock, method:readNetscapeExt, \
                 type:X""", simpleOrder);
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         FieldInfo loopCount = X.getFieldByName("loopCount", true);
         FieldInfo blockSize = X.getFieldByName("blockSize", true);

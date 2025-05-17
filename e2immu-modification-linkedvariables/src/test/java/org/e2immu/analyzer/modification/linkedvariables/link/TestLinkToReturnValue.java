@@ -36,7 +36,7 @@ public class TestLinkToReturnValue extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         TypeInfo clazz = javaInspector.compiledTypesManager().get(Class.class);
         assertTrue(clazz.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isImmutable());

@@ -5,8 +5,6 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 
 import java.util.List;
 
-public interface MethodModAnalyzerForTesting {
-    List<Throwable> doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder);
-
+public interface ModAnalyzerForTesting {
     List<Throwable> go(List<Info> analysisOrder);
 }

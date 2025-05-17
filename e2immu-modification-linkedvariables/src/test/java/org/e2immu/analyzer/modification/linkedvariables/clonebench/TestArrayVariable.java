@@ -43,7 +43,7 @@ public class TestArrayVariable extends CommonTest {
     public void test1() {
         TypeInfo C = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(C);
-        analyzer.doPrimaryType(C, ao);
+        analyzer.go(ao);
         MethodInfo put = C.findUniqueMethod("put", 3);
         ParameterInfo put0 = put.parameters().get(0);
 
@@ -91,6 +91,6 @@ public class TestArrayVariable extends CommonTest {
     public void test2() {
         TypeInfo C = javaInspector.parse(INPUT2);
         List<Info> ao = prepWork(C);
-        analyzer.doPrimaryType(C, ao);
+        analyzer.go(ao);
     }
 }

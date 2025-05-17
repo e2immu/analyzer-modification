@@ -43,7 +43,7 @@ public class TestModificationViaArrayElementAssignment extends CommonTest {
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
 
         MethodInfo insertInOrder = B.findUniqueMethod("insertInOrder", 4);
         assertTrue(insertInOrder.parameters().get(1).isModified());

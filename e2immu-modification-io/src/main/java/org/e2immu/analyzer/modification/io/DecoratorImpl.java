@@ -1,6 +1,8 @@
 package org.e2immu.analyzer.modification.io;
 
 import org.e2immu.annotation.*;
+import org.e2immu.annotation.rare.AllowsInterrupt;
+import org.e2immu.annotation.rare.Finalizer;
 import org.e2immu.annotation.rare.IgnoreModifications;
 import org.e2immu.annotation.type.UtilityClass;
 import org.e2immu.language.cst.api.analysis.Property;
@@ -37,6 +39,8 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final AnnotationExpression finalAnnotation;
     private final AnnotationExpression containerAnnotation;
     private final AnnotationExpression utilityClassAnnotation;
+    private final AnnotationExpression allowInterruptAnnotation;
+    private final AnnotationExpression finalizerAnnotation;
 
     private final Set<Class<?>> importsNeeded = new HashSet<>();
 
@@ -67,6 +71,10 @@ public class DecoratorImpl implements Qualification.Decorator {
         utilityClassAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(utilityClassTi).build();
         TypeInfo ignoreModsTi = runtime.getFullyQualified(IgnoreModifications.class, true);
         ignoreModifications = runtime.newAnnotationExpressionBuilder().setTypeInfo(ignoreModsTi).build();
+        TypeInfo allowInterruptTi = runtime.getFullyQualified(AllowsInterrupt.class, true);
+        allowInterruptAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(allowInterruptTi).build();
+        TypeInfo finalizerTi = runtime.getFullyQualified(Finalizer.class, true);
+        finalizerAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(finalizerTi).build();
     }
 
     @Override
@@ -98,11 +106,13 @@ public class DecoratorImpl implements Qualification.Decorator {
         Property propertyContainer;
         Property propertyIdentity;
         Property propertyFluent;
+        Property propertyFinalizer;
         Value.NotNull notNull;
         Property propertyNotNull;
         PropertyValueMap analysis = info.analysis();
         Property propertyUtilityClass;
         Property propertyIgnoreModifications;
+        Property propertyAllowInterrupt;
         switch (info) {
             case MethodInfo methodInfo -> {
                 boolean noReturn = methodInfo.isConstructor() || !methodInfo.hasReturnValue();
@@ -128,6 +138,9 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
                 propertyFluent = methodInfo.isFluent() ? FLUENT_METHOD : null;
                 propertyIgnoreModifications = methodInfo.isIgnoreModification() ? IGNORE_MODIFICATION_METHOD : null;
+                propertyAllowInterrupt = methodInfo.allowsInterrupts() ? METHOD_ALLOWS_INTERRUPTS : null;
+                propertyFinalizer = methodInfo.analysis().getOrDefault(FINALIZER_METHOD, FALSE).isTrue()
+                        ? FINALIZER_METHOD : null;
                 propertyContainer = null;
                 propertyFinalField = null;
                 propertyUtilityClass = null;
@@ -144,10 +157,12 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyContainer = null;
                 propertyIdentity = null;
                 propertyFluent = null;
+                propertyAllowInterrupt = null;
                 propertyNotNull = NOT_NULL_FIELD;
                 notNull = notNull(analysis.getOrDefault(NOT_NULL_FIELD, ValueImpl.NotNullImpl.NULLABLE), fieldInfo.type());
                 linkToParametersReturnValue = null;
                 propertyUtilityClass = null;
+                propertyFinalizer = null;
             }
             case ParameterInfo pi -> {
                 propertyUnmodified = !pi.parameterizedType().isPrimitiveStringClass() &&
@@ -161,11 +176,13 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyFinalField = null;
                 propertyContainer = null;
                 propertyIdentity = null;
+                propertyAllowInterrupt = null;
                 propertyFluent = null;
                 propertyNotNull = NOT_NULL_PARAMETER;
                 notNull = notNull(analysis.getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE), pi.parameterizedType());
                 propertyUtilityClass = null;
                 propertyIgnoreModifications = pi.isIgnoreModifications() ? IGNORE_MODIFICATIONS_PARAMETER : null;
+                propertyFinalizer = null;
             }
             case TypeInfo typeInfo -> {
                 propertyUnmodified = null;
@@ -189,6 +206,8 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyNotNull = null;
                 linkToParametersReturnValue = null;
                 propertyIgnoreModifications = null;
+                propertyAllowInterrupt = null;
+                propertyFinalizer = null;
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -205,6 +224,10 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (propertyFluent != null) {
             importsNeeded.add(Fluent.class);
             list.add(new AnnotationProperty(fluentAnnotation, propertyFluent));
+        }
+        if (propertyAllowInterrupt != null) {
+            importsNeeded.add(AllowsInterrupt.class);
+            list.add(new AnnotationProperty(allowInterruptAnnotation, propertyAllowInterrupt));
         }
         if (propertyIgnoreModifications != null) {
             importsNeeded.add(IgnoreModifications.class);
@@ -275,6 +298,10 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (propertyUtilityClass != null) {
             importsNeeded.add(UtilityClass.class);
             list.add(new AnnotationProperty(utilityClassAnnotation, propertyUtilityClass));
+        }
+        if (propertyFinalizer != null) {
+            importsNeeded.add(Finalizer.class);
+            list.add(new AnnotationProperty(finalizerAnnotation, propertyFinalizer));
         }
         return list;
     }

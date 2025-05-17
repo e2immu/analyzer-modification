@@ -44,6 +44,6 @@ public class TestHCTNotYetLoaded extends CommonTest {
         HiddenContentTypes hct = bigInt.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
         assertEquals("", hct.detailedSortedTypes());
 
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
     }
 }

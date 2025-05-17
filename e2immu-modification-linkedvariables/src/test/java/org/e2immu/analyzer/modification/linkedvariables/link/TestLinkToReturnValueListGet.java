@@ -57,7 +57,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         testLinks(X);
     }
@@ -134,7 +134,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         assertEquals("0=0,1=*", paramHcs.detailed());
 
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         testLinks2(X);
     }
@@ -222,7 +222,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         testLinks3(X);
     }
 
@@ -257,7 +257,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         testLinks3(X);
     }
 

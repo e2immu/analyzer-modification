@@ -87,7 +87,7 @@ public class TestReadFieldReferences extends CommonTest {
         {
             TypeInfo loop = javaInspector.parse(loopJava);
             List<Info> analysisOrder = prepWork(loop);
-            analyzer.doPrimaryType(loop, analysisOrder);
+            analyzer.go(analysisOrder);
         }
         {
             TypeInfo X = javaInspector.parse(INPUT);
@@ -111,7 +111,7 @@ public class TestReadFieldReferences extends CommonTest {
                     new Builder()).build()\
                     """, lvc1.localVariable().assignmentExpression().translate(new ApplyGetSetTranslation(runtime)).toString());
 
-            analyzer.doPrimaryType(X, analysisOrder);
+            analyzer.go(analysisOrder);
         }
     }
 }

@@ -39,7 +39,7 @@ public class TestStaticValuesMerge extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));
@@ -74,7 +74,7 @@ public class TestStaticValuesMerge extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));

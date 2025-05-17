@@ -64,7 +64,7 @@ public class TestCloneBench extends CommonTest {
         TypeInfo typeInfo = javaInspector.parse(input);
 
         List<Info> analysisOrder = prepWork(typeInfo);
-        analyzer.doPrimaryType(typeInfo, analysisOrder);
+        analyzer.go(analysisOrder);
         String printed = javaInspector.print2(typeInfo);
         Files.writeString(outFile.toPath(), printed, StandardCharsets.UTF_8);
 

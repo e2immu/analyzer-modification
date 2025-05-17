@@ -43,7 +43,7 @@ public class TestImmutable extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         TypeInfo R = X.findSubType("R");
         assertTrue(immutable(R).isImmutable());
@@ -98,7 +98,7 @@ public class TestImmutable extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         TypeInfo I = X.findSubType("I");
         assertTrue(immutable(I).isImmutableHC());
@@ -147,7 +147,7 @@ public class TestImmutable extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         TypeInfo Pair = X.findSubType("Pair");
         Value.Immutable immutablePair = immutable(Pair);
@@ -223,7 +223,7 @@ public class TestImmutable extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         TypeInfo Continue = X.findSubType("Continue");
         Value.Immutable immutableContinue = immutable(Continue);

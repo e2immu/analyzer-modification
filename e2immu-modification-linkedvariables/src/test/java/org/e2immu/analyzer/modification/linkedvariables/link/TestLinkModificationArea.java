@@ -40,7 +40,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo M = X.findSubType("M");
         assertTrue(M.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
         assertTrue(M.isExtensible());
@@ -81,7 +81,7 @@ public class TestLinkModificationArea extends CommonTest {
         M.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE);
         TypeInfo R = X.findSubType("R");
         R.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         assertFalse(M.isExtensible());
         HiddenContentTypes hctR = R.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("", hctR.detailedSortedTypes());
@@ -123,7 +123,7 @@ public class TestLinkModificationArea extends CommonTest {
         M.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
         TypeInfo R = X.findSubType("R");
         R.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         HiddenContentTypes hctR = R.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=T, 1=M", hctR.detailedSortedTypes());
 
@@ -165,7 +165,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test1d() {
         TypeInfo X = javaInspector.parse(INPUT1d);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo M = X.findSubType("M");
         assertFalse(M.isExtensible());
         TypeInfo R = X.findSubType("R");
@@ -200,7 +200,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test1e() {
         TypeInfo X = javaInspector.parse(INPUT1e);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo M = X.findSubType("M");
         assertTrue(M.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
         assertTrue(M.isExtensible());
@@ -238,7 +238,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo modifyA = X.findUniqueMethod("modifyA", 1);
         ParameterInfo r = modifyA.parameters().get(0);
         {
@@ -301,7 +301,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test2b() {
         TypeInfo X = javaInspector.parse(INPUT2b);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo modifyA = X.findUniqueMethod("modifyA", 1);
         ParameterInfo r = modifyA.parameters().get(0);
         {
@@ -368,7 +368,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo nonNull = X.findUniqueMethod("nonNull", 1);
         assertTrue(nonNull.isIdentity());
 
@@ -418,7 +418,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 2);
         ParameterInfo m1 = method.parameters().get(0);
@@ -475,7 +475,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test4b() {
         TypeInfo X = javaInspector.parse(INPUT4b);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 3);
         ParameterInfo m1 = method.parameters().get(0);

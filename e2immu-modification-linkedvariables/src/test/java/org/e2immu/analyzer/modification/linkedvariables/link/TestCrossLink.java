@@ -60,7 +60,7 @@ public class TestCrossLink extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo readStream = X.findUniqueMethod("readStream", 1);
     }
 
@@ -82,7 +82,7 @@ public class TestCrossLink extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         MethodInfo copy = X.findUniqueMethod("copy", 1);
         LinkedVariables lv = copy.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY);
         //assertEquals("-4-:in", lv.toString());

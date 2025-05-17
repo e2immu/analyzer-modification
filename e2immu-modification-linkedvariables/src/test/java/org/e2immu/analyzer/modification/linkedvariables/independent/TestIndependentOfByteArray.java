@@ -87,7 +87,7 @@ public class TestIndependentOfByteArray extends CommonTest {
         HiddenContentTypes hctReadFully = readFully.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=RandomAccessFile - ", hctReadFully.detailedSortedTypes());
 
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
 
         MethodInfo read = B.findUniqueMethod("read", 3);
         ParameterInfo b = read.parameters().get(0);

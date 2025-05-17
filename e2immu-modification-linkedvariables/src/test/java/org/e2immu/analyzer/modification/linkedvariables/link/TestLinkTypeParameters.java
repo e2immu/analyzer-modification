@@ -78,7 +78,7 @@ public class TestLinkTypeParameters extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo create0 = X.findUniqueMethod("create0", 2);
         assertEquals("0-4-*:x, 1-4-*:y", lvs(create0));
@@ -212,7 +212,7 @@ public class TestLinkTypeParameters extends CommonTest {
         Pair.analysis().set(IMMUTABLE_TYPE, MUTABLE);
 
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo bnn1 = X.findUniqueMethod("bothNotNull1", 1);
         {
@@ -321,7 +321,7 @@ public class TestLinkTypeParameters extends CommonTest {
     public void test2b() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo R = X.findSubType("R");
         assertFalse(R.isExtensible());

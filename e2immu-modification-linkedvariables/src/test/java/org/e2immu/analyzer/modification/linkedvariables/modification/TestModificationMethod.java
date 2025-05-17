@@ -56,7 +56,7 @@ public class TestModificationMethod extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         Value.SetOfInfo poc = X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION);
         MethodInfo methodInfo = X.findUniqueMethod("method", 1);
         assertFalse(poc.infoSet().contains(methodInfo));

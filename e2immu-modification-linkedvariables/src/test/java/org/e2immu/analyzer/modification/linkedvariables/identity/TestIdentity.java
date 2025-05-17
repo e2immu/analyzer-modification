@@ -43,7 +43,7 @@ public class TestIdentity extends CommonTest {
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
     }
 
 
@@ -70,7 +70,7 @@ public class TestIdentity extends CommonTest {
     public void test2() {
         TypeInfo B = javaInspector.parse(INPUT2);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
 
         MethodInfo method = B.findUniqueMethod("method", 1);
         VariableData vd = VariableDataImpl.of(method.methodBody().lastStatement());
@@ -112,7 +112,7 @@ public class TestIdentity extends CommonTest {
     public void test3() {
         TypeInfo B = javaInspector.parse(INPUT3);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
 
         MethodInfo method = B.findUniqueMethod("method", 2);
         VariableData vd = VariableDataImpl.of(method.methodBody().lastStatement());
@@ -147,7 +147,7 @@ public class TestIdentity extends CommonTest {
     public void test4() {
         TypeInfo B = javaInspector.parse(INPUT4);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
 
         MethodInfo method = B.findUniqueMethod("add", 2);
         VariableData vd = VariableDataImpl.of(method.methodBody().lastStatement());
@@ -171,7 +171,7 @@ public class TestIdentity extends CommonTest {
     public void test5() {
         TypeInfo B = javaInspector.parse(INPUT5);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
 
         MethodInfo method = B.findUniqueMethod("method", 1);
 

@@ -8,6 +8,8 @@ import org.e2immu.util.internal.util.Trie;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,6 +19,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestWriteAnalysis2 extends CommonTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestWriteAnalysis2.class);
 
     @Language("java")
     private static final String INPUT1 = """
@@ -137,7 +140,7 @@ public class TestWriteAnalysis2 extends CommonTest {
     private void test(String input, String output, String json) throws IOException {
         TypeInfo X = javaInspector.parse(input);
         List<Info> analysisOrder = prepWork(X);
-        methodModAnalyzer.doPrimaryType(X, analysisOrder);
+        modAnalyzer.go(analysisOrder);
 
         String s = javaInspector.print2(X, new DecoratorImpl(runtime), javaInspector.importComputer(4));
         assertEquals(output, s);
@@ -145,7 +148,7 @@ public class TestWriteAnalysis2 extends CommonTest {
         typeTrie.add(X.fullyQualifiedName().split("\\."), X);
         WriteAnalysis writeAnalysis = new WriteAnalysis(runtime);
         File dest = new File("build/json");
-        dest.mkdirs();
+        if(dest.mkdirs()) LOGGER.info("Created {}", dest);
         Codec codec = new LinkedVariablesCodec(runtime).codec();
         writeAnalysis.write(dest, typeTrie, codec);
         String written = Files.readString(new File(dest, "ABX.json").toPath());

@@ -61,7 +61,7 @@ public class TestLinkFunctional extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo m0 = X.findUniqueMethod("m0", 1);
         assertEquals("*-4-0:supplier", lvs(m0));
@@ -151,7 +151,7 @@ public class TestLinkFunctional extends CommonTest {
         HiddenContentTypes hctM3 = m3.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals(" - 0=Stream, 1=M", hctM3.detailedSortedTypes());
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         // link to T which gets modifying M, and predicate (also modifying)
         assertEquals("0M-2-0M:stream", lvs(m3));
@@ -217,7 +217,7 @@ public class TestLinkFunctional extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo mPredicate = X.findUniqueMethod("mPredicate", 2);
         assertEquals("", lvs(mPredicate));
@@ -296,7 +296,7 @@ public class TestLinkFunctional extends CommonTest {
         assertEquals("1=0,2=*", m1.analysis().getOrNull(HiddenContentSelector.HCS_METHOD,
                 HiddenContentSelector.class).detailed());
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         // there is no means of connecting X to Y at this point (not without knowledge of Function!)
         // the result of the method is of type Stream<T>, so it cannot link to the hidden content of Function.
@@ -362,7 +362,7 @@ public class TestLinkFunctional extends CommonTest {
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo m1 = X.findUniqueMethod("m1", 2);
         assertEquals("-1-:out", lvs(m1));
@@ -478,7 +478,7 @@ public class TestLinkFunctional extends CommonTest {
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo m1 = X.findUniqueMethod("m1", 1);
         assertEquals("0-4-0:supplier", lvs(m1));

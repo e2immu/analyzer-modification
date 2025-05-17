@@ -64,7 +64,7 @@ public class TestModificationFunctional extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(FALSE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
@@ -151,7 +151,7 @@ public class TestModificationFunctional extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(FALSE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
@@ -210,7 +210,7 @@ public class TestModificationFunctional extends CommonTest {
     public void test2b() {
         TypeInfo X = javaInspector.parse(INPUT2b);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
         assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
@@ -295,7 +295,7 @@ public class TestModificationFunctional extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo R = X.findSubType("R");
         FieldInfo functionInR = R.getFieldByName("function", true);
         assertTrue(functionInR.isSynthetic());

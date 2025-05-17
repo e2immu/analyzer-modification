@@ -36,7 +36,7 @@ public class TestLinkArrays extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 2);
         ParameterInfo t = method.parameters().get(0);
@@ -84,7 +84,7 @@ public class TestLinkArrays extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo I = X.findSubType("I");
         assertTrue(I.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class).isMutable());
 
@@ -151,7 +151,7 @@ public class TestLinkArrays extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method1 = X.findUniqueMethod("method1", 2);
         testCommon23(method1);
@@ -209,7 +209,7 @@ public class TestLinkArrays extends CommonTest {
     public void test4() {
         TypeInfo B = javaInspector.parse(INPUT4);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
         MethodInfo transpose = B.findUniqueMethod("transpose", 1);
         ParameterInfo a = transpose.parameters().get(0);
         {

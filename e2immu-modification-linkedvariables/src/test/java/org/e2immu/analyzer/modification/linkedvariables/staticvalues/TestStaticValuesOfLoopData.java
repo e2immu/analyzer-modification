@@ -83,7 +83,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         TypeInfo loop = javaInspector.parse(loopJava);
         {
             List<Info> analysisOrder = prepWork(loop);
-            analyzer.doPrimaryType(loop, analysisOrder);
+            analyzer.go(analysisOrder);
         }
 
         testRun(loop);
@@ -92,7 +92,7 @@ public class TestStaticValuesOfLoopData extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT);
         {
             List<Info> analysisOrder = prepWork(X);
-            analyzer.doPrimaryType(X, analysisOrder);
+            analyzer.go(analysisOrder);
         }
         testModify(X);
         testSwap1(X);

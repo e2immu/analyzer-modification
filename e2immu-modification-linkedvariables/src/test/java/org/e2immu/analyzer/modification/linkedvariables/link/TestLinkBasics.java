@@ -53,7 +53,7 @@ public class TestLinkBasics extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
         VariableData vd = VariableDataImpl.of(setAdd);
@@ -89,7 +89,7 @@ public class TestLinkBasics extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
         Statement s0 = listAdd.methodBody().statements().get(0);
@@ -130,7 +130,7 @@ public class TestLinkBasics extends CommonTest {
 
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         Statement s0 = listAdd.methodBody().statements().get(0);
@@ -191,7 +191,7 @@ public class TestLinkBasics extends CommonTest {
         testArrayListConstructor();
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo methodInfo = X.findUniqueMethod("copy", 1);
         assertEquals(" - 0=T, 1=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
@@ -290,7 +290,7 @@ public class TestLinkBasics extends CommonTest {
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         {
             MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
 
@@ -379,7 +379,7 @@ public class TestLinkBasics extends CommonTest {
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
         ParameterInfo list = listAdd.parameters().get(0);
@@ -454,7 +454,7 @@ public class TestLinkBasics extends CommonTest {
     public void test7() {
         TypeInfo X = javaInspector.parse(INPUT7);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
@@ -507,7 +507,7 @@ public class TestLinkBasics extends CommonTest {
     public void test8() {
         TypeInfo X = javaInspector.parse(INPUT8);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
@@ -564,7 +564,7 @@ public class TestLinkBasics extends CommonTest {
     public void test9() {
         TypeInfo X = javaInspector.parse(INPUT9);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);
@@ -625,7 +625,7 @@ public class TestLinkBasics extends CommonTest {
     public void test10() {
         TypeInfo X = javaInspector.parse(INPUT10);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
         ParameterInfo list = listAdd.parameters().get(0);

@@ -4,8 +4,9 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.e2immu.analyzer.modification.io.LoadAnalyzedPackageFiles;
 import org.e2immu.analyzer.modification.linkedvariables.impl.IteratingAnalyzerImpl;
-import org.e2immu.analyzer.modification.linkedvariables.impl.MethodModAnalyzerForTesting;
+import org.e2immu.analyzer.modification.linkedvariables.impl.ModAnalyzerForTesting;
 import org.e2immu.analyzer.modification.linkedvariables.impl.MethodModAnalyzerImpl;
+import org.e2immu.analyzer.modification.linkedvariables.impl.SingleIterationAnalyzerImpl;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -28,7 +29,7 @@ public class CommonTest {
     protected JavaInspector javaInspector;
     protected Runtime runtime;
     protected final String[] extraClassPath;
-    protected MethodModAnalyzerForTesting analyzer;
+    protected ModAnalyzerForTesting analyzer;
     protected PrepAnalyzer prepAnalyzer;
     protected final boolean storeErrors;
 
@@ -72,7 +73,7 @@ public class CommonTest {
         IteratingAnalyzer.Configuration configuration = new IteratingAnalyzerImpl.ConfigurationBuilder()
                 .setStoreErrors(storeErrors)
                 .build();
-        analyzer = new MethodModAnalyzerImpl(runtime, configuration);
+        analyzer = new SingleIterationAnalyzerImpl(runtime, configuration);
     }
 
     protected List<Info> prepWork(TypeInfo typeInfo) {

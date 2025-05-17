@@ -48,7 +48,7 @@ import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
-public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyzerForTesting {
+public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForTesting {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodModAnalyzerImpl.class);
     private static final Logger LOGGER_GRAPH = LoggerFactory.getLogger("graph-algorithm");
 
@@ -481,20 +481,6 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, MethodModAnalyz
                     .toList();
             return linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge).remove(v -> !vdMerge.isKnown(v.fullyQualifiedName()));
         }
-    }
-
-    /*
-    the information flow is fixed, because it is a single pass system:
-
-    - analyze the method's statements, and copy what is possible to the parameters and the method
-    - analyze the fields and their initializers
-    - copy from fields to parameters where relevant
-
-     */
-    @Override
-    public List<Throwable> doPrimaryType(TypeInfo primaryType, List<Info> analysisOrder) {
-        LOGGER.debug("Start primary type {}", primaryType);
-        return go(analysisOrder);
     }
 
     /*

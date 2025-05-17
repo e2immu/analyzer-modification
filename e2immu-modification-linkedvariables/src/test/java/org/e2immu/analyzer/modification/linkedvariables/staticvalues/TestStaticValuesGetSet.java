@@ -57,7 +57,7 @@ public class TestStaticValuesGetSet extends CommonTest {
     public void test() {
         TypeInfo X = javaInspector.parse(INPUT);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         {
             FieldInfo s = X.getFieldByName("s", true);
@@ -161,7 +161,7 @@ public class TestStaticValuesGetSet extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT_2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         {
             MethodInfo getter = X.findUniqueMethod("getter", 1);
             assertEquals("E=w.r", getter.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());

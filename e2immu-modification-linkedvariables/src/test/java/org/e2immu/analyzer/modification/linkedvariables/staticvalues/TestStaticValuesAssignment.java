@@ -39,7 +39,7 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 0);
         {
@@ -99,7 +99,7 @@ public class TestStaticValuesAssignment extends CommonTest {
             assertEquals("a.b.X.j#scope16-15:16-21, x", vd0.knownVariableNamesToString());
         }
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         FieldInfo fieldJ = X.getFieldByName("j", true);
         MethodInfo setJ = X.findUniqueMethod("setJ", 1);
@@ -166,7 +166,7 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test2b() {
         TypeInfo X = javaInspector.parse(INPUT2b);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         FieldInfo fieldJ = X.getFieldByName("j", true);
         MethodInfo setJ = X.findUniqueMethod("setJ", 1);
@@ -253,7 +253,7 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo builder = X.findSubType("Builder");
         MethodInfo build = builder.findUniqueMethod("build", 0);
@@ -333,7 +333,7 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo R = X.findSubType("R");
         FieldInfo iField = R.getFieldByName("i", true);
@@ -390,7 +390,7 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo R = X.findSubType("R");
         FieldInfo iField = R.getFieldByName("i", true);
@@ -444,7 +444,7 @@ public class TestStaticValuesAssignment extends CommonTest {
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo S = X.findSubType("S");
         TypeInfo T = X.findSubType("T");

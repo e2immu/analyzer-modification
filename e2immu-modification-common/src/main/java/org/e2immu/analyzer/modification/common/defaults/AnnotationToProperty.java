@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.common.defaults;
 import org.e2immu.annotation.*;
 import org.e2immu.annotation.method.GetSet;
 import org.e2immu.annotation.rare.AllowsInterrupt;
+import org.e2immu.annotation.rare.Finalizer;
 import org.e2immu.annotation.rare.IgnoreModifications;
 import org.e2immu.annotation.type.UtilityClass;
 import org.e2immu.language.cst.api.analysis.Property;
@@ -70,6 +71,7 @@ class AnnotationToProperty {
         Value.Bool unmodified = null;
         Value.Bool ignoreModifications = null;
         Value.Bool isFinal = null;
+        Value.Bool finalizer = null;
         Value.FieldValue getSetField = null;
         Value.Bool allowInterrupt = null;
         Value.GetSetEquivalent getSetEquivalent = null;
@@ -196,6 +198,8 @@ class AnnotationToProperty {
                 utilityClass = valueForTrue;
             } else if (AllowsInterrupt.class.getCanonicalName().equals(fqn)) {
                 allowInterrupt = valueForTrue;
+            } else if (Finalizer.class.getCanonicalName().equals(fqn)) {
+                finalizer = valueForTrue;
             }
         }
 
@@ -231,6 +235,7 @@ class AnnotationToProperty {
             if (getSetEquivalent != null) map.put(PropertyImpl.GET_SET_EQUIVALENT, getSetEquivalent);
             if (commutableData != null) map.put(PropertyImpl.COMMUTABLE_METHODS, commutableData);
             if (modifiedComponents != null) map.put(PropertyImpl.MODIFIED_COMPONENTS_METHOD, modifiedComponents);
+            if (finalizer != null) map.put(PropertyImpl.FINALIZER_METHOD, finalizer);
             return map;
         }
         if (info instanceof FieldInfo) {

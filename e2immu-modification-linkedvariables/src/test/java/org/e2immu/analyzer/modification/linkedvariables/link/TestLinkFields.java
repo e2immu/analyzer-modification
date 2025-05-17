@@ -33,7 +33,7 @@ public class TestLinkFields extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         FieldInfo list1 = X.getFieldByName("list1", true);
         assertTrue(list1.isPropertyFinal());
@@ -61,7 +61,7 @@ public class TestLinkFields extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         FieldInfo list1 = X.getFieldByName("list1", true);
         assertTrue(list1.isPropertyFinal());

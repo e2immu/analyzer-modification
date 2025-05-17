@@ -59,7 +59,7 @@ public class TestConsumer extends CommonTest {
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
     }
 
 }

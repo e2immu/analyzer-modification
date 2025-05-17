@@ -37,7 +37,7 @@ public class TestLinkLoop extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("print", 1);
         VariableData vd = VariableDataImpl.of(method);

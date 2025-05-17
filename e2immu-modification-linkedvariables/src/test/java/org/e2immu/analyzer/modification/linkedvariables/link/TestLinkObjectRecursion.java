@@ -58,7 +58,7 @@ public class TestLinkObjectRecursion extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         assertEquals("0=T, 1=LL", LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE).detailedSortedTypes());
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         This thisVar = runtime.newThis(LL.asParameterizedType());
         MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
@@ -120,7 +120,7 @@ public class TestLinkObjectRecursion extends CommonTest {
         TypeInfo LL = X.findSubType("LL");
         assertEquals("0=T, 1=LL", LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE).detailedSortedTypes());
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         assertTrue(LL.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
 
         This thisVar = runtime.newThis(LL.asParameterizedType());
@@ -169,7 +169,7 @@ public class TestLinkObjectRecursion extends CommonTest {
         // we're explicitly setting IMMUTABLE_HC because we cannot compute it yet
         LL.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         This thisVar = runtime.newThis(LL.asParameterizedType());
         MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
@@ -241,7 +241,7 @@ public class TestLinkObjectRecursion extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo function = javaInspector.compiledTypesManager().get(Function.class);
         MethodInfo apply = function.singleAbstractMethod();

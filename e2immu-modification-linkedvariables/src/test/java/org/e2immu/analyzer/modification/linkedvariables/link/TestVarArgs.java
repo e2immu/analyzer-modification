@@ -37,7 +37,7 @@ public class TestVarArgs extends CommonTest {
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
         MethodInfo closeAndIgnoreErrors = B.findUniqueMethod("closeAndIgnoreErrors", 1);
 
         assertEquals("X", closeAndIgnoreErrors.analysis()
@@ -74,7 +74,7 @@ public class TestVarArgs extends CommonTest {
     public void test2() {
         TypeInfo B = javaInspector.parse(INPUT2);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
     }
 
 
@@ -98,6 +98,6 @@ public class TestVarArgs extends CommonTest {
     public void test3() {
         TypeInfo B = javaInspector.parse(INPUT3);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
     }
 }

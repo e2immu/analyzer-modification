@@ -44,7 +44,7 @@ public class TestModificationBasics extends CommonTest {
         List<Info> ao = prepAnalyzer.doPrimaryType(typeInfo);
         IteratingAnalyzer.Configuration configuration = new IteratingAnalyzerImpl.ConfigurationBuilder().build();
         MethodModAnalyzerImpl analyzer = new MethodModAnalyzerImpl(runtime, configuration);
-        analyzer.doPrimaryType(typeInfo, ao);
+        analyzer.go(ao);
     }
 
 }

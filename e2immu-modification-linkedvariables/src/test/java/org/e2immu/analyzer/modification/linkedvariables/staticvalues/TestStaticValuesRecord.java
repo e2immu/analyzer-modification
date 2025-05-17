@@ -48,7 +48,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
         FieldInfo setField = X.getFieldByName("set", true);
         FieldReference setFr = runtime.newFieldReference(setField);
         FieldInfo nField = X.getFieldByName("n", true);
@@ -134,7 +134,7 @@ public class TestStaticValuesRecord extends CommonTest {
                 [a.b.X.<init>(), a.b.X.R.<init>(java.util.Set<String>,int), a.b.X.R.n(), a.b.X.R.set(), a.b.X.R.n, a.b.X.R.set, a.b.X.R, a.b.X.method(java.util.Set<String>), a.b.X]\
                 """, ao.toString());
 
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
@@ -178,7 +178,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
 
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
@@ -231,7 +231,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test3b() {
         TypeInfo X = javaInspector.parse(INPUT3B);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
 
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
@@ -283,7 +283,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> ao = prepWork(X);
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
         LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
         LocalVariable r = rLvc.localVariable();
@@ -351,7 +351,7 @@ public class TestStaticValuesRecord extends CommonTest {
                 new Builder().j=3,new Builder().intList=List.of(0,1),new Builder().stringSet=in,new Builder()\
                 """, lvc0.localVariable().assignmentExpression().translate(tm).toString());
 
-        analyzer.doPrimaryType(X, ao);
+        analyzer.go(ao);
 
         TypeInfo R = X.findSubType("R");
         MethodInfo constructorR = R.findConstructor(3);
@@ -401,7 +401,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test6() {
         TypeInfo X = javaInspector.parse(INPUT6);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo R = X.findSubType("R");
         TypeInfo builder = X.findSubType("Builder");
         MethodInfo build = builder.findUniqueMethod("build", 0);
@@ -494,7 +494,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test7() {
         TypeInfo X = javaInspector.parse(INPUT7);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
@@ -545,7 +545,7 @@ public class TestStaticValuesRecord extends CommonTest {
     public void test8() {
         TypeInfo X = javaInspector.parse(INPUT8);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
@@ -615,7 +615,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
     private void internTest9(TypeInfo X) {
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 3);
         ParameterInfo set = method.parameters().get(0);

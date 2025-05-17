@@ -39,7 +39,7 @@ public class TestLinkCast extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
         VariableData vd = VariableDataImpl.of(setAdd);
@@ -80,7 +80,7 @@ public class TestLinkCast extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
         VariableData vd = VariableDataImpl.of(setAdd);
@@ -131,7 +131,7 @@ public class TestLinkCast extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         // first, test independence of accessors
 

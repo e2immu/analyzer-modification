@@ -70,7 +70,7 @@ public class TestModifiedParameterAnon extends CommonTest {
     public void test1() {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(B);
-        analyzer.doPrimaryType(B, ao);
+        analyzer.go(ao);
         MethodInfo list = B.findUniqueMethod("list", 1);
         MethodCall walkFileTree = (MethodCall) list.methodBody().statements().get(1).expression();
         ConstructorCall cc = (ConstructorCall) walkFileTree.parameterExpressions().get(3);

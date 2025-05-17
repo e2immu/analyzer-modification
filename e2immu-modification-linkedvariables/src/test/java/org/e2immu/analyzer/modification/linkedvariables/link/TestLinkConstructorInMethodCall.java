@@ -68,7 +68,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         FieldInfo exit = loopDataImpl.getFieldByName("exit", true);
         assertTrue(exit.isPropertyFinal());
 
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         testImmutable(X);
 
@@ -158,7 +158,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         testImmutable(X);
 

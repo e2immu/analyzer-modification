@@ -58,7 +58,7 @@ public class TestStaticValuesModification extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo R = X.findSubType("R");
         FieldInfo rSet = R.getFieldByName("set", true);
@@ -175,7 +175,7 @@ public class TestStaticValuesModification extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo R = X.findSubType("R");
         MethodInfo rSet = R.findUniqueMethod("set", 0);
@@ -266,7 +266,7 @@ public class TestStaticValuesModification extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
 
         TypeInfo R = X.findSubType("R");
         assertTrue(R.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.MUTABLE).isMutable());
@@ -414,7 +414,7 @@ public class TestStaticValuesModification extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.doPrimaryType(X, analysisOrder);
+        analyzer.go(analysisOrder);
         TypeInfo R = X.findSubType("R");
         FieldInfo objectsR = R.getFieldByName("objects", true);
         {
