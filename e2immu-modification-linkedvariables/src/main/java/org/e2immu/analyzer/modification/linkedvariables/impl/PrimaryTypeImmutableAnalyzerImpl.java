@@ -158,7 +158,10 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
             if (!isImmIndy.isIndependent) {
                 independent = DEPENDENT;
             }
-            return new ImmIndy(FINAL_FIELDS.min(immutable), independent);
+            if(!isImmIndy.isImmutable) {
+                immutable = FINAL_FIELDS.min(immutable);
+            }
+            return new ImmIndy(immutable, independent);
         }
 
         private record IsImmIndy(boolean isImmutable, boolean isIndependent) {

@@ -56,9 +56,6 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
         private final Set<MethodInfo> waitFor = new HashSet<>();
 
         private void go(FieldInfo fieldInfo) {
-            if (!fieldInfo.isPropertyFinal()) {
-                return;
-            }
             LinkedVariables linkedVariablesDone = fieldInfo.analysis()
                     .getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, LinkedVariablesImpl.class);
             Value.Bool unmodifiedDone = fieldInfo.analysis().getOrNull(PropertyImpl.UNMODIFIED_FIELD,
@@ -119,7 +116,6 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                 Value.FieldValue fieldValue = methodInfo.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD,
                         ValueImpl.GetSetValueImpl.EMPTY);
                 if (!methodInfo.isConstructor() && fieldInfo == fieldValue.field()) {
-                    assert !fieldValue.setter() : "Field cannot be @Final";
                     map.put(runtime.newFieldReference(fieldInfo), LVImpl.LINK_DEPENDENT);
                 } else {
                     assert !methodInfo.methodBody().isEmpty();

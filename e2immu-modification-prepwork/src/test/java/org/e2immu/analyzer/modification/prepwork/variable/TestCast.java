@@ -52,10 +52,10 @@ public class TestCast extends CommonTest {
         List<Info> analysisOrder = analyzer.doPrimaryType(X);
         // Exit should come before ExceptionThrown
         assertEquals("""
-                a.b.X.<init>(), a.b.X.ExceptionThrown.<init>(Exception), a.b.X.ExceptionThrown.exception(), \
-                a.b.X.Exit, a.b.X.I.<init>(), a.b.X.Interface.exception(), a.b.X, a.b.X.ExceptionThrown.exception, \
-                a.b.X.Interface, a.b.X.ExceptionThrown, a.b.X.I.exception(), a.b.X.I.exit, a.b.X.I\
-                """, analysisOrder.stream().map(Info::fullyQualifiedName).collect(Collectors.joining(", ")));
+               a.b.X.<init>(), a.b.X.ExceptionThrown.<init>(Exception), a.b.X.ExceptionThrown.exception(), \
+               a.b.X.Exit, a.b.X.I.<init>(), a.b.X.Interface.exception(), a.b.X.ExceptionThrown.exception, \
+               a.b.X.Interface, a.b.X.ExceptionThrown, a.b.X.I.exception(), a.b.X.I.exit, a.b.X.I, a.b.X\
+               """, analysisOrder.stream().map(Info::fullyQualifiedName).collect(Collectors.joining(", ")));
 
         TypeInfo exceptionThrown = X.findSubType("ExceptionThrown");
         MethodInfo exceptionAccessor = exceptionThrown.findUniqueMethod("exception", 0);
@@ -63,7 +63,7 @@ public class TestCast extends CommonTest {
 
         TypeInfo implementation = X.findSubType("I");
         MethodInfo exception = implementation.findUniqueMethod("exception", 0);
-        Statement s001 = exception.methodBody().statements().get(0).block().statements().get(1);
+        Statement s001 = exception.methodBody().statements().getFirst().block().statements().get(1);
         VariableData vd001 = VariableDataImpl.of(s001);
         assertEquals("a.b.X.ExceptionThrown.exception#et, a.b.X.I.exception(), a.b.X.I.exit, a.b.X.I.this, et",
                 vd001.knownVariableNamesToString());

@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.immutable;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -43,6 +44,12 @@ public class TestImmutable extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(X);
+        assertEquals("""
+                [a.b.X.<init>(), a.b.X.M.<init>(), a.b.X.M.setI(int), a.b.X.R.<init>(String,int), a.b.X.R.i(), \
+                a.b.X.R.s(), a.b.X.RM.i(), a.b.X.RT.<init>(String,T), a.b.X.RT.s(), a.b.X.RT.t(), a.b.X.M.i, a.b.X.R.i, \
+                a.b.X.R.s, a.b.X.RT.s, a.b.X.RT.t, a.b.X.M, a.b.X.R, a.b.X.RT, a.b.X.MF.MF(a.b.X.M), \
+                a.b.X.RM.<init>(a.b.X.M,int), a.b.X.RM.m(), a.b.X.MF.m, a.b.X.RM.i, a.b.X.RM.m, a.b.X.MF, a.b.X.RM, a.b.X]\
+                """, ao.toString());
         analyzer.go(ao);
 
         TypeInfo R = X.findSubType("R");

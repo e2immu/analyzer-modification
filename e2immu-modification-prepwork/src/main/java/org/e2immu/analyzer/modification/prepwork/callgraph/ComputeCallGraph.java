@@ -16,7 +16,6 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -35,6 +34,14 @@ public class ComputeCallGraph {
     private final G.Builder<Info> builder = new G.Builder<>(Long::sum);
     private final Predicate<TypeInfo> externalsToAccept;
 
+    private static final long CODE_STRUCTURE_BITS = 40;
+    private static final long CODE_STRUCTURE = 1L << CODE_STRUCTURE_BITS;
+    private static final long TYPE_HIERARCHY_BITS = 32;
+    private static final long TYPE_HIERARCHY = 1L << TYPE_HIERARCHY_BITS;
+    private static final long TYPES_IN_DECLARATION_BITS = 16;
+    private static final long TYPES_IN_DECLARATION = 1L << TYPES_IN_DECLARATION_BITS;
+    private static final long REFERENCES = 1;
+
     private G<Info> graph;
 
     public ComputeCallGraph(Runtime runtime, TypeInfo primaryType) {
@@ -47,6 +54,19 @@ public class ComputeCallGraph {
         this.runtime = runtime;
         this.primaryTypes = primaryTypes;
         this.externalsToAccept = externalsToAccept;
+    }
+
+    public static String print(G<Info> graph) {
+        return graph.toString(", ", ComputeCallGraph::edgeValuePrinter);
+    }
+
+    public static String edgeValuePrinter(long value) {
+        StringBuilder sb = new StringBuilder();
+        if (value >= CODE_STRUCTURE) sb.append("S");
+        if ((value & (CODE_STRUCTURE - 1)) >= TYPE_HIERARCHY) sb.append("H");
+        if ((value & (TYPE_HIERARCHY - 1)) >= TYPES_IN_DECLARATION) sb.append("D");
+        if ((value & (TYPES_IN_DECLARATION - 1)) >= 1) sb.append("R");
+        return sb.toString();
     }
 
     public ComputeCallGraph go() {
@@ -73,11 +93,25 @@ public class ComputeCallGraph {
 
     /*
     Edge types:
-    A. from type to its methods, fields, interfaces, parent, type-parameter bounds
-    B. from non-static subtype to its enclosing type (this holds for inner classes and anonymous classes, lambdas)
-    C. from method/constructor/field to any type referenced in it, different from the owner (see A, other direction)
+
+    CODE STRUCTURE (follows the AST, cannot cause a cycle)
+
+    A. from type to its methods, fields, enclosing types. From a method or field into its anonymous, lambda, local types.
+
+    TYPE HIERARCHY (can cause cycles together with A, very unwanted)
+
+    B. from a type to its ancestors
+
+    TYPE REFERENCES in DECLARATION, except for hierarchy
+
+    C. from a type to its method parameters,
+       from method/constructor/field to any type referenced in it, different from the owner (see A, other direction)
         this includes the types of method parameters
-    D. from method body/field initializer to any method or field referenced (as method call, constructor call, method reference).
+
+    TYPE, METHOD AND FIELD REFERENCES
+
+    D. from method body/field initializer to any type, method or field referenced (as method call, constructor call,
+       method reference).
 
     FIXME
         we don't want types referenced as static type expressions, or types of 'this' when represents the type itself
@@ -89,31 +123,29 @@ public class ComputeCallGraph {
         builder.addVertex(typeInfo);
 
         typeInfo.subTypes().forEach(st -> {
-            if (!st.isStatic()) {
-                builder.add(st, List.of(typeInfo)); // B
-            }
+            builder.mergeEdge(typeInfo, st, CODE_STRUCTURE); // A
             go(st);
         });
 
-        typeInfo.interfacesImplemented().forEach(pt -> addType(typeInfo, pt)); // A
-        if (typeInfo.parentClass() != null) addType(typeInfo, typeInfo.parentClass()); // A
-        typeInfo.typeParameters().forEach(tp -> tp.typeBounds().forEach(pt -> addType(typeInfo, pt))); // A
+        typeInfo.interfacesImplemented().forEach(pt -> addType(typeInfo, pt, TYPE_HIERARCHY)); // B
+        if (typeInfo.parentClass() != null) addType(typeInfo, typeInfo.parentClass(), TYPE_HIERARCHY); // B
+        typeInfo.typeParameters().forEach(tp -> tp.typeBounds()
+                .forEach(pt -> addType(typeInfo, pt, TYPES_IN_DECLARATION))); // C
 
         typeInfo.constructorAndMethodStream().forEach(mi -> {
-            mi.exceptionTypes().forEach(pt -> addType(mi, pt)); // C
-            mi.parameters().forEach(pi -> addType(mi, pi.parameterizedType())); // C
+            mi.exceptionTypes().forEach(pt -> addType(mi, pt, TYPES_IN_DECLARATION)); // C
+            mi.parameters().forEach(pi -> addType(mi, pi.parameterizedType(), TYPES_IN_DECLARATION)); // C
             if (mi.hasReturnValue()) { // C
-                addType(mi, mi.returnType()); // needed because of immutable computation in independent
+                addType(mi, mi.returnType(), TYPES_IN_DECLARATION); // needed because of immutable computation in independent
             }
 
-            builder.add(typeInfo, List.of(mi)); // A
+            builder.mergeEdge(typeInfo, mi, CODE_STRUCTURE); // A
             Visitor visitor = new Visitor(mi);
             mi.methodBody().visit(visitor); // D
         });
         typeInfo.fields().forEach(fi -> {
-            addType(fi, fi.type()); // C
-            builder.addVertex(fi);
-            builder.add(typeInfo, List.of(fi)); // A
+            addType(fi, fi.type(), TYPES_IN_DECLARATION); // C
+            builder.mergeEdge(typeInfo, fi, CODE_STRUCTURE); // A
             if (fi.initializer() != null && !fi.initializer().isEmpty()) {
                 Visitor visitor = new Visitor(fi);
                 fi.initializer().visit(visitor); // D
@@ -143,7 +175,7 @@ public class ComputeCallGraph {
                 handleFieldAccess(info, fr);
             }
             if (e instanceof LocalVariableCreation lvc) {
-                addType(info, lvc.localVariable().parameterizedType());
+                addType(info, lvc.localVariable().parameterizedType(), REFERENCES);
                 return true; // into assignment expression(s)
             }
             if (e instanceof MethodCall mc) {
@@ -180,8 +212,8 @@ public class ComputeCallGraph {
             }
             if (e instanceof Lambda lambda) {
                 TypeInfo anonymousType = lambda.methodInfo().typeInfo();
-                handleAnonymousType(info, anonymousType); // B
-                handleMethodCall(info, lambda.methodInfo());
+                handleAnonymousType(info, anonymousType);
+                //handleMethodCall(info, lambda.methodInfo()); is this needed?
                 return false;
             }
             return true;
@@ -190,14 +222,14 @@ public class ComputeCallGraph {
 
     private void handleFieldAccess(Info info, FieldReference fr) {
         if (info instanceof MethodInfo mi && mi.typeInfo() == fr.fieldInfo().owner()) {
-            builder.add(fr.fieldInfo(), List.of(info));
+            builder.mergeEdge(fr.fieldInfo(), info, REFERENCES);
         } else {
-            builder.add(info, List.of(fr.fieldInfo()));
+            builder.mergeEdge(info, fr.fieldInfo(), REFERENCES);
         }
     }
 
     private void handleAnonymousType(Info from, TypeInfo anonymousType) {
-        builder.add(anonymousType, List.of(from));
+        builder.mergeEdge(from, anonymousType, CODE_STRUCTURE);
         go(anonymousType);
     }
 
@@ -208,7 +240,7 @@ public class ComputeCallGraph {
             recursive.add(mi);
             recursive.add(to);
         } else if (accept(to.typeInfo())) {
-            builder.add(from, List.of(to)); // D
+            builder.mergeEdge(from, to, REFERENCES);
         }
     }
 
@@ -221,15 +253,15 @@ public class ComputeCallGraph {
         return false;
     }
 
-    private void addType(Info from, ParameterizedType pt) {
+    private void addType(Info from, ParameterizedType pt, long edgeValue) {
         if (!from.typeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
             TypeInfo best = pt.bestTypeInfo();
             if (best != null) {
                 if (best != from && accept(best)) {
-                    builder.add(from, List.of(best));
+                    builder.mergeEdge(from, best, edgeValue);
                 }
                 for (ParameterizedType parameter : pt.parameters()) {
-                    addType(from, parameter);
+                    addType(from, parameter, TYPES_IN_DECLARATION);
                 }
             }
         } // else: avoid links to self, we want the type at the end

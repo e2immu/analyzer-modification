@@ -49,10 +49,10 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.j, a.b.X->1->a.b.X.m1(), a.b.X->1->a.b.X.m2(), \
-                a.b.X->1->a.b.X.recursive(int), a.b.X->1->a.b.X.square(int), a.b.X->1->a.b.X.unused, \
-                a.b.X.j->1->a.b.X.square(int), a.b.X.j->2->a.b.X.m2(), a.b.X.m1()->1->a.b.X.m2()\
-                """, graph.toString());
+                a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.j, a.b.X->S->a.b.X.m1(), a.b.X->S->a.b.X.m2(), \
+                a.b.X->S->a.b.X.recursive(int), a.b.X->S->a.b.X.square(int), a.b.X->S->a.b.X.unused, \
+                a.b.X.j->R->a.b.X.m2(), a.b.X.j->R->a.b.X.square(int), a.b.X.m1()->R->a.b.X.m2()\
+                """, ComputeCallGraph.print(graph));
 
         FieldInfo unused = X.getFieldByName("unused", true);
         assertNotNull(graph.vertex(unused));
@@ -92,9 +92,9 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.method(java.util.List<String>), a.b.X.$0->1->a.b.X.$0.accept(String), \
-                a.b.X.$0->1->a.b.X.method(java.util.List<String>), a.b.X.method(java.util.List<String>)->1->a.b.X.$0.accept(String)\
-                """, graph.toString());
+                a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.method(java.util.List<String>), \
+                a.b.X.$0->S->a.b.X.$0.accept(String), a.b.X.method(java.util.List<String>)->S->a.b.X.$0\
+                """, ComputeCallGraph.print(graph));
 
         // NOTE: at the moment, both the lambda method and 'method' are marked recursive
         assertEquals("[a.b.X.$0.accept(String), a.b.X.method(java.util.List<String>)]",
@@ -103,7 +103,7 @@ public class TestCallGraph extends CommonTest {
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         List<Info> analysisOrder = cao.go(graph);
         assertEquals("""
-                [a.b.X.$0.accept(String), a.b.X.<init>(), a.b.X.method(java.util.List<String>), a.b.X, a.b.X.$0]\
+                [a.b.X.$0.accept(String), a.b.X.<init>(), a.b.X.$0, a.b.X.method(java.util.List<String>), a.b.X]\
                 """, analysisOrder.toString());
     }
 
@@ -145,11 +145,11 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->1->a.b.X.X(int), a.b.X->1->a.b.X.initList(int), a.b.X->1->a.b.X.list, a.b.X->1->a.b.X.print(), \
-                a.b.X->1->a.b.X.rest(), a.b.X->1->a.b.X.sleep(), a.b.X.X(int)->1->a.b.X.initList(int), \
-                a.b.X.X(int)->1->a.b.X.print(), a.b.X.X(int)->1->a.b.X.sleep(), a.b.X.list->2->a.b.X.initList(int), \
-                a.b.X.rest()->1->a.b.X.sleep()\
-                """, graph.toString());
+                a.b.X->S->a.b.X.X(int), a.b.X->S->a.b.X.initList(int), a.b.X->S->a.b.X.list, a.b.X->S->a.b.X.print(), \
+                a.b.X->S->a.b.X.rest(), a.b.X->S->a.b.X.sleep(), a.b.X.X(int)->R->a.b.X.initList(int), \
+                a.b.X.X(int)->R->a.b.X.print(), a.b.X.X(int)->R->a.b.X.sleep(), a.b.X.list->R->a.b.X.initList(int), \
+                a.b.X.rest()->R->a.b.X.sleep()\
+                """, ComputeCallGraph.print(graph));
 
         assertTrue(ccg.recursiveMethods().isEmpty());
 
@@ -180,14 +180,14 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->1->a.b.X.<init>(), a.b.X->1->a.b.X.getZ(), a.b.X->1->a.b.X.z, a.b.X.I->1->a.b.X.I.i(), \
-                a.b.X.Y->1->a.b.X.I, a.b.X.Y->1->a.b.X.Y.<init>(int), a.b.X.Y->1->a.b.X.Y.i, a.b.X.Y->1->a.b.X.Y.i(), \
-                a.b.X.Y.i->1->a.b.X.Y.i(), a.b.X.Y.i->2->a.b.X.Y.<init>(int), a.b.X.Z->1->a.b.X.Z.<init>(a.b.X.Y), \
-                a.b.X.Z->1->a.b.X.Z.y, a.b.X.Z->1->a.b.X.Z.y(), a.b.X.Z.<init>(a.b.X.Y)->1->a.b.X.Y, \
-                a.b.X.Z.y()->1->a.b.X.Y, a.b.X.Z.y->1->a.b.X.Y, a.b.X.Z.y->1->a.b.X.Z.y(), \
-                a.b.X.Z.y->2->a.b.X.Z.<init>(a.b.X.Y), a.b.X.getZ()->1->a.b.X.Z, a.b.X.z->1->a.b.X.Z, \
-                a.b.X.z->1->a.b.X.getZ()\
-                """, graph.toString());
+                a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.I, a.b.X->S->a.b.X.Y, \
+                a.b.X->S->a.b.X.Z, a.b.X->S->a.b.X.getZ(), a.b.X->S->a.b.X.z, a.b.X.I->S->a.b.X.I.i(), \
+                a.b.X.Y->H->a.b.X.I, a.b.X.Y->S->a.b.X.Y.<init>(int), a.b.X.Y->S->a.b.X.Y.i, a.b.X.Y->S->a.b.X.Y.i(), \
+                a.b.X.Y.i->R->a.b.X.Y.<init>(int), a.b.X.Y.i->R->a.b.X.Y.i(), a.b.X.Z->S->a.b.X.Z.<init>(a.b.X.Y), \
+                a.b.X.Z->S->a.b.X.Z.y, a.b.X.Z->S->a.b.X.Z.y(), a.b.X.Z.<init>(a.b.X.Y)->D->a.b.X.Y, \
+                a.b.X.Z.y()->D->a.b.X.Y, a.b.X.Z.y->D->a.b.X.Y, a.b.X.Z.y->R->a.b.X.Z.<init>(a.b.X.Y), \
+                a.b.X.Z.y->R->a.b.X.Z.y(), a.b.X.getZ()->D->a.b.X.Z, a.b.X.z->D->a.b.X.Z, a.b.X.z->R->a.b.X.getZ()\
+                """, ComputeCallGraph.print(graph));
 
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         List<Info> analysisOrder = cao.go(graph);

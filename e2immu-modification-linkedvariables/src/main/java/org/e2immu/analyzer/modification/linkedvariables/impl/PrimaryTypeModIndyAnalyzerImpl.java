@@ -173,6 +173,7 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
             VariableInfoContainer vic = lastOfMainBlock.variableInfoContainerOrNull(variableFqn);
             if (vic == null) return INDEPENDENT; // variable does not occur.
             VariableInfo viRv = vic.best();
+            assert viRv.linkedVariables() != null;
             LV worstLinkToFields = viRv.linkedVariables().stream()
                     .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
                     .map(Map.Entry::getValue)

@@ -57,14 +57,14 @@ public class TestAnalysisOrder extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->1->a.b.X.<init>(), a.b.X.K->1->a.b.X.K.add(String), \
-                a.b.X.KK->1->a.b.X.K, a.b.X.KK->1->a.b.X.KK.get(), a.b.X.L->1->a.b.X.L.get(), \
-                a.b.X.M->1->a.b.X.L, a.b.X.M->1->a.b.X.M.set(int), a.b.X.Nested->1->a.b.X, \
-                a.b.X.Nested->1->a.b.X.Nested.<init>(), a.b.X.Nested->1->a.b.X.Nested.n\
-                """, graph.toString());
+                a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.I, a.b.X->S->a.b.X.J, a.b.X->S->a.b.X.K, a.b.X->S->a.b.X.KK, \
+                a.b.X->S->a.b.X.L, a.b.X->S->a.b.X.M, a.b.X->S->a.b.X.Nested, a.b.X.K->S->a.b.X.K.add(String), \
+                a.b.X.KK->H->a.b.X.K, a.b.X.KK->S->a.b.X.KK.get(), a.b.X.L->S->a.b.X.L.get(), a.b.X.M->H->a.b.X.L, \
+                a.b.X.M->S->a.b.X.M.set(int), a.b.X.Nested->S->a.b.X.Nested.<init>(), a.b.X.Nested->S->a.b.X.Nested.n\
+                """, ComputeCallGraph.print(graph));
         List<Info> analysisOrder = new ComputeAnalysisOrder().go(graph);
         assertEquals("""
-                <init>, I, J, add, get, get, set, <init>, n, X, K, L, KK, M, Nested\
+                <init>, I, J, add, get, get, set, <init>, n, K, L, Nested, KK, M, X\
                 """, analysisOrder.stream().map(Info::simpleName).collect(Collectors.joining(", ")));
     }
 
