@@ -29,6 +29,7 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DE
 public class DecoratorImpl implements Qualification.Decorator {
     private final Runtime runtime;
     private final AnnotationExpression notModifiedAnnotation;
+    private final AnnotationExpression modifiedAnnotation;
     private final TypeInfo immutableTi;
     private final TypeInfo independentTi;
     private final TypeInfo immutableContainerTi;
@@ -54,6 +55,8 @@ public class DecoratorImpl implements Qualification.Decorator {
         this.runtime = runtime;
         TypeInfo notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
         notModifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(notModifiedTi).build();
+        TypeInfo modifiedTi = runtime.getFullyQualified(Modified.class, true);
+        modifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(modifiedTi).build();
         independentTi = runtime.getFullyQualified(Independent.class, true);
         immutableTi = runtime.getFullyQualified(Immutable.class, true);
         TypeInfo finalTi = runtime.getFullyQualified(Final.class, true);
@@ -94,9 +97,14 @@ public class DecoratorImpl implements Qualification.Decorator {
         return annotationAndProperties(info).stream().map(AnnotationProperty::annotationExpression).toList();
     }
 
+    protected boolean isAnnotated(Info info, Property property) {
+        return false;
+    }
+
     protected List<AnnotationProperty> annotationAndProperties(Info infoIn) {
         Info info = translationMap == null ? infoIn : translationMap.getOrDefault(infoIn, infoIn);
         Property propertyUnmodified;
+        Property propertyModifiedAnnotated;
         Value.Immutable immutable;
         Property propertyImmutable;
         Value.Independent independent;
@@ -135,6 +143,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyImmutable = IMMUTABLE_METHOD;
                 propertyUnmodified = !methodInfo.isConstructor() && analysis.getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue()
                         ? NON_MODIFYING_METHOD : null;
+                propertyModifiedAnnotated = null;
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
                 propertyFluent = methodInfo.isFluent() ? FLUENT_METHOD : null;
                 propertyIgnoreModifications = methodInfo.isIgnoreModification() ? IGNORE_MODIFICATION_METHOD : null;
@@ -148,6 +157,7 @@ public class DecoratorImpl implements Qualification.Decorator {
             case FieldInfo fieldInfo -> {
                 propertyUnmodified = !fieldInfo.type().isPrimitiveStringClass()
                                      && analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue() ? UNMODIFIED_FIELD : null;
+                propertyModifiedAnnotated = null;
                 immutable = immutable(analysis.getOrDefault(IMMUTABLE_FIELD, MUTABLE), fieldInfo.type());
                 propertyImmutable = IMMUTABLE_FIELD;
                 independent = independent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT), fieldInfo.type());
@@ -165,8 +175,12 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyFinalizer = null;
             }
             case ParameterInfo pi -> {
-                propertyUnmodified = !pi.parameterizedType().isPrimitiveStringClass() &&
-                                     analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue() ? UNMODIFIED_PARAMETER : null;
+                boolean isUnmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue();
+                propertyUnmodified = !pi.parameterizedType().isPrimitiveStringClass()
+                                     && isUnmodified ? UNMODIFIED_PARAMETER : null;
+                propertyModifiedAnnotated = !pi.parameterizedType().isPrimitiveStringClass()
+                                            && !isUnmodified
+                                            && isAnnotated(pi, UNMODIFIED_PARAMETER) ? UNMODIFIED_PARAMETER : null;
                 immutable = immutable(analysis.getOrDefault(IMMUTABLE_PARAMETER, MUTABLE), pi.parameterizedType());
                 propertyImmutable = IMMUTABLE_PARAMETER;
                 Value.Independent independentValue = analysis.getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT);
@@ -186,6 +200,7 @@ public class DecoratorImpl implements Qualification.Decorator {
             }
             case TypeInfo typeInfo -> {
                 propertyUnmodified = null;
+                propertyModifiedAnnotated = null;
                 immutable = analysis.getOrDefault(IMMUTABLE_TYPE, MUTABLE);
                 independent = nonTrivialIndependentType(analysis.getOrDefault(INDEPENDENT_TYPE, DEPENDENT), immutable);
                 boolean utilityClass = analysis.getOrDefault(UTILITY_CLASS, FALSE).isTrue();
@@ -286,6 +301,10 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (propertyUnmodified != null) {
             importsNeeded.add(NotModified.class);
             list.add(new AnnotationProperty(notModifiedAnnotation, propertyUnmodified));
+        }
+        if (propertyModifiedAnnotated != null) {
+            importsNeeded.add(Modified.class);
+            list.add(new AnnotationProperty(modifiedAnnotation, propertyModifiedAnnotated));
         }
         if (notNull != null && !notNull.isNullable()) {
             importsNeeded.add(NotNull.class);
