@@ -345,17 +345,21 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
             if (ind == null) {
                 map.put(INDEPENDENT_PARAMETER, computeParameterIndependent(parameterInfo, methodMap, map));
             }
+            ValueOrigin ign = map.get(IGNORE_MODIFICATIONS_PARAMETER);
+            ValueOrigin ignComputed;
+            if (ign == null) {
+                ignComputed = computeParameterIgnoreModifications(parameterInfo);
+                map.put(IGNORE_MODIFICATIONS_PARAMETER, ignComputed);
+            } else {
+                ignComputed = ign;
+            }
             ValueOrigin mod = map.get(UNMODIFIED_PARAMETER);
             if (mod == null) {
-                map.put(UNMODIFIED_PARAMETER, computeParameterUnmodified(parameterInfo));
+                map.put(UNMODIFIED_PARAMETER, computeParameterUnmodified(parameterInfo, ignComputed));
             }
             ValueOrigin nn = map.get(NOT_NULL_PARAMETER);
             if (nn == null) {
                 map.put(NOT_NULL_PARAMETER, computeParameterNotNull(parameterInfo));
-            }
-            ValueOrigin ign = map.get(IGNORE_MODIFICATIONS_PARAMETER);
-            if (ign == null) {
-                map.put(IGNORE_MODIFICATIONS_PARAMETER, computeParameterIgnoreModifications(parameterInfo));
             }
             ValueOrigin c = map.get(CONTAINER_PARAMETER);
             if (c == null) {
@@ -372,9 +376,10 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
 
     private ValueOrigin computeParameterIgnoreModifications(ParameterInfo parameterInfo) {
         ParameterizedType pt = parameterInfo.parameterizedType();
-        Value.Bool b = ValueImpl.BoolImpl.from(pt.isFunctionalInterface()
-                                               && "java.util.function".equals(pt.typeInfo().packageName()));
-        return b.isFalse() ? DEFAULT_FALSE : FROM_TYPE_TRUE;
+        boolean ignoreByDefault = pt.isFunctionalInterface()
+                                  && ("java.util.function".equals(pt.typeInfo().packageName())
+                                      || "java.lang.Runnable".equals(pt.typeInfo().fullyQualifiedName()));
+        return ignoreByDefault ? FROM_TYPE_TRUE : DEFAULT_FALSE;
     }
 
     private ValueOrigin computeParameterNotNull(ParameterInfo parameterInfo) {
@@ -395,8 +400,11 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         return fromOverride.isNullable() ? NULLABLE_DEFAULT : NOT_NULL_FROM_OVERRIDE;
     }
 
-    private ValueOrigin computeParameterUnmodified(ParameterInfo parameterInfo) {
+    private ValueOrigin computeParameterUnmodified(ParameterInfo parameterInfo, ValueOrigin ign) {
         MethodInfo methodInfo = parameterInfo.methodInfo();
+        if (((Value.Bool) ign.value()).isTrue()) {
+            return new ValueOrigin(FALSE, ign.origin());
+        }
         Value.Bool typeContainer = methodInfo.typeInfo().analysis().getOrDefault(CONTAINER_TYPE, FALSE);
         if (typeContainer.isTrue()) {
             return FROM_OWNER_TRUE;

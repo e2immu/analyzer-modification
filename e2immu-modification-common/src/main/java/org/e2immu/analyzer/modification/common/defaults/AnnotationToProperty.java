@@ -186,7 +186,7 @@ class AnnotationToProperty {
                     }
                 }
             } else if (Commutable.class.getCanonicalName().equalsIgnoreCase(fqn)) {
-                if (info instanceof MethodInfo methodInfo) {
+                if (info instanceof MethodInfo) {
                     String seq = ae.extractString("seq", "");
                     String par = ae.extractString("par", "");
                     String multi = ae.extractString("multi", "");

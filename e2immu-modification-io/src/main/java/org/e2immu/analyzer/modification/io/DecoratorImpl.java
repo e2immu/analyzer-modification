@@ -34,6 +34,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final TypeInfo independentTi;
     private final TypeInfo immutableContainerTi;
     private final TypeInfo notNullTi;
+    private final TypeInfo commutableTi;
     private final AnnotationExpression ignoreModifications;
     private final AnnotationExpression identityAnnotation;
     private final AnnotationExpression fluentAnnotation;
@@ -78,6 +79,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         allowInterruptAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(allowInterruptTi).build();
         TypeInfo finalizerTi = runtime.getFullyQualified(Finalizer.class, true);
         finalizerAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(finalizerTi).build();
+        commutableTi = runtime.getFullyQualified(Commutable.class, true);
     }
 
     @Override
@@ -121,6 +123,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         Property propertyUtilityClass;
         Property propertyIgnoreModifications;
         Property propertyAllowInterrupt;
+        Value.CommutableData commutableData;
         switch (info) {
             case MethodInfo methodInfo -> {
                 boolean noReturn = methodInfo.isConstructor() || !methodInfo.hasReturnValue();
@@ -150,6 +153,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyAllowInterrupt = methodInfo.allowsInterrupts() ? METHOD_ALLOWS_INTERRUPTS : null;
                 propertyFinalizer = methodInfo.analysis().getOrDefault(FINALIZER_METHOD, FALSE).isTrue()
                         ? FINALIZER_METHOD : null;
+                commutableData = analysis.getOrNull(COMMUTABLE_METHODS, ValueImpl.CommutableDataImpl.class);
                 propertyContainer = null;
                 propertyFinalField = null;
                 propertyUtilityClass = null;
@@ -173,6 +177,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 linkToParametersReturnValue = null;
                 propertyUtilityClass = null;
                 propertyFinalizer = null;
+                commutableData = null;
             }
             case ParameterInfo pi -> {
                 boolean isUnmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue();
@@ -197,6 +202,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyUtilityClass = null;
                 propertyIgnoreModifications = pi.isIgnoreModifications() ? IGNORE_MODIFICATIONS_PARAMETER : null;
                 propertyFinalizer = null;
+                commutableData = null;
             }
             case TypeInfo typeInfo -> {
                 propertyUnmodified = null;
@@ -223,6 +229,7 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyIgnoreModifications = null;
                 propertyAllowInterrupt = null;
                 propertyFinalizer = null;
+                commutableData = null;
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -266,7 +273,8 @@ public class DecoratorImpl implements Qualification.Decorator {
             importsNeeded.add(Container.class);
             list.add(new AnnotationProperty(containerAnnotation, propertyContainer));
         }
-        if (propertyIndependent != null && independent != null && !independent.isDependent()) {
+        if (propertyIndependent != null && independent != null
+            && (!independent.isDependent() || linkToParametersReturnValue != null && !linkToParametersReturnValue.isEmpty())) {
             importsNeeded.add(Independent.class);
             AnnotationExpression.Builder b = runtime.newAnnotationExpressionBuilder().setTypeInfo(independentTi);
 
@@ -321,6 +329,21 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (propertyFinalizer != null) {
             importsNeeded.add(Finalizer.class);
             list.add(new AnnotationProperty(finalizerAnnotation, propertyFinalizer));
+        }
+        if (commutableData != null) {
+            importsNeeded.add(Commutable.class);
+            AnnotationExpression.Builder commutable = runtime.newAnnotationExpressionBuilder()
+                    .setTypeInfo(commutableTi);
+            if (commutableData.multi() != null && !commutableData.multi().isBlank()) {
+                commutable.addKeyValuePair("multi", runtime.newStringConstant(commutableData.multi()));
+            }
+            if (commutableData.par() != null && !commutableData.par().isBlank()) {
+                commutable.addKeyValuePair("par", runtime.newStringConstant(commutableData.par()));
+            }
+            if (commutableData.seq() != null && !commutableData.seq().isBlank()) {
+                commutable.addKeyValuePair("seq", runtime.newStringConstant(commutableData.seq()));
+            }
+            list.add(new AnnotationProperty(commutable.build(), COMMUTABLE_METHODS));
         }
         return list;
     }
