@@ -1,7 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.immutable;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
-import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -14,6 +13,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.INDEPENDENT_TYPE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestImmutable extends CommonTest {
@@ -84,19 +86,30 @@ public class TestImmutable extends CommonTest {
                     void add(String s);
                 }
             
-                // modifying, because K is
+                // modifying, because K is, even if we don't have any data for "int get()"
                 interface KK extends K {
                     int get();
                 }
             
+                // we just don't know
+                interface N {
+                    int get();
+                }
+            
+                // has an implementation
                 interface L {
                     int get();
+                }
+            
+                class LI implements L {
+                    int get() { return 10; }
                 }
             
                 //modifying (implicit in abstract void methods)
                 interface M extends L {
                     void set(int i);
                 }
+            
             }
             """;
 
@@ -109,18 +122,25 @@ public class TestImmutable extends CommonTest {
 
         TypeInfo I = X.findSubType("I");
         assertTrue(immutable(I).isImmutableHC());
+        assertTrue(independent(I).isIndependent());
 
         TypeInfo J = X.findSubType("J");
         assertTrue(immutable(J).isImmutableHC());
+        assertTrue(independent(J).isIndependent());
 
         TypeInfo K = X.findSubType("K");
         MethodInfo add = K.findUniqueMethod("add", 1);
         assertFalse(add.isNonModifying());
 
         assertTrue(immutable(K).isMutable());
+        assertTrue(independent(K).isIndependent());
 
         TypeInfo KK = X.findSubType("KK");
-        assertTrue(immutable(KK).isMutable());
+        assertTrue(immutable(KK).isMutable()); // from extension!
+
+        TypeInfo N = X.findSubType("N");
+        assertNull(immutable(N)); // there is no code
+        assertTrue(N.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isMutable());
 
         TypeInfo L = X.findSubType("L");
         assertTrue(immutable(L).isImmutableHC());
@@ -128,11 +148,15 @@ public class TestImmutable extends CommonTest {
         TypeInfo M = X.findSubType("M");
         MethodInfo mSet = M.findUniqueMethod("set", 1);
         assertTrue(mSet.isModifying());
-        assertTrue(immutable(M).isMutable());
+        assertNull(immutable(M)); // there is no code, and the modification of 'set' is not recorded
     }
 
-    private Value.Immutable immutable(TypeInfo r) {
-        return r.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
+    private static Value.Immutable immutable(TypeInfo r) {
+        return r.analysis().getOrNull(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
+    }
+
+    private static Value.Independent independent(TypeInfo r) {
+        return r.analysis().getOrNull(INDEPENDENT_TYPE, ValueImpl.IndependentImpl.class);
     }
 
 
@@ -177,56 +201,56 @@ public class TestImmutable extends CommonTest {
 
     @Language("java")
     private static final String INPUT4 = """
-        package a.b;
-        public class X {
-            public interface Exit {
-            }
-        
-            public static class Break implements Exit {
-                private final int level;
-        
-                public Break(int level) {
-                    this.level = level;
+            package a.b;
+            public class X {
+                public interface Exit {
+                }
+            
+                public static class Break implements Exit {
+                    private final int level;
+            
+                    public Break(int level) {
+                        this.level = level;
+                    }
+                }
+            
+                public static class Continue implements Exit {
+                    private final int level;
+            
+                    public Continue(int level) {
+                        this.level = level;
+                    }
+            
+                    public int level() {
+                        return level;
+                    }
+                }
+            
+                public static class Return implements Exit {
+                    private final Object value;
+            
+                    public Return(Object value) {
+                        this.value = value;
+                    }
+            
+                    public Object value() {
+                        return value;
+                    }
+                }
+            
+                public static class ExceptionThrown implements Exit {
+                    private final Exception exception;
+            
+                    public ExceptionThrown(Exception exception) {
+                        this.exception = exception;
+                    }
+            
+                    public Exception exception() {
+                        return exception;
+                    }
                 }
             }
-        
-            public static class Continue implements Exit {
-                private final int level;
-        
-                public Continue(int level) {
-                    this.level = level;
-                }
-        
-                public int level() {
-                    return level;
-                }
-            }
-        
-            public static class Return implements Exit {
-                private final Object value;
-        
-                public Return(Object value) {
-                    this.value = value;
-                }
-        
-                public Object value() {
-                    return value;
-                }
-            }
-        
-            public static class ExceptionThrown implements Exit {
-                private final Exception exception;
-        
-                public ExceptionThrown(Exception exception) {
-                    this.exception = exception;
-                }
-        
-                public Exception exception() {
-                    return exception;
-                }
-            }
-        }
-        """;
+            """;
 
     @DisplayName("only one is @FinalFields")
     @Test
