@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.immutable;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -13,9 +14,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.INDEPENDENT_TYPE;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestImmutable extends CommonTest {
@@ -68,6 +69,11 @@ public class TestImmutable extends CommonTest {
         assertTrue(immutable(MF).isMutable());
 
         TypeInfo RM = X.findSubType("RM");
+        FieldInfo mField = RM.getFieldByName("m", true);
+        assertTrue(mField.analysis().getOrDefault(INDEPENDENT_FIELD, DEPENDENT).isDependent());
+        MethodInfo mAccessor = RM.findUniqueMethod("m", 0);
+        assertTrue(mAccessor.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT).isDependent());
+        assertTrue(independent(RM).isDependent());
         assertTrue(immutable(RM).isMutable());
     }
 
@@ -191,7 +197,7 @@ public class TestImmutable extends CommonTest {
         MethodInfo pair = R.findUniqueMethod("pair", 0);
         assertNotNull(pair.getSetField().field());
         Value.Independent pairIndependent = pair.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
-                ValueImpl.IndependentImpl.DEPENDENT);
+                DEPENDENT);
         assertTrue(pairIndependent.isIndependentHc());
 
         Value.Immutable immutableR = immutable(R);
@@ -257,9 +263,24 @@ public class TestImmutable extends CommonTest {
     public void test4() {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> ao = prepWork(X);
+        assertEquals("""
+                [a.b.X.<init>(), a.b.X.Break.Break(int), a.b.X.Continue.Continue(int), a.b.X.Continue.level(), \
+                a.b.X.ExceptionThrown.ExceptionThrown(Exception), a.b.X.ExceptionThrown.exception(), a.b.X.Exit, \
+                a.b.X.Return.Return(Object), a.b.X.Return.value(), a.b.X.Break.level, a.b.X.Continue.level, \
+                a.b.X.ExceptionThrown.exception, a.b.X.Return.value, a.b.X.Break, a.b.X.Continue, \
+                a.b.X.ExceptionThrown, a.b.X.Return, a.b.X]\
+                """, ao.toString());
         analyzer.go(ao);
 
+        TypeInfo Exit = X.findSubType("Exit");
+        Value.Immutable immutableExit = immutable(Exit);
+        assertTrue(immutableExit.isImmutableHC(), "Have " + immutableExit);
+        Value.Independent independentExit = independent(Exit);
+        assertTrue(independentExit.isIndependent());
+
         TypeInfo Continue = X.findSubType("Continue");
+        Value.Independent independentContinue = independent(Continue);
+        assertTrue(independentContinue.isIndependent());
         Value.Immutable immutableContinue = immutable(Continue);
         assertTrue(immutableContinue.isImmutableHC(), "Have " + immutableContinue);
 

@@ -166,7 +166,7 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
         }
 
         private Value.Independent computeIndependent(FieldInfo fieldInfo, LinkedVariables linkedVariables) {
-            Value.Independent independentOfType = analysisHelper.typeIndependent(fieldInfo.type());
+            Value.Independent independentOfType = analysisHelper.typeIndependentFromImmutableOrNull(fieldInfo.type());
             assert independentOfType != null : "Otherwise, we would not have been able to compute linked variables";
             if (independentOfType.isIndependent()) return INDEPENDENT;
             Value.Independent independent = INDEPENDENT;

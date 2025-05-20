@@ -2,7 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.PrimaryTypeModIndyAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.TypeModIndyAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -17,6 +17,7 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -27,8 +28,7 @@ import java.util.function.Predicate;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_FIELD;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_PARAMETER;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.FLUENT_METHOD;
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.PARAMETER_ASSIGNED_TO_FIELD;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
@@ -48,11 +48,11 @@ method independence, parameter independence can directly be read from linked var
 parameter modification is computed as the combination of links to fields and local modifications.
 
  */
-public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeModIndyAnalyzer {
+public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeModIndyAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
     private final Runtime runtime;
 
-    public PrimaryTypeModIndyAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
+    public TypeModIndyAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
         this.runtime = runtime;
     }
 
@@ -62,9 +62,9 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
     }
 
     @Override
-    public Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
+    public Output go(TypeInfo typeInfo, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
         InternalAnalyzer ia = new InternalAnalyzer();
-        primaryType.recursiveSubTypeStream().forEach(ia::go);
+        ia.go(typeInfo);
         return new OutputImpl(ia.problemsRaised, false, ia.waitForMethodModifications,
                 ia.waitForTypeIndependence);
     }
@@ -76,19 +76,31 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
 
         private void go(TypeInfo typeInfo) {
             typeInfo.constructorAndMethodStream()
-                    .filter(mi -> !mi.isSynthetic() && !mi.isAbstract())
+                    .filter(mi -> !mi.isAbstract())
                     .forEach(this::go);
         }
 
         private void go(MethodInfo methodInfo) {
-            if (methodInfo.explicitlyEmptyMethod()) {
+            FieldValue fieldValue = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
+            if (fieldValue.field() != null) {
+                // getter, setter
+                Bool nonModifying = ValueImpl.BoolImpl.from(!fieldValue.setter());
+                methodInfo.analysis().setAllowControlledOverwrite(NON_MODIFYING_METHOD, nonModifying);
+                Independent independentFromType = analysisHelper.typeIndependentFromImmutableOrNull(fieldValue.field().type());
+                if (independentFromType == null) {
+                    waitForTypeIndependence.computeIfAbsent(methodInfo, m -> new HashSet<>())
+                            .add(fieldValue.field().type().bestTypeInfo());
+                } else {
+                    methodInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_METHOD, independentFromType);
+                }
+            } else if (methodInfo.explicitlyEmptyMethod()) {
                 methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE);
                 methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
                 for (ParameterInfo pi : methodInfo.parameters()) {
                     pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
                     pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
                 }
-            } else {
+            } else if (!methodInfo.methodBody().isEmpty()) {
                 Statement lastStatement = methodInfo.methodBody().lastStatement();
                 assert lastStatement != null;
                 VariableData variableData = VariableDataImpl.of(lastStatement);
@@ -104,7 +116,6 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
                 doIndependent(methodInfo, variableData);
             }
         }
-
 
         private void doFluentIdentityAnalysis(MethodInfo methodInfo, VariableData lastOfMainBlock,
                                               Property property, Predicate<Expression> predicate) {

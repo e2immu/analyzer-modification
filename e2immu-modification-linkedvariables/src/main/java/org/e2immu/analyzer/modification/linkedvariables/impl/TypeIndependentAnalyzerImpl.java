@@ -1,8 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.PrimaryTypeIndependentAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.TypeIndependentAnalyzer;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -11,8 +10,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.e2immu.language.cst.api.analysis.Value.Independent;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.Independent;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT;
 
@@ -20,10 +19,10 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.IN
 Phase 4.1 Primary type independent
 
  */
-public class PrimaryTypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeIndependentAnalyzer {
+public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements TypeIndependentAnalyzer {
     private final IteratingAnalyzer.Configuration configuration;
 
-    public PrimaryTypeIndependentAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
+    public TypeIndependentAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
         this.configuration = configuration;
     }
 
@@ -36,9 +35,9 @@ public class PrimaryTypeIndependentAnalyzerImpl extends CommonAnalyzerImpl imple
     }
 
     @Override
-    public Output go(TypeInfo primaryType, boolean activateCycleBreaking) {
+    public Output go(TypeInfo typeInfo, boolean activateCycleBreaking) {
         ComputeIndependent ci = new ComputeIndependent();
-        primaryType.recursiveSubTypeStream().forEach(ti -> ci.go(ti, activateCycleBreaking));
+        ci.go(typeInfo, activateCycleBreaking);
         return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
     }
 

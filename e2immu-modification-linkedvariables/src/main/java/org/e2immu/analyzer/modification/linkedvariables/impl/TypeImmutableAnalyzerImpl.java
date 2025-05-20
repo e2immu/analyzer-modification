@@ -2,7 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
-import org.e2immu.analyzer.modification.linkedvariables.PrimaryTypeImmutableAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.TypeImmutableAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.FieldInfo;
@@ -23,11 +23,11 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.*;
 Phase 4.2 Primary type immutable
 
  */
-public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements PrimaryTypeImmutableAnalyzer {
+public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements TypeImmutableAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
     private final IteratingAnalyzer.Configuration configuration;
 
-    public PrimaryTypeImmutableAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
+    public TypeImmutableAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
         this.configuration = configuration;
     }
 
@@ -40,9 +40,9 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
     }
 
     @Override
-    public Output go(TypeInfo primaryType, boolean activateCycleBreaking) {
+    public Output go(TypeInfo typeInfo, boolean activateCycleBreaking) {
         ComputeImmutable ci = new ComputeImmutable();
-        primaryType.recursiveSubTypeStream().forEach(ti -> ci.go(ti, activateCycleBreaking));
+        ci.go(typeInfo, activateCycleBreaking);
         return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
     }
 
@@ -51,11 +51,14 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
         Set<TypeInfo> externalWaitFor = new HashSet<>();
 
         void go(TypeInfo typeInfo, boolean activateCycleBreaking) {
-            if (typeInfo.analysis().haveAnalyzedValueFor(IMMUTABLE_TYPE)
-                || !typeInfo.analysis().haveAnalyzedValueFor(INDEPENDENT_TYPE)) {
+            if (typeInfo.analysis().haveAnalyzedValueFor(IMMUTABLE_TYPE)) {
                 return;
             }
-            Immutable immutable = computeImmutableType(typeInfo, activateCycleBreaking);
+            Independent independent = typeInfo.analysis().getOrNull(INDEPENDENT_TYPE, ValueImpl.IndependentImpl.class);
+            if (independent == null) {
+                return;
+            }
+            Immutable immutable = computeImmutableType(typeInfo, independent, activateCycleBreaking);
             if (immutable != null) {
                 DECIDE.debug("Decide immutable = {} for type {}", immutable, typeInfo);
                 typeInfo.analysis().setAllowControlledOverwrite(IMMUTABLE_TYPE, immutable);
@@ -65,9 +68,10 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
             }
         }
 
-        private Immutable computeImmutableType(TypeInfo typeInfo, boolean activateCycleBreaking) {
+        private Immutable computeImmutableType(TypeInfo typeInfo, Independent independent, boolean activateCycleBreaking) {
             boolean fieldsAssignable = typeInfo.fields().stream().anyMatch(fi -> !fi.isPropertyFinal());
             if (fieldsAssignable) return MUTABLE;
+            if (independent.isDependent()) return FINAL_FIELDS;
 
             // hierarchy
 

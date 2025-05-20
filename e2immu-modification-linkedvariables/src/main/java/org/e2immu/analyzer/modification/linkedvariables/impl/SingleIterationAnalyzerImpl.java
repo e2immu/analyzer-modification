@@ -16,9 +16,9 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
     private final IteratingAnalyzer.Configuration configuration;
     private final MethodModAnalyzer methodModAnalyzer;
     private final FieldAnalyzer fieldAnalyzer;
-    private final PrimaryTypeModIndyAnalyzer primaryTypeModIndyAnalyzer;
-    private final PrimaryTypeImmutableAnalyzer primaryTypeImmutableAnalyzer;
-    private final PrimaryTypeIndependentAnalyzer primaryTypeIndependentAnalyzer;
+    private final TypeModIndyAnalyzer typeModIndyAnalyzer;
+    private final TypeImmutableAnalyzer typeImmutableAnalyzer;
+    private final TypeIndependentAnalyzer typeIndependentAnalyzer;
     private final ShallowTypeAnalyzer shallowTypeAnalyzer;
 
     private record OutputImpl(List<Throwable> problemsRaised, G<Info> waitFor, Map<String, Integer> infoHistogram)
@@ -30,9 +30,9 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         this.configuration = configuration;
         methodModAnalyzer = new MethodModAnalyzerImpl(runtime, configuration);
         fieldAnalyzer = new FieldAnalyzerImpl(runtime);
-        primaryTypeModIndyAnalyzer = new PrimaryTypeModIndyAnalyzerImpl(runtime, configuration);
-        primaryTypeImmutableAnalyzer = new PrimaryTypeImmutableAnalyzerImpl(configuration);
-        primaryTypeIndependentAnalyzer = new PrimaryTypeIndependentAnalyzerImpl(configuration);
+        typeModIndyAnalyzer = new TypeModIndyAnalyzerImpl(runtime, configuration);
+        typeImmutableAnalyzer = new TypeImmutableAnalyzerImpl(configuration);
+        typeIndependentAnalyzer = new TypeIndependentAnalyzerImpl(configuration);
         shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Info::annotations, false);
     }
 
@@ -60,24 +60,32 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                 }
                 FieldAnalyzer.Output output = fieldAnalyzer.go(fieldInfo);
                 myProblemsRaised.addAll(output.problemsRaised());
-            } else if (info instanceof TypeInfo typeInfo && typeInfo.isPrimaryType()) {
-                Analyzer.Output output1 = primaryTypeModIndyAnalyzer.go(typeInfo, methodsWaitFor);
+            } else if (info instanceof TypeInfo typeInfo) {
+                Analyzer.Output output1 = typeModIndyAnalyzer.go(typeInfo, methodsWaitFor);
                 myProblemsRaised.addAll(output1.problemsRaised());
 
-                PrimaryTypeIndependentAnalyzer.Output output2 = primaryTypeIndependentAnalyzer.go(typeInfo,
+                TypeIndependentAnalyzer.Output output2 = typeIndependentAnalyzer.go(typeInfo,
                         activateCycleBreaking);
                 myProblemsRaised.addAll(output2.problemsRaised());
 
-                PrimaryTypeImmutableAnalyzer.Output output3 = primaryTypeImmutableAnalyzer.go(typeInfo,
+                TypeImmutableAnalyzer.Output output3 = typeImmutableAnalyzer.go(typeInfo,
                         activateCycleBreaking);
                 myProblemsRaised.addAll(output3.problemsRaised());
-                primaryTypes.add(typeInfo);
+                if (typeInfo.isPrimaryType()) primaryTypes.add(typeInfo);
             }
         }
         AbstractMethodAnalyzer abstractMethodAnalyzer = new AbstractMethodAnalyzerImpl(primaryTypes);
         myProblemsRaised.addAll(abstractMethodAnalyzer.go().problemsRaised());
-        for (TypeInfo primaryType : primaryTypes) {
-            primaryTypeImmutableAnalyzer.go(primaryType, activateCycleBreaking);
+
+        /*
+        run once more, because the abstract method analyzer may have resolved independence and modification values
+        for abstract methods.
+         */
+        for (Info info : analysisOrder) {
+            if (info instanceof TypeInfo typeInfo) { // FIXME can be more efficient
+                typeIndependentAnalyzer.go(typeInfo, activateCycleBreaking);
+                typeImmutableAnalyzer.go(typeInfo, activateCycleBreaking);
+            }
         }
 
         G.Builder<Info> builder = new G.Builder<>(Long::sum);

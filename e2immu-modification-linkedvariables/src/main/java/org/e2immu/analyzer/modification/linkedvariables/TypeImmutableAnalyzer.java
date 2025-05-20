@@ -14,7 +14,7 @@ hence their modification and independence status is shared.
 
 It is possible to have to wait for other type's @Immutable status, because of extensions and non-private fields.
  */
-public interface PrimaryTypeIndependentAnalyzer extends Analyzer {
+public interface TypeImmutableAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
 

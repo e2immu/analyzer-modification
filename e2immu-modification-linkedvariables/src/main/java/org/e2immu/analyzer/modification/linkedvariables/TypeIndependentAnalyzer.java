@@ -1,6 +1,5 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
-import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
 
@@ -15,7 +14,7 @@ hence their modification and independence status is shared.
 
 It is possible to have to wait for other type's @Immutable status, because of extensions and non-private fields.
  */
-public interface PrimaryTypeImmutableAnalyzer extends Analyzer {
+public interface TypeIndependentAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
 

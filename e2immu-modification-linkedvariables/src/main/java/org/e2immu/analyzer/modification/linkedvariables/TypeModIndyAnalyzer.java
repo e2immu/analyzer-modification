@@ -13,7 +13,7 @@ Given the modification and linking of methods and fields,
 compute independence of methods, fields, parameters, and primary type,
 and forward the modification of fields to the parameters linked to it.
  */
-public interface PrimaryTypeModIndyAnalyzer extends Analyzer {
+public interface TypeModIndyAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
         boolean resolvedInternalCycles();

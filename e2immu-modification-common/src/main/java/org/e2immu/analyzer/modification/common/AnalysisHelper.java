@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.common;
 
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.element.SourceSet;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -10,6 +11,7 @@ import java.util.Map;
 
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class AnalysisHelper {
 
@@ -55,7 +57,7 @@ public class AnalysisHelper {
         } else {
             Value.Immutable inMap = bestType.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
             if (inMap == null) {
-                if (nullIfUndecided) return null;
+                if (nullIfUndecided && isPartOfSourceCode(bestType)) return null;
                 dynamicBaseValue = ValueImpl.ImmutableImpl.MUTABLE;
             } else {
                 dynamicBaseValue = inMap;
@@ -72,6 +74,15 @@ public class AnalysisHelper {
             }
         }
         return dynamicBaseValue;
+    }
+
+    /*
+    If a type is external, the shallow analyzer/annotated API system has provided values.
+    Then, we must fall back to the default.
+     */
+    private boolean isPartOfSourceCode(TypeInfo bestType) {
+        SourceSet sourceSet = bestType.compilationUnit().sourceSet();
+        return sourceSet != null && !sourceSet.externalLibrary();
     }
 
     public Value.Immutable typeImmutable(TypeInfo currentType, ParameterizedType type) {
@@ -138,5 +149,13 @@ public class AnalysisHelper {
             return TRUE;
         }
         return bestType.analysis().getOrDefault(PropertyImpl.CONTAINER_TYPE, FALSE);
+    }
+
+    public Value.Independent typeIndependentFromImmutableOrNull(ParameterizedType type) {
+        Value.Immutable immutable = typeImmutableNullIfUndecided(type);
+        if (immutable == null) return null;
+        if (immutable.isMutable()) return DEPENDENT;
+        if (immutable.isImmutableHC()) return INDEPENDENT_HC;
+        return INDEPENDENT;
     }
 }
