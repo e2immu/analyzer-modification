@@ -56,6 +56,7 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             }
             Independent independent = typeInfo.analysis().getOrNull(INDEPENDENT_TYPE, ValueImpl.IndependentImpl.class);
             if (independent == null) {
+                UNDECIDED.debug("TI: Immutable of type {} undecided, wait for independent", typeInfo);
                 return;
             }
             Immutable immutable = computeImmutableType(typeInfo, independent, activateCycleBreaking);

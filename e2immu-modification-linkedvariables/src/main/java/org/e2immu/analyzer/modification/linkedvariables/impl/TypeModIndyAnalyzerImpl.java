@@ -156,15 +156,15 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         independent directly related to the immutability of the fields to which the return value links.
      */
         private void doIndependent(MethodInfo methodInfo, VariableData lastOfMainBlock) {
-            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)) {
-                Value.Independent independent = doIndependentMethod(methodInfo, lastOfMainBlock);
-                methodInfo.analysis().set(PropertyImpl.INDEPENDENT_METHOD, independent);
-                DECIDE.debug("MI: Decide independent of method {} = {}", methodInfo, independent);
+
+            Value.Independent independentMethod = doIndependentMethod(methodInfo, lastOfMainBlock);
+            if (methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, independentMethod)) {
+                DECIDE.debug("MI: Decide independent of method {} = {}", methodInfo, independentMethod);
             }
+
             for (ParameterInfo pi : methodInfo.parameters()) {
-                if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)) {
-                    Value.Independent independent = doIndependentParameter(pi, lastOfMainBlock);
-                    pi.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, independent);
+                Value.Independent independent = doIndependentParameter(pi, lastOfMainBlock);
+                if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, independent)) {
                     DECIDE.debug("MI: Decide independent of parameter {} = {}", pi, independent);
                 }
             }

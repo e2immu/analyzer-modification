@@ -3,14 +3,12 @@ package org.e2immu.analyzer.modification.prepwork.variable.impl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
-import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.support.EventuallyFinal;
-import org.e2immu.support.SetOnce;
 
 public class VariableInfoImpl implements VariableInfo {
     public static final Property UNMODIFIED_VARIABLE = new PropertyImpl("unmodifiedVariable");
@@ -21,7 +19,7 @@ public class VariableInfoImpl implements VariableInfo {
     public static final Property DOWNCAST_VARIABLE = new PropertyImpl("downcastVariable", ValueImpl.SetOfTypeInfoImpl.EMPTY);
 
     private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
-    private final SetOnce<StaticValues> staticValues = new SetOnce<>();
+    private StaticValues staticValues;
 
     private final PropertyValueMap analysis = new PropertyValueMapImpl();
 
@@ -38,7 +36,9 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     public void initializeLinkedVariables(LinkedVariables initialValue) {
-        this.linkedVariables.setVariable(initialValue);
+        if (this.linkedVariables.isVariable()) {
+            this.linkedVariables.setVariable(initialValue);
+        }
     }
 
     public boolean setLinkedVariables(LinkedVariables linkedVariables) {
@@ -72,11 +72,13 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     public boolean staticValuesIsSet() {
-        return staticValues.isSet();
+        return staticValues != null && !staticValues.isDefault();
     }
 
     public void staticValuesSet(StaticValues staticValues) {
-        this.staticValues.set(staticValues);
+        if (this.staticValues == null || this.staticValues.overwriteAllowed(staticValues)) {
+            this.staticValues = staticValues;
+        }
     }
 
     @Override
@@ -91,7 +93,7 @@ public class VariableInfoImpl implements VariableInfo {
 
     @Override
     public StaticValues staticValues() {
-        return staticValues.getOrDefaultNull();
+        return staticValues;
     }
 
     @Override

@@ -5,13 +5,12 @@ import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.expression.VariableExpression;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +19,7 @@ import java.util.List;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.IMMUTABLE_HC;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -216,7 +216,7 @@ public class TestLinkTypeParameters extends CommonTest {
 
         MethodInfo bnn1 = X.findUniqueMethod("bothNotNull1", 1);
         {
-            Statement s0 = bnn1.methodBody().statements().get(0);
+            Statement s0 = bnn1.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0X = vd0.variableInfo("x");
             assertEquals("-1-:f, *-4-0:pair", vi0X.linkedVariables().toString());
@@ -253,7 +253,7 @@ public class TestLinkTypeParameters extends CommonTest {
         MethodInfo reverse3 = X.findUniqueMethod("reverse3", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair, 0;1-4-2:r", lvs(reverse3));
         {
-            Statement s0 = reverse3.methodBody().statements().get(0);
+            Statement s0 = reverse3.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
 
             // r.pair.f
@@ -271,7 +271,7 @@ public class TestLinkTypeParameters extends CommonTest {
             assertEquals("0-4-*:f, 1-4-*:g, *M-2-2M|*-0:r", vi0Rpair.linkedVariables().toString());
 
             // r
-            VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().get(0));
+            VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().getFirst());
             assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", vi0R.linkedVariables().toString());
 
             // return variable
@@ -322,17 +322,29 @@ public class TestLinkTypeParameters extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.go(analysisOrder);
-
-        TypeInfo R = X.findSubType("R");
-        assertFalse(R.isExtensible());
-        assertTrue(R.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isAtLeastImmutableHC());
+        analyzer.go(analysisOrder);
+        
         TypeInfo Pair = X.findSubType("Pair");
+        FieldInfo f = Pair.getFieldByName("f", true);
+        int fIndex = analysisOrder.indexOf(f);
+        MethodInfo reverse = X.findUniqueMethod("reverse", 1);
+        int reverseIndex = analysisOrder.indexOf(reverse);
+        assertTrue(reverseIndex < fIndex);
+        TypeInfo R = X.findSubType("R");
+        int pairIndex = analysisOrder.indexOf(Pair);
+        int rIndex = analysisOrder.indexOf(R);
+        assertTrue(pairIndex < rIndex);
+
         assertFalse(Pair.isExtensible());
-        assertTrue(Pair.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE).isAtLeastImmutableHC());
+        assertSame(IMMUTABLE_HC, Pair.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+
+        assertFalse(R.isExtensible());
+        assertSame(IMMUTABLE_HC, R.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+
 
         MethodInfo bnn1 = X.findUniqueMethod("bothNotNull1", 1);
         {
-            Statement s0 = bnn1.methodBody().statements().get(0);
+            Statement s0 = bnn1.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0X = vd0.variableInfo("x");
             assertEquals("-1-:f, *-4-0:pair", vi0X.linkedVariables().toString());
@@ -360,7 +372,6 @@ public class TestLinkTypeParameters extends CommonTest {
         MethodInfo copy4 = X.findUniqueMethod("copy4", 1);
         assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy4));
 
-        MethodInfo reverse = X.findUniqueMethod("reverse", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair", lvs(reverse));
 
         MethodInfo reverse2 = X.findUniqueMethod("reverse2", 1);
@@ -369,7 +380,7 @@ public class TestLinkTypeParameters extends CommonTest {
         MethodInfo reverse3 = X.findUniqueMethod("reverse3", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair, 0;1-4-2:r", lvs(reverse3));
         {
-            Statement s0 = reverse3.methodBody().statements().get(0);
+            Statement s0 = reverse3.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
 
             // r.pair.f
@@ -387,7 +398,7 @@ public class TestLinkTypeParameters extends CommonTest {
             assertEquals("0-4-*:f, 1-4-*:g, *-4-2:r", vi0Rpair.linkedVariables().toString());
 
             // r
-            VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().get(0));
+            VariableInfo vi0R = vd0.variableInfo(reverse3.parameters().getFirst());
             assertEquals("2-4-*:f, 2-4-*:g, 2-4-*:pair", vi0R.linkedVariables().toString());
 
             // return variable

@@ -126,27 +126,26 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     if (linkedVariables != null) {
                         LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
                         if (filteredLvs != null) {
-                            pi.analysis().set(LINKED_VARIABLES_PARAMETER, filteredLvs);
+                            pi.analysis().setAllowControlledOverwrite(LINKED_VARIABLES_PARAMETER, filteredLvs);
                         }
                     }
-                    if (!pi.analysis().haveAnalyzedValueFor(UNMODIFIED_PARAMETER) && vi.isUnmodified()) {
-                        pi.analysis().set(UNMODIFIED_PARAMETER, TRUE);
+                    if (vi.isUnmodified()) {
+                        pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, TRUE);
                     }
                     // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
                     // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
-                    if (!pi.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_PARAMETER)) {
-                        Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
-                        if (!modifiedComponents.isEmpty()) {
-                            Value.VariableBooleanMap vbm = translateVariableBooleanMapToThisScope(pi, modifiedComponents);
-                            pi.analysis().set(MODIFIED_COMPONENTS_PARAMETER, vbm);
-                        }
+
+                    Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
+                    if (!modifiedComponents.isEmpty()) {
+                        Value.VariableBooleanMap vbm = translateVariableBooleanMapToThisScope(pi, modifiedComponents);
+                        pi.analysis().setAllowControlledOverwrite(MODIFIED_COMPONENTS_PARAMETER, vbm);
                     }
+
                     Value.VariableBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
                             ValueImpl.VariableBooleanMapImpl.class);
-                    if (mfi != null && !mfi.map().isEmpty()
-                        && !pi.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_PARAMETER)) {
+                    if (mfi != null && !mfi.map().isEmpty()) {
                         VariableBooleanMap thisScope = translateVariableBooleanMapToThisScope(pi, mfi.map());
-                        pi.analysis().set(MODIFIED_FI_COMPONENTS_PARAMETER, thisScope);
+                        pi.analysis().setAllowControlledOverwrite(MODIFIED_FI_COMPONENTS_PARAMETER, thisScope);
                     }
                 } else if (v instanceof ReturnVariable && methodInfo.hasReturnValue()) {
                     LinkedVariables linkedVariables = vi.linkedVariables();
@@ -159,7 +158,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     StaticValues staticValues = vi.staticValues();
                     if (staticValues != null) {
                         StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
-                        methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
+                        methodInfo.analysis().setAllowControlledOverwrite(STATIC_VALUES_METHOD, filtered);
                     }
                 } else if (
                     //v instanceof This||
@@ -176,17 +175,13 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                             modifiedComponentsMethod.put(v, true);
                         }
                     }
-                    if (!modification
-                        && v instanceof FieldReference fr
-                        && !fr.fieldInfo().analysis().haveAnalyzedValueFor(UNMODIFIED_FIELD)) {
-                        fr.fieldInfo().analysis().set(UNMODIFIED_FIELD, TRUE);
+                    if (!modification && v instanceof FieldReference fr) {
+                        fr.fieldInfo().analysis().setAllowControlledOverwrite(UNMODIFIED_FIELD, TRUE);
                     }
                     if (!modification && vi.isVariableInClosure()) {
                         VariableData vd = vi.variableInfoInClosure();
                         VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
-                        if (!outerVi.analysis().haveAnalyzedValueFor(UNMODIFIED_VARIABLE)) {
-                            outerVi.analysis().set(UNMODIFIED_VARIABLE, TRUE);
-                        }
+                        outerVi.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE, TRUE);
                     }
                 }
                 if (methodInfo.isConstructor()

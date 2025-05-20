@@ -61,8 +61,8 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                     .getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, LinkedVariablesImpl.class);
             Value.Bool unmodifiedDone = fieldInfo.analysis().getOrNull(PropertyImpl.UNMODIFIED_FIELD,
                     ValueImpl.BoolImpl.class);
-            Value.Bool independentDone = fieldInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_FIELD,
-                    ValueImpl.BoolImpl.class);
+            Value.Independent independentDone = fieldInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_FIELD,
+                    Value.Independent.class);
             if (linkedVariablesDone != null && unmodifiedDone != null && independentDone != null) {
                 return;
             }
