@@ -129,7 +129,7 @@ public class PrepAnalyzer {
                 mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
             }
             computeHCS.doHiddenContentSelector(mi);
-            boolean isGetSet = GetSetHelper.doGetSetAnalysis(mi, mi.methodBody());
+            boolean isGetSet = !mi.isConstructor() && GetSetHelper.doGetSetAnalysis(mi, mi.methodBody());
             if (isGetSet) {
                 gettersAndSetters.add(mi);
             } else {

@@ -116,7 +116,8 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
             for (MethodInfo methodInfo : methodsReferringToField) {
                 Value.FieldValue fieldValue = methodInfo.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD,
                         ValueImpl.GetSetValueImpl.EMPTY);
-                if (!methodInfo.isConstructor() && fieldInfo == fieldValue.field()) {
+                if (fieldInfo == fieldValue.field()) {
+                    assert !methodInfo.isConstructor();
                     map.put(runtime.newFieldReference(fieldInfo), LVImpl.LINK_DEPENDENT);
                 } else {
                     assert !methodInfo.methodBody().isEmpty();

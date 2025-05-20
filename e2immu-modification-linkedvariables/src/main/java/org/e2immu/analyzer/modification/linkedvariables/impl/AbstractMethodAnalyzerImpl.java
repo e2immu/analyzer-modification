@@ -36,7 +36,13 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
         Iterator<Map.Entry<MethodInfo, Set<MethodInfo>>> iterator = concreteImplementationsOfAbstractMethods.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<MethodInfo, Set<MethodInfo>> entry = iterator.next();
-            Set<MethodInfo> waitForOfMethod = resolve(entry.getKey(), entry.getValue());
+            MethodInfo methodInfo = entry.getKey();
+            assert methodInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_METHOD, ValueImpl.IndependentImpl.class) == null
+                   || methodInfo.analysis().getOrNull(PropertyImpl.NON_MODIFYING_METHOD, ValueImpl.BoolImpl.class) == null
+                   || methodInfo.parameters().stream().anyMatch(pi ->
+                    pi.analysis().getOrNull(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.class) == null
+                    || pi.analysis().getOrNull(PropertyImpl.UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.class) == null);
+            Set<MethodInfo> waitForOfMethod = resolve(methodInfo, entry.getValue());
             if (waitForOfMethod.isEmpty()) {
                 iterator.remove();
             } else {
@@ -81,7 +87,7 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
     }
 
     private static Set<MethodInfo> independent(Set<MethodInfo> concreteImplementations, ParameterInfo pi) {
-        Value.Bool independent = pi.analysis().getOrNull(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.BoolImpl.class);
+        Value.Independent independent = pi.analysis().getOrNull(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.class);
         if (independent == null) {
             Set<MethodInfo> waitFor = new HashSet<>();
             Value.Independent fromImplementations = ValueImpl.IndependentImpl.INDEPENDENT;

@@ -83,6 +83,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         private void go(MethodInfo methodInfo) {
             FieldValue fieldValue = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             if (fieldValue.field() != null) {
+                assert !methodInfo.isConstructor();
                 // getter, setter
                 Bool nonModifying = ValueImpl.BoolImpl.from(!fieldValue.setter());
                 methodInfo.analysis().setAllowControlledOverwrite(NON_MODIFYING_METHOD, nonModifying);

@@ -38,6 +38,7 @@ public class GetSetHelper {
      */
     public static boolean doGetSetAnalysis(MethodInfo methodInfo, Block methodBody) {
         assert methodBody != null;
+        assert !methodInfo.isConstructor();
         Value.FieldValue currentGetSet = methodInfo.analysis().getOrNull(PropertyImpl.GET_SET_FIELD,
                 ValueImpl.GetSetValueImpl.class);
         if (currentGetSet != null) {

@@ -293,9 +293,7 @@ class AnnotationToProperty {
             if (immutable.isImmutable()) return ValueImpl.IndependentImpl.INDEPENDENT;
             if (immutable.isAtLeastImmutableHC()) return ValueImpl.IndependentImpl.INDEPENDENT_HC;
         }
-        Stream<MethodInfo> stream = Stream.concat(typeInfo.methodStream(), typeInfo.constructors().stream())
-                .filter(MethodInfo::isPubliclyAccessible);
-
+        Stream<MethodInfo> stream = typeInfo.constructorAndMethodStream().filter(mi -> !mi.access().isPrivate());
         boolean allMethodsOnlyPrimitives = stream.allMatch(m ->
                 (m.isConstructor() || m.isVoid() || m.returnType().isPrimitiveStringClass())
                 && m.parameters().stream().allMatch(p -> p.parameterizedType().isPrimitiveStringClass()));

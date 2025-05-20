@@ -27,6 +27,7 @@ class GetSetHelper {
         Value.FieldValue getSet = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
         if (getSet.field() != null && !methodInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_METHOD)) {
             assert getSet.field().isSynthetic();
+            assert !methodInfo.isConstructor();
             StaticValues sv;
             if (getSet.setter()) {
                 // setter

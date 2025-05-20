@@ -3,10 +3,7 @@ package org.e2immu.analyzer.modification.linkedvariables;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.e2immu.analyzer.modification.io.LoadAnalyzedPackageFiles;
-import org.e2immu.analyzer.modification.linkedvariables.impl.IteratingAnalyzerImpl;
-import org.e2immu.analyzer.modification.linkedvariables.impl.ModAnalyzerForTesting;
-import org.e2immu.analyzer.modification.linkedvariables.impl.MethodModAnalyzerImpl;
-import org.e2immu.analyzer.modification.linkedvariables.impl.SingleIterationAnalyzerImpl;
+import org.e2immu.analyzer.modification.linkedvariables.impl.*;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -46,6 +43,8 @@ public class CommonTest {
     public static void beforeAll() {
         ((Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
         ((Logger) LoggerFactory.getLogger("graph-algorithm")).setLevel(Level.DEBUG);
+        ((Logger) CommonAnalyzerImpl.DECIDE).setLevel(Level.DEBUG);
+        ((Logger) CommonAnalyzerImpl.UNDECIDED).setLevel(Level.DEBUG);
     }
 
     @BeforeEach
