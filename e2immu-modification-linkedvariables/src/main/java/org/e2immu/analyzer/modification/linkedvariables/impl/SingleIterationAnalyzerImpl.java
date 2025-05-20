@@ -18,6 +18,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
     private final FieldAnalyzer fieldAnalyzer;
     private final PrimaryTypeModIndyAnalyzer primaryTypeModIndyAnalyzer;
     private final PrimaryTypeImmutableAnalyzer primaryTypeImmutableAnalyzer;
+    private final PrimaryTypeIndependentAnalyzer primaryTypeIndependentAnalyzer;
     private final ShallowTypeAnalyzer shallowTypeAnalyzer;
 
     private record OutputImpl(List<Throwable> problemsRaised, G<Info> waitFor, Map<String, Integer> infoHistogram)
@@ -31,6 +32,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         fieldAnalyzer = new FieldAnalyzerImpl(runtime);
         primaryTypeModIndyAnalyzer = new PrimaryTypeModIndyAnalyzerImpl(runtime, configuration);
         primaryTypeImmutableAnalyzer = new PrimaryTypeImmutableAnalyzerImpl(configuration);
+        primaryTypeIndependentAnalyzer = new PrimaryTypeIndependentAnalyzerImpl(configuration);
         shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Info::annotations, false);
     }
 
@@ -62,9 +64,13 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                 Analyzer.Output output1 = primaryTypeModIndyAnalyzer.go(typeInfo, methodsWaitFor);
                 myProblemsRaised.addAll(output1.problemsRaised());
 
-                PrimaryTypeImmutableAnalyzer.Output output2 = primaryTypeImmutableAnalyzer.go(typeInfo,
+                PrimaryTypeIndependentAnalyzer.Output output2 = primaryTypeIndependentAnalyzer.go(typeInfo,
                         activateCycleBreaking);
                 myProblemsRaised.addAll(output2.problemsRaised());
+
+                PrimaryTypeImmutableAnalyzer.Output output3 = primaryTypeImmutableAnalyzer.go(typeInfo,
+                        activateCycleBreaking);
+                myProblemsRaised.addAll(output3.problemsRaised());
                 primaryTypes.add(typeInfo);
             }
         }
@@ -73,7 +79,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         for (TypeInfo primaryType : primaryTypes) {
             primaryTypeImmutableAnalyzer.go(primaryType, activateCycleBreaking);
         }
-        
+
         G.Builder<Info> builder = new G.Builder<>(Long::sum);
 
         return new OutputImpl(myProblemsRaised, builder.build(), Map.of());
