@@ -4,12 +4,9 @@ import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +14,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.IMMUTABLE_TYPE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkArrays extends CommonTest {
@@ -42,7 +41,7 @@ public class TestLinkArrays extends CommonTest {
         ParameterInfo t = method.parameters().get(0);
         ParameterInfo array = method.parameters().get(1);
         {
-            VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));
+            VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().getFirst());
             VariableInfo vi0T0 = vd0.variableInfo("t0");
             assertEquals("*-4-0:array, -1-:array[0]", vi0T0.linkedVariables().toString());
             VariableInfo vi0Array = vd0.variableInfo(array);
@@ -64,8 +63,10 @@ public class TestLinkArrays extends CommonTest {
     @Language("java")
     private static final String INPUT2 = """
             package a.b;
+            import org.e2immu.annotation.Independent;
             import org.e2immu.annotation.method.GetSet;
             class X {
+                @Independent(hc = true)
                 interface I<T> {
                     @GetSet("variables")
                     T get(int i);
@@ -86,7 +87,28 @@ public class TestLinkArrays extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.go(analysisOrder);
         TypeInfo I = X.findSubType("I");
-        assertTrue(I.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class).isMutable());
+        FieldInfo fieldInfo = I.getFieldByName("variables", true);
+        assertTrue(fieldInfo.isSynthetic());
+        {
+            MethodInfo iGet = I.findUniqueMethod("get", 1);
+            Value.FieldValue iGetFieldValue = iGet.getSetField();
+            assertSame(fieldInfo, iGetFieldValue.field());
+            assertNotNull(iGetFieldValue);
+            assertEquals("a.b.X.I.variables", iGetFieldValue.field().fullyQualifiedName());
+            assertFalse(iGetFieldValue.setter());
+        }
+        {
+            MethodInfo iSet = I.findUniqueMethod("set", 2);
+            Value.FieldValue iSetFieldValue = iSet.getSetField();
+            assertSame(fieldInfo, iSetFieldValue.field());
+            assertNotNull(iSetFieldValue);
+            assertEquals("a.b.X.I.variables", iSetFieldValue.field().fullyQualifiedName());
+            assertTrue(iSetFieldValue.setter());
+        }
+
+        // NOTE: if you remove the annotation "@Independent(hc = true)" from I, there will be no immutability info
+        ValueImpl.ImmutableImpl immutable = I.analysis().getOrNull(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
+        assertSame(MUTABLE, immutable);
 
         MethodInfo method = X.findUniqueMethod("method", 2);
         testCommon23(method);

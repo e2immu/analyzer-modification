@@ -60,10 +60,10 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             }
             Immutable immutable = computeImmutableType(typeInfo, independent, activateCycleBreaking);
             if (immutable != null) {
-                DECIDE.debug("Decide immutable of type {} = {}", typeInfo, immutable);
+                DECIDE.debug("TI: Decide immutable of type {} = {}", typeInfo, immutable);
                 typeInfo.analysis().setAllowControlledOverwrite(IMMUTABLE_TYPE, immutable);
             } else {
-                UNDECIDED.debug("Immutable of type {} undecided, wait for internal {}, external {}", typeInfo,
+                UNDECIDED.debug("TI: Immutable of type {} undecided, wait for internal {}, external {}", typeInfo,
                         internalWaitFor, externalWaitFor);
             }
         }
@@ -71,6 +71,9 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
         private Immutable computeImmutableType(TypeInfo typeInfo, Independent independent, boolean activateCycleBreaking) {
             boolean fieldsAssignable = typeInfo.fields().stream().anyMatch(fi -> !fi.isPropertyFinal());
             if (fieldsAssignable) return MUTABLE;
+            // sometimes, we have annotated setters on synthetic fields, which do not have the "final" property
+            boolean haveSetters = typeInfo.methodStream().anyMatch(fi -> fi.getSetField() != null && fi.getSetField().setter());
+            if (haveSetters) return MUTABLE;
             if (independent.isDependent()) return FINAL_FIELDS;
 
             // hierarchy

@@ -76,9 +76,9 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                 Value.Bool unmodified = computeUnmodified(fieldInfo, methodsReferringToField);
                 if (unmodified != null) {
                     fieldInfo.analysis().set(PropertyImpl.UNMODIFIED_FIELD, unmodified);
-                    DECIDE.debug("Decide unmodified of field {} = {}", fieldInfo, unmodified);
+                    DECIDE.debug("FI: Decide unmodified of field {} = {}", fieldInfo, unmodified);
                 } else {
-                    UNDECIDED.debug("Unmodified of field {} undecided, wait for {}", fieldInfo, waitFor);
+                    UNDECIDED.debug("FI: Unmodified of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
             }
 
@@ -92,9 +92,9 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                 Value.Independent independent = computeIndependent(fieldInfo, linkedVariables);
                 if (independent != null) {
                     fieldInfo.analysis().set(PropertyImpl.INDEPENDENT_FIELD, independent);
-                    DECIDE.debug("Decide independent of field {} = {}", fieldInfo, independent);
+                    DECIDE.debug("FI: Decide independent of field {} = {}", fieldInfo, independent);
                 } else {
-                    UNDECIDED.debug("Independent of field {} undecided, wait for {}", fieldInfo, waitFor);
+                    UNDECIDED.debug("FI: Independent of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
             }
         }

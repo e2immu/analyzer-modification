@@ -17,7 +17,6 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Statement;
-import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -91,15 +90,22 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                 if (independentFromType == null) {
                     waitForTypeIndependence.computeIfAbsent(methodInfo, m -> new HashSet<>())
                             .add(fieldValue.field().type().bestTypeInfo());
+                    UNDECIDED.debug("MI: Independent of method {} undecided, wait for type independence {}", methodInfo,
+                            waitForTypeIndependence);
                 } else {
                     methodInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_METHOD, independentFromType);
+                    DECIDE.debug("MI: Decide independent of method {} = {}}", methodInfo, independentFromType);
                 }
             } else if (methodInfo.explicitlyEmptyMethod()) {
                 methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE);
                 methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
+                DECIDE.debug("MI: Decide non-modifying of method {} = true", methodInfo);
+                DECIDE.debug("MI: Decide independent of method {} = independent", methodInfo);
                 for (ParameterInfo pi : methodInfo.parameters()) {
                     pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
                     pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
+                    DECIDE.debug("MI: Decide unmodified of parameter {} = true", pi);
+                    DECIDE.debug("MI: Decide independent of parameter {} = independent", pi);
                 }
             } else if (!methodInfo.methodBody().isEmpty()) {
                 Statement lastStatement = methodInfo.methodBody().lastStatement();
@@ -135,6 +141,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                     }
                 }
                 methodInfo.analysis().set(property, ValueImpl.BoolImpl.from(identityFluent));
+                DECIDE.debug("MI: Decide {} of {} = {}", property, methodInfo, identityFluent);
             }
         }
 
@@ -152,11 +159,13 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
             if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)) {
                 Value.Independent independent = doIndependentMethod(methodInfo, lastOfMainBlock);
                 methodInfo.analysis().set(PropertyImpl.INDEPENDENT_METHOD, independent);
+                DECIDE.debug("MI: Decide independent of method {} = {}", methodInfo, independent);
             }
             for (ParameterInfo pi : methodInfo.parameters()) {
                 if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)) {
                     Value.Independent independent = doIndependentParameter(pi, lastOfMainBlock);
                     pi.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, independent);
+                    DECIDE.debug("MI: Decide independent of parameter {} = {}", pi, independent);
                 }
             }
         }

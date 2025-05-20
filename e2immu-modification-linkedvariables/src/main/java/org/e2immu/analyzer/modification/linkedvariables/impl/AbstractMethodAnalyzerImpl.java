@@ -106,9 +106,9 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             }
             if (fromImplementations != null) {
                 pi.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, fromImplementations);
-                DECIDE.debug("Decide independent of param {} = {}", pi, fromImplementations);
+                DECIDE.debug("AM: Decide independent of param {} = {}", pi, fromImplementations);
             } else {
-                UNDECIDED.debug("Independent of param {} undecided, wait for {}", pi, waitFor);
+                UNDECIDED.debug("AM: Independent of param {} undecided, wait for {}", pi, waitFor);
             }
             return waitFor;
         }
@@ -135,9 +135,9 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             }
             if (fromImplementations != null) {
                 methodInfo.analysis().set(PropertyImpl.NON_MODIFYING_METHOD, fromImplementations);
-                DECIDE.debug("Decide non-modifying of method {} = {}", methodInfo, fromImplementations);
+                DECIDE.debug("AM: Decide non-modifying of method {} = {}", methodInfo, fromImplementations);
             } else {
-                UNDECIDED.debug("Non-modifying method {} undecided, wait for {}", methodInfo, waitFor);
+                UNDECIDED.debug("AM: Non-modifying method {} undecided, wait for {}", methodInfo, waitFor);
             }
             return waitFor;
         }
@@ -164,9 +164,9 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             }
             if (fromImplementations != null) {
                 methodInfo.analysis().set(PropertyImpl.INDEPENDENT_METHOD, fromImplementations);
-                DECIDE.debug("Decide independent of method {} = {}", methodInfo, fromImplementations);
+                DECIDE.debug("AM: Decide independent of method {} = {}", methodInfo, fromImplementations);
             } else {
-                UNDECIDED.debug("Independent of method {} undecided, wait for {}", methodInfo, waitFor);
+                UNDECIDED.debug("AM: Independent of method {} undecided, wait for {}", methodInfo, waitFor);
             }
             return waitFor;
         }

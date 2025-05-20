@@ -43,9 +43,9 @@ public class TypeContainerAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             }
             if (externalWaitForCannotCauseCycles.isEmpty()) {
                 typeInfo.analysis().set(PropertyImpl.CONTAINER_TYPE, ValueImpl.BoolImpl.from(isContainer));
-                DECIDE.debug("Decide container of type {} = {}", typeInfo, isContainer);
+                DECIDE.debug("TC: Decide container of type {} = {}", typeInfo, isContainer);
             } else {
-                UNDECIDED.debug("Container of type {} undecided: {}", typeInfo, externalWaitForCannotCauseCycles);
+                UNDECIDED.debug("TC: Container of type {} undecided: {}", typeInfo, externalWaitForCannotCauseCycles);
             }
             return new OutputImpl(externalWaitForCannotCauseCycles);
         }

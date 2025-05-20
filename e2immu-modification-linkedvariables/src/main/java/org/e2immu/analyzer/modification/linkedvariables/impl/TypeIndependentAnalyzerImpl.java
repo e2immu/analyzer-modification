@@ -51,10 +51,10 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
             }
             Independent independent = computeIndependentType(typeInfo, activateCycleBreaking);
             if (independent != null) {
-                DECIDE.debug("Decide independent of type {} = {}", typeInfo, independent);
+                DECIDE.debug("Ti: Decide independent of type {} = {}", typeInfo, independent);
                 typeInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_TYPE, independent);
             } else {
-                UNDECIDED.debug("Independent of type {} undecided, wait for internal {}, external {}", typeInfo,
+                UNDECIDED.debug("Ti: Independent of type {} undecided, wait for internal {}, external {}", typeInfo,
                         internalWaitFor, externalWaitFor);
             }
         }
