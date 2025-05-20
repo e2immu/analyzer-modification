@@ -34,17 +34,16 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShallowTypeAnalyzer.class);
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
     private final AtomicInteger warnings = new AtomicInteger();
+    private final boolean onlyPublic;
 
-    public ShallowTypeAnalyzer(Runtime runtime, AnnotationProvider annotationProvider) {
+    public ShallowTypeAnalyzer(Runtime runtime, AnnotationProvider annotationProvider, boolean onlyPublic) {
         super(runtime, annotationProvider);
+        this.onlyPublic = onlyPublic;
     }
 
     public Map<Info, ShallowAnalyzer.InfoData> analyze(TypeInfo typeInfo) {
         LOGGER.debug("Analyzing type {}", typeInfo);
-        if (typeInfo.analysis().getOrDefault(DEFAULTS_ANALYZER, FALSE).isTrue()) {
-            return Map.of(); // already done
-        }
-        typeInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
+
         Map<Info, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
         boolean isExtensible = typeInfo.isExtensible();
         List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);
@@ -68,7 +67,7 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         }
         map.forEach((p, v) -> {
             // not writing out default values, we may want to overwrite in AbstractInfoAnalyzer
-            if (!v.isDefault()) typeInfo.analysis().set(p, v);
+            if (!v.isDefault()) typeInfo.analysis().setAllowControlledOverwrite(p, v);
         });
 
         boolean immutableDeterminedByTypeParameters = typeInfo.typeParameters().stream()
@@ -92,102 +91,114 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         Value.Immutable ownerImmutable = analysisHelper.typeImmutable(typeInfo.asParameterizedType());
         Map<Info, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
         for (FieldInfo fieldInfo : typeInfo.fields()) {
-            if (!fieldInfo.access().isPublic()) continue;
-            if (fieldInfo.analysis().getOrDefault(DEFAULTS_ANALYZER, FALSE).isTrue()) {
-                continue; // already done
-            }
-            fieldInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
+            if (onlyPublic && !fieldInfo.access().isPublic()) continue;
 
-            List<AnnotationExpression> fieldAnnotations = annotationProvider.annotations(fieldInfo);
-            Map<Property, Value> annotatedMap = annotationsToMap(fieldInfo, fieldAnnotations);
-            Map<Property, ValueOrigin> fieldMap = new HashMap<>();
-            annotatedMap.forEach((p, v) -> fieldMap.put(p, new ValueOrigin(v, ANNOTATED)));
-
-            boolean enumField = isEnum && fieldInfo.isSynthetic();
-
-            ValueOrigin ff = fieldMap.get(FINAL_FIELD);
-            if (ff == null || ff.valueAsBool().isFalse()) {
-                if (enumField || ownerImmutable.isAtLeastImmutableHC()) {
-                    fieldMap.put(FINAL_FIELD, FROM_OWNER_TRUE);
-                } else if (fieldInfo.isFinal()) {
-                    fieldMap.put(FINAL_FIELD, FROM_FIELD_TRUE);
-                } else if (ff == null) {
-                    fieldMap.put(FINAL_FIELD, DEFAULT_FALSE);
-                }
-            }
-            ValueOrigin nn = fieldMap.get(NOT_NULL_FIELD);
-            if (nn == null || ((Value.NotNull) nn.value()).isNullable()) {
-                if (enumField) {
-                    fieldMap.put(NOT_NULL_FIELD, new ValueOrigin(NOT_NULL, FROM_OWNER));
-                } else if (fieldInfo.type().isPrimitiveExcludingVoid()) {
-                    fieldMap.put(NOT_NULL_FIELD, new ValueOrigin(NOT_NULL, FROM_TYPE));
-                } else if (nn == null) {
-                    fieldMap.put(NOT_NULL_FIELD, NULLABLE_DEFAULT);
-                }
-            }
-            ValueOrigin c = fieldMap.get(CONTAINER_FIELD);
-            if (c == null || c.valueAsBool().isFalse()) {
-                if (typeIsContainer(fieldInfo.type())) {
-                    fieldMap.put(CONTAINER_FIELD, FROM_TYPE_TRUE);
-                } else if (c == null) {
-                    fieldMap.put(CONTAINER_FIELD, DEFAULT_FALSE);
-                }
-            }
-            Value.Immutable formallyImmutable = analysisHelper.typeImmutable(fieldInfo.type());
-            if (formallyImmutable == null) {
-                LOGGER.warn("Have no @Immutable value for {}", fieldInfo.type());
-                formallyImmutable = MUTABLE;
-            }
-
-            ValueOrigin um = fieldMap.get(UNMODIFIED_FIELD);
-            if (um == null || um.valueAsBool().isFalse()) {
-                if (formallyImmutable.isAtLeastImmutableHC()) {
-                    fieldMap.put(UNMODIFIED_FIELD, FROM_TYPE_TRUE);
-                } else if (ownerImmutable.isAtLeastImmutableHC()) {
-                    fieldMap.put(UNMODIFIED_FIELD, FROM_OWNER_TRUE);
-                } else if (um == null) {
-                    fieldMap.put(UNMODIFIED_FIELD, DEFAULT_FALSE);
-                }
-            }
-            ValueOrigin imm = fieldMap.get(IMMUTABLE_FIELD);
-            if (imm == null) {
-                if (!ValueImpl.ImmutableImpl.MUTABLE.equals(formallyImmutable)) {
-                    fieldMap.put(IMMUTABLE_FIELD, new ValueOrigin(formallyImmutable, FROM_TYPE));
-                }
-            } else {
-                Value.Immutable v = (Value.Immutable) imm.value();
-                Value.Immutable max = formallyImmutable.max(v);
-                if (!ValueImpl.ImmutableImpl.MUTABLE.equals(max) && !max.equals(v)) {
-                    fieldMap.put(IMMUTABLE_FIELD, new ValueOrigin(max, FROM_TYPE));
-                }
-            }
-            Value.Independent formallyIndependent = analysisHelper.typeIndependent(fieldInfo.type());
-            if (formallyIndependent == null) {
-                LOGGER.warn("Have no @Independent value for {}", fieldInfo.type());
-                formallyIndependent = DEPENDENT;
-            }
-            ValueOrigin ind = fieldMap.get(INDEPENDENT_FIELD);
-            if (ind == null) {
-                if (!formallyIndependent.isDependent()) {
-                    fieldMap.put(INDEPENDENT_FIELD, new ValueOrigin(formallyIndependent, FROM_TYPE));
-                }
-            } else {
-                Value.Independent v = (Value.Independent) ind.value();
-                Value.Independent max = formallyIndependent.max(v);
-                if (!max.isDependent()) {
-                    fieldMap.put(INDEPENDENT_FIELD, new ValueOrigin(formallyIndependent, FROM_TYPE));
-                }
-            }
-
-            // copy into relevant place
-            ShallowAnalyzer.InfoData infoData = new ShallowAnalyzer.InfoData(new HashMap<>());
-            fieldMap.forEach((p, vo) -> {
-                if (!vo.value().isDefault()) fieldInfo.analysis().set(p, vo.value());
-                infoData.put(p, vo.origin());
-            });
+            ShallowAnalyzer.InfoData infoData = analyzeField(fieldInfo, isEnum, ownerImmutable);
             dataMap.put(fieldInfo, infoData);
         }
         return dataMap;
+    }
+
+    public ShallowAnalyzer.InfoData analyzeField(FieldInfo fieldInfo) {
+        TypeInfo typeInfo = fieldInfo.owner();
+        boolean isEnum = typeInfo.typeNature().isEnum();
+        Value.Immutable ownerImmutable = analysisHelper.typeImmutable(typeInfo.asParameterizedType());
+        return analyzeField(fieldInfo, isEnum, ownerImmutable);
+    }
+
+    private ShallowAnalyzer.InfoData analyzeField(FieldInfo fieldInfo,
+                                                  boolean isEnum,
+                                                  Value.Immutable ownerImmutable) {
+        List<AnnotationExpression> fieldAnnotations = annotationProvider.annotations(fieldInfo);
+        Map<Property, Value> annotatedMap = annotationsToMap(fieldInfo, fieldAnnotations);
+        Map<Property, ValueOrigin> fieldMap = new HashMap<>();
+        annotatedMap.forEach((p, v) -> fieldMap.put(p, new ValueOrigin(v, ANNOTATED)));
+
+        boolean enumField = isEnum && fieldInfo.isSynthetic();
+
+        ValueOrigin ff = fieldMap.get(FINAL_FIELD);
+        if (ff == null || ff.valueAsBool().isFalse()) {
+            if (enumField || ownerImmutable.isAtLeastImmutableHC()) {
+                fieldMap.put(FINAL_FIELD, FROM_OWNER_TRUE);
+            } else if (fieldInfo.isFinal()) {
+                fieldMap.put(FINAL_FIELD, FROM_FIELD_TRUE);
+            } else if (ff == null) {
+                fieldMap.put(FINAL_FIELD, DEFAULT_FALSE);
+            }
+        }
+        ValueOrigin nn = fieldMap.get(NOT_NULL_FIELD);
+        if (nn == null || ((Value.NotNull) nn.value()).isNullable()) {
+            if (enumField) {
+                fieldMap.put(NOT_NULL_FIELD, new ValueOrigin(NOT_NULL, FROM_OWNER));
+            } else if (fieldInfo.type().isPrimitiveExcludingVoid()) {
+                fieldMap.put(NOT_NULL_FIELD, new ValueOrigin(NOT_NULL, FROM_TYPE));
+            } else if (nn == null) {
+                fieldMap.put(NOT_NULL_FIELD, NULLABLE_DEFAULT);
+            }
+        }
+        ValueOrigin c = fieldMap.get(CONTAINER_FIELD);
+        if (c == null || c.valueAsBool().isFalse()) {
+            if (typeIsContainer(fieldInfo.type())) {
+                fieldMap.put(CONTAINER_FIELD, FROM_TYPE_TRUE);
+            } else if (c == null) {
+                fieldMap.put(CONTAINER_FIELD, DEFAULT_FALSE);
+            }
+        }
+        Value.Immutable formallyImmutable = analysisHelper.typeImmutable(fieldInfo.type());
+        if (formallyImmutable == null) {
+            LOGGER.warn("Have no @Immutable value for {}", fieldInfo.type());
+            formallyImmutable = MUTABLE;
+        }
+
+        ValueOrigin um = fieldMap.get(UNMODIFIED_FIELD);
+        if (um == null || um.valueAsBool().isFalse()) {
+            if (formallyImmutable.isAtLeastImmutableHC()) {
+                fieldMap.put(UNMODIFIED_FIELD, FROM_TYPE_TRUE);
+            } else if (ownerImmutable.isAtLeastImmutableHC()) {
+                fieldMap.put(UNMODIFIED_FIELD, FROM_OWNER_TRUE);
+            } else if (um == null) {
+                fieldMap.put(UNMODIFIED_FIELD, DEFAULT_FALSE);
+            }
+        }
+        ValueOrigin imm = fieldMap.get(IMMUTABLE_FIELD);
+        if (imm == null) {
+            if (!ValueImpl.ImmutableImpl.MUTABLE.equals(formallyImmutable)) {
+                fieldMap.put(IMMUTABLE_FIELD, new ValueOrigin(formallyImmutable, FROM_TYPE));
+            }
+        } else {
+            Value.Immutable v = (Value.Immutable) imm.value();
+            Value.Immutable max = formallyImmutable.max(v);
+            if (!ValueImpl.ImmutableImpl.MUTABLE.equals(max) && !max.equals(v)) {
+                fieldMap.put(IMMUTABLE_FIELD, new ValueOrigin(max, FROM_TYPE));
+            }
+        }
+        Value.Independent formallyIndependent = analysisHelper.typeIndependent(fieldInfo.type());
+        if (formallyIndependent == null) {
+            LOGGER.warn("Have no @Independent value for {}", fieldInfo.type());
+            formallyIndependent = DEPENDENT;
+        }
+        ValueOrigin ind = fieldMap.get(INDEPENDENT_FIELD);
+        if (ind == null) {
+            if (!formallyIndependent.isDependent()) {
+                fieldMap.put(INDEPENDENT_FIELD, new ValueOrigin(formallyIndependent, FROM_TYPE));
+            }
+        } else {
+            Value.Independent v = (Value.Independent) ind.value();
+            Value.Independent max = formallyIndependent.max(v);
+            if (!max.isDependent()) {
+                fieldMap.put(INDEPENDENT_FIELD, new ValueOrigin(formallyIndependent, FROM_TYPE));
+            }
+        }
+
+        // copy into relevant place
+        ShallowAnalyzer.InfoData infoData = new ShallowAnalyzer.InfoData(new HashMap<>());
+        fieldMap.forEach((p, vo) -> {
+            if (!vo.value().isDefault()) {
+                fieldInfo.analysis().setAllowControlledOverwrite(p, vo.value());
+            }
+            infoData.put(p, vo.origin());
+        });
+        return infoData;
     }
 
     private boolean typeIsContainer(ParameterizedType type) {

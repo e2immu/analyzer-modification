@@ -19,7 +19,8 @@ public interface PrimaryTypeImmutableAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
 
-        Set<FieldInfo> internalWaitFor();
+        // both fields and abstract methods
+        Set<Info> internalWaitFor();
         Set<TypeInfo> externalWaitFor();
     }
 

@@ -30,6 +30,7 @@ import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesIm
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.FLUENT_METHOD;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.PARAMETER_ASSIGNED_TO_FIELD;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 /*
@@ -74,16 +75,19 @@ public class PrimaryTypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implement
         Map<MethodInfo, Set<TypeInfo>> waitForTypeIndependence = new HashMap<>();
 
         private void go(TypeInfo typeInfo) {
-            typeInfo.constructorAndMethodStream().forEach(this::go);
+            typeInfo.constructorAndMethodStream()
+                    .filter(mi -> !mi.isSynthetic() && !mi.isAbstract())
+                    .forEach(this::go);
         }
 
         private void go(MethodInfo methodInfo) {
-            if (methodInfo.isSynthetic()) {
-
-            } else if (methodInfo.isAbstract()) {
-
-            } else if (methodInfo.explicitlyEmptyMethod()) {
-
+            if (methodInfo.explicitlyEmptyMethod()) {
+                methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE);
+                methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
+                for (ParameterInfo pi : methodInfo.parameters()) {
+                    pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
+                    pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
+                }
             } else {
                 Statement lastStatement = methodInfo.methodBody().lastStatement();
                 assert lastStatement != null;

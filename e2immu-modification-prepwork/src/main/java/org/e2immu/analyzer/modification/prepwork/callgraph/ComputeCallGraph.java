@@ -140,6 +140,9 @@ public class ComputeCallGraph {
             }
 
             builder.mergeEdge(typeInfo, mi, CODE_STRUCTURE); // A
+            for (MethodInfo override : mi.overrides()) {
+                if (accept(override.typeInfo())) builder.mergeEdge(mi, override, CODE_STRUCTURE);
+            }
             Visitor visitor = new Visitor(mi);
             mi.methodBody().visit(visitor); // D
         });

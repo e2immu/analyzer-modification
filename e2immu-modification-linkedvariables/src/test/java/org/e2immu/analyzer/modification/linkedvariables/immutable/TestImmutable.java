@@ -114,6 +114,9 @@ public class TestImmutable extends CommonTest {
         assertTrue(immutable(J).isImmutableHC());
 
         TypeInfo K = X.findSubType("K");
+        MethodInfo add = K.findUniqueMethod("add", 1);
+        assertFalse(add.isNonModifying());
+
         assertTrue(immutable(K).isMutable());
 
         TypeInfo KK = X.findSubType("KK");

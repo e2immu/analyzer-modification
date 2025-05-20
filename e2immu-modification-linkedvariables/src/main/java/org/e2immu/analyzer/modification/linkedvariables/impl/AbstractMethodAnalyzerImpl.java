@@ -1,6 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
-import org.e2immu.analyzer.modification.linkedvariables.AbstractInfoAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.AbstractMethodAnalyzer;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -10,44 +10,24 @@ import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
 import java.util.*;
 
-public class AbstractInfoAnalyzerImpl extends CommonAnalyzerImpl implements AbstractInfoAnalyzer {
-
-    // given an abstract type, which are its concrete extensions?
-    final Map<TypeInfo, Set<TypeInfo>> concreteExtensionsOfAbstractTypes = new HashMap<>();
+public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements AbstractMethodAnalyzer {
 
     // given an abstract method, which are its concrete implementations?
     final Map<MethodInfo, Set<MethodInfo>> concreteImplementationsOfAbstractMethods = new HashMap<>();
 
-    public AbstractInfoAnalyzerImpl(Set<TypeInfo> primaryTypes) {
-        primaryTypes.stream().flatMap(TypeInfo::recursiveSubTypeStream).forEach(typeInfo -> {
-            if (!typeInfo.isAbstract()) {
-                typeInfo.typeHierarchyExcludingJLOStream()
-                        // stay within our source code
-                        .filter(st -> primaryTypes.contains(st.primaryType()))
-                        .forEach(st -> {
-                            if (st.isAbstract()) {
-                                concreteExtensionsOfAbstractTypes.computeIfAbsent(st, t -> new HashSet<>())
-                                        .add(typeInfo);
-                            }
-                        });
-            }
-            typeInfo.methodStream().filter(mi -> !mi.isAbstract()).forEach(mi -> {
-                mi.overrides().stream()
-                        // override of the non-abstract method must be in our source code, and must be abstract itself
-                        .filter(MethodInfo::isAbstract)
-                        .filter(ov -> primaryTypes.contains(ov.typeInfo().primaryType()))
-                        .forEach(ov -> {
-                            concreteImplementationsOfAbstractMethods.computeIfAbsent(ov, m -> new HashSet<>())
-                                    .add(mi);
-                        });
-            });
-        });
+    public AbstractMethodAnalyzerImpl(Set<TypeInfo> primaryTypes) {
+        primaryTypes.stream().flatMap(TypeInfo::recursiveSubTypeStream).forEach(typeInfo ->
+                typeInfo.methodStream().filter(mi -> !mi.isAbstract()).forEach(mi ->
+                        mi.overrides().stream()
+                                // override of the non-abstract method must be in our source code, and must be abstract itself
+                                .filter(MethodInfo::isAbstract)
+                                .filter(ov -> primaryTypes.contains(ov.typeInfo().primaryType()))
+                                .forEach(ov ->
+                                        concreteImplementationsOfAbstractMethods
+                                                .computeIfAbsent(ov, m -> new HashSet<>()).add(mi))));
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised,
-                              Set<TypeInfo> waitForTypes,
-                              Set<MethodInfo> waitForMethods) implements Output {
-
+    private record OutputImpl(List<Throwable> problemsRaised, Set<MethodInfo> waitForMethods) implements Output {
     }
 
     @Override
@@ -63,18 +43,7 @@ public class AbstractInfoAnalyzerImpl extends CommonAnalyzerImpl implements Abst
                 waitForMethods.addAll(waitForOfMethod);
             }
         }
-        Set<TypeInfo> waitForTypes = new HashSet<>();
-        Iterator<Map.Entry<TypeInfo, Set<TypeInfo>>> iterator2 = concreteExtensionsOfAbstractTypes.entrySet().iterator();
-        while (iterator2.hasNext()) {
-            Map.Entry<TypeInfo, Set<TypeInfo>> entry = iterator2.next();
-            Set<TypeInfo> waitForOfType = resolve(entry.getKey(), entry.getValue());
-            if (waitForOfType.isEmpty()) {
-                iterator2.remove();
-            } else {
-                waitForTypes.addAll(waitForOfType);
-            }
-        }
-        return new OutputImpl(List.of(), waitForTypes, waitForMethods);
+        return new OutputImpl(List.of(), waitForMethods);
     }
 
     private Set<MethodInfo> resolve(MethodInfo methodInfo, Set<MethodInfo> concreteImplementations) {
@@ -194,9 +163,5 @@ public class AbstractInfoAnalyzerImpl extends CommonAnalyzerImpl implements Abst
             return waitFor;
         }
         return Set.of();
-    }
-
-    private Set<TypeInfo> resolve(TypeInfo methodInfo, Set<TypeInfo> concreteExtensions) {
-        throw new UnsupportedOperationException();
     }
 }

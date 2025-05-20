@@ -183,6 +183,7 @@ public class TestCallGraph extends CommonTest {
                 a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.I, a.b.X->S->a.b.X.Y, \
                 a.b.X->S->a.b.X.Z, a.b.X->S->a.b.X.getZ(), a.b.X->S->a.b.X.z, a.b.X.I->S->a.b.X.I.i(), \
                 a.b.X.Y->H->a.b.X.I, a.b.X.Y->S->a.b.X.Y.<init>(int), a.b.X.Y->S->a.b.X.Y.i, a.b.X.Y->S->a.b.X.Y.i(), \
+                a.b.X.Y.i()->S->a.b.X.I.i(), \
                 a.b.X.Y.i->R->a.b.X.Y.<init>(int), a.b.X.Y.i->R->a.b.X.Y.i(), a.b.X.Z->S->a.b.X.Z.<init>(a.b.X.Y), \
                 a.b.X.Z->S->a.b.X.Z.y, a.b.X.Z->S->a.b.X.Z.y(), a.b.X.Z.<init>(a.b.X.Y)->D->a.b.X.Y, \
                 a.b.X.Z.y()->D->a.b.X.Y, a.b.X.Z.y->D->a.b.X.Y, a.b.X.Z.y->R->a.b.X.Z.<init>(a.b.X.Y), \
@@ -192,7 +193,7 @@ public class TestCallGraph extends CommonTest {
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         List<Info> analysisOrder = cao.go(graph);
         assertEquals("""
-                [a.b.X.<init>(), a.b.X.I.i(), a.b.X.Y.<init>(int), a.b.X.Y.i(), a.b.X.I, a.b.X.Y.i, a.b.X.Y, \
+                [a.b.X.<init>(), a.b.X.I.i(), a.b.X.Y.<init>(int), a.b.X.I, a.b.X.Y.i(), a.b.X.Y.i, a.b.X.Y, \
                 a.b.X.Z.<init>(a.b.X.Y), a.b.X.Z.y(), a.b.X.Z.y, a.b.X.Z, a.b.X.getZ(), a.b.X.z, a.b.X]\
                 """, analysisOrder.toString());
     }

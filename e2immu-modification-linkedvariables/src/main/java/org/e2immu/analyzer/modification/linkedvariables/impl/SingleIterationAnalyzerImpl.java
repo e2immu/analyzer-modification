@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.defaults.ShallowTypeAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.*;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
@@ -17,6 +18,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
     private final FieldAnalyzer fieldAnalyzer;
     private final PrimaryTypeModIndyAnalyzer primaryTypeModIndyAnalyzer;
     private final PrimaryTypeImmutableAnalyzer primaryTypeImmutableAnalyzer;
+    private final ShallowTypeAnalyzer shallowTypeAnalyzer;
 
     private record OutputImpl(List<Throwable> problemsRaised, G<Info> waitFor, Map<String, Integer> infoHistogram)
             implements Output {
@@ -29,6 +31,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         fieldAnalyzer = new FieldAnalyzerImpl(runtime);
         primaryTypeModIndyAnalyzer = new PrimaryTypeModIndyAnalyzerImpl(runtime, configuration);
         primaryTypeImmutableAnalyzer = new PrimaryTypeImmutableAnalyzerImpl(configuration);
+        shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Info::annotations, false);
     }
 
     @Override
@@ -40,11 +43,19 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
     public Output go(List<Info> analysisOrder, boolean activateCycleBreaking) {
         List<Throwable> myProblemsRaised = new ArrayList<>();
         Map<MethodInfo, Set<MethodInfo>> methodsWaitFor = new HashMap<>();
+        Set<TypeInfo> primaryTypes = new HashSet<>();
+        Set<TypeInfo> abstractTypes = new HashSet<>();
         for (Info info : analysisOrder) {
             if (info instanceof MethodInfo methodInfo) {
+                if (methodInfo.isAbstract() && abstractTypes.add(info.typeInfo())) {
+                    shallowTypeAnalyzer.analyze(info.typeInfo());
+                }
                 MethodModAnalyzer.Output output = methodModAnalyzer.go(methodInfo, activateCycleBreaking);
                 methodsWaitFor.put(methodInfo, output.waitForMethods());
             } else if (info instanceof FieldInfo fieldInfo) {
+                if (fieldInfo.owner().isAbstract()) {
+                    shallowTypeAnalyzer.analyzeField(fieldInfo);
+                }
                 FieldAnalyzer.Output output = fieldAnalyzer.go(fieldInfo);
                 myProblemsRaised.addAll(output.problemsRaised());
             } else if (info instanceof TypeInfo typeInfo && typeInfo.isPrimaryType()) {
@@ -54,8 +65,15 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                 PrimaryTypeImmutableAnalyzer.Output output2 = primaryTypeImmutableAnalyzer.go(typeInfo,
                         activateCycleBreaking);
                 myProblemsRaised.addAll(output2.problemsRaised());
+                primaryTypes.add(typeInfo);
             }
         }
+        AbstractMethodAnalyzer abstractMethodAnalyzer = new AbstractMethodAnalyzerImpl(primaryTypes);
+        myProblemsRaised.addAll(abstractMethodAnalyzer.go().problemsRaised());
+        for (TypeInfo primaryType : primaryTypes) {
+            primaryTypeImmutableAnalyzer.go(primaryType, activateCycleBreaking);
+        }
+        
         G.Builder<Info> builder = new G.Builder<>(Long::sum);
 
         return new OutputImpl(myProblemsRaised, builder.build(), Map.of());

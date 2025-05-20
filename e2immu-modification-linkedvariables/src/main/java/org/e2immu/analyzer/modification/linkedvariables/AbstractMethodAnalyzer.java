@@ -5,10 +5,9 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 
 import java.util.Set;
 
-public interface AbstractInfoAnalyzer extends Analyzer {
+public interface AbstractMethodAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
-        Set<TypeInfo> waitForTypes();
 
         Set<MethodInfo> waitForMethods();
     }
