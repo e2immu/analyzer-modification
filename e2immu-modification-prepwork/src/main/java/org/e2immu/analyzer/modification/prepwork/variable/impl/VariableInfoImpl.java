@@ -8,7 +8,6 @@ import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
-import org.e2immu.support.EventuallyFinal;
 
 public class VariableInfoImpl implements VariableInfo {
     public static final Property UNMODIFIED_VARIABLE = new PropertyImpl("unmodifiedVariable");
@@ -18,7 +17,7 @@ public class VariableInfoImpl implements VariableInfo {
 
     public static final Property DOWNCAST_VARIABLE = new PropertyImpl("downcastVariable", ValueImpl.SetOfTypeInfoImpl.EMPTY);
 
-    private final EventuallyFinal<LinkedVariables> linkedVariables = new EventuallyFinal<>();
+    private LinkedVariables linkedVariables;
     private StaticValues staticValues;
 
     private final PropertyValueMap analysis = new PropertyValueMapImpl();
@@ -36,39 +35,28 @@ public class VariableInfoImpl implements VariableInfo {
     }
 
     public void initializeLinkedVariables(LinkedVariables initialValue) {
-        if (this.linkedVariables.isVariable()) {
-            this.linkedVariables.setVariable(initialValue);
+        if (this.linkedVariables == null) {
+            this.linkedVariables = initialValue;
         }
     }
 
     public boolean setLinkedVariables(LinkedVariables linkedVariables) {
         assert linkedVariables != null;
-        assert this.linkedVariables.get() != null : "Please initialize LVs";
         assert !linkedVariables.contains(variable) : "Self references are not allowed";
-        if (this.linkedVariables.isFinal()) {
-            if (!this.linkedVariables.get().equals(linkedVariables)) {
-                throw new IllegalStateException("Variable " + variable.fullyQualifiedName()
-                                                + ": not allowed to change LVs anymore: old: " + this.linkedVariables.get()
-                                                + ", new " + linkedVariables);
-            }
+        if (this.linkedVariables.isNotYetSet() || this.linkedVariables.isDelayed()) {
+            this.linkedVariables = linkedVariables;
+            return true;
+        }
+        if (this.linkedVariables.equals(linkedVariables)) {
             return false;
         }
-        if (!this.linkedVariables.get().isNotYetSet()) {
-            // the first time, there are no restrictions on statically assigned values
-            // as soon as we have a real value, we cannot change SA anymore
-
-            if (!this.linkedVariables.get().identicalStaticallyAssigned(linkedVariables)) {
-                throw new IllegalStateException("Cannot change statically assigned for variable "
-                                                + variable.fullyQualifiedName() + "\nold: " + this.linkedVariables.get()
-                                                + "\nnew: " + linkedVariables + "\n");
-            }
+        if (this.linkedVariables.overwriteAllowed(linkedVariables)) {
+            this.linkedVariables = linkedVariables;
+            return true;
         }
-        if (linkedVariables.isDelayed()) {
-            this.linkedVariables.setVariable(linkedVariables);
-            return false;
-        }
-        this.linkedVariables.setFinal(linkedVariables);
-        return true;
+        throw new IllegalStateException("Variable " + variable.fullyQualifiedName()
+                                        + ": new linked variables are not better than old: " + this.linkedVariables
+                                        + ", new " + linkedVariables);
     }
 
     public boolean staticValuesIsSet() {
@@ -88,7 +76,7 @@ public class VariableInfoImpl implements VariableInfo {
 
     @Override
     public LinkedVariables linkedVariables() {
-        return linkedVariables.get();
+        return linkedVariables;
     }
 
     @Override

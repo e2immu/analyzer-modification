@@ -323,13 +323,14 @@ public class TestLinkTypeParameters extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.go(analysisOrder);
         analyzer.go(analysisOrder);
-        
+
         TypeInfo Pair = X.findSubType("Pair");
         FieldInfo f = Pair.getFieldByName("f", true);
         int fIndex = analysisOrder.indexOf(f);
         MethodInfo reverse = X.findUniqueMethod("reverse", 1);
         int reverseIndex = analysisOrder.indexOf(reverse);
-        assertTrue(reverseIndex < fIndex);
+        // This is the cause of the need for a second iteration!
+        assertTrue(reverseIndex > fIndex);
         TypeInfo R = X.findSubType("R");
         int pairIndex = analysisOrder.indexOf(Pair);
         int rIndex = analysisOrder.indexOf(R);
