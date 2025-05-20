@@ -60,6 +60,7 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             waitFor.addAll(collectDowncast(concreteImplementations, pi));
         }
         waitFor.addAll(methodNonModifying(concreteImplementations, methodInfo));
+        waitFor.addAll(methodIndependent(concreteImplementations, methodInfo));
         return waitFor;
     }
 
@@ -105,9 +106,9 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             }
             if (fromImplementations != null) {
                 pi.analysis().set(PropertyImpl.INDEPENDENT_PARAMETER, fromImplementations);
-                DECIDE.debug("Independent of param {} = {}", pi, fromImplementations);
+                DECIDE.debug("Decide independent of param {} = {}", pi, fromImplementations);
             } else {
-                UNDECIDED.debug("Cannot decide on independent param {}, wait for {}", pi, waitFor);
+                UNDECIDED.debug("Independent of param {} undecided, wait for {}", pi, waitFor);
             }
             return waitFor;
         }
@@ -134,9 +135,38 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             }
             if (fromImplementations != null) {
                 methodInfo.analysis().set(PropertyImpl.NON_MODIFYING_METHOD, fromImplementations);
-                DECIDE.debug("NonModifying of method {} = {}", methodInfo, fromImplementations);
+                DECIDE.debug("Decide non-modifying of method {} = {}", methodInfo, fromImplementations);
             } else {
-                UNDECIDED.debug("Cannot decide on non-modifying method {}, wait for {}", methodInfo, waitFor);
+                UNDECIDED.debug("Non-modifying method {} undecided, wait for {}", methodInfo, waitFor);
+            }
+            return waitFor;
+        }
+        return Set.of();
+    }
+
+
+    private Set<MethodInfo> methodIndependent(Set<MethodInfo> concreteImplementations, MethodInfo methodInfo) {
+        Value.Independent independent = methodInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_METHOD,
+                ValueImpl.IndependentImpl.class);
+        if (independent == null) {
+            Set<MethodInfo> waitFor = new HashSet<>();
+            Value.Independent fromImplementations = ValueImpl.IndependentImpl.INDEPENDENT;
+            for (MethodInfo implementation : concreteImplementations) {
+                Value.Independent independentImpl = implementation.analysis().getOrNull(PropertyImpl.INDEPENDENT_METHOD,
+                        ValueImpl.IndependentImpl.class);
+                if (independentImpl == null) {
+                    waitFor.add(implementation);
+                    fromImplementations = null;
+                } else if (fromImplementations != null) {
+                    fromImplementations = fromImplementations.min(independentImpl);
+                    if (fromImplementations.isDependent()) break;
+                }
+            }
+            if (fromImplementations != null) {
+                methodInfo.analysis().set(PropertyImpl.INDEPENDENT_METHOD, fromImplementations);
+                DECIDE.debug("Decide independent of method {} = {}", methodInfo, fromImplementations);
+            } else {
+                UNDECIDED.debug("Independent of method {} undecided, wait for {}", methodInfo, waitFor);
             }
             return waitFor;
         }
@@ -162,9 +192,9 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             }
             if (fromImplementations != null) {
                 pi.analysis().set(PropertyImpl.UNMODIFIED_PARAMETER, fromImplementations);
-                DECIDE.debug("Unmodified of param {} = {}", pi, fromImplementations);
+                DECIDE.debug("Decide unmodified of param {} = {}", pi, fromImplementations);
             } else {
-                UNDECIDED.debug("Cannot decide on nonmodifying param {}, wait for {}", pi, waitFor);
+                UNDECIDED.debug("Non-modifying of param {} undecided, wait for {}", pi, waitFor);
             }
             return waitFor;
         }

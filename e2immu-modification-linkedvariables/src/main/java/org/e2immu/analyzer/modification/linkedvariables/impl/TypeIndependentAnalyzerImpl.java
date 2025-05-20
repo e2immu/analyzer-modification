@@ -51,7 +51,7 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
             }
             Independent independent = computeIndependentType(typeInfo, activateCycleBreaking);
             if (independent != null) {
-                DECIDE.debug("Decide independent = {} for type {}", independent, typeInfo);
+                DECIDE.debug("Decide independent of type {} = {}", typeInfo, independent);
                 typeInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_TYPE, independent);
             } else {
                 UNDECIDED.debug("Independent of type {} undecided, wait for internal {}, external {}", typeInfo,
@@ -67,8 +67,8 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
 
             boolean stopExternal = false;
             for (ParameterizedType superType : typeInfo.parentAndInterfacesImplemented()) {
-                Independent independentSuper = superType.typeInfo().analysis().getOrNull(INDEPENDENT_TYPE,
-                        ValueImpl.IndependentImpl.class);
+                TypeInfo superTypeInfo = superType.typeInfo();
+                Independent independentSuper = independentSuper(superTypeInfo);
                 Independent independentSuperBroken;
                 if (independentSuper == null) {
                     if (activateCycleBreaking) {
@@ -78,7 +78,7 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
                             return DEPENDENT;
                         }
                     } else {
-                        externalWaitFor.add(superType.typeInfo());
+                        externalWaitFor.add(superTypeInfo);
                         independentSuperBroken = INDEPENDENT; // not relevant
                     }
                     stopExternal = true;
@@ -97,6 +97,22 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
             if (fromFields == null) return null;
             if (fromFields.isDependent()) return DEPENDENT;
             return fromFields.min(indyFromHierarchy);
+        }
+
+        private Independent independentSuper(TypeInfo superTypeInfo) {
+            Independent ofType = superTypeInfo.analysis().getOrNull(INDEPENDENT_TYPE, ValueImpl.IndependentImpl.class);
+            if (ofType != null || !superTypeInfo.isAbstract()) return ofType;
+            Independent ofMethods = INDEPENDENT;
+            for (MethodInfo methodInfo : superTypeInfo.constructorsAndMethods()) {
+                if (!methodInfo.isAbstract()) {
+                    Independent ofMethod = methodInfo.analysis().getOrNull(INDEPENDENT_METHOD,
+                            ValueImpl.IndependentImpl.class);
+                    if (ofMethod == null) return null;
+                    if (ofMethod.isDependent()) return DEPENDENT;
+                    ofMethods = ofMethods.min(ofMethod);
+                }
+            }
+            return ofMethods;
         }
 
         private Independent loopOverFieldsAndAbstractMethods(TypeInfo typeInfo) {

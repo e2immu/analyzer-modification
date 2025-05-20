@@ -60,7 +60,7 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             }
             Immutable immutable = computeImmutableType(typeInfo, independent, activateCycleBreaking);
             if (immutable != null) {
-                DECIDE.debug("Decide immutable = {} for type {}", immutable, typeInfo);
+                DECIDE.debug("Decide immutable of type {} = {}", typeInfo, immutable);
                 typeInfo.analysis().setAllowControlledOverwrite(IMMUTABLE_TYPE, immutable);
             } else {
                 UNDECIDED.debug("Immutable of type {} undecided, wait for internal {}, external {}", typeInfo,
@@ -79,8 +79,7 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             boolean stopExternal = false;
 
             for (ParameterizedType superType : typeInfo.parentAndInterfacesImplemented()) {
-                Value.Immutable immutableSuper = superType.typeInfo().analysis().getOrNull(IMMUTABLE_TYPE,
-                        ValueImpl.ImmutableImpl.class);
+                Value.Immutable immutableSuper = immutableSuper(superType.typeInfo());
                 Value.Immutable immutableSuperBroken;
                 if (immutableSuper == null) {
                     if (activateCycleBreaking) {
@@ -106,16 +105,25 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
                 return null;
             }
 
-            // fields and abstract methods
+            // fields and abstract methods (those annotated by hand)
 
-            Boolean immFromField = loopOverFieldsAndAbstractMethods(typeInfo);
+            Boolean immFromField = loopOverFieldsAndMethods(typeInfo, true);
             if (immFromField == null) return null;
             if (!immFromField) return FINAL_FIELDS;
             return HiddenContentTypes.hasHc(typeInfo) ? IMMUTABLE_HC : IMMUTABLE;
         }
 
+        private Immutable immutableSuper(TypeInfo typeInfo) {
+            Immutable immutable = typeInfo.analysis().getOrNull(IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.class);
+            if (immutable != null || !typeInfo.isAbstract()) return immutable;
+            Boolean immFromFieldNonAbstract = loopOverFieldsAndMethods(typeInfo, false);
+            if (immFromFieldNonAbstract == null) return null;
+            if (!immFromFieldNonAbstract) return FINAL_FIELDS;
+            return HiddenContentTypes.hasHc(typeInfo) ? IMMUTABLE_HC : IMMUTABLE;
+        }
 
-        private Boolean loopOverFieldsAndAbstractMethods(TypeInfo typeInfo) {
+
+        private Boolean loopOverFieldsAndMethods(TypeInfo typeInfo, boolean abstractMethods) {
             // fields should be private, or immutable for the type to be immutable
             // fields should not be @Modified nor assigned to
             // fields should not be @Dependent
@@ -142,7 +150,7 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
                 }
             }
             for (MethodInfo methodInfo : typeInfo.methods()) {
-                if (methodInfo.isAbstract()) {
+                if (methodInfo.isAbstract() == abstractMethods) {
                     Value.Bool nonModifying = methodInfo.analysis().getOrNull(NON_MODIFYING_METHOD, ValueImpl.BoolImpl.class);
                     if (nonModifying == null) {
                         internalWaitFor.add(methodInfo);
