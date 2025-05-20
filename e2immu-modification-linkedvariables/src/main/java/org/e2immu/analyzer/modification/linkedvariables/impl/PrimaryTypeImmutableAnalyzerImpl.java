@@ -161,15 +161,7 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
             ImmIndy immIndy = loopOverFieldsAndAbstractMethods(typeInfo);
             boolean immFromField;
             boolean indyFromField;
-            if (immIndy.isImmutable == null) {
-                if (finalFields && immFromHierarchy.isAtLeastImmutableHC()) {
-                    // we'll have to wait
-                    return new PrimaryTypeImmutableAnalyzerImpl.ImmIndy(null, indyFromHierarchy);
-                }
-                immFromField = false;
-            } else {
-                immFromField = immIndy.isImmutable;
-            }
+
             if (immIndy.isIndependent == null) {
                 if (indyFromHierarchy.isAtLeastIndependentHc()) {
                     // we'll have to wait
@@ -178,6 +170,16 @@ public class PrimaryTypeImmutableAnalyzerImpl extends CommonAnalyzerImpl impleme
                 indyFromField = false;
             } else {
                 indyFromField = immIndy.isIndependent;
+            }
+            if (immIndy.isImmutable == null) {
+                if (finalFields && immFromHierarchy.isAtLeastImmutableHC()) {
+                    // we'll have to wait
+                    Independent i = indyFromField ? indyFromHierarchy : DEPENDENT;
+                    return new PrimaryTypeImmutableAnalyzerImpl.ImmIndy(null, i);
+                }
+                immFromField = false;
+            } else {
+                immFromField = immIndy.isImmutable;
             }
 
             assert immFromHierarchy != null;
