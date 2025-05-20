@@ -85,7 +85,7 @@ public class VariableDataImpl implements VariableData {
         return vicByFqn.get(variable.fullyQualifiedName()).best(stage);
     }
 
-    public static VariableData of(Element info) {
-        return info.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
+    public static VariableData of(Element element) {
+        return element.analysis().getOrNull(VARIABLE_DATA, VariableDataImpl.class);
     }
 }

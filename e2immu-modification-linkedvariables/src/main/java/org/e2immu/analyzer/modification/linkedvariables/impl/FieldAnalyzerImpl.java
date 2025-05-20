@@ -14,6 +14,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -148,8 +149,14 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                     EMPTY_PART_OF_CONSTRUCTION);
             boolean undecided = false;
             for (MethodInfo methodInfo : methodsReferringToField) {
-                if (!methodInfo.isConstructor() && !poc.infoSet().contains(methodInfo)) {
-                    VariableData vd = VariableDataImpl.of(methodInfo.methodBody().lastStatement());
+                Value.FieldValue fieldValue = methodInfo.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD,
+                        ValueImpl.GetSetValueImpl.EMPTY);
+                if (fieldInfo == fieldValue.field()) {
+                    if (fieldValue.setter()) return FALSE;
+                } else if (!methodInfo.isConstructor() && !poc.infoSet().contains(methodInfo)) {
+                    Statement lastStatement = methodInfo.methodBody().lastStatement();
+                    assert lastStatement != null;
+                    VariableData vd = VariableDataImpl.of(lastStatement);
                     for (VariableInfo vi : vd.variableInfoIterable()) {
                         Value.Bool v = vi.analysis().getOrNull(VariableInfoImpl.UNMODIFIED_VARIABLE,
                                 ValueImpl.BoolImpl.class);
