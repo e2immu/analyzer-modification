@@ -1,8 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -58,17 +58,17 @@ public class TestStaticValuesModification extends CommonTest {
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
 
         TypeInfo R = X.findSubType("R");
         FieldInfo rSet = R.getFieldByName("set", true);
 
         {
             MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
-            ParameterInfo setAdd0 = setAdd.parameters().get(0);
+            ParameterInfo setAdd0 = setAdd.parameters().getFirst();
             assertTrue(setAdd0.isModified());
             {
-                Statement s0 = setAdd.methodBody().statements().get(0);
+                Statement s0 = setAdd.methodBody().statements().getFirst();
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0r = vd0.variableInfo(setAdd0);
                 assertTrue(vi0r.isModified());
@@ -175,16 +175,16 @@ public class TestStaticValuesModification extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
 
         TypeInfo R = X.findSubType("R");
         MethodInfo rSet = R.findUniqueMethod("set", 0);
         assertEquals("E=this.set", rSet.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
 
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
-        ParameterInfo setAdd0 = setAdd.parameters().get(0);
+        ParameterInfo setAdd0 = setAdd.parameters().getFirst();
         {
-            Statement s0 = setAdd.methodBody().statements().get(0);
+            Statement s0 = setAdd.methodBody().statements().getFirst();
             VariableData vdSetAdd0 = VariableDataImpl.of(s0);
             VariableInfo viSetAdd0R = vdSetAdd0.variableInfo(setAdd0);
             assertTrue(viSetAdd0R.isModified());
@@ -297,9 +297,9 @@ public class TestStaticValuesModification extends CommonTest {
         {
             // propagated to the parameter
             MethodInfo setAdd = X.findUniqueMethod("setAdd", 1);
-            ParameterInfo setAdd0 = setAdd.parameters().get(0);
+            ParameterInfo setAdd0 = setAdd.parameters().getFirst();
             {
-                Statement s0 = setAdd.methodBody().statements().get(0);
+                Statement s0 = setAdd.methodBody().statements().getFirst();
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0r = vd0.variableInfo(setAdd0);
                 // we expect to see a modification on r.set (via ExpressionAnalyzer,markModified)
@@ -438,7 +438,7 @@ public class TestStaticValuesModification extends CommonTest {
             assertSame(objectsRI, set.getSetField().field());
 
             {
-                Statement s0 = set.methodBody().statements().get(0);
+                Statement s0 = set.methodBody().statements().getFirst();
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo viObjectsI = vd0.variableInfo("a.b.X.RI.objects[a.b.X.RI.set(int,Object):0:i]");
                 assertEquals("E=o", viObjectsI.staticValues().toString());
@@ -455,9 +455,9 @@ public class TestStaticValuesModification extends CommonTest {
         // which goes via the interfaces.
         {
             MethodInfo modify = X.findUniqueMethod("modify", 2);
-            ParameterInfo modify0 = modify.parameters().get(0);
+            ParameterInfo modify0 = modify.parameters().getFirst();
             {
-                Statement s0 = modify.methodBody().statements().get(0);
+                Statement s0 = modify.methodBody().statements().getFirst();
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
                 assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:ri",
@@ -480,7 +480,7 @@ public class TestStaticValuesModification extends CommonTest {
         }
         {
             MethodInfo method = X.findUniqueMethod("method", 1);
-            ParameterInfo method0 = method.parameters().get(0);
+            ParameterInfo method0 = method.parameters().getFirst();
 
             Statement s1 = method.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
@@ -492,9 +492,9 @@ public class TestStaticValuesModification extends CommonTest {
         // so now modify2
         {
             MethodInfo modify2 = X.findUniqueMethod("modify2", 2);
-            ParameterInfo modify0 = modify2.parameters().get(0);
+            ParameterInfo modify0 = modify2.parameters().getFirst();
             {
-                Statement s0 = modify2.methodBody().statements().get(0);
+                Statement s0 = modify2.methodBody().statements().getFirst();
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0Set = vd0.variableInfo("set");
                 assertEquals("*M-2-0M|*-?:objects, -1-:objects[index], *M-2-0M|*-0.?:r",
@@ -517,7 +517,7 @@ public class TestStaticValuesModification extends CommonTest {
         }
         {
             MethodInfo method2 = X.findUniqueMethod("method2", 1);
-            ParameterInfo method0 = method2.parameters().get(0);
+            ParameterInfo method0 = method2.parameters().getFirst();
             {
                 // Object[] objects = new Object[2];
                 Statement s0 = method2.methodBody().statements().get(1);
