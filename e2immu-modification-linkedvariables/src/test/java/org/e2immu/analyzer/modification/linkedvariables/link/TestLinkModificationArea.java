@@ -368,7 +368,7 @@ public class TestLinkModificationArea extends CommonTest {
     public void test3() {
         TypeInfo X = javaInspector.parse(INPUT3);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
         MethodInfo nonNull = X.findUniqueMethod("nonNull", 1);
         assertTrue(nonNull.isIdentity());
 
@@ -381,7 +381,7 @@ public class TestLinkModificationArea extends CommonTest {
 
         MethodInfo getADirectly = X.findUniqueMethod("getADirectly", 1);
         {
-            Statement s0 = getADirectly.methodBody().statements().get(0);
+            Statement s0 = getADirectly.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viRv = vd0.variableInfo(getADirectly.fullyQualifiedName());
             assertEquals("E=r.a", viRv.staticValues().toString());
@@ -389,7 +389,7 @@ public class TestLinkModificationArea extends CommonTest {
         }
         MethodInfo getA = X.findUniqueMethod("getA", 1);
         {
-            Statement s0 = getA.methodBody().statements().get(0);
+            Statement s0 = getA.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo viRv = vd0.variableInfo(getA.fullyQualifiedName());
             assertEquals("E=r.a", viRv.staticValues().toString());

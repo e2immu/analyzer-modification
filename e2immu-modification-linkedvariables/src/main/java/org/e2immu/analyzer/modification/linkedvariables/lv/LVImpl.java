@@ -287,4 +287,22 @@ public class LVImpl implements LV {
         }
         return this;
     }
+
+    @Override
+    public boolean overwriteAllowed(LV newValue) {
+        if (value == I_DEPENDENT) {
+            assert newValue != LINK_STATICALLY_ASSIGNED && newValue != LINK_INITIAL_DELAY && newValue != LINK_DELAYED;
+            return true; // we can always overwrite dependent, by 1, by 4
+        }
+        if (this == LINK_STATICALLY_ASSIGNED) {
+            return newValue == LINK_STATICALLY_ASSIGNED;
+        }
+        if (this == LINK_ASSIGNED) {
+            return newValue == LINK_ASSIGNED;
+        }
+        if (this.isCommonHC()) {
+            return newValue.isCommonHC();
+        }
+        return true;
+    }
 }

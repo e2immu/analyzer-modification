@@ -45,12 +45,13 @@ public record StaticValuesImpl(ParameterizedType type,
     @Override
     public boolean overwriteAllowed(Value newValue) {
         StaticValues sv = (StaticValues) newValue;
-        return (sv.type() == null || sv.type().equals(type))
-               && (sv.expression() == null || sv.expression().equals(expression))
-               && (!sv.multipleExpressions() || multipleExpressions)
+
+        return (type == null || type.equals(sv.type()))
+               && (expression == null || expression.equals(sv.expression()))
+               && (multipleExpressions || !sv.multipleExpressions())
                && values.entrySet().stream().allMatch(e -> {
             Expression inSv = sv.values().get(e.getKey());
-            return inSv == null || inSv.equals(e.getValue());
+            return inSv != null; // they have not disappeared
         });
     }
 

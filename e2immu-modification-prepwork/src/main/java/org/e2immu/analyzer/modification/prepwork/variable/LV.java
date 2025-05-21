@@ -14,6 +14,8 @@ public interface LV extends Comparable<LV> {
 
     boolean mineIsAll();
 
+    boolean overwriteAllowed(LV newValue);
+
     boolean propagateModification();
 
     boolean theirsIsAll();

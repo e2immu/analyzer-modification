@@ -61,7 +61,7 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
         if (other.isDefault()) return true;
         return variables.entrySet().stream().allMatch(e -> {
             LV lv = other.value(e.getKey());
-            return lv == null || lv.ge(e.getValue());
+            return lv == null || e.getValue().overwriteAllowed(lv);
         });
     }
 
