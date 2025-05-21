@@ -43,13 +43,14 @@ public class TestLinkBasics extends CommonTest {
             package a.b;
             import java.util.List;
             class X<T> {
-                List<T> set;
+                List<T> list;
                 T get(int pos) {
-                    return set.get(pos);
+                    return list.get(pos);
                 }
             }
             """;
 
+    // see also TestLinkArrays
     @DisplayName("get from a list")
     @Test
     public void test0() {
@@ -63,9 +64,44 @@ public class TestLinkBasics extends CommonTest {
 
         Statement s0 = get.methodBody().lastStatement();
         VariableData vd0 = VariableDataImpl.of(s0);
-        VariableInfo viSet0 = vd0.variableInfo(get.fullyQualifiedName());
-        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[pos], *M-4-0M:set",
-                viSet0.linkedVariables().toString());
+        VariableInfo viList0 = vd0.variableInfo(get.fullyQualifiedName());
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[pos], *M-4-0M:list",
+                viList0.linkedVariables().toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT0B = """
+            package a.b;
+            import java.util.List;
+            class X {
+                static class M {
+                    int i;
+                    void setI(int i) { this.i = i; }
+                }
+                List<M> list;
+                M get(int pos) {
+                    return list.get(pos);
+                }
+            }
+            """;
+
+    @DisplayName("get from a list, modifying")
+    @Test
+    public void test0B() {
+        TypeInfo X = javaInspector.parse(INPUT0B);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.go(analysisOrder);
+
+        MethodInfo get = X.findUniqueMethod("get", 1);
+        VariableData vd = VariableDataImpl.of(get);
+        assertNotNull(vd);
+
+        Statement s0 = get.methodBody().lastStatement();
+        VariableData vd0 = VariableDataImpl.of(s0);
+        VariableInfo viList0 = vd0.variableInfo(get.fullyQualifiedName());
+        assertEquals("*M-2-0M|*-?:_synthetic_list, -1-:_synthetic_list[pos], *M-2-0M|*-0.?:list",
+                viList0.linkedVariables().toString());
     }
 
     @Language("java")
@@ -89,8 +125,8 @@ public class TestLinkBasics extends CommonTest {
         MethodInfo setAdd = X.findUniqueMethod("setAdd", 2);
         VariableData vd = VariableDataImpl.of(setAdd);
         assertNotNull(vd);
-        ParameterInfo set = setAdd.parameters().get(0);
-        Statement s0 = setAdd.methodBody().statements().get(0);
+        ParameterInfo set = setAdd.parameters().getFirst();
+        Statement s0 = setAdd.methodBody().statements().getFirst();
         MethodCall mc = (MethodCall) s0.expression();
         assertTrue(mc.methodInfo().analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, ValueImpl.BoolImpl.FALSE).isFalse());
 
@@ -123,10 +159,10 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
-        Statement s0 = listAdd.methodBody().statements().get(0);
+        Statement s0 = listAdd.methodBody().statements().getFirst();
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
-        ParameterInfo listAdd0 = listAdd.parameters().get(0);
+        ParameterInfo listAdd0 = listAdd.parameters().getFirst();
         VariableInfo vi0 = vd0.variableInfo(listAdd0);
         assertEquals("0-4-*:t", vi0.linkedVariables().toString());
         assertEquals(vi0.linkedVariables(),
@@ -150,7 +186,7 @@ public class TestLinkBasics extends CommonTest {
     public void test3() {
         TypeInfo collections = javaInspector.compiledTypesManager().get(Collections.class);
         MethodInfo addAll = collections.findUniqueMethod("addAll", 2);
-        ParameterInfo addAll0 = addAll.parameters().get(0);
+        ParameterInfo addAll0 = addAll.parameters().getFirst();
         assertTrue(addAll0.analysis().getOrDefault(UNMODIFIED_PARAMETER, FALSE).isFalse());
         Value.Independent i0 = addAll0.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
                 ValueImpl.IndependentImpl.DEPENDENT);
@@ -164,11 +200,11 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
-        Statement s0 = listAdd.methodBody().statements().get(0);
+        Statement s0 = listAdd.methodBody().statements().getFirst();
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
 
-        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo list = listAdd.parameters().getFirst();
         ParameterInfo t1 = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
 
@@ -228,7 +264,7 @@ public class TestLinkBasics extends CommonTest {
         assertEquals(" - 0=T, 1=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
         assertEquals("0=0,1=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
-        ParameterInfo p0 = methodInfo.parameters().get(0);
+        ParameterInfo p0 = methodInfo.parameters().getFirst();
         assertEquals("0=0,1=*", p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
 
         LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LINKED_VARIABLES_METHOD, LinkedVariablesImpl.EMPTY);
@@ -240,7 +276,7 @@ public class TestLinkBasics extends CommonTest {
         assertTrue(M.isStatic());
 
         MethodInfo methodInfoM = X.findUniqueMethod("copyM", 1);
-        assertSame(M, methodInfoM.returnType().parameters().get(0).typeInfo());
+        assertSame(M, methodInfoM.returnType().parameters().getFirst().typeInfo());
         LinkedVariables lvRvM = methodInfoM.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         // for this to be correct, M must be modifying
@@ -249,21 +285,21 @@ public class TestLinkBasics extends CommonTest {
         TypeInfo ME = X.findSubType("ME");
         assertTrue(ME.isExtensible());
         MethodInfo methodInfoME = X.findUniqueMethod("copyME", 1);
-        assertSame(ME, methodInfoME.returnType().parameters().get(0).typeInfo());
+        assertSame(ME, methodInfoME.returnType().parameters().getFirst().typeInfo());
         LinkedVariables lvRvME = methodInfoME.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         // for this to be correct, M must be modifying
         assertEquals("0M-4-0M:list", lvRvME.toString());
 
         MethodInfo methodInfoS = X.findUniqueMethod("copyS", 1);
-        assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().get(0).typeInfo());
+        assertSame(runtime.stringTypeInfo(), methodInfoS.returnType().parameters().getFirst().typeInfo());
         LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
 
         assertEquals(" - 0=List", methodInfoS.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
         assertEquals("0=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
-        ParameterInfo p0S = methodInfoS.parameters().get(0);
+        ParameterInfo p0S = methodInfoS.parameters().getFirst();
         assertEquals("0=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
         assertEquals("", lvRvS.toString());
     }
@@ -280,7 +316,7 @@ public class TestLinkBasics extends CommonTest {
         HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE);
         assertEquals("0=0", methodHcs.detailed());
 
-        ParameterInfo p0 = methodInfo.parameters().get(0);
+        ParameterInfo p0 = methodInfo.parameters().getFirst();
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
         assertEquals("0=0,1=*", paramHcs.detailed());
     }
@@ -325,7 +361,7 @@ public class TestLinkBasics extends CommonTest {
         {
             MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
 
-            Statement s0 = listAdd.methodBody().statements().get(0);
+            Statement s0 = listAdd.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             assertNotNull(vd0);
             VariableInfo vi0 = vd0.variableInfo("l");
@@ -333,7 +369,7 @@ public class TestLinkBasics extends CommonTest {
 
             Statement s1 = listAdd.methodBody().statements().get(1);
             VariableData vd1 = VariableDataImpl.of(s1);
-            ParameterInfo listAdd0 = listAdd.parameters().get(0);
+            ParameterInfo listAdd0 = listAdd.parameters().getFirst();
             ParameterInfo t1 = listAdd.parameters().get(1);
 
             VariableInfo vi1 = vd1.variableInfo("l");
@@ -413,12 +449,12 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 2);
-        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo list = listAdd.parameters().getFirst();
         ParameterInfo t = listAdd.parameters().get(1);
 
         // statement 0
         {
-            Statement s0 = listAdd.methodBody().statements().get(0);
+            Statement s0 = listAdd.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             assertNotNull(vd0);
             VariableInfo vi0 = vd0.variableInfo("l");
@@ -488,7 +524,7 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
-        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo list = listAdd.parameters().getFirst();
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
 
@@ -541,7 +577,7 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
-        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo list = listAdd.parameters().getFirst();
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
 
@@ -598,7 +634,7 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
-        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo list = listAdd.parameters().getFirst();
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
 
@@ -659,7 +695,7 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo listAdd = X.findUniqueMethod("listAdd", 3);
-        ParameterInfo list = listAdd.parameters().get(0);
+        ParameterInfo list = listAdd.parameters().getFirst();
         ParameterInfo t = listAdd.parameters().get(1);
         ParameterInfo t2 = listAdd.parameters().get(2);
 

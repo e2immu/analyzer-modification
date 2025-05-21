@@ -82,7 +82,8 @@ public class TestNeedMethodReturnTypeInHCT extends CommonTest {
         assertNotNull(get.getSetField().field());
 
         // because objects are independent, this should not be "*-2-0:_mruFileList"
-        assertEquals("*-4-0:_mruFileList", vi.linkedVariables().toString());
+        assertEquals("*M-4-0M:_mruFileList, *-4-0:_synthetic_list, -1-:_synthetic_list[index]",
+                vi.linkedVariables().toString());
         assertSame(INDEPENDENT_HC, getFile.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT));
     }
 }

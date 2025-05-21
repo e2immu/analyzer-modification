@@ -405,10 +405,26 @@ class ExpressionAnalyzer {
          */
         private ParameterizedType replaceFieldType(ParameterizedType fieldType, TypeInfo targetType, Variable depVar) {
             TypeParameter typeParameter = fieldType.typeParameter();
-            if (typeParameter != null && depVar instanceof FieldReference fr && notOwnedBy(typeParameter, targetType)) {
-                FieldInfo fieldInTargetType = fr.fieldInfo();
-                ParameterizedType ptFTT = fieldInTargetType.type();
-                return ptFTT.parameters().getFirst();
+            if (typeParameter != null) {
+                if (!typeParameter.isMethodTypeParameter() && notOwnedBy(typeParameter, targetType)) {
+                    TypeInfo owner = typeParameter.getOwner().getLeft();
+                    assert targetType.typeHierarchyExcludingJLOStream().anyMatch(ti -> owner == ti);
+                    // we must map E #0List -> E #0 ArrayList
+                    Map<NamedType, ParameterizedType> map = new GenericsHelperImpl(runtime).mapInTermsOfParametersOfSuperType(targetType, owner.asParameterizedType());
+                    if (map != null) {
+                        ParameterizedType pt = map.get(typeParameter);
+                        if (pt != null) {
+                            return pt;
+                        }
+                    }
+                }
+                if (depVar instanceof FieldReference fr && notOwnedBy(typeParameter, targetType)) {
+                    FieldInfo fieldInTargetType = fr.fieldInfo();
+                    ParameterizedType ptFTT = fieldInTargetType.type();
+                    if (!ptFTT.parameters().isEmpty()) {
+                        return ptFTT.parameters().getFirst();
+                    }
+                }
             }
             return fieldType;
         }

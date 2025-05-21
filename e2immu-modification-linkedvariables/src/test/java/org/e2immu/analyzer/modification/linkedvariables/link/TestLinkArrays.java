@@ -7,6 +7,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +39,7 @@ public class TestLinkArrays extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 2);
-        ParameterInfo t = method.parameters().get(0);
+        ParameterInfo t = method.parameters().getFirst();
         ParameterInfo array = method.parameters().get(1);
         {
             VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().getFirst());
@@ -56,6 +57,51 @@ public class TestLinkArrays extends CommonTest {
             assertEquals("*-4-0:array, -1-:array[1]", vi1T.linkedVariables().toString());
             VariableInfo vi1Array = vd1.variableInfo(array);
             assertEquals("0-4-*:array[0], 0-4-*:array[1], 0-4-*:t, 0-4-*:t0", vi1Array.linkedVariables().toString());
+            assertTrue(vi1Array.isModified());
+        }
+    }
+
+    @Language("java")
+    private static final String INPUT1B = """
+            package a.b;
+            class X {
+                static class M { int i; void setI(int i) { this.i = i; } }
+                static void method(M t, M[] array) {
+                    M t0 = array[0];
+                    array[1] = t;
+                }
+            }
+            """;
+
+    @DisplayName("basics, mutable content")
+    @Test
+    public void test1B() {
+        TypeInfo X = javaInspector.parse(INPUT1B);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.go(analysisOrder);
+        TypeInfo M = X.findSubType("M");
+        assertSame(MUTABLE, M.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        ParameterInfo t = method.parameters().getFirst();
+        ParameterInfo array = method.parameters().get(1);
+        {
+            VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().getFirst());
+            VariableInfo vi0T0 = vd0.variableInfo("t0");
+            assertEquals("*M-2-0M|*-0:array, -1-:array[0]", vi0T0.linkedVariables().toString());
+            VariableInfo vi0Array = vd0.variableInfo(array);
+            assertEquals("0M-2-*M|0-*:array[0], 0M-2-*M|0-*:t0", vi0Array.linkedVariables().toString());
+            assertFalse(vi0Array.isModified());
+        }
+        {
+            VariableData vd1 = VariableDataImpl.of(method.methodBody().statements().get(1));
+            VariableInfo vi1T0 = vd1.variableInfo("t0");
+            assertEquals("*M-2-0M|*-0:array, -1-:array[0]", vi1T0.linkedVariables().toString());
+            VariableInfo vi1T = vd1.variableInfo(t);
+            assertEquals("*M-2-0M|*-1:array, -1-:array[1]", vi1T.linkedVariables().toString());
+            VariableInfo vi1Array = vd1.variableInfo(array);
+            assertEquals("0M-2-*M|0-*:array[0], 0M-2-*M|1-*:array[1], 0M-2-*M|1-*:t, 0M-2-*M|0-*:t0",
+                    vi1Array.linkedVariables().toString());
             assertTrue(vi1Array.isModified());
         }
     }
@@ -87,6 +133,8 @@ public class TestLinkArrays extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         analyzer.go(analysisOrder);
         TypeInfo I = X.findSubType("I");
+        assertSame(MUTABLE, I.analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+
         FieldInfo fieldInfo = I.getFieldByName("variables", true);
         assertTrue(fieldInfo.isSynthetic());
         {
@@ -115,16 +163,18 @@ public class TestLinkArrays extends CommonTest {
     }
 
     private void testCommon23(MethodInfo method) {
-        ParameterInfo t = method.parameters().get(0);
+        ParameterInfo t = method.parameters().getFirst();
         ParameterInfo i = method.parameters().get(1);
         {
-            VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().get(0));
+            VariableData vd0 = VariableDataImpl.of(method.methodBody().statements().getFirst());
 
             VariableInfo vi0T0 = vd0.variableInfo("t0");
             assertEquals("E=i.variables[0]", vi0T0.staticValues().toString());
             assertEquals("*M-4-0M:i, *-4-0:variables, -1-:variables[0]", vi0T0.linkedVariables().toString());
 
             VariableInfo vi0Array = vd0.variableInfo(i);
+            // variables is a field inside I, so I and variables share mutable, accessible content. This warrants -2-.
+            // further, variables is part of I, so the * is warranted. Finally, the modification area is given.
             assertEquals("0M-4-*M:t0, 0M-2-*M|0-*:variables, 0M-4-*M:variables[0]", vi0Array.linkedVariables().toString());
             assertFalse(vi0Array.isModified());
         }
@@ -179,10 +229,10 @@ public class TestLinkArrays extends CommonTest {
         testCommon23(method1);
 
         MethodInfo method2 = X.findUniqueMethod("method2", 2);
-        ParameterInfo t = method2.parameters().get(0);
+        ParameterInfo t = method2.parameters().getFirst();
         ParameterInfo i = method2.parameters().get(1);
         {
-            VariableData vd0 = VariableDataImpl.of(method2.methodBody().statements().get(0));
+            VariableData vd0 = VariableDataImpl.of(method2.methodBody().statements().getFirst());
             VariableInfo vi0T0 = vd0.variableInfo("t0");
             assertEquals("E=i.variables[0]", vi0T0.staticValues().toString());
             assertEquals("-1-:variables[0]", vi0T0.linkedVariables().toString());
@@ -233,9 +283,9 @@ public class TestLinkArrays extends CommonTest {
         List<Info> ao = prepWork(B);
         analyzer.go(ao);
         MethodInfo transpose = B.findUniqueMethod("transpose", 1);
-        ParameterInfo a = transpose.parameters().get(0);
+        ParameterInfo a = transpose.parameters().getFirst();
         {
-            VariableData vd = VariableDataImpl.of(transpose.methodBody().statements().get(0));
+            VariableData vd = VariableDataImpl.of(transpose.methodBody().statements().getFirst());
             VariableInfo viA = vd.variableInfo(a);
             assertEquals("", viA.linkedVariables().toString());
             VariableInfo viM = vd.variableInfo("m");
@@ -271,7 +321,7 @@ public class TestLinkArrays extends CommonTest {
         }
         {
             Statement s30000 = transpose.methodBody().statements().get(3).block()
-                    .statements().get(0).block().statements().get(0);
+                    .statements().getFirst().block().statements().getFirst();
             assertEquals("t[j][i]=a[i][j];", s30000.toString());
             VariableData vd = VariableDataImpl.of(s30000);
             assertEquals("""
