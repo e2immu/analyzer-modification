@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.io;
 
 import org.e2immu.annotation.*;
+import org.e2immu.annotation.method.GetSet;
 import org.e2immu.annotation.rare.AllowsInterrupt;
 import org.e2immu.annotation.rare.Finalizer;
 import org.e2immu.annotation.rare.IgnoreModifications;
@@ -35,6 +36,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final TypeInfo immutableContainerTi;
     private final TypeInfo notNullTi;
     private final TypeInfo commutableTi;
+    private final TypeInfo getSetTi;
     private final AnnotationExpression ignoreModifications;
     private final AnnotationExpression identityAnnotation;
     private final AnnotationExpression fluentAnnotation;
@@ -80,6 +82,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         TypeInfo finalizerTi = runtime.getFullyQualified(Finalizer.class, true);
         finalizerAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(finalizerTi).build();
         commutableTi = runtime.getFullyQualified(Commutable.class, true);
+        getSetTi = runtime.getFullyQualified(GetSet.class, true);
     }
 
     @Override
@@ -124,6 +127,8 @@ public class DecoratorImpl implements Qualification.Decorator {
         Property propertyIgnoreModifications;
         Property propertyAllowInterrupt;
         Value.CommutableData commutableData;
+        Value.FieldValue fieldValue;
+        Value.GetSetEquivalent getSetEquivalent;
         switch (info) {
             case MethodInfo methodInfo -> {
                 boolean noReturn = methodInfo.isConstructor() || !methodInfo.hasReturnValue();
@@ -154,6 +159,8 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyFinalizer = methodInfo.analysis().getOrDefault(FINALIZER_METHOD, FALSE).isTrue()
                         ? FINALIZER_METHOD : null;
                 commutableData = analysis.getOrNull(COMMUTABLE_METHODS, ValueImpl.CommutableDataImpl.class);
+                fieldValue = methodInfo.getSetField();
+                getSetEquivalent = analysis.getOrNull(GET_SET_EQUIVALENT, ValueImpl.GetSetEquivalentImpl.class);
                 propertyContainer = null;
                 propertyFinalField = null;
                 propertyUtilityClass = null;
@@ -178,6 +185,8 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyUtilityClass = null;
                 propertyFinalizer = null;
                 commutableData = null;
+                fieldValue = null;
+                getSetEquivalent = null;
             }
             case ParameterInfo pi -> {
                 boolean isUnmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue();
@@ -203,6 +212,8 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyIgnoreModifications = pi.isIgnoreModifications() ? IGNORE_MODIFICATIONS_PARAMETER : null;
                 propertyFinalizer = null;
                 commutableData = null;
+                fieldValue = null;
+                getSetEquivalent = null;
             }
             case TypeInfo typeInfo -> {
                 propertyUnmodified = null;
@@ -230,6 +241,8 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyAllowInterrupt = null;
                 propertyFinalizer = null;
                 commutableData = null;
+                fieldValue = null;
+                getSetEquivalent = null;
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -344,6 +357,23 @@ public class DecoratorImpl implements Qualification.Decorator {
                 commutable.addKeyValuePair("seq", runtime.newStringConstant(commutableData.seq()));
             }
             list.add(new AnnotationProperty(commutable.build(), COMMUTABLE_METHODS));
+        }
+        if (fieldValue != null && fieldValue.field() != null) {
+            assert getSetEquivalent == null;
+            importsNeeded.add(GetSet.class);
+            AnnotationExpression getSet = runtime.newAnnotationExpressionBuilder()
+                    .setTypeInfo(getSetTi)
+                    .addKeyValuePair("value", runtime.newStringConstant(fieldValue.field().name())).build();
+            list.add(new AnnotationProperty(getSet, GET_SET_FIELD));
+        } else if (getSetEquivalent != null) {
+            importsNeeded.add(GetSet.class);
+            AnnotationExpression.Builder getSet = runtime.newAnnotationExpressionBuilder()
+                    .setTypeInfo(getSetTi);
+            MethodInfo methodInfo = (MethodInfo) info;
+            if (!methodInfo.isConstructor() && !methodInfo.isFactoryMethod()) {
+                getSet.addKeyValuePair("equivalent", runtime.constantTrue()).build();
+            }
+            list.add(new AnnotationProperty(getSet.build(), GET_SET_EQUIVALENT));
         }
         return list;
     }

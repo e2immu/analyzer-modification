@@ -37,6 +37,37 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestLinkBasics extends CommonTest {
 
+
+    @Language("java")
+    private static final String INPUT0 = """
+            package a.b;
+            import java.util.List;
+            class X<T> {
+                List<T> set;
+                T get(int pos) {
+                    return set.get(pos);
+                }
+            }
+            """;
+
+    @DisplayName("get from a list")
+    @Test
+    public void test0() {
+        TypeInfo X = javaInspector.parse(INPUT0);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.go(analysisOrder);
+
+        MethodInfo get = X.findUniqueMethod("get", 1);
+        VariableData vd = VariableDataImpl.of(get);
+        assertNotNull(vd);
+
+        Statement s0 = get.methodBody().lastStatement();
+        VariableData vd0 = VariableDataImpl.of(s0);
+        VariableInfo viSet0 = vd0.variableInfo(get.fullyQualifiedName());
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[pos], *M-4-0M:set",
+                viSet0.linkedVariables().toString());
+    }
+
     @Language("java")
     private static final String INPUT1 = """
             package a.b;

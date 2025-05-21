@@ -179,7 +179,7 @@ class AnnotationToProperty {
                         if (field == null) {
                             LOGGER.warn("Cannot find field {} in {}", name, methodInfo.typeInfo());
                         } else {
-                            boolean setter = methodInfo.isVoid() || GetSetUtil.isComputeFluent(methodInfo);
+                            boolean setter = GetSetUtil.isSetter(methodInfo);
                             int parameterIndexOfIndex = GetSetUtil.parameterIndexOfIndex(methodInfo, setter);
                             getSetField = new ValueImpl.GetSetValueImpl(field, setter, parameterIndexOfIndex);
                         }

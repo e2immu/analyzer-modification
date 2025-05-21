@@ -1,18 +1,25 @@
 package org.e2immu.analyzer.modification.linkedvariables.clonebench;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
+import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedList;
 import java.util.List;
 
-import static org.e2immu.language.cst.impl.analysis.PropertyImpl.INDEPENDENT_METHOD;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.IMMUTABLE_HC;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class TestNeedMethodReturnTypeInHCT extends CommonTest {
@@ -64,6 +71,18 @@ public class TestNeedMethodReturnTypeInHCT extends CommonTest {
         analyzer.go(ao);
 
         MethodInfo getFile = B.findUniqueMethod("getFile", 1);
-        assertTrue(getFile.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT).isIndependentHc());
+        Statement last = getFile.methodBody().lastStatement();
+        VariableData vd = VariableDataImpl.of(last);
+        VariableInfo vi = vd.variableInfo(getFile.fullyQualifiedName());
+
+        assertSame(INDEPENDENT, runtime.objectTypeInfo().analysis().getOrDefault(INDEPENDENT_TYPE, DEPENDENT));
+        assertSame(IMMUTABLE_HC, runtime.objectTypeInfo().analysis().getOrDefault(IMMUTABLE_TYPE, MUTABLE));
+        TypeInfo linkedList = javaInspector.compiledTypesManager().get(LinkedList.class);
+        MethodInfo get = linkedList.findUniqueMethod("get", runtime.intTypeInfo());
+        assertNotNull(get.getSetField().field());
+
+        // because objects are independent, this should not be "*-2-0:_mruFileList"
+        assertEquals("*-4-0:_mruFileList", vi.linkedVariables().toString());
+        assertSame(INDEPENDENT_HC, getFile.analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT));
     }
 }

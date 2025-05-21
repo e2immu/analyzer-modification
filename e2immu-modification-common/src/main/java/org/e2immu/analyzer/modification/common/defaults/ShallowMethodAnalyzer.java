@@ -302,9 +302,39 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
             } else {
                 map.put(METHOD_ALLOWS_INTERRUPTS, explicitlyEmpty ? DEFAULT_FALSE : computeAllowInterrupt(methodInfo));
             }
+            ValueOrigin getSetField = map.get(GET_SET_FIELD);
+            if (getSetField == null) {
+                Value.FieldValue fromOverride = getSetFromOverride(methodInfo);
+                if (fromOverride != null) {
+                    map.put(GET_SET_FIELD, new ValueOrigin(fromOverride, FROM_OVERRIDE));
+                }
+            }
+            // is on constructors, and factory methods, which don't get overloaded, and also with "equivalent = true"
+            ValueOrigin getSetEquivalent = map.get(GET_SET_EQUIVALENT);
+            if (getSetEquivalent == null) {
+                Value.GetSetEquivalent fromOverride = getSetEquivalentFromOverride(methodInfo);
+                if (fromOverride != null) {
+                    map.put(GET_SET_EQUIVALENT, new ValueOrigin(fromOverride, FROM_OVERRIDE));
+                }
+            }
         }
     }
 
+    private FieldValue getSetFromOverride(MethodInfo methodInfo) {
+        for (MethodInfo override : methodInfo.overrides()) {
+            FieldValue fv = override.getSetField();
+            if (fv != null && fv.field() != null) return fv;
+        }
+        return null;
+    }
+
+    private GetSetEquivalent getSetEquivalentFromOverride(MethodInfo methodInfo) {
+        for (MethodInfo override : methodInfo.overrides()) {
+            GetSetEquivalent fv = override.getSetEquivalents();
+            if (fv != null && !fv.isDefault()) return fv;
+        }
+        return null;
+    }
 
     private Map<Property, ValueOrigin> handleParameter(ParameterInfo parameterInfo,
                                                        Map<Property, ValueOrigin> methodMap,
