@@ -146,7 +146,8 @@ public class TestLinkToReturnValueListGet extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(s0);
             assertNotNull(vd0);
             VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
-            assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i]", viRv.linkedVariables().toString());
+            assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *M-4-0M:list",
+                    viRv.linkedVariables().toString());
 
             assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                     EMPTY));
@@ -187,10 +188,12 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 listGet2.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
 
         MethodInfo listGet3 = X.findUniqueMethod("get3", 2);
-        assertEquals("", listGet3.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
+        assertEquals("-1-:_synthetic_list[i]",
+                listGet3.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
 
         MethodInfo listGet4 = X.findUniqueMethod("get4", 2);
-        assertEquals("*-4-0:list", listGet4.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *M-4-0M:list",
+                listGet4.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
     }
 
     private void testLinks3(TypeInfo X) {
@@ -200,13 +203,14 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
-        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *-4-0:list", viRv.linkedVariables().toString());
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *M-4-0M:list",
+                viRv.linkedVariables().toString());
 
         assertEquals(viRv.linkedVariables(), listGet.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 EMPTY));
 
         MethodInfo listGet2 = X.findUniqueMethod("get2", 2);
-        assertEquals("*M-4-0M:_synthetic_list, -1-:_synthetic_list[i], *M-4-0M:list",
+        assertEquals("*M-2-0M|*-?:_synthetic_list, -1-:_synthetic_list[i], *M-2-0M|*-*.0.?:list",
                 listGet2.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
 
         MethodInfo listGet3 = X.findUniqueMethod("get3", 2);
@@ -214,7 +218,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
                 EMPTY).toString());
 
         MethodInfo listGet4 = X.findUniqueMethod("get4", 2);
-        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *-4-0:list",
+        assertEquals("*-4-0:_synthetic_list, -1-:_synthetic_list[i], *M-4-0M:list",
                 listGet4.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
     }
 

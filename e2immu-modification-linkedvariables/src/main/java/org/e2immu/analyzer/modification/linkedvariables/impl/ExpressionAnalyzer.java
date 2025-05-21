@@ -111,6 +111,9 @@ class ExpressionAnalyzer {
                     scope = EvaluationResult.EMPTY;
                     index = EvaluationResult.EMPTY;
                 }
+                // important: only the links explicitly copied to variables are retained by this statement,
+                // because we'll be using '.setLinkedVariables(lvs)' a little later. The result must (and will) be copied
+                // in linkedVariablesOfVariableExpression
                 builder.merge(scope);
                 builder.merge(index);
 
@@ -289,18 +292,28 @@ class ExpressionAnalyzer {
             Variable dependentVariable;
             ParameterizedType fieldType;
             int fieldIndex;
+            TypeInfo linkedScopeWithoutVariable;
             if (variable instanceof FieldReference fr) {
                 if (fr.scope() instanceof VariableExpression sv && !(sv.variable() instanceof This)) {
                     dependentVariable = fr.scopeVariable();
                     fieldIndex = fr.fieldInfo().indexInType();
                     fieldType = fr.fieldInfo().type();
+                    linkedScopeWithoutVariable = null;
+                } else if (!(fr.scope() instanceof VariableExpression) && !scope.linkedVariables().isEmpty()) {
+                    // see TestLinkToReturnValueListGet,2
+                    linkedScopeWithoutVariable = fr.scope().parameterizedType().bestTypeInfo();
+                    dependentVariable = null;
+                    fieldIndex = fr.fieldInfo().indexInType();
+                    fieldType = fr.fieldInfo().type();
                 } else {
+                    linkedScopeWithoutVariable = null;
                     dependentVariable = null;
                     fieldIndex = -1; // irrelevant
                     fieldType = null;
                 }
             } else if (variable instanceof DependentVariable dv) {
                 dependentVariable = dv.arrayVariable();
+                linkedScopeWithoutVariable = null;
                 if (dv.indexVariable() != null) {
                     builder.merge(dv.indexVariable(), index.linkedVariables());
                 }
@@ -308,6 +321,7 @@ class ExpressionAnalyzer {
                         : IndexImpl.UNSPECIFIED_MODIFICATION;
                 fieldType = dv.arrayExpression().parameterizedType().copyWithOneFewerArrays();
             } else {
+                linkedScopeWithoutVariable = null;
                 dependentVariable = null;
                 fieldIndex = -1; // irrelevant
                 fieldType = null;
@@ -315,8 +329,18 @@ class ExpressionAnalyzer {
             if (dependentVariable != null) {
                 // at this point, we only link to the dependent variable, and do not do the recursion down to
                 // its transitive closure. That is work for the graph algorithm in ComputeLinkCompletion
-                linkToDependentVariable(ve, variable, forwardType, dependentVariable,
-                        scope.linkedVariables().value(dependentVariable), fieldIndex, fieldType, map);
+                LV lvToScope = scope.linkedVariables().value(dependentVariable);
+                TypeInfo dependentVariableBestType = dependentVariable.parameterizedType().bestTypeInfo();
+                LV lv = linkToDependentVariable(ve, variable, forwardType, dependentVariableBestType,
+                        lvToScope, fieldIndex, fieldType);
+                if (lv != null) map.put(dependentVariable, lv);
+            } else if (linkedScopeWithoutVariable != null) {
+                for (Map.Entry<Variable, LV> entry : scope.linkedVariables()) {
+                    LV lv = linkToDependentVariable(ve, variable, forwardType, linkedScopeWithoutVariable,
+                            entry.getValue(), fieldIndex, fieldType);
+                    LOGGER.debug("lv is {}", lv);
+                    map.put(entry.getKey(), lv);
+                }
             }
             // adding existing linked variables is in general not necessary.
             // we do add them in case of functional interfaces, see TestLinkFunctional,5(m3)
@@ -331,14 +355,13 @@ class ExpressionAnalyzer {
             return LinkedVariablesImpl.of(map);
         }
 
-        private void linkToDependentVariable(VariableExpression ve,
-                                             Variable v,
-                                             ParameterizedType forwardType,
-                                             Variable dependentVariable,
-                                             LV currentLink,
-                                             int fieldIndex,
-                                             ParameterizedType fieldType,
-                                             Map<Variable, LV> map) {
+        private LV linkToDependentVariable(VariableExpression ve,
+                                           Variable v,
+                                           ParameterizedType forwardType,
+                                           TypeInfo dependentVariableBestType,
+                                           LV currentLink,
+                                           int fieldIndex,
+                                           ParameterizedType fieldType) {
             Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
             Immutable immutableForward = forwardType == null ? immutable : analysisHelper.typeImmutable(forwardType);
             if (!immutableForward.isImmutable()) {
@@ -356,10 +379,9 @@ class ExpressionAnalyzer {
                 if (v instanceof DependentVariable) {
                     targetIndices = new IndicesImpl(0);
                 } else if (v instanceof FieldReference fr) {
-                    TypeInfo bestType = dependentVariable.parameterizedType().bestTypeInfo();
-                    assert bestType != null : "The unbound type parameter does not have any fields";
-                    HiddenContentTypes hct = bestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                    ParameterizedType fieldType2 = replaceFieldType(fieldType, bestType, fr.scopeVariable());
+                    assert dependentVariableBestType != null : "The unbound type parameter does not have any fields";
+                    HiddenContentTypes hct = dependentVariableBestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+                    ParameterizedType fieldType2 = replaceFieldType(fieldType, dependentVariableBestType, fr.scopeVariable());
                     Integer i = hct.indexOf(fieldType2);
                     if (i != null) {
                         targetIndices = new IndicesImpl(i);
@@ -386,14 +408,14 @@ class ExpressionAnalyzer {
                 // create the link, and add it
                 Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
                 LV lv;
-                if (isMutable) {
+                if (isMutable && !currentLink.isCommonHC()) {
                     lv = LVImpl.createDependent(links);
                 } else {
                     lv = LVImpl.createHC(links);
                 }
-                map.put(dependentVariable, lv);
-
+                return lv;
             }
+            return null;
         }
 
         /*
@@ -419,6 +441,7 @@ class ExpressionAnalyzer {
                     }
                 }
                 if (depVar instanceof FieldReference fr && notOwnedBy(typeParameter, targetType)) {
+                    // see TestLinkToReturnValueListGet,2. List E from getter -> ArrayList E, concrete type
                     FieldInfo fieldInTargetType = fr.fieldInfo();
                     ParameterizedType ptFTT = fieldInTargetType.type();
                     if (!ptFTT.parameters().isEmpty()) {
