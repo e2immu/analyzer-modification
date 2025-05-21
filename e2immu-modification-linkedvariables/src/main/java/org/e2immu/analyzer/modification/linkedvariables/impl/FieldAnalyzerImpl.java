@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.FieldAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
@@ -63,20 +64,28 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                     ValueImpl.BoolImpl.class);
             Value.Independent independentDone = fieldInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_FIELD,
                     Value.Independent.class);
-            if (linkedVariablesDone != null && unmodifiedDone != null && independentDone != null) {
-                return;
-            }
+
             List<MethodInfo> methodsReferringToField = fieldInfo.owner().primaryType()
                     .recursiveSubTypeStream()
                     .flatMap(TypeInfo::constructorAndMethodStream)
                     .filter(mi -> notEmptyOrSyntheticAccessorAndReferringTo(mi, fieldInfo))
                     .toList();
 
-            if (unmodifiedDone == null) {
+            StaticValues staticValues = computeStaticValues(methodsReferringToField);
+            if (staticValues != null) {
+                if (fieldInfo.analysis().setAllowControlledOverwrite(StaticValuesImpl.STATIC_VALUES_FIELD, staticValues)) {
+                    DECIDE.debug("FI: Decide static values of field {} = {}", fieldInfo, staticValues);
+                }
+            } else {
+                UNDECIDED.debug("FI: Static values of field {} undecided, wait for {}", fieldInfo, waitFor);
+            }
+
+            if (unmodifiedDone == null || unmodifiedDone.isFalse()) {
                 Value.Bool unmodified = computeUnmodified(fieldInfo, methodsReferringToField);
                 if (unmodified != null) {
-                    fieldInfo.analysis().set(PropertyImpl.UNMODIFIED_FIELD, unmodified);
-                    DECIDE.debug("FI: Decide unmodified of field {} = {}", fieldInfo, unmodified);
+                    if (fieldInfo.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_FIELD, unmodified)) {
+                        DECIDE.debug("FI: Decide unmodified of field {} = {}", fieldInfo, unmodified);
+                    }
                 } else {
                     UNDECIDED.debug("FI: Unmodified of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
@@ -85,18 +94,36 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
             LinkedVariables linkedVariables = linkedVariablesDone != null ? linkedVariablesDone
                     : computeLinkedVariables(fieldInfo, methodsReferringToField);
             if (linkedVariables == null) {
-                UNDECIDED.debug("Linked variables of field {} undecided, wait for {}", fieldInfo, waitFor);
+                UNDECIDED.debug("FI: Linked variables of field {} undecided, wait for {}", fieldInfo, waitFor);
                 return;
             }
             if (independentDone == null) {
                 Value.Independent independent = computeIndependent(fieldInfo, linkedVariables);
                 if (independent != null) {
-                    fieldInfo.analysis().set(PropertyImpl.INDEPENDENT_FIELD, independent);
-                    DECIDE.debug("FI: Decide independent of field {} = {}", fieldInfo, independent);
+                    if (fieldInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_FIELD, independent)) {
+                        DECIDE.debug("FI: Decide independent of field {} = {}", fieldInfo, independent);
+                    }
                 } else {
                     UNDECIDED.debug("FI: Independent of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
             }
+        }
+
+        private StaticValues computeStaticValues(List<MethodInfo> methodsReferringToField) {
+            return methodsReferringToField.stream()
+                    .flatMap(mi -> computeStaticValues(mi).stream())
+                    .reduce(StaticValuesImpl.NONE, StaticValues::merge);
+        }
+
+        private List<StaticValues> computeStaticValues(MethodInfo methodInfo) {
+            if (methodInfo.methodBody().isEmpty()) return List.of();
+            Statement lastStatement = methodInfo.methodBody().lastStatement();
+            VariableData vd = VariableDataImpl.of(lastStatement);
+            return vd.variableInfoStream()
+                    .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                    .map(VariableInfo::staticValues)
+                    .filter(Objects::nonNull)
+                    .toList();
         }
 
         private boolean notEmptyOrSyntheticAccessorAndReferringTo(MethodInfo mi, FieldInfo fieldInfo) {

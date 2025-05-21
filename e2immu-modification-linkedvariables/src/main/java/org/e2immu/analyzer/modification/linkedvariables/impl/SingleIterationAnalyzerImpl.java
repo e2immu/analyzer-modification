@@ -20,6 +20,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
     private final TypeImmutableAnalyzer typeImmutableAnalyzer;
     private final TypeIndependentAnalyzer typeIndependentAnalyzer;
     private final ShallowTypeAnalyzer shallowTypeAnalyzer;
+    private final TypeContainerAnalyzer typeContainerAnalyzer;
 
     private record OutputImpl(List<Throwable> problemsRaised, G<Info> waitFor, Map<String, Integer> infoHistogram)
             implements Output {
@@ -34,6 +35,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         typeImmutableAnalyzer = new TypeImmutableAnalyzerImpl(configuration);
         typeIndependentAnalyzer = new TypeIndependentAnalyzerImpl(configuration);
         shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Info::annotations, false);
+        typeContainerAnalyzer = new TypeContainerAnalyzerImpl();
     }
 
     @Override
@@ -85,6 +87,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
             if (info instanceof TypeInfo typeInfo) { // FIXME can be more efficient
                 typeIndependentAnalyzer.go(typeInfo, activateCycleBreaking);
                 typeImmutableAnalyzer.go(typeInfo, activateCycleBreaking);
+                typeContainerAnalyzer.go(typeInfo);
             }
         }
 

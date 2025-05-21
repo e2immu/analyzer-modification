@@ -11,7 +11,6 @@ import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
-import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -77,6 +76,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
             typeInfo.constructorAndMethodStream()
                     .filter(mi -> !mi.isAbstract())
                     .forEach(this::go);
+            fromNonFinalFieldToParameter(typeInfo);
         }
 
         private void go(MethodInfo methodInfo) {
@@ -255,22 +255,11 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                             StaticValues reverse = StaticValuesImpl.of(reverseVe);
                             StaticValues prev = svMapParameters.put(pi, reverse);
                             if (prev != null && !prev.equals(sv)) throw new UnsupportedOperationException("TODO");
+                        } else {
+                            // FIXME waitFor
                         }
                     });
             return svMapParameters;
-        }
-
-        private void appendToFieldStaticValueMap(MethodInfo methodInfo, Map<FieldInfo, List<StaticValues>> svMap) {
-            if (methodInfo.methodBody().isEmpty()) return;
-            Statement lastStatement = methodInfo.methodBody().lastStatement();
-            VariableData vd = VariableDataImpl.of(lastStatement);
-            vd.variableInfoStream()
-                    .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
-                    .filter(vi -> vi.staticValues() != null)
-                    .forEach(vi -> {
-                        FieldInfo fieldInfo = ((FieldReference) vi.variable()).fieldInfo();
-                        svMap.computeIfAbsent(fieldInfo, l -> new ArrayList<>()).add(vi.staticValues());
-                    });
         }
     }
 }
