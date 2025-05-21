@@ -58,16 +58,16 @@ public class TestLinkObjectRecursion extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         assertEquals("0=T, 1=LL", LL.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE).detailedSortedTypes());
 
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
 
         This thisVar = runtime.newThis(LL.asParameterizedType());
         MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
         {
-            Statement s0 = prepend.methodBody().statements().get(0);
+            Statement s0 = prepend.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
             assertEquals("0-4-0:ll, 0-4-*:t", vi0This.linkedVariables().toString());
-            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
+            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().getFirst());
             assertEquals("*-4-0:ll, *-4-0:this", vi0T.linkedVariables().toString());
             VariableInfo vi0LL = vd0.variableInfo("ll");
 
@@ -79,11 +79,11 @@ public class TestLinkObjectRecursion extends CommonTest {
 
         MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
         {
-            Statement s0 = prepend2.methodBody().statements().get(0);
+            Statement s0 = prepend2.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
             assertEquals("", vi0This.linkedVariables().toString());
-            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
+            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().getFirst());
             assertEquals("", vi0T.linkedVariables().toString());
             VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
             assertEquals("0-4-*:t, 0-4-0:this", vi0Rv.linkedVariables().toString());
@@ -126,11 +126,11 @@ public class TestLinkObjectRecursion extends CommonTest {
         This thisVar = runtime.newThis(LL.asParameterizedType());
         MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
         {
-            Statement s0 = prepend.methodBody().statements().get(0);
+            Statement s0 = prepend.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
             assertEquals("0-2-0|*-1:ll, 0-4-*:t", vi0This.linkedVariables().toString());
-            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
+            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().getFirst());
             assertEquals("*-4-0:ll, *-4-0:this", vi0T.linkedVariables().toString());
             VariableInfo vi0LL = vd0.variableInfo("ll");
 
@@ -144,11 +144,11 @@ public class TestLinkObjectRecursion extends CommonTest {
 
         MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
         {
-            Statement s0 = prepend2.methodBody().statements().get(0);
+            Statement s0 = prepend2.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
             assertEquals("", vi0This.linkedVariables().toString());
-            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
+            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().getFirst());
             assertEquals("", vi0T.linkedVariables().toString());
             VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
             assertEquals("0-4-*:t, 0-2-0|1-*:this", vi0Rv.linkedVariables().toString());
@@ -169,16 +169,16 @@ public class TestLinkObjectRecursion extends CommonTest {
         // we're explicitly setting IMMUTABLE_HC because we cannot compute it yet
         LL.analysis().set(PropertyImpl.IMMUTABLE_TYPE, ValueImpl.ImmutableImpl.IMMUTABLE_HC);
 
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
 
         This thisVar = runtime.newThis(LL.asParameterizedType());
         MethodInfo prepend = LL.findUniqueMethod("prepend", 1);
         {
-            Statement s0 = prepend.methodBody().statements().get(0);
+            Statement s0 = prepend.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
             assertEquals("0-4-0:ll, 0-4-*:t", vi0This.linkedVariables().toString());
-            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().get(0));
+            VariableInfo vi0T = vd0.variableInfo(prepend.parameters().getFirst());
             assertEquals("*-4-0:ll, *-4-0:this", vi0T.linkedVariables().toString());
             VariableInfo vi0LL = vd0.variableInfo("ll");
             assertEquals("0-4-*:t, 0-4-0:this", vi0LL.linkedVariables().toString());
@@ -186,11 +186,11 @@ public class TestLinkObjectRecursion extends CommonTest {
 
         MethodInfo prepend2 = LL.findUniqueMethod("prepend2", 1);
         {
-            Statement s0 = prepend2.methodBody().statements().get(0);
+            Statement s0 = prepend2.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0This = vd0.variableInfo(thisVar);
             assertEquals("", vi0This.linkedVariables().toString());
-            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().get(0));
+            VariableInfo vi0T = vd0.variableInfo(prepend2.parameters().getFirst());
             assertEquals("", vi0T.linkedVariables().toString());
             VariableInfo vi0Rv = vd0.variableInfo(prepend2.fullyQualifiedName());
             assertEquals("0-4-*:t, 0-4-0:this", vi0Rv.linkedVariables().toString());
@@ -246,7 +246,7 @@ public class TestLinkObjectRecursion extends CommonTest {
         TypeInfo function = javaInspector.compiledTypesManager().get(Function.class);
         MethodInfo apply = function.singleAbstractMethod();
         assertTrue(apply.isModifying());
-        ParameterInfo apply0 = apply.parameters().get(0);
+        ParameterInfo apply0 = apply.parameters().getFirst();
         assertTrue(apply0.isModified());
 
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
@@ -264,7 +264,7 @@ public class TestLinkObjectRecursion extends CommonTest {
         FieldReference bodyFr = runtime.newFieldReference(body);
 
         MethodInfo constructor = loopDataImpl.findConstructor(3);
-        ParameterInfo c0 = constructor.parameters().get(0);
+        ParameterInfo c0 = constructor.parameters().getFirst();
         assertEquals("loop", c0.simpleName());
         // NOTE: we know this SVP value only after analyzing withLoopValue
         assertEquals("E=this.loop", c0.analysis().getOrDefault(STATIC_VALUES_PARAMETER, StaticValuesImpl.NONE).toString());
@@ -277,9 +277,9 @@ public class TestLinkObjectRecursion extends CommonTest {
 
         MethodInfo next = loopDataImpl.findUniqueMethod("next", 0);
         {
-            Statement s0 = next.methodBody().statements().get(0);
+            Statement s0 = next.methodBody().statements().getFirst();
             {
-                Statement s000 = s0.block().statements().get(0);
+                Statement s000 = s0.block().statements().getFirst();
                 VariableData vd000 = VariableDataImpl.of(s000);
                 VariableInfo vi000This = vd000.variableInfo(thisVar);
                 assertEquals("", vi000This.linkedVariables().toString());

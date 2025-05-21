@@ -65,7 +65,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     private void testLinks(TypeInfo X) {
         MethodInfo listGet = X.findUniqueMethod("get", 2);
 
-        Statement s0 = listGet.methodBody().statements().get(0);
+        Statement s0 = listGet.methodBody().statements().getFirst();
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
@@ -129,7 +129,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
         assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
 
-        ParameterInfo p0 = methodInfo.parameters().get(0);
+        ParameterInfo p0 = methodInfo.parameters().getFirst();
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
         assertEquals("0=0,1=*", paramHcs.detailed());
 
@@ -142,7 +142,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     private void testLinks2(TypeInfo X) {
         MethodInfo listGet = X.findUniqueMethod("get", 2);
 
-        Statement s0 = listGet.methodBody().statements().get(0);
+        Statement s0 = listGet.methodBody().statements().getFirst();
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
@@ -167,7 +167,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
     private void testLinks3(TypeInfo X) {
         MethodInfo listGet = X.findUniqueMethod("get", 2);
 
-        Statement s0 = listGet.methodBody().statements().get(0);
+        Statement s0 = listGet.methodBody().statements().getFirst();
         VariableData vd0 = VariableDataImpl.of(s0);
         assertNotNull(vd0);
         VariableInfo viRv = vd0.variableInfo(listGet.fullyQualifiedName());
