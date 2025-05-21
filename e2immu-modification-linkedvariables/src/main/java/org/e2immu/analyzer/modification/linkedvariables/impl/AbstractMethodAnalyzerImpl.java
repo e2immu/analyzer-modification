@@ -7,10 +7,13 @@ import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements AbstractMethodAnalyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMethodAnalyzerImpl.class);
 
     // given an abstract method, which are its concrete implementations?
     final Map<MethodInfo, Set<MethodInfo>> concreteImplementationsOfAbstractMethods = new HashMap<>();
@@ -37,16 +40,21 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
         while (iterator.hasNext()) {
             Map.Entry<MethodInfo, Set<MethodInfo>> entry = iterator.next();
             MethodInfo methodInfo = entry.getKey();
-            assert methodInfo.analysis().getOrNull(PropertyImpl.INDEPENDENT_METHOD, ValueImpl.IndependentImpl.class) == null
-                   || methodInfo.analysis().getOrNull(PropertyImpl.NON_MODIFYING_METHOD, ValueImpl.BoolImpl.class) == null
-                   || methodInfo.parameters().stream().anyMatch(pi ->
-                    pi.analysis().getOrNull(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.class) == null
-                    || pi.analysis().getOrNull(PropertyImpl.UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.class) == null);
-            Set<MethodInfo> waitForOfMethod = resolve(methodInfo, entry.getValue());
-            if (waitForOfMethod.isEmpty()) {
+            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)
+                || !methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.NON_MODIFYING_METHOD)
+                || methodInfo.parameters().stream().anyMatch(pi ->
+                    !pi.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)
+                    || !pi.analysis().haveAnalyzedValueFor(PropertyImpl.UNMODIFIED_PARAMETER))) {
+                Set<MethodInfo> waitForOfMethod = resolve(methodInfo, entry.getValue());
+                if (waitForOfMethod.isEmpty()) {
+                    iterator.remove();
+                    LOGGER.info("Removing {} from waitFor, have left: {}", methodInfo, concreteImplementationsOfAbstractMethods.keySet());
+                } else {
+                    LOGGER.info("Adding {} to waitFor, have left: {}", waitForOfMethod, concreteImplementationsOfAbstractMethods.keySet());
+                    waitForMethods.addAll(waitForOfMethod);
+                }
+            } else{
                 iterator.remove();
-            } else {
-                waitForMethods.addAll(waitForOfMethod);
             }
         }
         return new OutputImpl(List.of(), waitForMethods);

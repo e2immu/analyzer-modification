@@ -8,7 +8,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -168,7 +167,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT2);
         List<Info> analysisOrder = prepWork(X);
         analyzer.go(analysisOrder);
-
+        analyzer.go(analysisOrder);
         testImmutable(X);
 
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
@@ -183,8 +182,11 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
             Statement s0 = withException.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0Rv = vd0.variableInfo(withException.fullyQualifiedName());
-            assertEquals("Type a.b.X.LoopDataImpl E=new LoopDataImpl(new ExceptionThrown(e)) this.exit=new ExceptionThrown(e)",
-                    vi0Rv.staticValues().toString());
+            // formal type of variable:
+            assertEquals("Type a.b.X.LoopData", vi0Rv.variable().parameterizedType().toString());
+            assertEquals("""
+                    Type a.b.X.LoopDataImpl E=new LoopDataImpl(new ExceptionThrown(e)) this.exit=new ExceptionThrown(e)\
+                    """, vi0Rv.staticValues().toString());
             assertEquals("0M-4-*M:e", vi0Rv.linkedVariables().toString()); // |0.0-*:e is missing, because 4-link
         }
         testLoopData(X);
