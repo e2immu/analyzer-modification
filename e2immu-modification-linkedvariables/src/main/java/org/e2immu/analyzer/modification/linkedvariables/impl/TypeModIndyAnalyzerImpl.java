@@ -158,10 +158,13 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         private void doIndependent(MethodInfo methodInfo, VariableData lastOfMainBlock) {
 
             Value.Independent independentMethod = doIndependentMethod(methodInfo, lastOfMainBlock);
-            if (methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, independentMethod)) {
-                DECIDE.debug("MI: Decide independent of method {} = {}", methodInfo, independentMethod);
+            if (independentMethod != null) {
+                if (methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, independentMethod)) {
+                    DECIDE.debug("MI: Decide independent of method {} = {}", methodInfo, independentMethod);
+                }
+            } else {
+                UNDECIDED.debug("MI: Independent of method undecided: {}", methodInfo);
             }
-
             for (ParameterInfo pi : methodInfo.parameters()) {
                 Value.Independent independent = doIndependentParameter(pi, lastOfMainBlock);
                 if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, independent)) {
@@ -198,7 +201,9 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
             VariableInfoContainer vic = lastOfMainBlock.variableInfoContainerOrNull(variableFqn);
             if (vic == null) return INDEPENDENT; // variable does not occur.
             VariableInfo viRv = vic.best();
-            assert viRv.linkedVariables() != null;
+            if (viRv.linkedVariables() == null) {
+                return null; // not yet
+            }
             LV worstLinkToFields = viRv.linkedVariables().stream()
                     .filter(e -> e.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
                     .map(Map.Entry::getValue)

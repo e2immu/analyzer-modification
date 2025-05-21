@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
+import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -94,14 +95,16 @@ public class TestReadFieldReferences extends CommonTest {
             List<Info> analysisOrder = prepWork(X);
             assertEquals("""
                     [a.b.X.$11.applyAsInt(int), a.b.X.$3.applyAsInt(int), a.b.X.$7.applyAsInt(int), a.b.X.<init>(), \
-                    a.b.X.nxmCosTableX, a.b.X.nxmCosTableY, a.b.X.pixelRange(int), a.b.X.$10.test(int), \
-                    a.b.X.$2.test(int), a.b.X.$6.test(int), a.b.X.M, a.b.X.N, a.b.X.method(double[][],int[][]), \
-                    a.b.X, a.b.X.$10, a.b.X.$11, a.b.X.$2, a.b.X.$3, a.b.X.$6, a.b.X.$7]\
+                    a.b.X.nxmCosTableX, a.b.X.nxmCosTableY, a.b.X.pixelRange(int), a.b.X.$11, a.b.X.$3, a.b.X.$7, \
+                    a.b.X.$10, a.b.X.$10.test(int), a.b.X.$2, a.b.X.$2.test(int), a.b.X.$6, a.b.X.$6.test(int), \
+                    a.b.X.M, a.b.X.N, a.b.X.method(double[][],int[][]), a.b.X]\
                     """, analysisOrder.toString());
 
             MethodInfo methodInfo = X.findUniqueMethod("method", 2);
-            Block innerLoop = methodInfo.methodBody().statements().get(7).block().statements().get(0).block();
+            Block innerLoop = methodInfo.methodBody().statements().get(7).block().statements().getFirst().block();
             LocalVariableCreation lvc1 = (LocalVariableCreation) innerLoop.statements().get(1);
+            Expression translated = lvc1.localVariable().assignmentExpression()
+                    .translate(new ApplyGetSetTranslation(runtime));
             assertEquals("""
                     (new Builder().variables[0]=cy0,\
                     new Builder().variables[1]=dcts,\
@@ -109,7 +112,7 @@ public class TestReadFieldReferences extends CommonTest {
                     new Builder().variables[3]=x,\
                     new Builder().loop=IntStream.iterate(1,i0->i0<this.N,i0->i0+1).iterator(),\
                     new Builder()).build()\
-                    """, lvc1.localVariable().assignmentExpression().translate(new ApplyGetSetTranslation(runtime)).toString());
+                    """, translated.toString());
 
             analyzer.go(analysisOrder);
         }
