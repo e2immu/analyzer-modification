@@ -211,7 +211,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         MethodInfo body = X.findUniqueMethod("body", 1);
 
         {   //  int i = (int) td.get(0);
-            Statement s0 = body.methodBody().statements().get(0);
+            Statement s0 = body.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0i = vd0.variableInfo("i");
@@ -263,7 +263,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
             assertEquals("E=td.variables[1]", viLastList2.staticValues().toString());
             assertTrue(viLastList2.isModified());
         }
-        ParameterInfo body0 = body.parameters().get(0);
+        ParameterInfo body0 = body.parameters().getFirst();
         assertEquals("this.variables=true, this.variables[1]=true", body0.analysis()
                 .getOrNull(MODIFIED_COMPONENTS_PARAMETER, ValueImpl.VariableBooleanMapImpl.class).toString());
     }
@@ -272,7 +272,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         MethodInfo method = X.findUniqueMethod("method", 2);
         ParameterInfo method1 = method.parameters().get(1);
         {
-            Statement s0 = method.methodBody().statements().get(0);
+            Statement s0 = method.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0B = vd0.variableInfo("b");
@@ -328,9 +328,9 @@ public class TestStaticValuesOfTryData extends CommonTest {
     private static void testXRun(TypeInfo X) {
         MethodInfo run = X.findUniqueMethod("run", 1);
         {
-            ParameterInfo runTd = run.parameters().get(0);
-            Statement s0 = run.methodBody().statements().get(0);
-            Statement s000 = s0.block().statements().get(0);
+            ParameterInfo runTd = run.parameters().getFirst();
+            Statement s0 = run.methodBody().statements().getFirst();
+            Statement s000 = s0.block().statements().getFirst();
             VariableData vd000 = VariableDataImpl.of(s000);
             VariableInfo viTd000 = vd000.variableInfo(runTd);
             assertEquals("td.throwingFunction=true", viTd000.analysis().getOrNull(MODIFIED_FI_COMPONENTS_VARIABLE,
@@ -363,10 +363,10 @@ public class TestStaticValuesOfTryData extends CommonTest {
     private static void testBuilderBody(TypeInfo builder) {
         MethodInfo body = builder.findUniqueMethod("body", 1);
         {
-            ParameterInfo body0 = body.parameters().get(0);
+            ParameterInfo body0 = body.parameters().getFirst();
             FieldInfo bodyThrowingFunction = builder.getFieldByName("bodyThrowingFunction", true);
             {
-                Statement s0 = body.methodBody().statements().get(0);
+                Statement s0 = body.methodBody().statements().getFirst();
                 VariableData vd0 = VariableDataImpl.of(s0);
                 VariableInfo vi0 = vd0.variableInfo(body0);
                 assertFalse(vi0.isModified());

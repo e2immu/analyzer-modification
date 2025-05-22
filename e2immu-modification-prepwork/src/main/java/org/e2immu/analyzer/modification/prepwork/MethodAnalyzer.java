@@ -253,7 +253,7 @@ public class MethodAnalyzer {
         return blockStream
                 .filter(b -> !b.isEmpty())
                 .collect(Collectors.toUnmodifiableMap(
-                        block -> block.statements().get(0).source().index(),
+                        block -> block.statements().getFirst().source().index(),
                         block -> doBlock(methodInfo, block, vdOfParent, iv)));
     }
 

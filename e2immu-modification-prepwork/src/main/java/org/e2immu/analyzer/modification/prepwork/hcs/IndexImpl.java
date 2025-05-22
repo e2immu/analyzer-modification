@@ -128,7 +128,7 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
     @Override
     public Index takeFirst() {
         assert list.size() > 1;
-        return new IndexImpl(List.of(list.get(0)));
+        return new IndexImpl(List.of(list.getFirst()));
     }
 
     @Override
@@ -143,12 +143,12 @@ public record IndexImpl(List<Integer> list) implements Index, Comparable<Index> 
 
     @Override
     public Integer single() {
-        return list.size() == 1 ? list.get(0) : null;
+        return list.size() == 1 ? list.getFirst() : null;
     }
 
     @Override
     public Index map(IntFunction<Integer> intFunction) {
-        int index = list.get(0);
+        int index = list.getFirst();
         return new IndexImpl(Stream.concat(Stream.of(intFunction.apply(index)), list.stream().skip(1)).toList());
     }
 }

@@ -38,12 +38,13 @@ public class TestWriteAnalysis2 extends CommonTest {
             package a.b;
             import org.e2immu.annotation.Final;
             import org.e2immu.annotation.NotModified;
+            import org.e2immu.annotation.method.GetSet;
             public class X {
                 @Final private int n;
                 @Final private int i;
                 public X(int n) { this.n = n; }
-                @NotModified int getI() { return i; }
-                @NotModified int getN() { return n; }
+                @NotModified @GetSet("i") int getI() { return i; }
+                @NotModified @GetSet("n") int getN() { return n; }
             }
             """;
 
@@ -53,7 +54,7 @@ public class TestWriteAnalysis2 extends CommonTest {
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"partOfConstructionType":["C<init>(0)"]}, "subs":[
              {"name": "Fn(0)", "data":{"finalField":1,"unmodifiedField":1}},
              {"name": "Fi(1)", "data":{"finalField":1,"unmodifiedField":1}},
-             {"name": "C<init>(0)", "data":{"getSetField":["Fn(0)",true],"hc":{"0":"Tjava.lang.Object"},"staticValuesMethod":["",[],[["F",["Ta.b.X","Fn(0)"],["variableExpression","5-23:5-33",["T",["Ta.b.X"]]]],["variableExpression","5-32:5-32",["P",["Ta.b.X","C<init>(0)","Pn(0)"]]]]]}, "sub":
+             {"name": "C<init>(0)", "data":{"hc":{"0":"Tjava.lang.Object"},"staticValuesMethod":["",[],[["F",["Ta.b.X","Fn(0)"],["variableExpression","5-23:5-33",["T",["Ta.b.X"]]]],["variableExpression","5-32:5-32",["P",["Ta.b.X","C<init>(0)","Pn(0)"]]]]]}, "sub":
               {"name": "Pn(0)", "data":{"parameterAssignedToField":["Fn(0)"],"staticValuesParameter":["",["variableExpression","5-32:5-32",["F",["Ta.b.X","Fn(0)"],["variableExpression","5-23:5-26",["T",["Ta.b.X"]]]]],[]],"unmodifiedParameter":1}}},
              {"name": "MgetI(0)", "data":{"getSetField":["Fi(1)",false],"hc":{},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","6-25:6-25",["F",["Ta.b.X","Fi(1)"]]],[]]}},
              {"name": "MgetN(1)", "data":{"getSetField":["Fn(0)",false],"hc":{},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","7-25:7-25",["F",["Ta.b.X","Fn(0)"]]],[]]}}]}
@@ -99,7 +100,6 @@ public class TestWriteAnalysis2 extends CommonTest {
             class X {
                 record R(@NotModified Set<Integer> set, int i,@NotModified List<String> list) { }
                 @NotModified void setAdd(X.R r) { r.set.add(r.i); }
-                @NotModified
                 void method() {
                     List<String> l = new ArrayList<> ();
                     Set<Integer> s = new HashSet<> ();
@@ -127,7 +127,7 @@ public class TestWriteAnalysis2 extends CommonTest {
              {"name": "C<init>(0)", "data":{"hc":{"0":"Tjava.lang.Object"}}},
              {"name": "MsetAdd(0)", "data":{"hc":{"0":"Ta.b.X.R"},"nonModifyingMethod":1}, "sub":
               {"name": "Pr(0)", "data":{"hcsParameter":{"0":[[-1]]},"modifiedComponentsParameter":[["F",["Ta.b.X","SR(0)","Fset(0)"],["variableExpression","10-9:10-13",["T",["Ta.b.X","SR(0)"]]]],true]}}},
-             {"name": "Mmethod(1)", "data":{"hc":{},"nonModifyingMethod":1}}]}
+             {"name": "Mmethod(1)", "data":{"hc":{}}}]}
             ]
             """;
 

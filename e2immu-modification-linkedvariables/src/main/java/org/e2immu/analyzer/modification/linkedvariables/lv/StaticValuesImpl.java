@@ -75,7 +75,7 @@ public record StaticValuesImpl(ParameterizedType type,
 
     public static Value decode(Codec codec, Codec.Context context, Codec.EncodedValue ev) {
         List<Codec.EncodedValue> list = codec.decodeList(context, ev);
-        ParameterizedType type = codec.decodeType(context, list.get(0));
+        ParameterizedType type = codec.decodeType(context, list.getFirst());
         Expression expression = codec.decodeExpression(context, list.get(1));
         Map<Codec.EncodedValue, Codec.EncodedValue> mapOfDecoded = codec.decodeMapAsList(context, list.get(2));
         Map<Variable, Expression> values = mapOfDecoded.entrySet().stream().collect(Collectors.toUnmodifiableMap(

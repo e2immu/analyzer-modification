@@ -154,7 +154,7 @@ public class LVImpl implements LV {
             }
         });
         if (keysThatLinkToAll.size() > 1) {
-            Indices merged = keysThatLinkToAll.stream().skip(1).reduce(keysThatLinkToAll.get(0), Indices::merge);
+            Indices merged = keysThatLinkToAll.stream().skip(1).reduce(keysThatLinkToAll.getFirst(), Indices::merge);
             keysThatLinkToAll.forEach(res.keySet()::remove);
             res.put(merged, new LinkImpl(ALL_INDICES, linkToAllMutable.get()));
         }
