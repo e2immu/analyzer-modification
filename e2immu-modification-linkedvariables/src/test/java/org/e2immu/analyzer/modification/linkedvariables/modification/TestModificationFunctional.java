@@ -67,13 +67,17 @@ public class TestModificationFunctional extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
-        assertSame(FALSE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
+        assertFalse(parse.isNonModifying());
 
         MethodInfo run = X.findUniqueMethod("run", 2);
+        assertTrue(run.isNonModifying());
         ParameterInfo s = run.parameters().get(0);
+        assertTrue(s.isUnmodified());
         ParameterInfo function = run.parameters().get(1);
+        assertFalse(function.isUnmodified());
+        assertFalse(function.isIgnoreModifications());
         {
-            Statement s0 = run.methodBody().statements().get(0);
+            Statement s0 = run.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
             VariableInfo vi0S = vd0.variableInfo(s);
             assertTrue(vi0S.isUnmodified());
@@ -86,9 +90,6 @@ public class TestModificationFunctional extends CommonTest {
             VariableInfo vi1Function = vd1.variableInfo(function);
             assertFalse(vi1Function.isUnmodified());
         }
-        assertSame(TRUE, run.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
-        assertSame(FALSE, function.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
-        assertSame(TRUE, s.analysis().getOrDefault(PropertyImpl.UNMODIFIED_PARAMETER, FALSE));
 
         // finally, we copy the modification status of 'parse' onto 'this'
         MethodInfo go = X.findUniqueMethod("go", 1);
@@ -98,6 +99,7 @@ public class TestModificationFunctional extends CommonTest {
             VariableInfo vi0This = vd0.variableInfo(runtime.newThis(X.asParameterizedType()));
             assertFalse(vi0This.isUnmodified());
             // as a consequence, 'go' becomes modified
+            // FIXME do we still consider the modification status of 'this'?
             assertSame(FALSE, go.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
         }
         {
@@ -213,7 +215,7 @@ public class TestModificationFunctional extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo parse = X.findUniqueMethod("parse", 1);
-        assertSame(TRUE, parse.analysis().getOrDefault(PropertyImpl.NON_MODIFYING_METHOD, FALSE));
+        assertFalse(parse.isNonModifying());
 
         MethodInfo run = X.findUniqueMethod("run", 2);
         ParameterInfo runS = run.parameters().get(1);

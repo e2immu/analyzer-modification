@@ -90,3 +90,5 @@ Summary: how does a field link to its holding object?
 
 == Computing the propagation of modifications through a linking graph.
 
+ the convention is that modification on a functional interface type indicates that the SAM (single abstract method)
+    has been called.

@@ -160,13 +160,10 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                         StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
                         methodInfo.analysis().setAllowControlledOverwrite(STATIC_VALUES_METHOD, filtered);
                     }
-                } else if (
-                    //v instanceof This||
-                    // FIXME this needs rethinking: modification on "this" is a single hit, but this "unmodified"
-                    //   requires an initial value of "TRUE"
-                        (v instanceof FieldReference fr && (fr.scopeIsRecursivelyThis() || fr.isStatic()))
-                        && fr.fieldInfo().analysis().getOrDefault(IGNORE_MODIFICATIONS_FIELD, FALSE).isFalse()
-                        || vi.isVariableInClosure()) {
+                } else if (v instanceof This ||
+                           (v instanceof FieldReference fr && (fr.scopeIsRecursivelyThis() || fr.isStatic()))
+                           && fr.fieldInfo().analysis().getOrDefault(IGNORE_MODIFICATIONS_FIELD, FALSE).isFalse()
+                           || vi.isVariableInClosure()) {
                     boolean modification = vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, FALSE).isFalse();
                     boolean assignment = !vi.assignments().isEmpty();
                     if ((modification || assignment) && !methodInfo.isConstructor()) {
