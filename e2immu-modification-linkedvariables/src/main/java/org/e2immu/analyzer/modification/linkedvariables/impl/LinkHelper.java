@@ -652,6 +652,11 @@ class LinkHelper {
         } else {
             immutableOfFormalSource = immutableOfSource;
         }
+        Value.Immutable immutable1 = analysisHelper.typeImmutable(currentPrimaryType, targetType);
+        if (immutable1.isImmutable()) return LinkedVariablesImpl.EMPTY;
+        Value.Immutable immutable2 = analysisHelper.typeImmutable(currentPrimaryType, methodTargetType);
+        if (immutable2.isImmutable()) return LinkedVariablesImpl.EMPTY;
+
         return continueLinkedVariables(
                 hiddenContentSelectorOfSource,
                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
@@ -713,11 +718,14 @@ class LinkHelper {
                     newTargetType = targetType;
                 }
 
-                LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
-                        sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
-                        newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
-                        reverse, indexOfDirectlyLinkedField);
-                lvsList.add(lvs);
+                Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, targetType);
+                if (!immutable.isImmutable()) {
+                    LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
+                            sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
+                            newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
+                            reverse, indexOfDirectlyLinkedField);
+                    lvsList.add(lvs);
+                }
             }
         }
         if (!lvsList.isEmpty()) {
