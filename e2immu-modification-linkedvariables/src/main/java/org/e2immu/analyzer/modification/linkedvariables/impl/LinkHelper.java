@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
@@ -456,11 +457,11 @@ class LinkHelper {
                 e -> LinkedVariablesImpl.of(e.getValue())));
     }
 
-    public static Links linkAllSameType(ParameterizedType parameterizedType) {
+    public Links linkAllSameType(ParameterizedType parameterizedType) {
         TypeInfo typeInfo = parameterizedType.bestTypeInfo();
         if (typeInfo == null) return LinksImpl.NO_LINKS;
-        HiddenContentTypes hct = typeInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-        assert hct != null : "HCT not yet computed for " + typeInfo;
+        HiddenContentTypes hct = typeInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                ()-> new ComputeHiddenContent(runtime).compute(typeInfo));
         if (hct.hasHiddenContent()) {
             Map<Indices, Link> map = new HashMap<>();
             for (int i = 0; i < hct.size(); i++) {

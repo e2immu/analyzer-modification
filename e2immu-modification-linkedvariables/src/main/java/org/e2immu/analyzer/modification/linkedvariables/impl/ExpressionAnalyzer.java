@@ -638,7 +638,16 @@ class ExpressionAnalyzer {
                     .build();
         }
 
-        private EvaluationResult linkEvaluationOfMethodCall(MethodInfo currentMethod, MethodCall mc, ParameterizedType forwardType) {
+        private EvaluationResult linkEvaluationOfMethodCall(MethodInfo currentMethod,
+                                                            MethodCall mc,
+                                                            ParameterizedType forwardType) {
+            // FIXME maybe we should add more? do this in a more structured way? This seems to be the best place, however
+            MethodInfo methodInfo = mc.methodInfo();
+            if (methodInfo.isSynthetic() && !methodInfo.analysis().haveAnalyzedValueFor(NON_MODIFYING_METHOD)) {
+                if ("values".equals(methodInfo.name()) && methodInfo.typeInfo().typeNature() == runtime.typeNatureEnum()) {
+                    methodInfo.analysis().set(NON_MODIFYING_METHOD, ValueImpl.BoolImpl.TRUE);
+                }
+            }
             EvaluationResult.Builder builder = new EvaluationResult.Builder();
 
             EvaluationResult leObject = eval(mc.object());
