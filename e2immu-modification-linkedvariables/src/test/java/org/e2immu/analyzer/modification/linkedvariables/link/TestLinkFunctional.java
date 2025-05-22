@@ -154,7 +154,7 @@ public class TestLinkFunctional extends CommonTest {
         analyzer.go(analysisOrder);
 
         // link to T which gets modifying M, and predicate (also modifying)
-        assertEquals("0M-2-0M:stream", lvs(m3));
+        assertEquals("0M-4-0M:stream", lvs(m3));
 
         MethodInfo m4 = X.findUniqueMethod("m4", 1);
         assertEquals("0M-4-0M:stream", lvs(m4));
@@ -166,7 +166,7 @@ public class TestLinkFunctional extends CommonTest {
         assertEquals("*M-4-0M:stream", lvs(m5));
 
         MethodInfo m6 = X.findUniqueMethod("m6", 1);
-        assertEquals("-2-:stream", lvs(m6));
+        assertEquals("", lvs(m6)); // as Integer does not have hidden content
 
         MethodInfo m7 = X.findUniqueMethod("m7", 1);
         assertEquals("", lvs(m7));
@@ -223,10 +223,10 @@ public class TestLinkFunctional extends CommonTest {
         assertEquals("", lvs(mPredicate));
 
         MethodInfo m9 = X.findUniqueMethod("m9", 2);
-        assertEquals("0-2-0:stream", lvs(m9));
+        assertEquals("0-4-0:stream", lvs(m9));
 
         MethodInfo m9b = X.findUniqueMethod("m9b", 2);
-        assertEquals("0-2-0:stream", lvs(m9b));
+        assertEquals("0-4-0:stream", lvs(m9b));
 
         MethodInfo m10 = X.findUniqueMethod("m10", 2);
         assertEquals("0-4-0:stream", lvs(m10));
@@ -298,28 +298,29 @@ public class TestLinkFunctional extends CommonTest {
 
         analyzer.go(analysisOrder);
 
+        // IMPORTANT
         // there is no means of connecting X to Y at this point (not without knowledge of Function!)
         // the result of the method is of type Stream<T>, so it cannot link to the hidden content of Function.
         // Should we assume that Function<X, Y> holds fields of type Y, so that we can link 0-4-1:function??
-        assertEquals("-2-:stream", lvs(m1));
+        assertEquals("", lvs(m1));
 
         MethodInfo m2 = X.findUniqueMethod("m2", 2);
-        assertEquals("-2-:stream", lvs(m2));
+        assertEquals("", lvs(m2));
 
         MethodInfo m3 = X.findUniqueMethod("m3", 2);
-        assertEquals("-2-:stream", lvs(m3));
+        assertEquals("", lvs(m3));
 
         MethodInfo m4 = X.findUniqueMethod("m4", 2);
-        assertEquals("-2-:stream", lvs(m4));
+        assertEquals("", lvs(m4));
 
         MethodInfo m5 = X.findUniqueMethod("m5", 2);
-        assertEquals("-2-:stream", lvs(m5));
+        assertEquals("", lvs(m5));
 
         MethodInfo m6 = X.findUniqueMethod("m6", 2);
-        assertEquals("-2-:stream", lvs(m6));
+        assertEquals("", lvs(m6));
 
         MethodInfo m7 = X.findUniqueMethod("m7", 2);
-        assertEquals("-2-:stream", lvs(m7));
+        assertEquals("", lvs(m7));
     }
 
     @Language("java")
