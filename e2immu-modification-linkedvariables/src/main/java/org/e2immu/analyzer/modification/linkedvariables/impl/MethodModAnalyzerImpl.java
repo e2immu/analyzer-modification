@@ -304,7 +304,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                                         Statement statement,
                                         VariableData previous,
                                         boolean first) {
-            LOGGER_GRAPH.debug("Statement {}", statement.source());
+            LOGGER_GRAPH.debug("Method {} statement {}", methodInfo, statement.source());
             Stage stageOfPrevious = first ? Stage.EVALUATION : Stage.MERGE;
             VariableData vd = VariableDataImpl.of(statement);
             assert vd != null : "No variable data in " + statement + " source " + statement.source();

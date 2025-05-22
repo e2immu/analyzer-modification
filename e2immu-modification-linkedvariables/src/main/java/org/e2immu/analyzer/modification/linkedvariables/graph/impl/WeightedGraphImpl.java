@@ -162,7 +162,7 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
         StringBuilder sb = new StringBuilder("\n");
         nodeMap.forEach((v, node) -> {
             sb.append(v).append(" --> ");
-            if (node.dependsOn == null) sb.append("null");
+            if (node.dependsOn == null) sb.append("<none>\n");
             else sb.append(node.dependsOn.entrySet()
                     .stream().map(e -> e.getKey() + ":" + e.getValue()).sorted()
                     .collect(Collectors.joining(", "))).append("\n");
