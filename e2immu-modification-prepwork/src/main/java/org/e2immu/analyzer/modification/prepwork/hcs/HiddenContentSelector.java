@@ -259,7 +259,7 @@ public class HiddenContentSelector implements Value {
             assert "0".equals(entry1.getKey().toString());
             return Map.of(entry1.getKey(), new IndicesAndType(entry1.getKey(), to.copyWithFewerArrays(1)));
         }
-        assert from.isAssignableFrom(runtime, to);
+        assert from.isAssignableFrom(runtime, to) : from + " is not assignable from " + to;
 
         if (isNone() || to.isTypeOfNullConstant()) return Map.of();
 

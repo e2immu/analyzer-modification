@@ -338,8 +338,10 @@ class ExpressionAnalyzer {
                 for (Map.Entry<Variable, LV> entry : scope.linkedVariables()) {
                     LV lv = linkToDependentVariable(ve, variable, forwardType, linkedScopeWithoutVariable,
                             entry.getValue(), fieldIndex, fieldType);
-                    LOGGER.debug("lv is {}", lv);
-                    map.put(entry.getKey(), lv);
+                    if (lv != null) {
+                        LOGGER.debug("lv is {}", lv);
+                        map.put(entry.getKey(), lv);
+                    }
                 }
             }
             // adding existing linked variables is in general not necessary.
@@ -364,58 +366,58 @@ class ExpressionAnalyzer {
                                            ParameterizedType fieldType) {
             Immutable immutable = analysisHelper.typeImmutable(ve.parameterizedType());
             Immutable immutableForward = forwardType == null ? immutable : analysisHelper.typeImmutable(forwardType);
-            if (!immutableForward.isImmutable()) {
-                boolean isMutable = immutableForward.isMutable();
-                Indices targetIndices;
-                Indices targetModificationArea;
-                Indices sourceModificationArea;
-                if (isMutable) {
-                    targetModificationArea = new IndicesImpl(fieldIndex);
-                    sourceModificationArea = IndicesImpl.ALL_INDICES;
-                } else {
-                    targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                    sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
-                }
-                if (v instanceof DependentVariable) {
-                    targetIndices = new IndicesImpl(0);
-                } else if (v instanceof FieldReference fr) {
-                    assert dependentVariableBestType != null : "The unbound type parameter does not have any fields";
-                    HiddenContentTypes hct = dependentVariableBestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-                    ParameterizedType fieldType2 = replaceFieldType(fieldType, dependentVariableBestType, fr.scopeVariable());
-                    Integer i = hct.indexOf(fieldType2);
-                    if (i != null) {
-                        targetIndices = new IndicesImpl(i);
-                    } else {
-                        targetIndices = null;
-                    }
-                } else throw new UnsupportedOperationException();
-                Map<Indices, Link> linkMap;
-                if (targetIndices == null) {
-                    linkMap = Map.of();
-                    assert isMutable;
-                } else {
-                    linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
-                }
-
-                // recursion
-                Indices targetModificationAreaRecursion;
-                if (currentLink.isDependent() && isMutable && targetModificationArea.haveValue()) {
-                    targetModificationAreaRecursion = targetModificationArea.prepend(currentLink.links().modificationAreaTarget());
-                } else {
-                    targetModificationAreaRecursion = targetModificationArea;
-                }
-
-                // create the link, and add it
-                Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
-                LV lv;
-                if (isMutable && !currentLink.isCommonHC()) {
-                    lv = LVImpl.createDependent(links);
-                } else {
-                    lv = LVImpl.createHC(links);
-                }
-                return lv;
+            if (immutableForward.isImmutable()) {
+                return null; // NO LINK!
             }
-            return null;
+            boolean isMutable = immutableForward.isMutable();
+            Indices targetIndices;
+            Indices targetModificationArea;
+            Indices sourceModificationArea;
+            if (isMutable) {
+                targetModificationArea = new IndicesImpl(fieldIndex);
+                sourceModificationArea = IndicesImpl.ALL_INDICES;
+            } else {
+                targetModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+                sourceModificationArea = IndicesImpl.NO_MODIFICATION_INDICES;
+            }
+            if (v instanceof DependentVariable) {
+                targetIndices = new IndicesImpl(0);
+            } else if (v instanceof FieldReference fr) {
+                assert dependentVariableBestType != null : "The unbound type parameter does not have any fields";
+                HiddenContentTypes hct = dependentVariableBestType.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
+                ParameterizedType fieldType2 = replaceFieldType(fieldType, dependentVariableBestType, fr.scopeVariable());
+                Integer i = hct.indexOf(fieldType2);
+                if (i != null) {
+                    targetIndices = new IndicesImpl(i);
+                } else {
+                    targetIndices = null;
+                }
+            } else throw new UnsupportedOperationException();
+            Map<Indices, Link> linkMap;
+            if (targetIndices == null) {
+                linkMap = Map.of();
+                assert isMutable;
+            } else {
+                linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
+            }
+
+            // recursion
+            Indices targetModificationAreaRecursion;
+            if (currentLink.isDependent() && isMutable && targetModificationArea.haveValue()) {
+                targetModificationAreaRecursion = targetModificationArea.prepend(currentLink.links().modificationAreaTarget());
+            } else {
+                targetModificationAreaRecursion = targetModificationArea;
+            }
+
+            // create the link, and add it
+            Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
+            LV lv;
+            if (isMutable && !currentLink.isCommonHC()) {
+                lv = LVImpl.createDependent(links);
+            } else {
+                lv = LVImpl.createHC(links);
+            }
+            return lv;
         }
 
         /*
@@ -858,14 +860,16 @@ class ExpressionAnalyzer {
             if (modifiedComponents != null) {
                 Expression pe = mc.parameterExpressions().get(pi.index());
                 if (pe instanceof VariableExpression ve) {
-                    StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
-                    for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
-                        Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
-                        Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
-                                completedMap);
-                        Variable afterArgumentExpansion = expandArguments(mc, pi, entry.getKey());
-                        Expression e = augmented.get(afterArgumentExpansion);
-                        consumer.accept(e, entry.getValue(), augmented);
+                    if (variableDataPrevious != null) {
+                        StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
+                        for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
+                            Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
+                            Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
+                                    completedMap);
+                            Variable afterArgumentExpansion = expandArguments(mc, pi, entry.getKey());
+                            Expression e = augmented.get(afterArgumentExpansion);
+                            consumer.accept(e, entry.getValue(), augmented);
+                        }
                     }
                 }
             }

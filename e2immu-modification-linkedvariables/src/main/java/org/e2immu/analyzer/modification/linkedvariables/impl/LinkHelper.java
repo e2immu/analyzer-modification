@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
@@ -7,7 +8,6 @@ import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.MethodCall;
@@ -29,9 +29,9 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.*;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 
@@ -145,9 +145,12 @@ class LinkHelper {
                 .translateHcs(runtime, genericsHelper, formalParameterType, concreteParameterType, allowVarargs);
         Map<Variable, LV> map = new HashMap<>();
         linkedVariablesOfParameter.stream().forEach(e -> {
-            LV newLv = lvOfParameter(e, targetData, concreteParameterType);
-            if (newLv != null) {
-                map.put(e.getKey(), newLv);
+            Value.Immutable immutableOfKey = analysisHelper.typeImmutable(currentPrimaryType, e.getKey().parameterizedType());
+            if (!immutableOfKey.isImmutable()) {
+                LV newLv = lvOfParameter(e, targetData, concreteParameterType);
+                if (newLv != null) {
+                    map.put(e.getKey(), newLv);
+                }
             }
         });
         return LinkedVariablesImpl.of(map);
