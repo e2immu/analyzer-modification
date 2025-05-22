@@ -167,8 +167,12 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
             }
             for (ParameterInfo pi : methodInfo.parameters()) {
                 Value.Independent independent = doIndependentParameter(pi, lastOfMainBlock);
-                if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, independent)) {
-                    DECIDE.debug("MI: Decide independent of parameter {} = {}", pi, independent);
+                if (independent != null) {
+                    if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, independent)) {
+                        DECIDE.debug("MI: Decide independent of parameter {} = {}", pi, independent);
+                    }
+                } else {
+                    UNDECIDED.debug("MI: Independent of parameter {} undecided", pi);
                 }
             }
         }

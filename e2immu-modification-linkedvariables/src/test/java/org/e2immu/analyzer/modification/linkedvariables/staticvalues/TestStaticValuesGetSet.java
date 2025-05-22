@@ -161,7 +161,7 @@ public class TestStaticValuesGetSet extends CommonTest {
     public void test2() {
         TypeInfo X = javaInspector.parse(INPUT_2);
         List<Info> analysisOrder = prepWork(X);
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
         {
             MethodInfo getter = X.findUniqueMethod("getter", 1);
             assertEquals("E=w.r", getter.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
@@ -170,7 +170,7 @@ public class TestStaticValuesGetSet extends CommonTest {
         }
         {
             MethodInfo extract = X.findUniqueMethod("extract", 1);
-            Statement s0 = extract.methodBody().statements().get(0);
+            Statement s0 = extract.methodBody().statements().getFirst();
             assertEquals("w.r.i", s0.expression().translate(new ApplyGetSetTranslation(runtime)).toString());
 
             VariableData vd0 = VariableDataImpl.of(s0);
@@ -192,6 +192,7 @@ public class TestStaticValuesGetSet extends CommonTest {
 
             assertEquals("E=w.r.i", extract.analysis().getOrDefault(STATIC_VALUES_METHOD, NONE).toString());
             //FIXME assertEquals("-1-:i, *-4-0:r, *-4-0|*-0.0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
+            assertEquals("-1-:i, *-4-0:r, *-4-0:w", extract.analysis().getOrDefault(LINKED_VARIABLES_METHOD, EMPTY).toString());
         }
     }
 }

@@ -198,7 +198,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
         testGetSet(tryData, tryDataImpl);
 
-        analyzer.go(analysisOrder);
+        analyzer.go(analysisOrder, 2);
 
         testBuilderBody(builder);
         testBuilderBuild(builder);
