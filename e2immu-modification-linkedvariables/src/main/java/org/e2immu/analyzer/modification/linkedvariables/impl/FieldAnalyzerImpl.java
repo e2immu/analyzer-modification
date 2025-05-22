@@ -71,7 +71,7 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                     .filter(mi -> notEmptyOrSyntheticAccessorAndReferringTo(mi, fieldInfo))
                     .toList();
 
-            StaticValues staticValues = computeStaticValues(methodsReferringToField);
+            StaticValues staticValues = computeStaticValues(fieldInfo, methodsReferringToField);
             if (staticValues != null) {
                 if (fieldInfo.analysis().setAllowControlledOverwrite(StaticValuesImpl.STATIC_VALUES_FIELD, staticValues)) {
                     DECIDE.debug("FI: Decide static values of field {} = {}", fieldInfo, staticValues);
@@ -109,18 +109,19 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
             }
         }
 
-        private StaticValues computeStaticValues(List<MethodInfo> methodsReferringToField) {
+        private StaticValues computeStaticValues(FieldInfo fieldInfo, List<MethodInfo> methodsReferringToField) {
             return methodsReferringToField.stream()
-                    .flatMap(mi -> computeStaticValues(mi).stream())
+                    .flatMap(mi -> computeStaticValues(fieldInfo, mi).stream())
                     .reduce(StaticValuesImpl.NONE, StaticValues::merge);
         }
 
-        private List<StaticValues> computeStaticValues(MethodInfo methodInfo) {
+        private List<StaticValues> computeStaticValues(FieldInfo fieldInfo, MethodInfo methodInfo) {
             if (methodInfo.methodBody().isEmpty()) return List.of();
             Statement lastStatement = methodInfo.methodBody().lastStatement();
             VariableData vd = VariableDataImpl.of(lastStatement);
             return vd.variableInfoStream()
-                    .filter(vi -> vi.variable() instanceof FieldReference fr && fr.scopeIsRecursivelyThis())
+                    .filter(vi -> vi.variable() instanceof FieldReference fr
+                                  && fr.scopeIsRecursivelyThis() && fr.fieldInfo() == fieldInfo)
                     .map(VariableInfo::staticValues)
                     .filter(Objects::nonNull)
                     .toList();

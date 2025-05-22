@@ -1,8 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
+import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
-import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
 import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableData;
 import org.e2immu.analyzer.modification.prepwork.variable.VariableInfo;
@@ -55,9 +55,9 @@ public class TestStaticValuesRecord extends CommonTest {
         FieldReference nFr = runtime.newFieldReference(nField);
 
         MethodInfo constructor = X.findConstructor(2);
-        ParameterInfo setParam = constructor.parameters().get(0);
+        ParameterInfo setParam = constructor.parameters().getFirst();
         {
-            Statement s0 = constructor.methodBody().statements().get(0);
+            Statement s0 = constructor.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi0SetField = vd0.variableInfo(setFr);
@@ -85,6 +85,15 @@ public class TestStaticValuesRecord extends CommonTest {
             assertEquals("E=this.set", svAccessorSet.toString());
             FieldValue getSet = accessorSet.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             assertEquals(setField, getSet.field());
+            VariableData vd = VariableDataImpl.of(accessorSet.methodBody().lastStatement());
+            VariableInfo viField = vd.variableInfo(setField.fullyQualifiedName());
+            assertNull(viField.staticValues());
+        }
+        {
+            MethodInfo constructorSet = X.findConstructor(2);
+            VariableData vd = VariableDataImpl.of(constructorSet.methodBody().lastStatement());
+            VariableInfo viField = vd.variableInfo(setField.fullyQualifiedName());
+            assertEquals("E=set", viField.staticValues().toString());
         }
         {
             StaticValues svSetField = setField.analysis().getOrNull(STATIC_VALUES_FIELD, StaticValuesImpl.class);
@@ -137,7 +146,7 @@ public class TestStaticValuesRecord extends CommonTest {
         analyzer.go(ao);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
-        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().getFirst();
         LocalVariable r = rLvc.localVariable();
 
         VariableData vd0 = VariableDataImpl.of(rLvc);
@@ -181,7 +190,7 @@ public class TestStaticValuesRecord extends CommonTest {
         analyzer.go(ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
 
-        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().getFirst();
         LocalVariable r = rLvc.localVariable();
 
         VariableData vd0 = VariableDataImpl.of(rLvc);
@@ -234,7 +243,7 @@ public class TestStaticValuesRecord extends CommonTest {
         analyzer.go(ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
 
-        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().getFirst();
         LocalVariable r = rLvc.localVariable();
 
         VariableData vd0 = VariableDataImpl.of(rLvc);
@@ -285,7 +294,7 @@ public class TestStaticValuesRecord extends CommonTest {
         List<Info> ao = prepWork(X);
         analyzer.go(ao);
         MethodInfo method = X.findUniqueMethod("method", 1);
-        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+        LocalVariableCreation rLvc = (LocalVariableCreation) method.methodBody().statements().getFirst();
         LocalVariable r = rLvc.localVariable();
 
         VariableData vd0 = VariableDataImpl.of(rLvc);
@@ -345,7 +354,7 @@ public class TestStaticValuesRecord extends CommonTest {
         List<Info> ao = prepWork(X);
 
         MethodInfo method = X.findUniqueMethod("method", 1);
-        LocalVariableCreation lvc0 = (LocalVariableCreation) method.methodBody().statements().get(0);
+        LocalVariableCreation lvc0 = (LocalVariableCreation) method.methodBody().statements().getFirst();
         ApplyGetSetTranslation tm = new ApplyGetSetTranslation(runtime);
         assertEquals("""
                 new Builder().j=3,new Builder().intList=List.of(0,1),new Builder().stringSet=in,new Builder()\
@@ -355,7 +364,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
         TypeInfo R = X.findSubType("R");
         MethodInfo constructorR = R.findConstructor(3);
-        ParameterInfo p0ConstructorR = constructorR.parameters().get(0);
+        ParameterInfo p0ConstructorR = constructorR.parameters().getFirst();
         StaticValues svP0 = p0ConstructorR.analysis().getOrDefault(STATIC_VALUES_PARAMETER, NONE);
         assertEquals("E=this.set", svP0.toString());
 
@@ -422,7 +431,7 @@ public class TestStaticValuesRecord extends CommonTest {
 
         MethodInfo method = X.findUniqueMethod("method", 1);
         {
-            LocalVariableCreation bLvc = (LocalVariableCreation) method.methodBody().statements().get(0);
+            LocalVariableCreation bLvc = (LocalVariableCreation) method.methodBody().statements().getFirst();
             LocalVariable b = bLvc.localVariable();
             VariableData vd0 = VariableDataImpl.of(bLvc);
             VariableInfo bVi0 = vd0.variableInfo(b);
@@ -618,10 +627,10 @@ public class TestStaticValuesRecord extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo method = X.findUniqueMethod("method", 3);
-        ParameterInfo set = method.parameters().get(0);
+        ParameterInfo set = method.parameters().getFirst();
         ParameterInfo list = method.parameters().get(1);
         {
-            Statement s0 = method.methodBody().statements().get(0);
+            Statement s0 = method.methodBody().statements().getFirst();
             VariableData vd0 = VariableDataImpl.of(s0);
 
             VariableInfo vi2r = vd0.variableInfo("r");
