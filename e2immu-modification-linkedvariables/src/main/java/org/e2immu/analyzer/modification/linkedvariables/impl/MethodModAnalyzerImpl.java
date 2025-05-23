@@ -175,10 +175,11 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     if (!modification && v instanceof FieldReference fr) {
                         fr.fieldInfo().analysis().setAllowControlledOverwrite(UNMODIFIED_FIELD, TRUE);
                     }
-                    if (!modification && vi.isVariableInClosure()) {
+                    if (vi.isVariableInClosure()) {
                         VariableData vd = vi.variableInfoInClosure();
                         VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
-                        outerVi.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE, TRUE);
+                        outerVi.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE,
+                                ValueImpl.BoolImpl.from(!modification));
                     }
                 }
                 if (methodInfo.isConstructor()
@@ -186,34 +187,31 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     StaticValues sv = vi.staticValues();
                     if (sv != null && sv.expression() instanceof VariableExpression ve
                         && ve.variable() instanceof ParameterInfo pi) {
-                        if (!pi.analysis().haveAnalyzedValueFor(STATIC_VALUES_PARAMETER)) {
-                            VariableExpression veFr = runtime.newVariableExpressionBuilder()
-                                    .setVariable(fr).setSource(ve.source())
-                                    .build();
-                            StaticValues newSv = new StaticValuesImpl(null, veFr, false, Map.of());
-                            pi.analysis().set(STATIC_VALUES_PARAMETER, newSv);
-                        }
-                        if (!pi.analysis().haveAnalyzedValueFor(PARAMETER_ASSIGNED_TO_FIELD)) {
-                            pi.analysis().set(PARAMETER_ASSIGNED_TO_FIELD,
-                                    new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
-                        }
+                        VariableExpression veFr = runtime.newVariableExpressionBuilder()
+                                .setVariable(fr).setSource(ve.source())
+                                .build();
+                        StaticValues newSv = new StaticValuesImpl(null, veFr, false, Map.of());
+                        pi.analysis().setAllowControlledOverwrite(STATIC_VALUES_PARAMETER, newSv);
+
+                        pi.analysis().setAllowControlledOverwrite(PARAMETER_ASSIGNED_TO_FIELD,
+                                new ValueImpl.AssignedToFieldImpl(Set.of(fr.fieldInfo())));
+
                     }
                 }
                 if (v instanceof This && !methodInfo.hasReturnValue()) {
                     StaticValues staticValues = vi.staticValues();
-                    if (staticValues != null && !methodInfo.analysis().haveAnalyzedValueFor(STATIC_VALUES_METHOD)) {
+                    if (staticValues != null) {
                         StaticValues filtered = staticValues.remove(vv -> vv instanceof LocalVariable);
-                        methodInfo.analysis().set(STATIC_VALUES_METHOD, filtered);
+                        methodInfo.analysis().setAllowControlledOverwrite(STATIC_VALUES_METHOD, filtered);
                     }
                 }
             }
-            if (allFieldsUnmodified && !methodInfo.isConstructor()
-                && !methodInfo.analysis().haveAnalyzedValueFor(NON_MODIFYING_METHOD)) {
-                methodInfo.analysis().set(NON_MODIFYING_METHOD, TRUE);
+            if (!methodInfo.isConstructor()) {
+                methodInfo.analysis().setAllowControlledOverwrite(NON_MODIFYING_METHOD,
+                        ValueImpl.BoolImpl.from(allFieldsUnmodified));
             }
-            if (!methodInfo.analysis().haveAnalyzedValueFor(MODIFIED_COMPONENTS_METHOD) && !modifiedComponentsMethod.isEmpty()) {
-                methodInfo.analysis().set(MODIFIED_COMPONENTS_METHOD, new ValueImpl.VariableBooleanMapImpl(modifiedComponentsMethod));
-            }
+            methodInfo.analysis().setAllowControlledOverwrite(MODIFIED_COMPONENTS_METHOD,
+                    new ValueImpl.VariableBooleanMapImpl(modifiedComponentsMethod));
         }
 
         private VariableBooleanMap translateVariableBooleanMapToThisScope(ParameterInfo pi, Map<Variable, Boolean> vbm) {
@@ -428,26 +426,22 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
             StaticValues reducedSv = computeStaticValuesMerge(lastOfEachSubBlock, variable);
             merge.staticValuesSet(reducedSv);
 
-            if (!merge.analysis().haveAnalyzedValueFor(UNMODIFIED_VARIABLE)) {
-                boolean unmodified = lastOfEachSubBlock.values().stream()
-                        .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
-                        .filter(Objects::nonNull)
-                        .map(VariableInfoContainer::best)
-                        .allMatch(vi -> vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, FALSE).isTrue());
-                if (unmodified) {
-                    merge.analysis().set(UNMODIFIED_VARIABLE, TRUE);
-                }
-            }
-            if (!merge.analysis().haveAnalyzedValueFor(MODIFIED_FI_COMPONENTS_VARIABLE)) {
-                Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()
-                        .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
-                        .filter(Objects::nonNull)
-                        .map(VariableInfoContainer::best)
-                        .flatMap(vi -> vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE, ValueImpl.VariableBooleanMapImpl.EMPTY).map().entrySet().stream())
-                        .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue,
-                                (b1, b2) -> b1 || b2)); // TODO is this the correct merge function?
-                merge.analysis().set(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(map));
-            }
+            boolean unmodified = lastOfEachSubBlock.values().stream()
+                    .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                    .filter(Objects::nonNull)
+                    .map(VariableInfoContainer::best)
+                    .allMatch(vi -> vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, FALSE).isTrue());
+            merge.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.from(unmodified));
+
+            Map<Variable, Boolean> map = lastOfEachSubBlock.values().stream()
+                    .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                    .filter(Objects::nonNull)
+                    .map(VariableInfoContainer::best)
+                    .flatMap(vi -> vi.analysis().getOrDefault(MODIFIED_FI_COMPONENTS_VARIABLE,
+                            ValueImpl.VariableBooleanMapImpl.EMPTY).map().entrySet().stream())
+                    .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue,
+                            (b1, b2) -> b1 || b2)); // TODO is this the correct merge function?
+            merge.analysis().setAllowControlledOverwrite(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(map));
         }
 
         private static StaticValues computeStaticValuesMerge(Map<String, VariableData> lastOfEachSubBlock, Variable variable) {

@@ -150,10 +150,7 @@ class ComputeLinkCompletion {
                     }
                     if (!vii.analysis().haveAnalyzedValueFor(VariableInfoImpl.UNMODIFIED_VARIABLE)) {
                         boolean unmodified = !modifying.contains(variable);
-                        if (unmodified) {
-                            // do not write when not unmodified, because that info may change in the next iteration
-                            vii.analysis().set(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.TRUE);
-                        }
+                        vii.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.from(unmodified));
                     }
                     Map<Variable, Boolean> mfiComponents = mfiComponentMaps.get(vii.variable());
                     if (mfiComponents != null
