@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
@@ -9,7 +10,6 @@ import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
-import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -170,14 +170,21 @@ class LinkHelperFunctional {
             if (vic != null) {
                 VariableInfo vi = vic.best();
                 LinkedVariables lv = vi.linkedVariables();
-                result.add(lv);
+                if (lv != null) {
+                    result.add(lv);
+                }
             }
         }
         if (concreteMethod.hasReturnValue()) {
             ReturnVariable returnVariable = new ReturnVariableImpl(concreteMethod);
-            VariableInfo vi = VariableDataImpl.of(lastStatement).variableInfo(returnVariable.fullyQualifiedName());
-            //  if (concreteMethod.parameters().isEmpty()) {
-            return new LambdaResult(result, vi.linkedVariables());
+            VariableInfoContainer vic = VariableDataImpl.of(lastStatement).variableInfoContainerOrNull(returnVariable.fullyQualifiedName());
+            if (vic != null) {
+                LinkedVariables lv = vic.best().linkedVariables();
+                //  if (concreteMethod.parameters().isEmpty()) {
+                if (lv != null) {
+                    return new LambdaResult(result, lv);
+                }
+            }
             //  }
             // link to the input types rather than the output type, see also HCT.mapMethodToTypeIndices
             // Map<Indices, Indices> correctionMap = new HashMap<>();

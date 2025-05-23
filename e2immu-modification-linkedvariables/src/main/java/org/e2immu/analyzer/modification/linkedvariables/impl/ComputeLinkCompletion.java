@@ -14,6 +14,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.VariableExpression;
+import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
@@ -49,6 +51,7 @@ class ComputeLinkCompletion {
         private final WeightedGraph weightedGraph = new WeightedGraphImpl(cache);
         private final Set<Variable> modifiedInEval = new HashSet<>();
         private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
+        private final Map<Variable, Set<TypeInfo>> casts = new HashMap<>();
 
         private final Map<Variable, List<StaticValues>> staticValues = new HashMap<>();
 
@@ -65,6 +68,16 @@ class ComputeLinkCompletion {
             this.modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents());
         }
 
+        void addCasts(Map<Variable, Set<ParameterizedType>> casts) {
+            casts.forEach((variable, set) -> {
+                Set<TypeInfo> typeInfos = this.casts.computeIfAbsent(variable, v -> new HashSet<>());
+                set.forEach(pt -> {
+                    TypeInfo e = pt.bestTypeInfo();
+                    if (e != null) typeInfos.add(e);
+                });
+            });
+        }
+
         void addAssignment(Variable variable, StaticValues value) {
             staticValues.computeIfAbsent(variable, l -> new ArrayList<>()).add(value);
         }
@@ -78,6 +91,30 @@ class ComputeLinkCompletion {
                           String statementIndex, Source source) {
             writeLinksAndModification(variableData, stage, previous, stageOfPrevious);
             writeAssignments(variableData, stage, previous, stageOfPrevious, statementIndex, source);
+            writeCasts(variableData, stage, previous, stageOfPrevious);
+        }
+
+        private void writeCasts(VariableData variableData,
+                                Stage stage,
+                                VariableData previous,
+                                Stage stageOfPrevious) {
+            if (previous != null) {
+                previous.variableInfoStream(stageOfPrevious).forEach(vi -> {
+                    if (variableData.isKnown(vi.variable().fullyQualifiedName())) {
+                        Value.SetOfTypeInfo set = vi.analysis().getOrDefault(VariableInfoImpl.DOWNCAST_VARIABLE,
+                                ValueImpl.SetOfTypeInfoImpl.EMPTY);
+                        if (!set.typeInfoSet().isEmpty()) {
+                            casts.computeIfAbsent(vi.variable(), v -> new HashSet<>()).addAll(set.typeInfoSet());
+                        }
+                    }
+                });
+            }
+            this.casts.forEach((v, set) -> {
+                VariableInfoContainer vic = variableData.variableInfoContainerOrNull(v.fullyQualifiedName());
+                VariableInfoImpl vii = (VariableInfoImpl) vic.best(stage);
+                vii.analysis().setAllowControlledOverwrite(VariableInfoImpl.DOWNCAST_VARIABLE,
+                        new ValueImpl.SetOfTypeInfoImpl(Set.copyOf(set)));
+            });
         }
 
         private void writeAssignments(VariableData variableData,

@@ -177,7 +177,11 @@ class ExpressionAnalyzer {
             if (expression instanceof InstanceOf io) {
                 if (io.patternVariable() != null) {
                     EvaluationResult evalValue = eval(io.expression());
-                    return new EvaluationResult.Builder()
+                    EvaluationResult.Builder builder = new EvaluationResult.Builder();
+                    if (io.expression() instanceof VariableExpression ve) {
+                        builder.addCast(ve.variable(), io.testType());
+                    }
+                    return builder
                             .merge(evalValue)
                             .merge(io.patternVariable(), evalValue.linkedVariables())
                             .setLinkedVariables(evalValue.linkedVariables())
@@ -191,7 +195,11 @@ class ExpressionAnalyzer {
                 if (narrowingCast(c.expression().parameterizedType(), c.parameterizedType())) {
                     return EvaluationResult.EMPTY;
                 }
-                return eval(c.expression(), c.parameterizedType());
+                EvaluationResult er = eval(c.expression(), c.parameterizedType());
+                if (c.expression() instanceof VariableExpression ve) {
+                    return new EvaluationResult.Builder().addCast(ve.variable(), c.parameterizedType()).merge(er).build();
+                }
+                return er;
             }
             if (expression instanceof EnclosedExpression c) {
                 return eval(c.expression());

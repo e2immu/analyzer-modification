@@ -12,7 +12,6 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
-import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.element.Source;
 import org.e2immu.language.cst.api.expression.Expression;
@@ -39,11 +38,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.*;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.SetOfTypeInfo;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.VariableBooleanMap;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.*;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
-import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.*;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
@@ -97,7 +96,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
         }
 
         public void doMethod(MethodInfo methodInfo) {
-            LOGGER.debug("Do method {}", methodInfo);
+            LOGGER.debug("Mod: do method {}", methodInfo);
             ComputeHCS.safeHcsMethod(runtime, methodInfo);
             assert methodInfo.parameters().stream()
                     .allMatch(pi -> pi.analysis().haveAnalyzedValueFor(HCS_PARAMETER))
@@ -109,7 +108,11 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                 // TODO consider moving this into the shallow analyzer!
                 getSetHelper.copyStaticValuesForGetSet(methodInfo);
             } else {
-                VariableData variableData = doBlock(methodInfo, methodInfo.methodBody(), null);
+                Block methodBody = methodInfo.methodBody();
+                if (LOGGER.isDebugEnabled() && methodBody.source() != null) {
+                    LOGGER.debug("Mod:   method body @line {}", methodBody.source().compact2());
+                }
+                VariableData variableData = doBlock(methodInfo, methodBody, null);
                 if (variableData != null) {
                     copyFromVariablesIntoMethod(methodInfo, variableData);
                 } // else: can be null for empty synthetic constructors, for example
@@ -122,31 +125,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
             for (VariableInfo vi : variableData.variableInfoStream().toList()) {
                 Variable v = vi.variable();
                 if (v instanceof ParameterInfo pi && pi.methodInfo() == methodInfo) {
-                    LinkedVariables linkedVariables = vi.linkedVariables();
-                    if (linkedVariables != null) {
-                        LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
-                        if (filteredLvs != null) {
-                            pi.analysis().setAllowControlledOverwrite(LINKED_VARIABLES_PARAMETER, filteredLvs);
-                        }
-                    }
-                    if (vi.isUnmodified()) {
-                        pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, TRUE);
-                    }
-                    // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
-                    // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
-
-                    Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
-                    if (!modifiedComponents.isEmpty()) {
-                        Value.VariableBooleanMap vbm = translateVariableBooleanMapToThisScope(pi, modifiedComponents);
-                        pi.analysis().setAllowControlledOverwrite(MODIFIED_COMPONENTS_PARAMETER, vbm);
-                    }
-
-                    Value.VariableBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
-                            ValueImpl.VariableBooleanMapImpl.class);
-                    if (mfi != null && !mfi.map().isEmpty()) {
-                        VariableBooleanMap thisScope = translateVariableBooleanMapToThisScope(pi, mfi.map());
-                        pi.analysis().setAllowControlledOverwrite(MODIFIED_FI_COMPONENTS_PARAMETER, thisScope);
-                    }
+                    copyFromVariablesIntoMethodPi(variableData, vi, pi);
                 } else if (v instanceof ReturnVariable && methodInfo.hasReturnValue()) {
                     LinkedVariables linkedVariables = vi.linkedVariables();
                     if (linkedVariables != null) {
@@ -212,6 +191,39 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
             }
             methodInfo.analysis().setAllowControlledOverwrite(MODIFIED_COMPONENTS_METHOD,
                     new ValueImpl.VariableBooleanMapImpl(modifiedComponentsMethod));
+        }
+
+        private void copyFromVariablesIntoMethodPi(VariableData variableData, VariableInfo vi, ParameterInfo pi) {
+            LinkedVariables linkedVariables = vi.linkedVariables();
+            if (linkedVariables != null) {
+                LinkedVariables filteredLvs = linkedVariables.remove(vv -> vv instanceof LocalVariable);
+                if (filteredLvs != null) {
+                    pi.analysis().setAllowControlledOverwrite(LINKED_VARIABLES_PARAMETER, filteredLvs);
+                }
+            }
+            if (vi.isUnmodified()) {
+                pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, TRUE);
+            }
+            // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
+            // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
+
+            Map<Variable, Boolean> modifiedComponents = computeModifiedComponents(variableData, pi);
+            if (!modifiedComponents.isEmpty()) {
+                VariableBooleanMap vbm = translateVariableBooleanMapToThisScope(pi, modifiedComponents);
+                pi.analysis().setAllowControlledOverwrite(MODIFIED_COMPONENTS_PARAMETER, vbm);
+            }
+
+            VariableBooleanMap mfi = vi.analysis().getOrNull(VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE,
+                    ValueImpl.VariableBooleanMapImpl.class);
+            if (mfi != null && !mfi.map().isEmpty()) {
+                VariableBooleanMap thisScope = translateVariableBooleanMapToThisScope(pi, mfi.map());
+                pi.analysis().setAllowControlledOverwrite(MODIFIED_FI_COMPONENTS_PARAMETER, thisScope);
+            }
+
+            SetOfTypeInfo casts = vi.analysis().getOrDefault(VariableInfoImpl.DOWNCAST_VARIABLE, ValueImpl.SetOfTypeInfoImpl.EMPTY);
+            if (!casts.typeInfoSet().isEmpty()) {
+                pi.analysis().setAllowControlledOverwrite(DOWNCAST_PARAMETER, casts);
+            }
         }
 
         private VariableBooleanMap translateVariableBooleanMapToThisScope(ParameterInfo pi, Map<Variable, Boolean> vbm) {
@@ -319,6 +331,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                         clcBuilder.addLinkEvaluation(evaluationResult, vd);
                         StaticValues staticValues = evaluationResult.gatherAllStaticValues(runtime);
                         clcBuilder.addAssignment(vi.variable(), staticValues);
+                        clcBuilder.addCasts(evaluationResult.casts());
                     }
                 });
             } else if (statement instanceof ExpressionAsStatement
@@ -362,10 +375,12 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     clcBuilder.addLink(lvs, vi);
                 }
                 clcBuilder.addLinkEvaluation(evaluationResult, vd);
+                clcBuilder.addCasts(evaluationResult.casts());
             } else if (statement instanceof ExplicitConstructorInvocation eci) {
                 eci.parameterExpressions().forEach(expression -> {
                     EvaluationResult er = expressionAnalyzer.linkEvaluation(methodInfo, previous, stageOfPrevious, expression);
                     clcBuilder.addLinkEvaluation(er, vd);
+                    clcBuilder.addCasts(er.casts());
                 });
             } // else: resources of Try statement are handled in doBlocks
             clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index(), statement.source());
@@ -446,6 +461,15 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue,
                             (b1, b2) -> b1 || b2)); // TODO is this the correct merge function?
             merge.analysis().setAllowControlledOverwrite(MODIFIED_FI_COMPONENTS_VARIABLE, new ValueImpl.VariableBooleanMapImpl(map));
+            Set<TypeInfo> combinedCasts = lastOfEachSubBlock.values().stream()
+                    .map(lastVd -> lastVd.variableInfoContainerOrNull(variable.fullyQualifiedName()))
+                    .filter(Objects::nonNull)
+                    .map(VariableInfoContainer::best)
+                    .flatMap(vi -> vi.analysis().getOrDefault(DOWNCAST_VARIABLE, ValueImpl.SetOfTypeInfoImpl.EMPTY).typeInfoSet().stream())
+                    .collect(Collectors.toUnmodifiableSet());
+            if(!combinedCasts.isEmpty()) {
+                merge.analysis().setAllowControlledOverwrite(DOWNCAST_VARIABLE, new ValueImpl.SetOfTypeInfoImpl(combinedCasts));
+            }
         }
 
         private static StaticValues computeStaticValuesMerge(Map<String, VariableData> lastOfEachSubBlock, Variable variable) {

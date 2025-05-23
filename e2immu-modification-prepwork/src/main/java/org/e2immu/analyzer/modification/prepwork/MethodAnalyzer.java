@@ -213,7 +213,8 @@ public class MethodAnalyzer {
     }
 
     public void doMethod(MethodInfo methodInfo, Block methodBody) {
-        LOGGER.debug("Do method {}", methodInfo);
+        LOGGER.debug("Prep: do method {} @line {}", methodInfo,
+                methodInfo.source() == null ? "?" : methodInfo.source().compact2());
         // even if the method does not return a value, we'll compute "assignments" to the return variable,
         // in order to know when the method exits (we'll track 'throw' and 'return' statements)
         ReturnVariable rv = new ReturnVariableImpl(methodInfo);

@@ -39,6 +39,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     private final TypeInfo notNullTi;
     private final TypeInfo commutableTi;
     private final TypeInfo getSetTi;
+    private final TypeInfo modifiedTi;
     private final AnnotationExpression ignoreModifications;
     private final AnnotationExpression identityAnnotation;
     private final AnnotationExpression fluentAnnotation;
@@ -60,7 +61,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         this.runtime = runtime;
         TypeInfo notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
         notModifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(notModifiedTi).build();
-        TypeInfo modifiedTi = runtime.getFullyQualified(Modified.class, true);
+        modifiedTi = runtime.getFullyQualified(Modified.class, true);
         modifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(modifiedTi).build();
         independentTi = runtime.getFullyQualified(Independent.class, true);
         immutableTi = runtime.getFullyQualified(Immutable.class, true);
@@ -112,36 +113,32 @@ public class DecoratorImpl implements Qualification.Decorator {
 
     protected List<AnnotationProperty> annotationAndProperties(Element infoIn) {
         Element info = translationMap == null ? infoIn : translationMap.getOrDefault(infoIn, infoIn);
-        Property propertyUnmodified;
-        Property propertyModifiedAnnotated;
-        Value.Immutable immutable;
-        Property propertyImmutable;
-        Value.Independent independent;
-        Map<Integer, Integer> linkToParametersReturnValue;
-        Property propertyIndependent;
-        Property propertyFinalField;
-        Property propertyContainer;
-        Property propertyIdentity;
-        Property propertyFluent;
-        Property propertyFinalizer;
-        Value.NotNull notNull;
-        Property propertyNotNull;
+        Property propertyUnmodified = null;
+        Property propertyModifiedAnnotated = null;
+        Value.Immutable immutable = null;
+        Property propertyImmutable = null;
+        Value.Independent independent = null;
+        Map<Integer, Integer> linkToParametersReturnValue = null;
+        Property propertyIndependent = null;
+        Property propertyFinalField = null;
+        Property propertyContainer = null;
+        Property propertyIdentity = null;
+        Property propertyFluent = null;
+        Property propertyFinalizer = null;
+        Value.NotNull notNull = null;
+        Property propertyNotNull = null;
         PropertyValueMap analysis = info.analysis();
-        Property propertyUtilityClass;
-        Property propertyIgnoreModifications;
-        Property propertyAllowInterrupt;
-        Value.CommutableData commutableData;
-        Value.FieldValue fieldValue;
-        Value.GetSetEquivalent getSetEquivalent;
+        Property propertyUtilityClass = null;
+        Property propertyIgnoreModifications = null;
+        Property propertyAllowInterrupt = null;
+        Value.CommutableData commutableData = null;
+        Value.FieldValue fieldValue = null;
+        Value.GetSetEquivalent getSetEquivalent = null;
+        Property downcast = null;
         switch (info) {
             case MethodInfo methodInfo -> {
                 boolean noReturn = methodInfo.isConstructor() || !methodInfo.hasReturnValue();
-                if (noReturn) {
-                    immutable = null;
-                    independent = null;
-                    notNull = null;
-                    linkToParametersReturnValue = null;
-                } else {
+                if (!noReturn) {
                     immutable = immutable(analysis.getOrDefault(IMMUTABLE_METHOD, MUTABLE),
                             methodInfo.returnType());
                     Value.Independent independentValue = analysis.getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
@@ -155,7 +152,6 @@ public class DecoratorImpl implements Qualification.Decorator {
                 propertyImmutable = IMMUTABLE_METHOD;
                 propertyUnmodified = !methodInfo.isConstructor() && analysis.getOrDefault(NON_MODIFYING_METHOD, FALSE).isTrue()
                         ? NON_MODIFYING_METHOD : null;
-                propertyModifiedAnnotated = null;
                 propertyIdentity = methodInfo.isIdentity() ? IDENTITY_METHOD : null;
                 propertyFluent = methodInfo.isFluent() ? FLUENT_METHOD : null;
                 propertyIgnoreModifications = methodInfo.isIgnoreModification() ? IGNORE_MODIFICATION_METHOD : null;
@@ -165,32 +161,18 @@ public class DecoratorImpl implements Qualification.Decorator {
                 commutableData = analysis.getOrNull(COMMUTABLE_METHODS, ValueImpl.CommutableDataImpl.class);
                 fieldValue = methodInfo.getSetField();
                 getSetEquivalent = analysis.getOrNull(GET_SET_EQUIVALENT, ValueImpl.GetSetEquivalentImpl.class);
-                propertyContainer = null;
-                propertyFinalField = null;
-                propertyUtilityClass = null;
             }
             case FieldInfo fieldInfo -> {
                 propertyUnmodified = !fieldInfo.type().isPrimitiveStringClass()
                                      && analysis.getOrDefault(UNMODIFIED_FIELD, FALSE).isTrue() ? UNMODIFIED_FIELD : null;
-                propertyModifiedAnnotated = null;
                 immutable = immutable(analysis.getOrDefault(IMMUTABLE_FIELD, MUTABLE), fieldInfo.type());
                 propertyImmutable = IMMUTABLE_FIELD;
                 independent = independent(analysis.getOrDefault(INDEPENDENT_FIELD, DEPENDENT), fieldInfo.type());
                 propertyIndependent = INDEPENDENT_FIELD;
                 propertyFinalField = !fieldInfo.isFinal() && fieldInfo.isPropertyFinal() ? FINAL_FIELD : null;
                 propertyIgnoreModifications = fieldInfo.isIgnoreModifications() ? IGNORE_MODIFICATIONS_FIELD : null;
-                propertyContainer = null;
-                propertyIdentity = null;
-                propertyFluent = null;
-                propertyAllowInterrupt = null;
                 propertyNotNull = NOT_NULL_FIELD;
                 notNull = notNull(analysis.getOrDefault(NOT_NULL_FIELD, ValueImpl.NotNullImpl.NULLABLE), fieldInfo.type());
-                linkToParametersReturnValue = null;
-                propertyUtilityClass = null;
-                propertyFinalizer = null;
-                commutableData = null;
-                fieldValue = null;
-                getSetEquivalent = null;
             }
             case ParameterInfo pi -> {
                 boolean isUnmodified = analysis.getOrDefault(UNMODIFIED_PARAMETER, FALSE).isTrue();
@@ -205,70 +187,29 @@ public class DecoratorImpl implements Qualification.Decorator {
                 independent = independent(independentValue, pi.parameterizedType());
                 linkToParametersReturnValue = independentValue.linkToParametersReturnValue();
                 propertyIndependent = INDEPENDENT_PARAMETER;
-                propertyFinalField = null;
-                propertyContainer = null;
-                propertyIdentity = null;
-                propertyAllowInterrupt = null;
-                propertyFluent = null;
                 propertyNotNull = NOT_NULL_PARAMETER;
                 notNull = notNull(analysis.getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE), pi.parameterizedType());
-                propertyUtilityClass = null;
                 propertyIgnoreModifications = pi.isIgnoreModifications() ? IGNORE_MODIFICATIONS_PARAMETER : null;
-                propertyFinalizer = null;
-                commutableData = null;
-                fieldValue = null;
-                getSetEquivalent = null;
+                Value.SetOfTypeInfo casts = analysis.getOrDefault(DOWNCAST_PARAMETER, ValueImpl.SetOfTypeInfoImpl.EMPTY);
+                if (!casts.typeInfoSet().isEmpty() && !pi.isUnmodified()) downcast = DOWNCAST_PARAMETER;
             }
             case TypeInfo typeInfo -> {
-                propertyUnmodified = null;
-                propertyModifiedAnnotated = null;
                 immutable = analysis.getOrDefault(IMMUTABLE_TYPE, MUTABLE);
                 independent = nonTrivialIndependentType(analysis.getOrDefault(INDEPENDENT_TYPE, DEPENDENT), immutable);
                 boolean utilityClass = analysis.getOrDefault(UTILITY_CLASS, FALSE).isTrue();
                 if (utilityClass) {
                     propertyUtilityClass = UTILITY_CLASS;
-                    propertyImmutable = null;
-                    propertyIndependent = null;
                 } else {
-                    propertyUtilityClass = null;
                     propertyImmutable = IMMUTABLE_TYPE;
                     propertyIndependent = INDEPENDENT_TYPE;
                 }
                 propertyContainer = analysis.getOrDefault(CONTAINER_TYPE, FALSE).isTrue() ? CONTAINER_TYPE : null;
-                propertyFinalField = null;
-                propertyIdentity = null;
-                propertyFluent = null;
-                notNull = null;
-                propertyNotNull = null;
-                linkToParametersReturnValue = null;
-                propertyIgnoreModifications = null;
-                propertyAllowInterrupt = null;
-                propertyFinalizer = null;
-                commutableData = null;
-                fieldValue = null;
-                getSetEquivalent = null;
             }
             case TypeParameter typeParameter -> {
-                propertyUnmodified = null;
-                propertyModifiedAnnotated = null;
                 immutable = MUTABLE;
                 independent = analysis.getOrDefault(INDEPENDENT_TYPE_PARAMETER, DEPENDENT);
-                propertyUtilityClass = null;
                 propertyImmutable = IMMUTABLE_TYPE;
                 propertyIndependent = INDEPENDENT_TYPE_PARAMETER;
-                propertyContainer = null;
-                propertyFinalField = null;
-                propertyIdentity = null;
-                propertyFluent = null;
-                notNull = null;
-                propertyNotNull = null;
-                linkToParametersReturnValue = null;
-                propertyIgnoreModifications = null;
-                propertyAllowInterrupt = null;
-                propertyFinalizer = null;
-                commutableData = null;
-                fieldValue = null;
-                getSetEquivalent = null;
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -400,6 +341,12 @@ public class DecoratorImpl implements Qualification.Decorator {
                 getSet.addKeyValuePair("equivalent", runtime.constantTrue()).build();
             }
             list.add(new AnnotationProperty(getSet.build(), GET_SET_EQUIVALENT));
+        }
+        if (downcast != null) {
+            importsNeeded.add(Modified.class);
+            AnnotationExpression modified = runtime.newAnnotationExpressionBuilder().setTypeInfo(modifiedTi)
+                    .addKeyValuePair("downcast", runtime.constantTrue()).build();
+            list.add(new AnnotationProperty(modified, downcast));
         }
         return list;
     }

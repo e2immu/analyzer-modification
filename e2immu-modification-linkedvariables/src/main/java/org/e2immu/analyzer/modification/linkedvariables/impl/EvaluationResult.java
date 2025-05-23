@@ -10,10 +10,14 @@ import org.e2immu.language.cst.api.expression.VariableExpression;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.translate.TranslationMap;
+import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 class EvaluationResult {
 
@@ -29,13 +33,15 @@ class EvaluationResult {
 
     private final Set<Variable> modified;
     private final Map<FieldReference, Boolean> modifiedFunctionalComponents;
+    private final Map<Variable, Set<ParameterizedType>> casts;
 
     private EvaluationResult(LinkedVariables linkedVariables,
                              Map<Variable, LinkedVariables> links,
                              Set<Variable> modified,
                              StaticValues staticValues,
                              Map<Variable, StaticValues> assignments,
-                             Map<FieldReference, Boolean> modifiedFunctionalComponents) {
+                             Map<FieldReference, Boolean> modifiedFunctionalComponents,
+                             Map<Variable, Set<ParameterizedType>> casts) {
         this.linkedVariables = linkedVariables;
         this.links = links;
         assert ensureNoIdentityLinks(this.links);
@@ -43,6 +49,7 @@ class EvaluationResult {
         this.staticValues = staticValues;
         this.assignments = assignments;
         this.modifiedFunctionalComponents = modifiedFunctionalComponents;
+        this.casts = casts;
     }
 
     private static boolean ensureNoIdentityLinks(Map<Variable, LinkedVariables> links) {
@@ -91,6 +98,7 @@ class EvaluationResult {
         private final Map<Variable, StaticValues> assignments = new HashMap<>();
         private final Set<Variable> modified = new HashSet<>();
         private final Map<FieldReference, Boolean> modifiedFunctionalComponents = new HashMap<>();
+        private final Map<Variable, Set<ParameterizedType>> casts = new HashMap<>();
 
         @Fluent
         Builder merge(EvaluationResult evaluationResult) {
@@ -103,6 +111,8 @@ class EvaluationResult {
             evaluationResult.assignments.forEach((v, sv) -> assignments.merge(v, sv, StaticValues::merge));
             modified.addAll(evaluationResult.modified);
             modifiedFunctionalComponents.putAll(evaluationResult.modifiedFunctionalComponents);
+            evaluationResult.casts.forEach((v, set) ->
+                    casts.computeIfAbsent(v, vv -> new HashSet<>()).addAll(set));
             return this;
         }
 
@@ -160,9 +170,15 @@ class EvaluationResult {
             return this;
         }
 
+        @Fluent
+        Builder addCast(Variable variable, ParameterizedType type) {
+            casts.computeIfAbsent(variable, v -> new HashSet<>()).add(type);
+            return this;
+        }
+
         EvaluationResult build() {
             return new EvaluationResult(linkedVariables, Map.copyOf(links), Set.copyOf(modified),
-                    staticValues, Map.copyOf(assignments), Map.copyOf(modifiedFunctionalComponents));
+                    staticValues, Map.copyOf(assignments), Map.copyOf(modifiedFunctionalComponents), Map.copyOf(casts));
         }
 
         @Override
@@ -200,5 +216,9 @@ class EvaluationResult {
 
     public Map<FieldReference, Boolean> modifiedFunctionalComponents() {
         return modifiedFunctionalComponents;
+    }
+
+    public Map<Variable, Set<ParameterizedType>> casts() {
+        return casts;
     }
 }
