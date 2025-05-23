@@ -21,6 +21,8 @@ import org.e2immu.language.cst.api.variable.LocalVariable;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -31,6 +33,8 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
 public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyzer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FieldAnalyzerImpl.class);
+
     private final Runtime runtime;
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
 
@@ -58,6 +62,7 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
         private final Set<MethodInfo> waitFor = new HashSet<>();
 
         private void go(FieldInfo fieldInfo) {
+            LOGGER.debug("Do field {}", fieldInfo);
             LinkedVariables linkedVariablesDone = fieldInfo.analysis()
                     .getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, LinkedVariablesImpl.class);
             Value.Bool unmodifiedDone = fieldInfo.analysis().getOrNull(PropertyImpl.UNMODIFIED_FIELD,
