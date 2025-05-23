@@ -870,14 +870,21 @@ class ExpressionAnalyzer {
                 Expression pe = mc.parameterExpressions().get(pi.index());
                 if (pe instanceof VariableExpression ve) {
                     if (variableDataPrevious != null) {
-                        StaticValues svParam = variableDataPrevious.variableInfo(ve.variable(), stageOfPrevious).staticValues();
-                        for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
-                            Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious, stageOfPrevious);
-                            Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(), svParam,
-                                    completedMap);
-                            Variable afterArgumentExpansion = expandArguments(mc, pi, entry.getKey());
-                            Expression e = augmented.get(afterArgumentExpansion);
-                            consumer.accept(e, entry.getValue(), augmented);
+                        VariableInfoContainer vicOrNull = variableDataPrevious
+                                .variableInfoContainerOrNull(ve.variable().fullyQualifiedName());
+                        if (vicOrNull != null) {
+                            StaticValues svParam = vicOrNull.best(stageOfPrevious).staticValues();
+                            if (svParam != null) {
+                                for (Map.Entry<Variable, Boolean> entry : modifiedComponents.map().entrySet()) {
+                                    Map<Variable, Expression> completedMap = completeMap(svParam, variableDataPrevious,
+                                            stageOfPrevious);
+                                    Map<Variable, Expression> augmented = augmentWithImplementation(pi.parameterizedType(),
+                                            svParam, completedMap);
+                                    Variable afterArgumentExpansion = expandArguments(mc, pi, entry.getKey());
+                                    Expression e = augmented.get(afterArgumentExpansion);
+                                    consumer.accept(e, entry.getValue(), augmented);
+                                }
+                            }
                         }
                     }
                 }

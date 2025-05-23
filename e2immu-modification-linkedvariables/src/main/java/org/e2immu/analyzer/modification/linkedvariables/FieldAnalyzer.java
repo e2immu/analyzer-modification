@@ -2,10 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables;
 
 import org.e2immu.annotation.Modified;
 import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.MethodInfo;
+import org.e2immu.language.cst.api.info.Info;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 
 /*
@@ -29,7 +27,7 @@ It writes out results, if any, in the field's analysis() object.
 public interface FieldAnalyzer extends Analyzer {
 
     interface Output extends Analyzer.Output {
-        Set<MethodInfo> waitFor();
+        Set<Info> waitFor();
     }
 
     Output go(@Modified FieldInfo fieldInfo);

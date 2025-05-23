@@ -10,10 +10,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl;
 import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.info.FieldInfo;
-import org.e2immu.language.cst.api.info.MethodInfo;
-import org.e2immu.language.cst.api.info.ParameterInfo;
-import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
@@ -42,7 +39,7 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
         this.runtime = runtime;
     }
 
-    private record OutputImpl(Set<MethodInfo> waitFor) implements Output {
+    private record OutputImpl(Set<Info> waitFor) implements Output {
 
         @Override
         public List<Throwable> problemsRaised() {
@@ -59,7 +56,7 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
     }
 
     private class InternalFieldAnalyzer {
-        private final Set<MethodInfo> waitFor = new HashSet<>();
+        private final Set<Info> waitFor = new HashSet<>();
 
         private void go(FieldInfo fieldInfo) {
             LOGGER.debug("Do field {}", fieldInfo);
@@ -207,8 +204,14 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
         }
 
         private Value.Independent computeIndependent(FieldInfo fieldInfo, LinkedVariables linkedVariables) {
-            Value.Independent independentOfType = analysisHelper.typeIndependentFromImmutableOrNull(fieldInfo.type());
-            assert independentOfType != null : "Otherwise, we would not have been able to compute linked variables";
+            Value.Independent independentOfType = analysisHelper.typeIndependentFromImmutableOrNull(fieldInfo.owner(),
+                    fieldInfo.type());
+            if (independentOfType == null) {
+                TypeInfo bestType = fieldInfo.type().bestTypeInfo();
+                assert bestType != null;
+                waitFor.add(bestType);
+                return null;
+            }
             if (independentOfType.isIndependent()) return INDEPENDENT;
             Value.Independent independent = INDEPENDENT;
             for (Map.Entry<Variable, LV> entry : linkedVariables) {

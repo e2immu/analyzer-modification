@@ -151,6 +151,14 @@ public class AnalysisHelper {
         return bestType.analysis().getOrDefault(PropertyImpl.CONTAINER_TYPE, FALSE);
     }
 
+    public Value.Independent typeIndependentFromImmutableOrNull(TypeInfo currentType, ParameterizedType type) {
+        Value.Independent independent = typeIndependentFromImmutableOrNull(type);
+        if (independent == null && currentType.equals(type.bestTypeInfo())) {
+            return DEPENDENT; // self-reference
+        }
+        return independent;
+    }
+
     public Value.Independent typeIndependentFromImmutableOrNull(ParameterizedType type) {
         Value.Immutable immutable = typeImmutableNullIfUndecided(type);
         if (immutable == null) return null;

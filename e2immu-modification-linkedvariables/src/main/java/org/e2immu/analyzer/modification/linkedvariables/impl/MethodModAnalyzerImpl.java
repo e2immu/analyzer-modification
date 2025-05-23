@@ -255,10 +255,10 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
         }
 
         // NOTE: the doBlocks, doBlock methods, and parts of doStatement, have been copied from prepwork.MethodAnalyzer
-
-        private Map<String, VariableData> doBlocks(MethodInfo methodInfo,
-                                                   Statement parentStatement,
-                                                   VariableData vdOfParent) {
+        // NOTE: order is important, to provide stability in eventual json output
+        private LinkedHashMap<String, VariableData> doBlocks(MethodInfo methodInfo,
+                                                             Statement parentStatement,
+                                                             VariableData vdOfParent) {
             Stream<Block> blockStream;
             if (parentStatement instanceof TryStatement ts && !(ts.resources().isEmpty())) {
                 Block.Builder bb = runtime.newBlockBuilder();
@@ -270,9 +270,13 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
             }
             return blockStream
                     .filter(b -> !b.isEmpty())
-                    .collect(Collectors.toUnmodifiableMap(
+                    .collect(Collectors.toMap(
                             block -> block.statements().getFirst().source().index(),
-                            block -> doBlock(methodInfo, block, vdOfParent)));
+                            block -> doBlock(methodInfo, block, vdOfParent),
+                            (vd1, vd2) -> {
+                                throw new UnsupportedOperationException();
+                            },
+                            LinkedHashMap::new));
         }
 
         @Override
@@ -367,7 +371,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
             clcBuilder.write(vd, Stage.EVALUATION, previous, stageOfPrevious, statement.source().index(), statement.source());
 
             if (statement.hasSubBlocks()) {
-                Map<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
+                LinkedHashMap<String, VariableData> lastOfEachSubBlock = doBlocks(methodInfo, statement, vd);
                 if (!lastOfEachSubBlock.isEmpty()) {
                     vd.variableInfoContainerStream().forEach(vic -> {
                         if (vic.hasMerge()) {
