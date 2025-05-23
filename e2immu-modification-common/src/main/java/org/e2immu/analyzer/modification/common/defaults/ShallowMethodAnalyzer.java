@@ -350,10 +350,6 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
                 LOGGER.warn("Parameter {} must be independent", parameterInfo);
             }
             map.put(INDEPENDENT_PARAMETER, INDEPENDENT_FROM_METHOD);
-            ValueOrigin unmodified = map.get(UNMODIFIED_PARAMETER);
-            if (unmodified == null || unmodified.valueAsBool().isFalse()) {
-                LOGGER.warn("Parameter {} cannot be @Modified", parameterInfo);
-            }
             map.put(UNMODIFIED_PARAMETER, FROM_METHOD_TRUE);
             Value.NotNull notNullOfType = analysisHelper.notNullOfType(parameterInfo.parameterizedType());
             map.put(NOT_NULL_PARAMETER, notNullOfType.isNullable() ? NULLABLE_DEFAULT :
@@ -419,12 +415,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         Value.NotNull fromOverride = methodInfo.overrides().stream()
                 .filter(MethodInfo::isPublic)
                 .map(mi -> mi.parameters().get(parameterInfo.index()))
-                .filter(pi -> pi.analysis().haveAnalyzedValueFor(NOT_NULL_PARAMETER, () -> {
-                    if (hierarchyProblems.computeIfAbsent(methodInfo.typeInfo(), t -> new HashSet<>()).add(pi.methodInfo().typeInfo())) {
-                        LOGGER.warn("Have no @NotNull value for the parameters of {}, overridden by {}", pi, methodInfo);
-                        messages.add(MessageImpl.warn(pi, "@NotNull value missing"));
-                    }
-                }))
+                .filter(pi -> pi.analysis().haveAnalyzedValueFor(NOT_NULL_PARAMETER))
                 .map(pi -> pi.analysis().getOrDefault(NOT_NULL_PARAMETER, ValueImpl.NotNullImpl.NULLABLE))
                 .reduce(ValueImpl.NotNullImpl.NULLABLE, Value.NotNull::max);
         return fromOverride.isNullable() ? NULLABLE_DEFAULT : NOT_NULL_FROM_OVERRIDE;
@@ -481,12 +472,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         Value.Independent override = methodInfo.overrides().stream()
                 .filter(MethodInfo::isPublic)
                 .map(mi -> mi.parameters().get(parameterInfo.index()))
-                .filter(pi -> pi.analysis().haveAnalyzedValueFor(INDEPENDENT_PARAMETER, () -> {
-                    if (hierarchyProblems.computeIfAbsent(methodInfo.typeInfo(), t -> new HashSet<>()).add(pi.methodInfo().typeInfo())) {
-                        LOGGER.warn("Have no @Independent value for the parameters of {}, overridden by {}", pi, methodInfo);
-                        messages.add(MessageImpl.warn(pi, "@Independent value missing"));
-                    }
-                }))
+                .filter(pi -> pi.analysis().haveAnalyzedValueFor(INDEPENDENT_PARAMETER))
                 .map(pi -> pi.analysis().getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT))
                 .reduce(DEPENDENT, Value.Independent::max);
         Value.Independent max = override.max(independentType.max(independentFromImmutable));
@@ -530,13 +516,7 @@ public class ShallowMethodAnalyzer extends AnnotationToProperty {
         for (MethodInfo mi : methodInfo.overrides()) {
             if (mi.isPublic()) {
                 Value.Bool o = mi.analysis().getOrNull(property, ValueImpl.BoolImpl.class);
-                if (o == null) {
-                    if (hierarchyProblems.computeIfAbsent(methodInfo.typeInfo(),
-                            t -> new HashSet<>()).add(mi.typeInfo())) {
-                        LOGGER.warn("Have no {} value for {}, overridden by {}", property.key(), mi, methodInfo);
-                        messages.add(MessageImpl.warn(mi, "Have no value for " + property));
-                    }
-                } else {
+                if (o != null) {
                     v = v.or(o);
                 }
             }

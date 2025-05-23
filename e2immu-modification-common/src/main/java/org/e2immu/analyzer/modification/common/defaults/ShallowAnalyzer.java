@@ -3,7 +3,6 @@ package org.e2immu.analyzer.modification.common.defaults;
 import org.e2immu.language.cst.api.analysis.Message;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.util.internal.graph.G;
@@ -86,8 +85,10 @@ public class ShallowAnalyzer {
                     .forEach(mi -> dataMap.putAll(shallowMethodAnalyzer.analyze(mi)));
         }
         for (TypeInfo typeInfo : sorted) {
-            shallowTypeAnalyzer.check(typeInfo);
-            typeInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
+            if (acceptAccess(typeInfo)) {
+                shallowTypeAnalyzer.check(typeInfo);
+                typeInfo.analysis().set(DEFAULTS_ANALYZER, TRUE);
+            }
         }
         messages.addAll(shallowMethodAnalyzer.messages());
         return new Result(dataMap, allTypes, typeGraph, sorted, messages);

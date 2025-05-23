@@ -111,7 +111,7 @@ public class AnalysisHelper {
         }
         Value.Immutable immutable = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE,
                 ValueImpl.ImmutableImpl.MUTABLE);
-        if (immutable.isAtLeastImmutableHC() && !parameterizedType.parameters().isEmpty()) {
+        if (immutable.isImmutableHC() && !parameterizedType.parameters().isEmpty()) {
             Value.Bool tpBool = bestType.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS,
                     ValueImpl.BoolImpl.class);
             if (tpBool == null) return null;

@@ -86,15 +86,20 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         return DEFAULT_FALSE;
     }
 
+    private boolean acceptAccess(Info info) {
+        if (onlyPublic) return info.access().isPublic();
+        return true;
+    }
+
     public Map<Info, ShallowAnalyzer.InfoData> analyzeFields(TypeInfo typeInfo) {
         boolean isEnum = typeInfo.typeNature().isEnum();
         Value.Immutable ownerImmutable = analysisHelper.typeImmutable(typeInfo.asParameterizedType());
         Map<Info, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
         for (FieldInfo fieldInfo : typeInfo.fields()) {
-            if (onlyPublic && !fieldInfo.access().isPublic()) continue;
-
-            ShallowAnalyzer.InfoData infoData = analyzeField(fieldInfo, isEnum, ownerImmutable);
-            dataMap.put(fieldInfo, infoData);
+            if (acceptAccess(fieldInfo)) {
+                ShallowAnalyzer.InfoData infoData = analyzeField(fieldInfo, isEnum, ownerImmutable);
+                dataMap.put(fieldInfo, infoData);
+            }
         }
         return dataMap;
     }
@@ -220,13 +225,13 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
                 warnings.incrementAndGet();
             }
             for (FieldInfo fieldInfo : typeInfo.fields()) {
-                if (fieldInfo.analysis().getOrDefault(UNMODIFIED_FIELD, FALSE).isFalse()) {
+                if (acceptAccess(fieldInfo) && !fieldInfo.isUnmodified()) {
                     LOGGER.warn("Have @Modified field {} in @Immutable type {}", fieldInfo.name(), typeInfo);
                     warnings.incrementAndGet();
                 }
             }
             for (MethodInfo methodInfo : typeInfo.methods()) {
-                if (methodInfo.analysis().getOrDefault(NON_MODIFYING_METHOD, FALSE).isFalse()) {
+                if (acceptAccess(methodInfo) && !methodInfo.isNonModifying()) {
                     LOGGER.warn("Have @Modified method {} in @Immutable type {}", methodInfo.name(), typeInfo);
                     warnings.incrementAndGet();
                 }
