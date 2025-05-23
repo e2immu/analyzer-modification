@@ -64,10 +64,9 @@ public class AnalysisHelper {
             }
         }
         if (dynamicBaseValue.isAtLeastImmutableHC() && !parameterizedType.parameters().isEmpty()) {
-            Value.Bool useBool = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS,
+            Value.Bool ignoreTypeParameters = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE_INDEPENDENT_OF_TYPE_PARAMETERS,
                     FALSE);
-            boolean useTypeParameters = useBool.isTrue();
-            if (useTypeParameters) {
+            if (ignoreTypeParameters.isFalse()) {
                 return parameterizedType.parameters().stream()
                         .map(pt -> typeImmutable(pt, dynamicValues))
                         .reduce(ValueImpl.ImmutableImpl.IMMUTABLE, Value.Immutable::min);
@@ -112,10 +111,9 @@ public class AnalysisHelper {
         Value.Immutable immutable = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE,
                 ValueImpl.ImmutableImpl.MUTABLE);
         if (immutable.isImmutableHC() && !parameterizedType.parameters().isEmpty()) {
-            Value.Bool tpBool = bestType.analysis().getOrNull(PropertyImpl.IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS,
-                    ValueImpl.BoolImpl.class);
-            if (tpBool == null) return null;
-            if (tpBool.isTrue()) {
+            Value.Bool tpBool = bestType.analysis().getOrDefault(PropertyImpl.IMMUTABLE_TYPE_INDEPENDENT_OF_TYPE_PARAMETERS,
+                    FALSE);
+            if (tpBool.isFalse()) {
                 return parameterizedType.parameters().stream()
                         .map(this::typeIndependent)
                         .reduce(ValueImpl.IndependentImpl.INDEPENDENT, Value.Independent::min);

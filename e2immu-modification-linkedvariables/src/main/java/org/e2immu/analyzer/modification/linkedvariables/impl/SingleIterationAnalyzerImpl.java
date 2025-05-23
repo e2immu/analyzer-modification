@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.defaults.ShallowTypeAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.*;
+import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -34,7 +35,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         typeModIndyAnalyzer = new TypeModIndyAnalyzerImpl(runtime, configuration);
         typeImmutableAnalyzer = new TypeImmutableAnalyzerImpl(configuration);
         typeIndependentAnalyzer = new TypeIndependentAnalyzerImpl(configuration);
-        shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Info::annotations, false);
+        shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Element::annotations, false);
         typeContainerAnalyzer = new TypeContainerAnalyzerImpl();
     }
 

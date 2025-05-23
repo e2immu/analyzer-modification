@@ -4,6 +4,7 @@ import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.annotation.Independent;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.expression.AnnotationExpression;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.Info;
@@ -11,6 +12,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.type.TypeParameter;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +43,10 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         this.onlyPublic = onlyPublic;
     }
 
-    public Map<Info, ShallowAnalyzer.InfoData> analyze(TypeInfo typeInfo) {
+    public Map<Element, ShallowAnalyzer.InfoData> analyze(TypeInfo typeInfo) {
         LOGGER.debug("Analyzing type {}", typeInfo);
 
-        Map<Info, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
+        Map<Element, ShallowAnalyzer.InfoData> dataMap = new HashMap<>();
         boolean isExtensible = typeInfo.isExtensible();
         List<AnnotationExpression> annotations = annotationProvider.annotations(typeInfo);
         Map<Property, Value> map = annotationsToMap(typeInfo, annotations);
@@ -65,17 +67,25 @@ public class ShallowTypeAnalyzer extends AnnotationToProperty {
         if (ind == null) {
             map.put(INDEPENDENT_TYPE, DEPENDENT);
         }
+        boolean immutableIndependentOfTypeParameters = true;
+        for (TypeParameter typeParameter : typeInfo.typeParameters()) {
+            boolean independent = annotationProvider.annotations(typeParameter).stream().anyMatch(ae ->
+                    Independent.class.getCanonicalName().equals(ae.typeInfo().fullyQualifiedName()));
+            if (independent) {
+                typeParameter.analysis().setAllowControlledOverwrite(INDEPENDENT_TYPE_PARAMETER, INDEPENDENT);
+                dataMap.put(typeParameter, new ShallowAnalyzer.InfoData(Map.of(INDEPENDENT_TYPE_PARAMETER, ANNOTATED)));
+            } else {
+                immutableIndependentOfTypeParameters = false;
+            }
+        }
+        if (immutableIndependentOfTypeParameters && !typeInfo.typeParameters().isEmpty()) {
+            map.put(IMMUTABLE_TYPE_INDEPENDENT_OF_TYPE_PARAMETERS, TRUE);
+        }
+
         map.forEach((p, v) -> {
             // not writing out default values, we may want to overwrite in AbstractInfoAnalyzer
             if (!v.isDefault()) typeInfo.analysis().setAllowControlledOverwrite(p, v);
         });
-
-        boolean immutableDeterminedByTypeParameters = typeInfo.typeParameters().stream()
-                .anyMatch(tp -> tp.annotations().stream().anyMatch(ae ->
-                        Independent.class.getCanonicalName().equals(ae.typeInfo().fullyQualifiedName())));
-        if (immutableDeterminedByTypeParameters) {
-            typeInfo.analysis().set(IMMUTABLE_TYPE_DETERMINED_BY_PARAMETERS, TRUE);
-        }
         return dataMap;
     }
 

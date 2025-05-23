@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.common.defaults;
 
 import org.e2immu.language.cst.api.analysis.Message;
 import org.e2immu.language.cst.api.analysis.Property;
+import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
@@ -39,7 +40,7 @@ public class ShallowAnalyzer {
         }
     }
 
-    public record Result(Map<Info, InfoData> dataMap,
+    public record Result(Map<Element, InfoData> dataMap,
                          List<TypeInfo> allTypes,
                          G<TypeInfo> typeGraph,
                          List<TypeInfo> sorted,
@@ -74,7 +75,7 @@ public class ShallowAnalyzer {
         G<TypeInfo> typeGraph = graphBuilder.build();
         Linearize.Result<TypeInfo> linearize = Linearize.linearize(typeGraph, Linearize.LinearizationMode.ALL);
         List<TypeInfo> sorted = linearize.asList(Comparator.comparing(TypeInfo::fullyQualifiedName));
-        Map<Info, InfoData> dataMap = new HashMap<>();
+        Map<Element, InfoData> dataMap = new HashMap<>();
         for (TypeInfo typeInfo : sorted) {
             dataMap.putAll(shallowTypeAnalyzer.analyze(typeInfo));
         }

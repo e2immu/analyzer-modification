@@ -10,6 +10,7 @@ import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Comment;
+import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.element.ImportStatement;
 import org.e2immu.language.cst.api.expression.AnnotationExpression;
 import org.e2immu.language.cst.api.expression.Expression;
@@ -17,6 +18,7 @@ import org.e2immu.language.cst.api.info.*;
 import org.e2immu.language.cst.api.output.Qualification;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
+import org.e2immu.language.cst.api.type.TypeParameter;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
@@ -48,13 +50,13 @@ public class DecoratorImpl implements Qualification.Decorator {
 
     private final Set<Class<?>> importsNeeded = new HashSet<>();
 
-    private final Map<Info, Info> translationMap;
+    private final Map<Element, Element> translationMap;
 
     public DecoratorImpl(Runtime runtime) {
         this(runtime, null);
     }
 
-    public DecoratorImpl(Runtime runtime, Map<Info, Info> translationMap) {
+    public DecoratorImpl(Runtime runtime, Map<Element, Element> translationMap) {
         this.runtime = runtime;
         TypeInfo notModifiedTi = runtime.getFullyQualified(NotModified.class, true);
         notModifiedAnnotation = runtime.newAnnotationExpressionBuilder().setTypeInfo(notModifiedTi).build();
@@ -86,10 +88,12 @@ public class DecoratorImpl implements Qualification.Decorator {
     }
 
     @Override
-    public List<Comment> comments(Info info) {
-        Value.Message errorMessage = info.analysis().getOrDefault(PropertyImpl.ANALYZER_ERROR, ValueImpl.MessageImpl.EMPTY);
-        if (!errorMessage.isEmpty()) {
-            return List.of(runtime.newSingleLineComment(errorMessage.message()));
+    public List<Comment> comments(Element hasAnnotations) {
+        if (hasAnnotations instanceof Info info) {
+            Value.Message errorMessage = info.analysis().getOrDefault(PropertyImpl.ANALYZER_ERROR, ValueImpl.MessageImpl.EMPTY);
+            if (!errorMessage.isEmpty()) {
+                return List.of(runtime.newSingleLineComment(errorMessage.message()));
+            }
         }
         return List.of();
     }
@@ -98,7 +102,7 @@ public class DecoratorImpl implements Qualification.Decorator {
     }
 
     @Override
-    public List<AnnotationExpression> annotations(Info info) {
+    public List<AnnotationExpression> annotations(Element info) {
         return annotationAndProperties(info).stream().map(AnnotationProperty::annotationExpression).toList();
     }
 
@@ -106,8 +110,8 @@ public class DecoratorImpl implements Qualification.Decorator {
         return false;
     }
 
-    protected List<AnnotationProperty> annotationAndProperties(Info infoIn) {
-        Info info = translationMap == null ? infoIn : translationMap.getOrDefault(infoIn, infoIn);
+    protected List<AnnotationProperty> annotationAndProperties(Element infoIn) {
+        Element info = translationMap == null ? infoIn : translationMap.getOrDefault(infoIn, infoIn);
         Property propertyUnmodified;
         Property propertyModifiedAnnotated;
         Value.Immutable immutable;
@@ -231,6 +235,28 @@ public class DecoratorImpl implements Qualification.Decorator {
                     propertyIndependent = INDEPENDENT_TYPE;
                 }
                 propertyContainer = analysis.getOrDefault(CONTAINER_TYPE, FALSE).isTrue() ? CONTAINER_TYPE : null;
+                propertyFinalField = null;
+                propertyIdentity = null;
+                propertyFluent = null;
+                notNull = null;
+                propertyNotNull = null;
+                linkToParametersReturnValue = null;
+                propertyIgnoreModifications = null;
+                propertyAllowInterrupt = null;
+                propertyFinalizer = null;
+                commutableData = null;
+                fieldValue = null;
+                getSetEquivalent = null;
+            }
+            case TypeParameter typeParameter -> {
+                propertyUnmodified = null;
+                propertyModifiedAnnotated = null;
+                immutable = MUTABLE;
+                independent = analysis.getOrDefault(INDEPENDENT_TYPE_PARAMETER, DEPENDENT);
+                propertyUtilityClass = null;
+                propertyImmutable = IMMUTABLE_TYPE;
+                propertyIndependent = INDEPENDENT_TYPE_PARAMETER;
+                propertyContainer = null;
                 propertyFinalField = null;
                 propertyIdentity = null;
                 propertyFluent = null;
