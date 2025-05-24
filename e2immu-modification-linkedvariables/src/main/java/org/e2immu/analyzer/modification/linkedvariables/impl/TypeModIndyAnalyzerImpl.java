@@ -56,7 +56,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         this.runtime = runtime;
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised, boolean resolvedInternalCycles,
+    private record OutputImpl(List<AnalyzerException> analyzerExceptions, boolean resolvedInternalCycles,
                               Map<MethodInfo, Set<MethodInfo>> waitForMethodModifications,
                               Map<MethodInfo, Set<TypeInfo>> waitForTypeIndependence) implements Output {
     }
@@ -69,16 +69,16 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         } catch (RuntimeException re) {
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
-                    ia.problemsRaised.add(new AnalyzerException(typeInfo, re));
+                    ia.analyzerExceptions.add(new AnalyzerException(typeInfo, re));
                 }
             } else throw re;
         }
-        return new OutputImpl(ia.problemsRaised, false, ia.waitForMethodModifications,
+        return new OutputImpl(ia.analyzerExceptions, false, ia.waitForMethodModifications,
                 ia.waitForTypeIndependence);
     }
 
     class InternalAnalyzer {
-        List<Throwable> problemsRaised = new LinkedList<>();
+        List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         Map<MethodInfo, Set<MethodInfo>> waitForMethodModifications = new HashMap<>();
         Map<MethodInfo, Set<TypeInfo>> waitForTypeIndependence = new HashMap<>();
 

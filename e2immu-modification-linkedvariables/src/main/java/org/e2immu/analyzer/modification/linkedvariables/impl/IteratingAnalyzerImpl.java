@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.SingleIterationAnalyzer;
 import org.e2immu.language.cst.api.info.Info;
@@ -65,17 +66,17 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
         private final Cycles<Info> cycles;
         private final int iterations;
         private final Map<String, Integer> infoHistogram;
-        private final List<Throwable> problemsRaised;
+        private final List<AnalyzerException> analyzerExceptions;
 
         public OutputImpl(G<Info> waitingFor,
                           Cycles<Info> cycles,
                           int iterations,
                           Map<String, Integer> infoHistogram,
-                          List<Throwable> problemsRaised) {
+                          List<AnalyzerException> analyzerExceptions) {
             this.waitingFor = waitingFor;
             this.iterations = iterations;
             this.infoHistogram = infoHistogram;
-            this.problemsRaised = problemsRaised;
+            this.analyzerExceptions = analyzerExceptions;
             this.cycles = cycles;
         }
 
@@ -100,8 +101,8 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
         }
 
         @Override
-        public List<Throwable> problemsRaised() {
-            return problemsRaised;
+        public List<AnalyzerException> analyzerExceptions() {
+            return analyzerExceptions;
         }
     }
 
@@ -110,17 +111,17 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
         int iterations = 0;
         int prevWaitingForSize = Integer.MAX_VALUE;
         SingleIterationAnalyzer singleIterationAnalyzer = new SingleIterationAnalyzerImpl(runtime, configuration);
-        List<Throwable> problemsRaised = new LinkedList<>();
+        List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         while (true) {
             ++iterations;
             SingleIterationAnalyzer.Output output = singleIterationAnalyzer.go(analysisOrder, false);
             G<Info> waitingFor = output.waitFor();
-            problemsRaised.addAll(output.problemsRaised());
+            analyzerExceptions.addAll(output.analyzerExceptions());
             boolean done = waitingFor.vertices().isEmpty();
             if (iterations == configuration.maxIterations() || done) {
                 LOGGER.info("Stop iterating after {} iterations, done? {}", iterations, done);
                 return new OutputImpl(waitingFor, new Cycles<>(Set.of()), iterations,
-                        output.infoHistogram(), problemsRaised);
+                        output.infoHistogram(), analyzerExceptions);
             }
             int waitingForSize = waitingFor.vertices().size();
             if (waitingForSize >= prevWaitingForSize) {
@@ -129,16 +130,16 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
                 LOGGER.info("No improvements anymore, have {} cycles", cycles.size());
                 assert !cycles.isEmpty();
                 if (configuration.stopWhenCycleDetectedAndNoImprovements()) {
-                    return new OutputImpl(waitingFor, cycles, iterations, output.infoHistogram(), problemsRaised);
+                    return new OutputImpl(waitingFor, cycles, iterations, output.infoHistogram(), analyzerExceptions);
                 }
                 ++iterations;
                 SingleIterationAnalyzer.Output output2 = singleIterationAnalyzer.go(analysisOrder, true);
-                problemsRaised.addAll(output.problemsRaised());
+                analyzerExceptions.addAll(output.analyzerExceptions());
 
                 G<Info> waitFor2 = output2.waitFor();
                 assert waitFor2.vertices().isEmpty();
                 return new OutputImpl(waitFor2, new Cycles<>(Set.of()), iterations,
-                        output.infoHistogram(), problemsRaised);
+                        output.infoHistogram(), analyzerExceptions);
             }
             LOGGER.info("WaitingFor now {}, iterating again", waitingForSize);
             prevWaitingForSize = waitingForSize;

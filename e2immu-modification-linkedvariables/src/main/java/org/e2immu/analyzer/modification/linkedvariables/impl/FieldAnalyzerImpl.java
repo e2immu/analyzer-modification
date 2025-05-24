@@ -42,24 +42,24 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
         this.runtime = runtime;
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised, Set<Info> waitFor) implements Output {
+    private record OutputImpl(List<AnalyzerException> analyzerExceptions, Set<Info> waitFor) implements Output {
     }
 
 
     @Override
     public Output go(FieldInfo fieldInfo) {
-        List<Throwable> problemsRaised = new LinkedList<>();
+        List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         InternalFieldAnalyzer analyzer = new InternalFieldAnalyzer();
         try {
             analyzer.go(fieldInfo);
         } catch (RuntimeException re) {
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
-                    problemsRaised.add(new AnalyzerException(fieldInfo, re));
+                    analyzerExceptions.add(new AnalyzerException(fieldInfo, re));
                 }
             } else throw re;
         }
-        return new OutputImpl(problemsRaised, analyzer.waitFor);
+        return new OutputImpl(analyzerExceptions, analyzer.waitFor);
     }
 
     private class InternalFieldAnalyzer {

@@ -125,12 +125,12 @@ public class TestCloneBench extends CommonTest {
         Collection<TypeInfo> aapiTypes = composer.compose(toCompose);
         composer.write(aapiTypes, "build/aapis", null);
 
-        Map<String, Integer> problemHistogram = analyzer.getProblemsRaised().stream()
+        Map<String, Integer> problemHistogram = analyzer.getanalyzerExceptions().stream()
                 .collect(Collectors.toUnmodifiableMap(t -> t == null || t.getMessage() == null ? "?" : t.getMessage(), t -> 1, Integer::sum));
         problemHistogram.entrySet().stream().sorted((e1, e2) -> e2.getValue() - e1.getValue()).forEach(e -> {
             LOGGER.warn("Error freq {}: {}", e.getValue(), e.getKey());
         });
-        int numErrors = analyzer.getProblemsRaised().size();
+        int numErrors = analyzer.getanalyzerExceptions().size();
         assertEquals(0, numErrors, "Found " + numErrors + " errors parsing " + counter.get()
                                    + " files. Histogram: " + analyzer.getHistogram());*/
     }

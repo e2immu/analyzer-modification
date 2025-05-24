@@ -27,7 +27,7 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
         super(configuration);
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised,
+    private record OutputImpl(List<AnalyzerException> analyzerExceptions,
                               Set<Info> internalWaitFor,
                               Set<TypeInfo> externalWaitFor) implements Output {
     }
@@ -35,17 +35,17 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
     @Override
     public Output go(TypeInfo typeInfo, boolean activateCycleBreaking) {
         ComputeIndependent ci = new ComputeIndependent();
-        List<Throwable> problemsRaised = new LinkedList<>();
+        List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         try {
             ci.go(typeInfo, activateCycleBreaking);
         } catch (RuntimeException re) {
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
-                    problemsRaised.add(new AnalyzerException(typeInfo, re));
+                    analyzerExceptions.add(new AnalyzerException(typeInfo, re));
                 }
             } else throw re;
         }
-        return new OutputImpl(problemsRaised, ci.internalWaitFor, ci.externalWaitFor);
+        return new OutputImpl(analyzerExceptions, ci.internalWaitFor, ci.externalWaitFor);
     }
 
     private class ComputeIndependent {

@@ -33,14 +33,14 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
                                                 .computeIfAbsent(ov, m -> new HashSet<>()).add(mi))));
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised, Set<MethodInfo> waitForMethods) implements Output {
+    private record OutputImpl(List<AnalyzerException> analyzerExceptions, Set<MethodInfo> waitForMethods) implements Output {
     }
 
     @Override
     public Output go() {
         Set<MethodInfo> waitForMethods = new HashSet<>();
         Iterator<Map.Entry<MethodInfo, Set<MethodInfo>>> iterator = concreteImplementationsOfAbstractMethods.entrySet().iterator();
-        List<Throwable> problemsRaised = new LinkedList<>();
+        List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         while (iterator.hasNext()) {
             Map.Entry<MethodInfo, Set<MethodInfo>> entry = iterator.next();
             MethodInfo methodInfo = entry.getKey();
@@ -64,12 +64,12 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
             } catch (RuntimeException re) {
                 if (configuration.storeErrors()) {
                     if (!(re instanceof AnalyzerException)) {
-                        problemsRaised.add(new AnalyzerException(methodInfo, re));
+                        analyzerExceptions.add(new AnalyzerException(methodInfo, re));
                     }
                 } else throw re;
             }
         }
-        return new OutputImpl(problemsRaised, waitForMethods);
+        return new OutputImpl(analyzerExceptions, waitForMethods);
     }
 
     private Set<MethodInfo> resolve(MethodInfo methodInfo, Set<MethodInfo> concreteImplementations) {

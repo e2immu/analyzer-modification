@@ -67,7 +67,7 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
         this.getSetHelper = new GetSetHelper(runtime);
     }
 
-    private record OutputImpl(List<Throwable> problemsRaised, Set<MethodInfo> waitForMethods,
+    private record OutputImpl(List<AnalyzerException> analyzerExceptions, Set<MethodInfo> waitForMethods,
                               Set<TypeInfo> waitForIndependenceOfTypes,
                               Map<String, Integer> infoHistogram) implements Output {
     }
@@ -80,16 +80,16 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
         } catch (RuntimeException re) {
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
-                    methodAnalyzer.problemsRaised.add(new AnalyzerException(methodInfo, re));
+                    methodAnalyzer.analyzerExceptions.add(new AnalyzerException(methodInfo, re));
                 }
             } else throw re;
         }
-        return new OutputImpl(methodAnalyzer.problemsRaised, methodAnalyzer.waitForMethods,
+        return new OutputImpl(methodAnalyzer.analyzerExceptions, methodAnalyzer.waitForMethods,
                 methodAnalyzer.waitForIndependenceOfTypes, methodAnalyzer.infoHistogram);
     }
 
     class MethodAnalyzer implements InternalMethodModAnalyzer {
-        private final List<Throwable> problemsRaised = new LinkedList<>();
+        private final List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         private final Set<MethodInfo> waitForMethods = new HashSet<>();
         private final Set<TypeInfo> waitForIndependenceOfTypes = new HashSet<>();
         private final Map<String, Integer> infoHistogram = new HashMap<>();
@@ -508,7 +508,7 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
      */
 
     @Override
-    public List<Throwable> go(List<Info> analysisOrder) {
+    public List<AnalyzerException> go(List<Info> analysisOrder) {
         MethodAnalyzer methodAnalyzer = new MethodAnalyzer(false);
         for (Info info : analysisOrder) {
             try {
@@ -518,7 +518,7 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
             } catch (Exception | AssertionError problem) {
                 LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
                 if (configuration.storeErrors()) {
-                    methodAnalyzer.problemsRaised.add(new AnalyzerException(info, problem));
+                    methodAnalyzer.analyzerExceptions.add(new AnalyzerException(info, problem));
                     String errorMessage = Objects.requireNonNullElse(problem.getMessage(), "<no message>");
                     String fullMessage = "ANALYZER ERROR: " + errorMessage;
                     info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
@@ -527,6 +527,6 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
                 }
             }
         }
-        return methodAnalyzer.problemsRaised;
+        return methodAnalyzer.analyzerExceptions;
     }
 }

@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.TypeContainerAnalyzer;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -22,7 +23,7 @@ public class TypeContainerAnalyzerImpl extends CommonAnalyzerImpl implements Typ
     private record OutputImpl(Set<MethodInfo> externalWaitForCannotCauseCycles) implements Output {
 
         @Override
-        public List<Throwable> problemsRaised() {
+        public List<AnalyzerException> analyzerExceptions() {
             return List.of();
         }
     }

@@ -1,5 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables;
 
+import org.e2immu.analyzer.modification.common.AnalyzerException;
+
 import java.util.List;
 
 public interface Analyzer {
@@ -9,6 +11,6 @@ public interface Analyzer {
     }
 
     interface Output {
-        List<Throwable> problemsRaised();
+        List<AnalyzerException> analyzerExceptions();
     }
 }
