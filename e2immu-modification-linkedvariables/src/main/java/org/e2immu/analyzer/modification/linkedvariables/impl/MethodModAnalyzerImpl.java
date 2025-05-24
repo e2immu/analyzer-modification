@@ -78,6 +78,8 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
         try {
             methodAnalyzer.doMethod(methodInfo);
         } catch (RuntimeException re) {
+            LOGGER.error("Caught exception/error analyzing {} @line {}: {}", methodInfo, bestSourceLog(methodInfo),
+                    re.getMessage());
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
                     methodAnalyzer.analyzerExceptions.add(new AnalyzerException(methodInfo, re));
@@ -86,6 +88,11 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
         }
         return new OutputImpl(methodAnalyzer.analyzerExceptions, methodAnalyzer.waitForMethods,
                 methodAnalyzer.waitForIndependenceOfTypes, methodAnalyzer.infoHistogram);
+    }
+
+    private static String bestSourceLog(MethodInfo methodInfo) {
+        Block methodBody = methodInfo.methodBody();
+        return methodBody == null || methodBody.source() == null ? "?" : methodBody.source().compact2();
     }
 
     class MethodAnalyzer implements InternalMethodModAnalyzer {
@@ -163,8 +170,13 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
                     if (vi.isVariableInClosure()) {
                         VariableData vd = vi.variableInfoInClosure();
                         VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
-                        outerVi.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE,
-                                ValueImpl.BoolImpl.from(!modification));
+                        try {
+                            outerVi.analysis().setAllowControlledOverwrite(UNMODIFIED_VARIABLE,
+                                    ValueImpl.BoolImpl.from(!modification));
+                        } catch (RuntimeException re) {
+                            LOGGER.error("Overwrite error variable in closure {}", outerVi.variable());
+                            throw re;
+                        }
                     }
                 }
                 if (methodInfo.isConstructor()

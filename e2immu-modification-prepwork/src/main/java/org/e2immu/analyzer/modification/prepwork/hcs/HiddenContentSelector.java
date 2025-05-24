@@ -341,7 +341,10 @@ public class HiddenContentSelector implements Value {
         if (res == null) return null;
         // but once we have found it, we must make sure that we return all occurrences
         assert res.indices.set().size() == 1;
-        assert res.type != null;
+        if (res.type == null) {
+            throw new NullPointerException("findAll: res.type null: indices = " + indices + ", ptInFrom = "
+                                           + ptInFrom + ", from = " + from + "; to = " + to);
+        }
         Indices findAll = IndicesImpl.staticAllOccurrencesOf(res.type, to);
         return new IndicesAndType(findAll, res.type);
     }
