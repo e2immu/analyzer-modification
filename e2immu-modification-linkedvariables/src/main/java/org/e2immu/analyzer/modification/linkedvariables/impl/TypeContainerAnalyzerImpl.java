@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.TypeContainerAnalyzer;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -13,6 +14,10 @@ import java.util.List;
 import java.util.Set;
 
 public class TypeContainerAnalyzerImpl extends CommonAnalyzerImpl implements TypeContainerAnalyzer {
+
+    protected TypeContainerAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
+        super(configuration);
+    }
 
     private record OutputImpl(Set<MethodInfo> externalWaitForCannotCauseCycles) implements Output {
 

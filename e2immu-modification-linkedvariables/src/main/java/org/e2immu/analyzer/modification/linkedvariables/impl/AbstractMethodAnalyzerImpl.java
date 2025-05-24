@@ -1,6 +1,8 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.linkedvariables.AbstractMethodAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
@@ -18,7 +20,8 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
     // given an abstract method, which are its concrete implementations?
     final Map<MethodInfo, Set<MethodInfo>> concreteImplementationsOfAbstractMethods = new HashMap<>();
 
-    public AbstractMethodAnalyzerImpl(Set<TypeInfo> primaryTypes) {
+    public AbstractMethodAnalyzerImpl(IteratingAnalyzer.Configuration configuration, Set<TypeInfo> primaryTypes) {
+        super(configuration);
         primaryTypes.stream().flatMap(TypeInfo::recursiveSubTypeStream).forEach(typeInfo ->
                 typeInfo.methodStream().filter(mi -> !mi.isAbstract()).forEach(mi ->
                         mi.overrides().stream()
@@ -37,27 +40,36 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
     public Output go() {
         Set<MethodInfo> waitForMethods = new HashSet<>();
         Iterator<Map.Entry<MethodInfo, Set<MethodInfo>>> iterator = concreteImplementationsOfAbstractMethods.entrySet().iterator();
+        List<Throwable> problemsRaised = new LinkedList<>();
         while (iterator.hasNext()) {
             Map.Entry<MethodInfo, Set<MethodInfo>> entry = iterator.next();
             MethodInfo methodInfo = entry.getKey();
-            if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)
-                || !methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.NON_MODIFYING_METHOD)
-                || methodInfo.parameters().stream().anyMatch(pi ->
-                    !pi.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)
-                    || !pi.analysis().haveAnalyzedValueFor(PropertyImpl.UNMODIFIED_PARAMETER))) {
-                Set<MethodInfo> waitForOfMethod = resolve(methodInfo, entry.getValue());
-                if (waitForOfMethod.isEmpty()) {
-                    iterator.remove();
-                    LOGGER.info("Removing {} from waitFor, have left: {}", methodInfo, concreteImplementationsOfAbstractMethods.keySet());
+            try {
+                if (!methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_METHOD)
+                    || !methodInfo.analysis().haveAnalyzedValueFor(PropertyImpl.NON_MODIFYING_METHOD)
+                    || methodInfo.parameters().stream().anyMatch(pi ->
+                        !pi.analysis().haveAnalyzedValueFor(PropertyImpl.INDEPENDENT_PARAMETER)
+                        || !pi.analysis().haveAnalyzedValueFor(PropertyImpl.UNMODIFIED_PARAMETER))) {
+                    Set<MethodInfo> waitForOfMethod = resolve(methodInfo, entry.getValue());
+                    if (waitForOfMethod.isEmpty()) {
+                        iterator.remove();
+                        LOGGER.info("Removing {} from waitFor, have left: {}", methodInfo, concreteImplementationsOfAbstractMethods.keySet());
+                    } else {
+                        LOGGER.info("Adding {} to waitFor, have left: {}", waitForOfMethod, concreteImplementationsOfAbstractMethods.keySet());
+                        waitForMethods.addAll(waitForOfMethod);
+                    }
                 } else {
-                    LOGGER.info("Adding {} to waitFor, have left: {}", waitForOfMethod, concreteImplementationsOfAbstractMethods.keySet());
-                    waitForMethods.addAll(waitForOfMethod);
+                    iterator.remove();
                 }
-            } else{
-                iterator.remove();
+            } catch (RuntimeException re) {
+                if (configuration.storeErrors()) {
+                    if (!(re instanceof AnalyzerException)) {
+                        problemsRaised.add(new AnalyzerException(methodInfo, re));
+                    }
+                } else throw re;
             }
         }
-        return new OutputImpl(List.of(), waitForMethods);
+        return new OutputImpl(problemsRaised, waitForMethods);
     }
 
     private Set<MethodInfo> resolve(MethodInfo methodInfo, Set<MethodInfo> concreteImplementations) {

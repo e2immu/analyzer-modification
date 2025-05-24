@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.TypeModIndyAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
@@ -51,6 +52,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
     private final Runtime runtime;
 
     public TypeModIndyAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
+        super(configuration);
         this.runtime = runtime;
     }
 
@@ -62,7 +64,15 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
     @Override
     public Output go(TypeInfo typeInfo, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
         InternalAnalyzer ia = new InternalAnalyzer();
-        ia.go(typeInfo);
+        try {
+            ia.go(typeInfo);
+        } catch (RuntimeException re) {
+            if (configuration.storeErrors()) {
+                if (!(re instanceof AnalyzerException)) {
+                    ia.problemsRaised.add(new AnalyzerException(typeInfo, re));
+                }
+            } else throw re;
+        }
         return new OutputImpl(ia.problemsRaised, false, ia.waitForMethodModifications,
                 ia.waitForTypeIndependence);
     }

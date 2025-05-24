@@ -31,12 +31,12 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         this.runtime = runtime;
         this.configuration = configuration;
         methodModAnalyzer = new MethodModAnalyzerImpl(runtime, configuration);
-        fieldAnalyzer = new FieldAnalyzerImpl(runtime);
+        fieldAnalyzer = new FieldAnalyzerImpl(runtime, configuration);
         typeModIndyAnalyzer = new TypeModIndyAnalyzerImpl(runtime, configuration);
         typeImmutableAnalyzer = new TypeImmutableAnalyzerImpl(configuration);
         typeIndependentAnalyzer = new TypeIndependentAnalyzerImpl(configuration);
         shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, Element::annotations, false);
-        typeContainerAnalyzer = new TypeContainerAnalyzerImpl();
+        typeContainerAnalyzer = new TypeContainerAnalyzerImpl(configuration);
     }
 
     @Override
@@ -46,7 +46,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
 
     @Override
     public Output go(List<Info> analysisOrder, boolean activateCycleBreaking) {
-        List<Throwable> myProblemsRaised = new ArrayList<>();
+        List<Throwable> problemsRaised = new ArrayList<>();
         Map<MethodInfo, Set<MethodInfo>> methodsWaitFor = new HashMap<>();
         Set<TypeInfo> primaryTypes = new HashSet<>();
         Set<TypeInfo> abstractTypes = new HashSet<>();
@@ -57,28 +57,29 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                 }
                 MethodModAnalyzer.Output output = methodModAnalyzer.go(methodInfo, activateCycleBreaking);
                 methodsWaitFor.put(methodInfo, output.waitForMethods());
+                problemsRaised.addAll(output.problemsRaised());
             } else if (info instanceof FieldInfo fieldInfo) {
                 if (fieldInfo.owner().isAbstract()) {
                     shallowTypeAnalyzer.analyzeField(fieldInfo);
                 }
                 FieldAnalyzer.Output output = fieldAnalyzer.go(fieldInfo);
-                myProblemsRaised.addAll(output.problemsRaised());
+                problemsRaised.addAll(output.problemsRaised());
             } else if (info instanceof TypeInfo typeInfo) {
                 Analyzer.Output output1 = typeModIndyAnalyzer.go(typeInfo, methodsWaitFor);
-                myProblemsRaised.addAll(output1.problemsRaised());
+                problemsRaised.addAll(output1.problemsRaised());
 
                 TypeIndependentAnalyzer.Output output2 = typeIndependentAnalyzer.go(typeInfo,
                         activateCycleBreaking);
-                myProblemsRaised.addAll(output2.problemsRaised());
+                problemsRaised.addAll(output2.problemsRaised());
 
                 TypeImmutableAnalyzer.Output output3 = typeImmutableAnalyzer.go(typeInfo,
                         activateCycleBreaking);
-                myProblemsRaised.addAll(output3.problemsRaised());
+                problemsRaised.addAll(output3.problemsRaised());
                 if (typeInfo.isPrimaryType()) primaryTypes.add(typeInfo);
             }
         }
-        AbstractMethodAnalyzer abstractMethodAnalyzer = new AbstractMethodAnalyzerImpl(primaryTypes);
-        myProblemsRaised.addAll(abstractMethodAnalyzer.go().problemsRaised());
+        AbstractMethodAnalyzer abstractMethodAnalyzer = new AbstractMethodAnalyzerImpl(configuration, primaryTypes);
+        problemsRaised.addAll(abstractMethodAnalyzer.go().problemsRaised());
 
         /*
         run once more, because the abstract method analyzer may have resolved independence and modification values
@@ -94,6 +95,6 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
 
         G.Builder<Info> builder = new G.Builder<>(Long::sum);
 
-        return new OutputImpl(myProblemsRaised, builder.build(), Map.of());
+        return new OutputImpl(problemsRaised, builder.build(), Map.of());
     }
 }

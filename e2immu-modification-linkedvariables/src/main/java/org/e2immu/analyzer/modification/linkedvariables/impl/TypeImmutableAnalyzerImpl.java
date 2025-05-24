@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.TypeImmutableAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -13,6 +14,7 @@ import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -25,25 +27,30 @@ Phase 4.2 Primary type immutable
  */
 public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements TypeImmutableAnalyzer {
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
-    private final IteratingAnalyzer.Configuration configuration;
 
     public TypeImmutableAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
-        this.configuration = configuration;
+        super(configuration);
     }
 
-    private record OutputImpl(Set<Info> internalWaitFor,
+    private record OutputImpl(List<Throwable> problemsRaised,
+                              Set<Info> internalWaitFor,
                               Set<TypeInfo> externalWaitFor) implements Output {
-        @Override
-        public List<Throwable> problemsRaised() {
-            return List.of();
-        }
     }
 
     @Override
     public Output go(TypeInfo typeInfo, boolean activateCycleBreaking) {
         ComputeImmutable ci = new ComputeImmutable();
-        ci.go(typeInfo, activateCycleBreaking);
-        return new OutputImpl(ci.internalWaitFor, ci.externalWaitFor);
+        List<Throwable> problemsRaised = new LinkedList<>();
+        try {
+            ci.go(typeInfo, activateCycleBreaking);
+        } catch (RuntimeException re) {
+            if (configuration.storeErrors()) {
+                if (!(re instanceof AnalyzerException)) {
+                    problemsRaised.add(new AnalyzerException(typeInfo, re));
+                }
+            } else throw re;
+        }
+        return new OutputImpl(problemsRaised, ci.internalWaitFor, ci.externalWaitFor);
     }
 
     private class ComputeImmutable {

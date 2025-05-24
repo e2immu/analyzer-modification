@@ -2,7 +2,9 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.linkedvariables.FieldAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
@@ -35,24 +37,29 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
     private final Runtime runtime;
     private final AnalysisHelper analysisHelper = new AnalysisHelper();
 
-    public FieldAnalyzerImpl(Runtime runtime) {
+    public FieldAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
+        super(configuration);
         this.runtime = runtime;
     }
 
-    private record OutputImpl(Set<Info> waitFor) implements Output {
-
-        @Override
-        public List<Throwable> problemsRaised() {
-            return List.of();
-        }
+    private record OutputImpl(List<Throwable> problemsRaised, Set<Info> waitFor) implements Output {
     }
 
 
     @Override
     public Output go(FieldInfo fieldInfo) {
+        List<Throwable> problemsRaised = new LinkedList<>();
         InternalFieldAnalyzer analyzer = new InternalFieldAnalyzer();
-        analyzer.go(fieldInfo);
-        return new OutputImpl(analyzer.waitFor);
+        try {
+            analyzer.go(fieldInfo);
+        } catch (RuntimeException re) {
+            if (configuration.storeErrors()) {
+                if (!(re instanceof AnalyzerException)) {
+                    problemsRaised.add(new AnalyzerException(fieldInfo, re));
+                }
+            } else throw re;
+        }
+        return new OutputImpl(problemsRaised, analyzer.waitFor);
     }
 
     private class InternalFieldAnalyzer {

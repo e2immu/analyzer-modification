@@ -1,6 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
+import org.e2immu.analyzer.modification.common.AnalyzerException;
 import org.e2immu.analyzer.modification.common.defaults.ShallowMethodAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
 import org.e2immu.analyzer.modification.linkedvariables.MethodModAnalyzer;
@@ -47,7 +48,7 @@ import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 
-public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForTesting {
+public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForTesting {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodModAnalyzerImpl.class);
     private static final Logger LOGGER_GRAPH = LoggerFactory.getLogger("graph-algorithm");
 
@@ -55,18 +56,15 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
     private final ComputeLinkCompletion computeLinkCompletion;
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
     private final GetSetHelper getSetHelper;
-    private final boolean storeErrors;
-    private final CycleBreakingStrategy cycleBreakingStrategy;
     private final StaticValuesHelper staticValuesHelper;
 
     public MethodModAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
+        super(configuration);
         this.runtime = runtime;
         staticValuesHelper = new StaticValuesHelper(runtime);
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(runtime, Element::annotations);
         computeLinkCompletion = new ComputeLinkCompletion(new AnalysisHelper(), staticValuesHelper); // has a cache, we want this to be stable
         this.getSetHelper = new GetSetHelper(runtime);
-        this.storeErrors = configuration.storeErrors();
-        this.cycleBreakingStrategy = configuration.cycleBreakingStrategy();
     }
 
     private record OutputImpl(List<Throwable> problemsRaised, Set<MethodInfo> waitForMethods,
@@ -77,7 +75,15 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
     @Override
     public Output go(MethodInfo methodInfo, boolean activateCycleBreaking) {
         MethodAnalyzer methodAnalyzer = new MethodAnalyzer(activateCycleBreaking);
-        methodAnalyzer.doMethod(methodInfo);
+        try {
+            methodAnalyzer.doMethod(methodInfo);
+        } catch (RuntimeException re) {
+            if (configuration.storeErrors()) {
+                if (!(re instanceof AnalyzerException)) {
+                    methodAnalyzer.problemsRaised.add(new AnalyzerException(methodInfo, re));
+                }
+            } else throw re;
+        }
         return new OutputImpl(methodAnalyzer.problemsRaised, methodAnalyzer.waitForMethods,
                 methodAnalyzer.waitForIndependenceOfTypes, methodAnalyzer.infoHistogram);
     }
@@ -467,7 +473,7 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                     .map(VariableInfoContainer::best)
                     .flatMap(vi -> vi.analysis().getOrDefault(DOWNCAST_VARIABLE, ValueImpl.SetOfTypeInfoImpl.EMPTY).typeInfoSet().stream())
                     .collect(Collectors.toUnmodifiableSet());
-            if(!combinedCasts.isEmpty()) {
+            if (!combinedCasts.isEmpty()) {
                 merge.analysis().setAllowControlledOverwrite(DOWNCAST_VARIABLE, new ValueImpl.SetOfTypeInfoImpl(combinedCasts));
             }
         }
@@ -511,8 +517,8 @@ public class MethodModAnalyzerImpl implements MethodModAnalyzer, ModAnalyzerForT
                 }
             } catch (Exception | AssertionError problem) {
                 LOGGER.error("Caught exception/error analyzing {}: {}", info, problem.getMessage());
-                if (storeErrors) {
-                    methodAnalyzer.problemsRaised.add(problem);
+                if (configuration.storeErrors()) {
+                    methodAnalyzer.problemsRaised.add(new AnalyzerException(info, problem));
                     String errorMessage = Objects.requireNonNullElse(problem.getMessage(), "<no message>");
                     String fullMessage = "ANALYZER ERROR: " + errorMessage;
                     info.analysis().set(ANALYZER_ERROR, new ValueImpl.MessageImpl(fullMessage));
