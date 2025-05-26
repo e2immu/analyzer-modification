@@ -637,8 +637,14 @@ class ExpressionAnalyzer {
 
         private EvaluationResult linkEvaluationOfConstructorCall(MethodInfo currentMethod, ConstructorCall cc) {
             EvaluationResult.Builder builder = new EvaluationResult.Builder();
+
             List<EvaluationResult> evaluationResults = cc.parameterExpressions().stream().map(this::eval).toList();
             evaluationResults.forEach(builder::merge);
+            if (analyzer.trackObjectCreations() && !evaluationResults.isEmpty()) {
+                List<LinkedVariables> links = evaluationResults.stream().map(EvaluationResult::linkedVariables).toList();
+                LinkedVariables.ListOfLinkedVariables list = new LinkedVariablesImpl.ListOfLinkedVariablesImpl(links);
+                cc.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_ARGUMENTS, list);
+            }
 
             LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
                     cc.constructor());

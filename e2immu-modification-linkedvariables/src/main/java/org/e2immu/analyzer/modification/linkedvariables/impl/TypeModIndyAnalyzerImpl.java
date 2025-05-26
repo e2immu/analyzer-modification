@@ -12,6 +12,7 @@ import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.expression.VariableExpression;
+import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -19,6 +20,7 @@ import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;
+import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 
@@ -27,6 +29,7 @@ import java.util.function.Predicate;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_FIELD;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl.STATIC_VALUES_PARAMETER;
+import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.UNMODIFIED_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
@@ -81,6 +84,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         Map<MethodInfo, Set<MethodInfo>> waitForMethodModifications = new HashMap<>();
         Map<MethodInfo, Set<TypeInfo>> waitForTypeIndependence = new HashMap<>();
+        Map<MethodInfo, Set<FieldInfo>> waitForField = new HashMap<>();
 
         private void go(TypeInfo typeInfo) {
             typeInfo.constructorAndMethodStream()
@@ -131,6 +135,33 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                              && ve.variable() instanceof This thisVar
                              && thisVar.typeInfo() == methodInfo.typeInfo());
                 doIndependent(methodInfo, variableData);
+
+                for (ParameterInfo pi : methodInfo.parameters()) {
+                    VariableInfoContainer vic = variableData.variableInfoContainerOrNull(pi.fullyQualifiedName());
+                    if (vic != null) {
+                        VariableInfo vi = vic.best();
+                        Value.Bool unmodified = vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE);
+                        if (vi.linkedVariables() != null && (unmodified == null || unmodified.isTrue())) {
+                            for (Map.Entry<Variable, LV> entry : vi.linkedVariables()) {
+                                if (entry.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
+                                    Value.Bool unmodifiedField = fr.fieldInfo().analysis().getOrNull(UNMODIFIED_FIELD, ValueImpl.BoolImpl.class);
+                                    if (unmodifiedField == null) {
+                                        unmodified = null;
+                                        waitForField.computeIfAbsent(methodInfo, m -> new HashSet<>())
+                                                .add(fr.fieldInfo());
+                                        break;
+                                    } else if (unmodifiedField.isFalse()) {
+                                        unmodified = FALSE;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (unmodified != null) {
+                            pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, unmodified);
+                        }
+                    }
+                }
             }
         }
 

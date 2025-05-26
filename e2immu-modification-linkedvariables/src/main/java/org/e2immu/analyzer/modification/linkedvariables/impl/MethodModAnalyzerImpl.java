@@ -166,9 +166,6 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
                             modifiedComponentsMethod.put(v, true);
                         }
                     }
-                    if (!modification && v instanceof FieldReference fr) {
-                        fr.fieldInfo().analysis().setAllowControlledOverwrite(UNMODIFIED_FIELD, TRUE);
-                    }
                     if (vi.isVariableInClosure()) {
                         VariableData vd = vi.variableInfoInClosure();
                         VariableInfo outerVi = vd.variableInfo(vi.variable().fullyQualifiedName());
@@ -221,9 +218,12 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
                     pi.analysis().setAllowControlledOverwrite(LINKED_VARIABLES_PARAMETER, filteredLvs);
                 }
             }
-            if (vi.isUnmodified()) {
+            if (vi.isUnmodified() && linkedVariables != null
+                && linkedVariables.variableStream().noneMatch(v ->
+                    v instanceof FieldReference fr && fr.scopeIsRecursivelyThis())) {
                 pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, TRUE);
-            }
+            } // when linked to a field, we must wait for the field to be declared unmodified...
+
             // IMPORTANT: we also store this in case of !modified; see TestLinkCast,2
             // a parameter can be of type Object, not modified, even though, via casting, its hidden content is modified
 

@@ -106,6 +106,9 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                 UNDECIDED.debug("FI: Linked variables of field {} undecided, wait for {}", fieldInfo, waitFor);
                 return;
             }
+            if (fieldInfo.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, linkedVariables)) {
+                DECIDE.debug("FI: Decide linked variables of field {} = {}", fieldInfo, linkedVariables);
+            }
             if (independentDone == null) {
                 Value.Independent independent = computeIndependent(fieldInfo, linkedVariables);
                 if (independent != null) {
