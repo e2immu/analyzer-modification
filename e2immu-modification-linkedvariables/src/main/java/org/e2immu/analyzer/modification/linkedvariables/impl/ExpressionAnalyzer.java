@@ -10,6 +10,7 @@ import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
+import org.e2immu.analyzer.modification.prepwork.variable.impl.ObjectCreationVariableImpl;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.*;
@@ -158,13 +159,26 @@ class ExpressionAnalyzer {
             }
             if (expression instanceof ConstructorCall cc) {
                 // important: check anonymous type first, it can have constructor != null
+                EvaluationResult result;
                 if (cc.anonymousClass() != null) {
-                    return linkEvaluationOfAnonymousClass(currentMethod, cc);
+                    result = linkEvaluationOfAnonymousClass(currentMethod, cc);
+                } else if (cc.constructor() != null) {
+                    result = linkEvaluationOfConstructorCall(currentMethod, cc);
+                } else {
+                    result = EvaluationResult.EMPTY;
                 }
-                if (cc.constructor() != null) {
-                    return linkEvaluationOfConstructorCall(currentMethod, cc);
+                if (analyzer.trackObjectCreations()) {
+                    // this variable exists in the current variable data, which we don't have access to at the moment
+                    // so we create it again. (this is not a problem for 'normal variables', as they already live in the CST)
+                    ObjectCreationVariable ocv = new ObjectCreationVariableImpl(currentMethod, cc.source().compact(),
+                            cc.parameterizedType());
+                    LinkedVariables linkedVariables = LinkedVariablesImpl.of(ocv, LVImpl.LINK_ASSIGNED);
+                    return new EvaluationResult.Builder()
+                            .merge(result)
+                            .setLinkedVariables(result.linkedVariables().merge(linkedVariables))
+                            .build();
                 }
-                return EvaluationResult.EMPTY;
+                return result;
             }
             if (expression instanceof MethodReference mr) {
                 return linkEvaluationOfMethodReference(currentMethod, mr);

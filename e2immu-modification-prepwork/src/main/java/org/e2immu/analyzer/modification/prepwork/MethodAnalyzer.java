@@ -802,6 +802,10 @@ public class MethodAnalyzer {
                 if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
                     prepAnalyzer.handleSyntheticArrayConstructor(cc);
                 }
+                if(prepAnalyzer.trackObjectCreations()) {
+                    ObjectCreationVariable ocv = new ObjectCreationVariableImpl(currentMethod, cc.source().compact(), cc.parameterizedType());
+                    assignedAdd(ocv);
+                }
             }
             if (e instanceof Negation || e instanceof UnaryOperator u && u.parameterizedType().isBoolean()) {
                 ++inNegative;

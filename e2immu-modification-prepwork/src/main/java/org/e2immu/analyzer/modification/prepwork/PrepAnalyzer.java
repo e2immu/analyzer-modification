@@ -43,22 +43,32 @@ public class PrepAnalyzer {
     private final Runtime runtime;
     final boolean recurseIntoAnonymous;
     private int typesProcessed;
+    private final boolean trackObjectCreations;
 
     public PrepAnalyzer(Runtime runtime) {
-        this(runtime, true);
+        this(runtime, true, false);
     }
 
     public PrepAnalyzer(Runtime runtime, boolean recurseIntoAnonymous) {
+        this(runtime, recurseIntoAnonymous, false);
+    }
+
+    public PrepAnalyzer(Runtime runtime, boolean recurseIntoAnonymous, boolean trackObjectCreations) {
         methodAnalyzer = new MethodAnalyzer(runtime, this);
         computeHiddenContent = new ComputeHiddenContent(runtime);
         computeHCS = new ComputeHCS(runtime);
         this.runtime = runtime;
         this.recurseIntoAnonymous = recurseIntoAnonymous;
+        this.trackObjectCreations = trackObjectCreations;
+    }
+
+    boolean trackObjectCreations() {
+        return trackObjectCreations;
     }
 
     /*
-    we go via the FQN because we're in the process of translating them.
-     */
+        we go via the FQN because we're in the process of translating them.
+         */
     public void doMethod(MethodInfo methodInfo) {
         doMethod(methodInfo, methodInfo.methodBody());
     }

@@ -28,12 +28,14 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
     public record ConfigurationImpl(int maxIterations,
                                     boolean stopWhenCycleDetectedAndNoImprovements,
                                     boolean storeErrors,
-                                    CycleBreakingStrategy cycleBreakingStrategy) implements Configuration {
+                                    CycleBreakingStrategy cycleBreakingStrategy,
+                                    boolean trackObjectCreations) implements Configuration {
     }
     public static class ConfigurationBuilder{
         private int maxIterations = 1;
         private boolean stopWhenCycleDetectedAndNoImprovements;
         private boolean storeErrors;
+        private boolean trackObjectCreations;
         private CycleBreakingStrategy cycleBreakingStrategy = CycleBreakingStrategy.NONE;
 
         public ConfigurationBuilder setStoreErrors(boolean storeErrors) {
@@ -56,8 +58,14 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
             return this;
         }
 
+        public ConfigurationBuilder setTrackObjectCreations(boolean trackObjectCreations) {
+            this.trackObjectCreations = trackObjectCreations;
+            return this;
+        }
+
         public Configuration build() {
-            return new ConfigurationImpl(maxIterations, stopWhenCycleDetectedAndNoImprovements, storeErrors, cycleBreakingStrategy);
+            return new ConfigurationImpl(maxIterations, stopWhenCycleDetectedAndNoImprovements, storeErrors,
+                    cycleBreakingStrategy, trackObjectCreations);
         }
     }
 

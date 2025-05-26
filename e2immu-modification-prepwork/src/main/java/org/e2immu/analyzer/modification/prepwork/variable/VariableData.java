@@ -13,6 +13,7 @@ public interface VariableData extends Value {
 
     String knownVariableNamesToString();
 
+    @org.e2immu.annotation.NotNull
     VariableInfo variableInfo(String fullyQualifiedName);
 
     default VariableInfo variableInfo(Variable variable) {

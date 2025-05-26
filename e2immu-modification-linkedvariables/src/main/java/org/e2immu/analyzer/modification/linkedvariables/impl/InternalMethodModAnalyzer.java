@@ -21,4 +21,5 @@ public interface InternalMethodModAnalyzer {
                              VariableData previous,
                              boolean first);
 
+    boolean trackObjectCreations();
 }

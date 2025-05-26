@@ -57,6 +57,7 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
     private final ShallowMethodAnalyzer shallowMethodAnalyzer;
     private final GetSetHelper getSetHelper;
     private final StaticValuesHelper staticValuesHelper;
+    private final boolean trackObjectCreations;
 
     public MethodModAnalyzerImpl(Runtime runtime, IteratingAnalyzer.Configuration configuration) {
         super(configuration);
@@ -65,6 +66,7 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
         shallowMethodAnalyzer = new ShallowMethodAnalyzer(runtime, Element::annotations);
         computeLinkCompletion = new ComputeLinkCompletion(new AnalysisHelper(), staticValuesHelper); // has a cache, we want this to be stable
         this.getSetHelper = new GetSetHelper(runtime);
+        this.trackObjectCreations = configuration.trackObjectCreations();
     }
 
     private record OutputImpl(List<AnalyzerException> analyzerExceptions, Set<MethodInfo> waitForMethods,
@@ -512,6 +514,11 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
                     .filter(Objects::nonNull)
                     .toList();
             return linkedVariablesList.stream().reduce(EMPTY, LinkedVariables::merge).remove(v -> !vdMerge.isKnown(v.fullyQualifiedName()));
+        }
+
+        @Override
+        public boolean trackObjectCreations() {
+            return trackObjectCreations;
         }
     }
 

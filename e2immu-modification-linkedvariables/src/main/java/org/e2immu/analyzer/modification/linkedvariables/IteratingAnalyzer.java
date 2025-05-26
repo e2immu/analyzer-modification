@@ -17,6 +17,8 @@ public interface IteratingAnalyzer extends Analyzer {
 
         boolean storeErrors();
 
+        boolean trackObjectCreations();
+
         CycleBreakingStrategy cycleBreakingStrategy();
     }
 
