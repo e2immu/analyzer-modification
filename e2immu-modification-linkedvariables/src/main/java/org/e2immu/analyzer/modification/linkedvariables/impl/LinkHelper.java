@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.*;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
@@ -246,9 +247,9 @@ class LinkHelper {
                                                EvaluationResult.Builder intoObjectBuilder) {
         Independent formalParameterIndependent = pi.analysis()
                 .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
-        LinkedVariables lvsToResult = isFactoryMethod
-                ? pi.analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY)
-                : linkedVariablesToResult(pi);
+        LinkedVariables lvsFactory = isFactoryMethod
+                ? pi.analysis().getOrDefault(LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY) : LinkedVariablesImpl.EMPTY;
+        LinkedVariables lvsToResult = lvsFactory.merge(linkedVariablesToResult(pi, formalParameterIndependent));
         boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
         if (!formalParameterIndependent.isIndependent() || inResult) {
             ParameterizedType concreteParameterType = parameterExpression.parameterizedType();
@@ -419,7 +420,21 @@ class LinkHelper {
         } // else: no value... empty varargs
     }
 
-    private LinkedVariables linkedVariablesToResult(ParameterInfo pi) {
+    private LinkedVariables linkedVariablesToResult(ParameterInfo pi, Independent formalParameterIndependent) {
+        Integer lvToResult = formalParameterIndependent.linkToParametersReturnValue() == null ? null :
+                formalParameterIndependent.linkToParametersReturnValue().get(-1);
+        if (lvToResult != null) {
+            // we know that there is linking
+            ReturnVariable rv = new ReturnVariableImpl(pi.methodInfo());
+            if (lvToResult == 0) return LinkedVariablesImpl.of(rv, LINK_DEPENDENT);
+            assert lvToResult == 1;
+            // this is either a *-4-n or n-4-m
+            HiddenContentSelector hcsPi = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
+            HiddenContentSelector hcsMe = pi.methodInfo().analysis().getOrDefault(HCS_METHOD, NONE);
+            // FIXME hardcoded use hcs
+            Links links = new LinksImpl(0, IndexImpl.ALL, true);
+            return LinkedVariablesImpl.of(rv, LVImpl.createHC(links));
+        }
         LinkedVariables lvMethod = pi.methodInfo().analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
         LV lv = lvMethod.stream().filter(e -> e.getKey() == pi).map(Map.Entry::getValue).findFirst().orElse(null);
@@ -461,7 +476,7 @@ class LinkHelper {
         TypeInfo typeInfo = parameterizedType.bestTypeInfo();
         if (typeInfo == null) return LinksImpl.NO_LINKS;
         HiddenContentTypes hct = typeInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
-                ()-> new ComputeHiddenContent(runtime).compute(typeInfo));
+                () -> new ComputeHiddenContent(runtime).compute(typeInfo));
         if (hct.hasHiddenContent()) {
             Map<Indices, Link> map = new HashMap<>();
             for (int i = 0; i < hct.size(); i++) {

@@ -4,6 +4,7 @@ import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -11,6 +12,11 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public interface LinkedVariables extends Iterable<Map.Entry<Variable, LV>>, Value {
+
+    interface ListOfLinkedVariables extends Value {
+        List<LinkedVariables> list();
+    }
+
     Stream<Variable> assignedOrDependentVariables();
 
     Stream<Variable> dependentVariables();

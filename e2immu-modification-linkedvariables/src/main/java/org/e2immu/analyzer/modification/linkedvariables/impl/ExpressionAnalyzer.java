@@ -676,6 +676,11 @@ class ExpressionAnalyzer {
             builder.merge(leObject);
 
             List<EvaluationResult> leParams = mc.parameterExpressions().stream().map(this::eval).toList();
+            if (analyzer.trackObjectCreations() && !leParams.isEmpty()) {
+                List<LinkedVariables> links = leParams.stream().map(EvaluationResult::linkedVariables).toList();
+                LinkedVariables.ListOfLinkedVariables list = new LinkedVariablesImpl.ListOfLinkedVariablesImpl(links);
+                mc.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_ARGUMENTS, list);
+            }
             leParams.forEach(builder::merge);
 
             methodCallLinks(currentMethod, mc, builder, leObject, leParams, forwardType);

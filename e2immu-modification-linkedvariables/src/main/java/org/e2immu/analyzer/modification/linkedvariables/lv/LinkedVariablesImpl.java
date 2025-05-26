@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.InfoMap;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -30,10 +31,47 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
     public static final Property LINKED_VARIABLES_PARAMETER = new PropertyImpl("linkedVariablesOfParameter", EMPTY);
     public static final Property LINKED_VARIABLES_FIELD = new PropertyImpl("linkedVariablesOfField", EMPTY);
 
+    public record ListOfLinkedVariablesImpl(List<LinkedVariables> list) implements ListOfLinkedVariables {
+        public static final ListOfLinkedVariablesImpl EMPTY = new ListOfLinkedVariablesImpl(List.of());
+
+        @Override
+        public Codec.EncodedValue encode(Codec codec, Codec.Context context) {
+            return null;
+        }
+
+        @Override
+        public boolean isDefault() {
+            return list.isEmpty();
+        }
+
+        @Override
+        public Value rewire(InfoMap infoMap) {
+            List<LinkedVariables> newList = list.stream()
+                    .map(lv -> (LinkedVariables) lv.rewire(infoMap)).toList();
+            return new ListOfLinkedVariablesImpl(newList);
+        }
+
+        @Override
+        public boolean overwriteAllowed(Value newValue) {
+            List<LinkedVariables> other = ((ListOfLinkedVariablesImpl) newValue).list;
+            int i = 0;
+            for (LinkedVariables lv : list) {
+                LinkedVariables lv2 = other.get(i++);
+                if (!lv.overwriteAllowed(lv2)) return false;
+            }
+            return true;
+        }
+    }
+
+    // added to MethodCall objects
+    public static final Property LINKED_VARIABLES_ARGUMENTS = new PropertyImpl("linkedVariablesOfArguments",
+            ListOfLinkedVariablesImpl.EMPTY);
+
     // for methods
     public static final Property LINKS_TO_OBJECT = new PropertyImpl("linksToObject", EMPTY);
 
     public static final String NOT_YET_SET_STR = "NOT_YET_SET";
+
     private final Map<Variable, LV> variables;
 
 
