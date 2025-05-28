@@ -96,69 +96,127 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         private void go(MethodInfo methodInfo) {
             FieldValue fieldValue = methodInfo.analysis().getOrDefault(GET_SET_FIELD, ValueImpl.GetSetValueImpl.EMPTY);
             if (fieldValue.field() != null) {
-                assert !methodInfo.isConstructor();
-                // getter, setter
-                Bool nonModifying = ValueImpl.BoolImpl.from(!fieldValue.setter());
-                methodInfo.analysis().setAllowControlledOverwrite(NON_MODIFYING_METHOD, nonModifying);
-                Independent independentFromType = analysisHelper.typeIndependentFromImmutableOrNull(fieldValue.field().type());
-                if (independentFromType == null) {
-                    waitForTypeIndependence.computeIfAbsent(methodInfo, m -> new HashSet<>())
-                            .add(fieldValue.field().type().bestTypeInfo());
-                    UNDECIDED.debug("MI: Independent of method {} undecided, wait for type independence {}", methodInfo,
-                            waitForTypeIndependence);
-                } else {
-                    methodInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_METHOD, independentFromType);
-                    DECIDE.debug("MI: Decide independent of method {} = {}}", methodInfo, independentFromType);
-                }
+                handleGetterSetter(methodInfo, fieldValue);
             } else if (methodInfo.explicitlyEmptyMethod()) {
-                methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE);
-                methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
-                DECIDE.debug("MI: Decide non-modifying of method {} = true", methodInfo);
-                DECIDE.debug("MI: Decide independent of method {} = independent", methodInfo);
+                handleExplicitlyEmptyMethod(methodInfo);
+            } else if (!methodInfo.methodBody().isEmpty()) {
+                handleNormalMethod(methodInfo);
+            }
+        }
+
+        private void handleNormalMethod(MethodInfo methodInfo) {
+            Statement lastStatement = methodInfo.methodBody().lastStatement();
+            assert lastStatement != null;
+            VariableData variableData = VariableDataImpl.of(lastStatement);
+            doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
+                    e -> e instanceof VariableExpression ve
+                         && ve.variable() instanceof ParameterInfo pi
+                         && pi.methodInfo() == methodInfo
+                         && pi.index() == 0);
+            doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
+                    e -> e instanceof VariableExpression ve
+                         && ve.variable() instanceof This thisVar
+                         && thisVar.typeInfo() == methodInfo.typeInfo());
+            doIndependent(methodInfo, variableData);
+
+            for (ParameterInfo pi : methodInfo.parameters()) {
+                handleParameter(methodInfo, pi, variableData);
+            }
+        }
+
+        private void handleParameter(MethodInfo methodInfo, ParameterInfo pi, VariableData variableData) {
+            VariableInfoContainer vic = variableData.variableInfoContainerOrNull(pi.fullyQualifiedName());
+            if (vic == null) return;
+            VariableInfo vi = vic.best();
+            Bool unmodified = vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE);
+            if (vi.linkedVariables() != null && (unmodified == null || unmodified.isTrue())) {
+                for (Map.Entry<Variable, LV> entry : vi.linkedVariables()) {
+                    if (entry.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
+                        Bool unmodifiedField = fr.fieldInfo().analysis().getOrNull(UNMODIFIED_FIELD,
+                                ValueImpl.BoolImpl.class);
+                        if (unmodifiedField == null) {
+                            unmodified = null;
+                            waitForField.computeIfAbsent(methodInfo, m -> new HashSet<>()).add(fr.fieldInfo());
+                            break;
+                        } else if (unmodifiedField.isFalse()) {
+                            unmodified = FALSE;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (unmodified != null) {
+                if (pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, unmodified)) {
+                    DECIDE.debug("MI: unmodified of parameter {} = {}", pi, unmodified);
+                }
+            } else {
+                UNDECIDED.debug("MI: Unmodified of parameter {} undecided, waitForField {}", pi, waitForField);
+            }
+        }
+
+        private void handleExplicitlyEmptyMethod(MethodInfo methodInfo) {
+            methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE);
+            methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
+            DECIDE.debug("MI: Decide non-modifying of method {} = true", methodInfo);
+            DECIDE.debug("MI: Decide independent of method {} = independent", methodInfo);
+            for (ParameterInfo pi : methodInfo.parameters()) {
+                pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
+                pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
+                DECIDE.debug("MI: Decide unmodified of parameter {} = true", pi);
+                DECIDE.debug("MI: Decide independent of parameter {} = independent", pi);
+            }
+        }
+
+        private void handleGetterSetter(MethodInfo methodInfo, FieldValue fieldValue) {
+            assert !methodInfo.isConstructor();
+            // getter, setter
+            Bool nonModifying = ValueImpl.BoolImpl.from(!fieldValue.setter());
+            methodInfo.analysis().setAllowControlledOverwrite(NON_MODIFYING_METHOD, nonModifying);
+            Independent independentFromType = analysisHelper.typeIndependentFromImmutableOrNull(fieldValue.field().type());
+            if (independentFromType == null) {
+                waitForTypeIndependence.computeIfAbsent(methodInfo, m -> new HashSet<>())
+                        .add(fieldValue.field().type().bestTypeInfo());
+                UNDECIDED.debug("MI: Independent of method {} undecided, wait for type independence {}", methodInfo,
+                        waitForTypeIndependence);
+            } else if (fieldValue.setter()) {
+                handleSetter(methodInfo, fieldValue, independentFromType);
+            } else {
+                handleGetter(methodInfo, independentFromType);
+            }
+        }
+
+        private void handleGetter(MethodInfo methodInfo, Independent independentFromType) {
+            methodInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_METHOD, independentFromType);
+            DECIDE.debug("MI: Decide independent of method {} = {}}", methodInfo, independentFromType);
+            for (ParameterInfo pi : methodInfo.parameters()) {
+                pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
+                DECIDE.debug("MI: Decide unmodified of getter parameter: {} = true", pi);
+            }
+        }
+
+        private void handleSetter(MethodInfo methodInfo, FieldValue fieldValue, Independent independentFromType) {
+            if (independentFromType.isIndependent()) {
+                // must be unmodified, otherwise, we'll have to wait for a value to come from the field
                 for (ParameterInfo pi : methodInfo.parameters()) {
                     pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
-                    pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
-                    DECIDE.debug("MI: Decide unmodified of parameter {} = true", pi);
-                    DECIDE.debug("MI: Decide independent of parameter {} = independent", pi);
+                    DECIDE.debug("MI: Decide unmodified of parameter because independent: {} = true", pi);
                 }
-            } else if (!methodInfo.methodBody().isEmpty()) {
-                Statement lastStatement = methodInfo.methodBody().lastStatement();
-                assert lastStatement != null;
-                VariableData variableData = VariableDataImpl.of(lastStatement);
-                doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.IDENTITY_METHOD,
-                        e -> e instanceof VariableExpression ve
-                             && ve.variable() instanceof ParameterInfo pi
-                             && pi.methodInfo() == methodInfo
-                             && pi.index() == 0);
-                doFluentIdentityAnalysis(methodInfo, variableData, PropertyImpl.FLUENT_METHOD,
-                        e -> e instanceof VariableExpression ve
-                             && ve.variable() instanceof This thisVar
-                             && thisVar.typeInfo() == methodInfo.typeInfo());
-                doIndependent(methodInfo, variableData);
-
-                for (ParameterInfo pi : methodInfo.parameters()) {
-                    VariableInfoContainer vic = variableData.variableInfoContainerOrNull(pi.fullyQualifiedName());
-                    if (vic != null) {
-                        VariableInfo vi = vic.best();
-                        Value.Bool unmodified = vi.analysis().getOrDefault(UNMODIFIED_VARIABLE, ValueImpl.BoolImpl.FALSE);
-                        if (vi.linkedVariables() != null && (unmodified == null || unmodified.isTrue())) {
-                            for (Map.Entry<Variable, LV> entry : vi.linkedVariables()) {
-                                if (entry.getKey() instanceof FieldReference fr && fr.scopeIsRecursivelyThis()) {
-                                    Value.Bool unmodifiedField = fr.fieldInfo().analysis().getOrNull(UNMODIFIED_FIELD, ValueImpl.BoolImpl.class);
-                                    if (unmodifiedField == null) {
-                                        unmodified = null;
-                                        waitForField.computeIfAbsent(methodInfo, m -> new HashSet<>())
-                                                .add(fr.fieldInfo());
-                                        break;
-                                    } else if (unmodifiedField.isFalse()) {
-                                        unmodified = FALSE;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        if (unmodified != null) {
-                            pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, unmodified);
+            } else {
+                Bool unmodifiedField = fieldValue.field().analysis().getOrNull(UNMODIFIED_FIELD,
+                        ValueImpl.BoolImpl.class);
+                if (unmodifiedField == null) {
+                    waitForField.computeIfAbsent(methodInfo, m -> new HashSet<>())
+                            .add(fieldValue.field());
+                    UNDECIDED.debug("MI: Unmodified of setter parameter of {} undecided: wait for field {}",
+                            methodInfo, waitForField);
+                } else {
+                    for (ParameterInfo pi : methodInfo.parameters()) {
+                        if (pi.index() == fieldValue.parameterIndexOfIndex()) {
+                            pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
+                            DECIDE.debug("MI: Decide unmodified of setter index parameter: {} = true", pi);
+                        } else {
+                            pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, unmodifiedField);
+                            DECIDE.debug("MI: Decide unmodified of setter parameter: {} = {}", pi, unmodifiedField);
                         }
                     }
                 }

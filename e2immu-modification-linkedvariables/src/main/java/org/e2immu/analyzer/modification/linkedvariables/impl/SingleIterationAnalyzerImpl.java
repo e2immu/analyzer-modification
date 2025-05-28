@@ -61,15 +61,16 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                 }
                 MethodModAnalyzer.Output output = methodModAnalyzer.go(methodInfo, activateCycleBreaking);
                 methodsWaitFor.put(methodInfo, output.waitForMethods());
-                builder.add(methodInfo, output.waitForMethods());
-                builder.add(methodInfo, output.waitForIndependenceOfTypes());
+                if (!output.waitForMethods().isEmpty()) builder.add(methodInfo, output.waitForMethods());
+                if (!output.waitForIndependenceOfTypes().isEmpty())
+                    builder.add(methodInfo, output.waitForIndependenceOfTypes());
                 analyzerExceptions.addAll(output.analyzerExceptions());
             } else if (info instanceof FieldInfo fieldInfo) {
                 if (fieldInfo.owner().isAbstract()) {
                     shallowTypeAnalyzer.analyzeField(fieldInfo);
                 }
                 FieldAnalyzer.Output output = fieldAnalyzer.go(fieldInfo);
-                builder.add(fieldInfo, output.waitFor());
+                if (!output.waitFor().isEmpty()) builder.add(fieldInfo, output.waitFor());
                 analyzerExceptions.addAll(output.analyzerExceptions());
             } else if (info instanceof TypeInfo typeInfo) {
                 runTypeAnalyzers(activateCycleBreaking, typeInfo, methodsWaitFor, analyzerExceptions, builder);
@@ -102,13 +103,13 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
         TypeIndependentAnalyzer.Output output2 = typeIndependentAnalyzer.go(typeInfo,
                 activateCycleBreaking);
         analyzerExceptions.addAll(output2.analyzerExceptions());
-        builder.add(typeInfo, output2.internalWaitFor());
-        builder.add(typeInfo, output2.externalWaitFor());
+        if (!output2.internalWaitFor().isEmpty()) builder.add(typeInfo, output2.internalWaitFor());
+        if (!output2.externalWaitFor().isEmpty()) builder.add(typeInfo, output2.externalWaitFor());
 
         TypeImmutableAnalyzer.Output output3 = typeImmutableAnalyzer.go(typeInfo,
                 activateCycleBreaking);
         analyzerExceptions.addAll(output3.analyzerExceptions());
-        builder.add(typeInfo, output3.internalWaitFor());
-        builder.add(typeInfo, output3.externalWaitFor());
+        if (!output3.internalWaitFor().isEmpty()) builder.add(typeInfo, output3.internalWaitFor());
+        if (!output3.externalWaitFor().isEmpty()) builder.add(typeInfo, output3.externalWaitFor());
     }
 }
