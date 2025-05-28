@@ -77,7 +77,19 @@ class ExpressionAnalyzer {
                                            Stage stageOfPrevious,
                                            Expression expression) {
         Expression translated = expression.translate(applyGetSetTranslation);
-        return new Internal(currentMethod, variableDataPrevious, stageOfPrevious).eval(translated);
+        EvaluationResult er = new Internal(currentMethod, variableDataPrevious, stageOfPrevious).eval(translated);
+        if (expression instanceof MethodCall mc && translated instanceof Assignment a) {
+            // setter, we want to set the method call's LINKED_VARIABLES_ARGUMENTS
+            List<LinkedVariables> list;
+            if (mc.parameterExpressions().size() == 1) {
+                list = List.of(er.linkedVariables());
+            } else if (mc.parameterExpressions().size() == 2) {
+                list = List.of(LinkedVariablesImpl.EMPTY, er.linkedVariables());
+            } else throw new UnsupportedOperationException();
+            mc.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_ARGUMENTS,
+                    new LinkedVariablesImpl.ListOfLinkedVariablesImpl(list));
+        }
+        return er;
     }
 
     private class Internal {
