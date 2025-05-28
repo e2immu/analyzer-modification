@@ -122,23 +122,24 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
         List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         while (true) {
             ++iterations;
+            LOGGER.info("Start iteration {}", iterations);
             SingleIterationAnalyzer.Output output = singleIterationAnalyzer.go(analysisOrder, false);
-            G<Info> waitingFor = output.waitFor();
+            G<Info> waitFor = output.waitFor();
             analyzerExceptions.addAll(output.analyzerExceptions());
-            boolean done = waitingFor.vertices().isEmpty();
+            boolean done = waitFor.vertices().isEmpty();
             if (iterations == configuration.maxIterations() || done) {
                 LOGGER.info("Stop iterating after {} iterations, done? {}", iterations, done);
-                return new OutputImpl(waitingFor, new Cycles<>(Set.of()), iterations,
+                return new OutputImpl(waitFor, new Cycles<>(Set.of()), iterations,
                         output.infoHistogram(), analyzerExceptions);
             }
-            int waitingForSize = waitingFor.vertices().size();
-            if (waitingForSize >= prevWaitingForSize) {
-                Linearize.Result<Info> result = Linearize.linearize(waitingFor);
+            int waitForSize = waitFor.vertices().size();
+            if (waitForSize >= prevWaitingForSize) {
+                Linearize.Result<Info> result = Linearize.linearize(waitFor);
                 Cycles<Info> cycles = result.remainingCycles();
-                LOGGER.info("No improvements anymore, have {} cycles", cycles.size());
+                LOGGER.info("No improvements anymore, have {} cycles after {} iterations", cycles.size(), iterations);
                 assert !cycles.isEmpty();
                 if (configuration.stopWhenCycleDetectedAndNoImprovements()) {
-                    return new OutputImpl(waitingFor, cycles, iterations, output.infoHistogram(), analyzerExceptions);
+                    return new OutputImpl(waitFor, cycles, iterations, output.infoHistogram(), analyzerExceptions);
                 }
                 ++iterations;
                 SingleIterationAnalyzer.Output output2 = singleIterationAnalyzer.go(analysisOrder, true);
@@ -149,8 +150,8 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
                 return new OutputImpl(waitFor2, new Cycles<>(Set.of()), iterations,
                         output.infoHistogram(), analyzerExceptions);
             }
-            LOGGER.info("WaitingFor now {}, iterating again", waitingForSize);
-            prevWaitingForSize = waitingForSize;
+            LOGGER.info("WaitingFor now {}, iterating again", waitForSize);
+            prevWaitingForSize = waitForSize;
         }
     }
 }

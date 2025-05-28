@@ -79,7 +79,7 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
         if (mc.parameterExpressions().size() == 1) {
             ParameterizedType arrayType = type.copyWithArrays(type.arrays() + 1);
             FieldReference fr = runtime.newFieldReference(getSet.field(), object, arrayType);
-            Expression index = mc.parameterExpressions().get(0);
+            Expression index = mc.parameterExpressions().getFirst();
             Expression replacedIndex = index.translate(this);
             VariableExpression arrayExpression = runtime.newVariableExpressionBuilder()
                     .setVariable(fr)
@@ -103,7 +103,7 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
         CommaExpression previousFluent;
         if (translatedObject instanceof CommaExpression ce) {
             previousFluent = ce;
-            object = ce.expressions().get(ce.expressions().size() - 1);
+            object = ce.expressions().getLast();
         } else {
             object = unwrap(translatedObject);
             previousFluent = null;
@@ -120,6 +120,7 @@ public record ApplyGetSetTranslation(Runtime runtime) implements TranslationMap 
                     .build();
             v = runtime.newDependentVariable(arrayExpression, replacedIndex, type);
         } else {
+          //    v = runtime.newFieldReference(getSet.field(), object, getSet.field().type());
             v = runtime.newFieldReference(getSet.field(), object, object.parameterizedType());
         }
         VariableExpression target = runtime.newVariableExpressionBuilder().setVariable(v).setSource(mc.source()).build();

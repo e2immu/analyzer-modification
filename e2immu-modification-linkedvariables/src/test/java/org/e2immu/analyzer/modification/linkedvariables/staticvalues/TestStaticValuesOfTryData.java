@@ -1,6 +1,9 @@
 package org.e2immu.analyzer.modification.linkedvariables.staticvalues;
 
+import org.e2immu.analyzer.modification.linkedvariables.Analyzer;
 import org.e2immu.analyzer.modification.linkedvariables.CommonTest;
+import org.e2immu.analyzer.modification.linkedvariables.IteratingAnalyzer;
+import org.e2immu.analyzer.modification.linkedvariables.impl.IteratingAnalyzerImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -199,7 +202,13 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
         testGetSet(tryData, tryDataImpl);
 
-        analyzer.go(analysisOrder, 3);
+        IteratingAnalyzer iteratingAnalyzer = new IteratingAnalyzerImpl(runtime);
+        IteratingAnalyzer.Configuration configuration = new IteratingAnalyzerImpl.ConfigurationBuilder()
+                .setCycleBreakingStrategy(Analyzer.CycleBreakingStrategy.NO_INFORMATION_IS_NON_MODIFYING)
+                .setMaxIterations(3)
+                .setStopWhenCycleDetectedAndNoImprovements(false) // we'll give cycle breaking a chance
+                .build();
+        iteratingAnalyzer.analyze(analysisOrder, configuration);
 
         testBuilderBody(builder);
         testBuilderBuild(builder);
