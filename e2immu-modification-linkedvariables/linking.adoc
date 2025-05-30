@@ -163,7 +163,6 @@ In this particular case, the variable `t` links `-S-` to the _return value_.
 
 Combining the three links, we obtain that the variable `t` links `*-HC-0` to the variable `list`.
 
-
 ==== Parameter to object
 
 Example: `list.subList(0, 5).add(t)`.
@@ -189,17 +188,35 @@ Example: `Collections.add(list, t1, t2);`
 There is a formal link between formal parameter 0 and the varargs parameter 1: `p0:0-HC-0:v1`.
 That translates in `p0:0-HC-\*:p1`, `p0:0-HC-*:p2`.
 
-
 === Array access
-
 
 Example `T t = ts[0];`:: Note that there cannot be a difference between array access and `List.get(index)`.
 So we must arrive at `t:*-HC-0:ts`.
 
-Example `T t = ts[0][0]`:: If we follow the `List.get` analogy, we must arrive at `t:*-HC-0.0:ts`,
-with `0.0` rather than `0` because the hidden content type `T` is not known in the outer list.
-
+Example `T t = ts[0][0]`:: If we follow the `List.get` analogy, we must arrive at `t:*-HC-0.0:ts`, with `0.0` rather than `0` because the hidden content type `T` is not known in the outer list.
 
 === Functional parameters
 
-Yet another layer of complexity.
+What do we want in concrete examples?
+
+Example `Stream<T> s = IntStream.range(0, 3).mapToObj(list::get)`:: should end up `s:0-HC-0:list`: the hidden content of the `list` is propagated to the hidden content of the stream `s`.
+Can also be written as `Stream<T> s = IntStream.range(0, 3).mapToObj(index -> list.get(index))`
+
+Example `list1.forEach(list2::add)`:: should end up `list1:0-HC-0:list2`: the hidden content of the first list is propagated to the second list.
+This is easier seen as `list1.forEach(t -> list.add(t))`
+
+* `forEach takes a `Consumer c`, with method `void accept(T t)`.
+We write `list1:0-HC-0:c`, but what we intend is to iteratively link the hidden content of `list1` to the parameter of the `accept` method.
+* in the actual implementation `List.add(T)` accepts the consumer's parameter, and links it to the object, `list`.
+
+
+For each concrete functional type, we query: what is the hidden content input or source, and what is the output or destination?
+
+In the first example, the input is the _object_, and the output is the _return value_.
+If the result of the method that applies the functional type has the output as its hidden content, we move on from a single return value `\*` to its place in the hidden content of that result.
+
+In the second example, the input is _parameter 0_ of `List.add`, and the output, or rather destination, is the _object_.
+
+* _outer method object_ (Example 2) and/or SAM _object_ (Example 1) provide source
+* _outer method return value_ in combination of SAM _return value_ (Example 1), or SAM _object_ (Example 2) provide the target
+
