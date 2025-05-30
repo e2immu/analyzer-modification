@@ -678,7 +678,7 @@ class LinkHelper {
         assert sourceTypeIn != null;
      //   assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
      //   assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
-      //  assert hiddenContentSelectorOfTarget.compatibleWith(runtime, methodTargetType);
+        assert hiddenContentSelectorOfTarget.compatibleWith(runtime, methodTargetType);
 
         ParameterizedType sourceType = ensureTypeParameters(sourceTypeIn); // Pair -> Pair<Object, Object>
         assert targetTypeIn != null;

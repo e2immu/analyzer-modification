@@ -5,6 +5,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.Index;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
@@ -62,19 +63,21 @@ public class HiddenContentSelector implements Value {
     // used for assertions!
     public boolean compatibleWith(Runtime runtime, ParameterizedType pt) {
         if (isNone()) return true;
-        if (hiddenContentTypes.getTypeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
-            return true;
-        }
-        if (hiddenContentTypes.getHctTypeInfo() != null
-            && hiddenContentTypes.getHctTypeInfo().getTypeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
-            return true;
-        }
-        if (hiddenContentTypes.getTypeToIndex().keySet().stream().anyMatch(nt ->
-                nt.asParameterizedType().isAssignableFrom(runtime, pt))) {
-            return true;
+        ParameterizedType ptWithoutArrays = pt.copyWithoutArrays();
+        if (findType(hiddenContentTypes, runtime, ptWithoutArrays)) return true;
+        if (hiddenContentTypes.getHctTypeInfo() != null) {
+            if (findType(hiddenContentTypes.getHctTypeInfo(), runtime, ptWithoutArrays)) return true;
         }
         LOGGER.warn("Assertion should fail: HCS {} vs {}", detailed(), pt);
         return false;
+    }
+
+    private static boolean findType(HiddenContentTypes hiddenContentTypes, Runtime runtime, ParameterizedType pt) {
+        if (hiddenContentTypes.getTypeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
+            return true;
+        }
+        return hiddenContentTypes.getTypeToIndex().keySet().stream().anyMatch(nt ->
+                nt.asParameterizedType().isAssignableFrom(runtime, pt));
     }
 
     @Override
@@ -99,7 +102,9 @@ public class HiddenContentSelector implements Value {
             Indices indices = IndicesImpl.decode(codec, context, entry.getValue());
             intIndices.put(i, indices);
         }
-        HiddenContentTypes hct = context.currentType().analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
+        MethodInfo methodInfo = context.currentMethod();
+        assert methodInfo != null : "HCS is computed for parameters and methods";
+        HiddenContentTypes hct = methodInfo.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
         assert hct != null;
         return new HiddenContentSelector(hct, Map.copyOf(intIndices));
     }
