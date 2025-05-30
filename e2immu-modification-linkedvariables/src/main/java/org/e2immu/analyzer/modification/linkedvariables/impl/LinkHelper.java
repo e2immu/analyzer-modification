@@ -51,7 +51,7 @@ class LinkHelper {
     private final TypeInfo currentPrimaryType;
     private final MethodInfo methodInfo;
     private final HiddenContentTypes hiddenContentTypes;
-    private final HiddenContentSelector hcsSource;
+    private final HiddenContentSelector hcsObject;
 
     public LinkHelper(Runtime runtime,
                       GenericsHelper genericsHelper,
@@ -65,7 +65,7 @@ class LinkHelper {
         this.hiddenContentTypes = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         this.methodInfo = methodInfo;
         ParameterizedType formalObject = this.methodInfo.typeInfo().asParameterizedType();
-        this.hcsSource = HiddenContentSelector.selectAll(hiddenContentTypes, formalObject);
+        this.hcsObject = HiddenContentSelector.selectAll(hiddenContentTypes, formalObject);
     }
 
     /*
@@ -268,7 +268,7 @@ class LinkHelper {
         }
         ParameterizedType concreteArgumentType = parameterExpression.parameterizedType();
         LinkedVariables lvsArgumentToMethod = linkedVariablesOfParameter(pi.parameterizedType(),
-                concreteArgumentType, lvsArgument, hcsSource, pi.isVarArgs());
+                concreteArgumentType, lvsArgument, hcsObject, pi.isVarArgs());
         LinkedVariables lvsToObjectOrReturnVariable;
         Independent independentOfObjectOrReturnValue;
         EvaluationResult.Builder builder;
@@ -340,14 +340,14 @@ class LinkHelper {
                                                   ParameterizedType concreteTypeOfObjectOrReturnVariable,
                                                   ParameterizedType formalTypeOfObjectOrReturnVariable) {
         Integer indexToDirectlyLinkedField = computeIndexToDirectlyLinkedField(pi);
-        HiddenContentSelector hcsTarget = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        HiddenContentSelector hcsParameter = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
         if (toReturnVariable) {
             // parameter -> return variable
-            HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
-            return linkedVariables(this.hcsSource, concreteTypeOfArgument, pi.parameterizedType(),
-                    hcsTarget, lvsToObjectOrReturnVariable, false,
+            HiddenContentSelector hcsReturnVariable = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
+            return linkedVariables(this.hcsObject, concreteTypeOfArgument, pi.parameterizedType(),
+                    hcsParameter, lvsToObjectOrReturnVariable, false,
                     formalParameterIndependent, concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
-                    methodHcs, false, indexToDirectlyLinkedField);
+                    hcsReturnVariable, false, indexToDirectlyLinkedField);
         }
         Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
         if (pi.parameterizedType().isTypeParameter() && !concreteTypeOfArgument.parameters().isEmpty()) {
@@ -358,10 +358,10 @@ class LinkHelper {
         }
         if (!mutable.isImmutable()) {
             // object -> parameter (rather than the other way around)
-            return linkedVariables(this.hcsSource, concreteTypeOfObjectOrReturnVariable,
-                    formalTypeOfObjectOrReturnVariable, this.hcsSource, lvsToObjectOrReturnVariable, pi.isVarArgs(),
+            return linkedVariables(this.hcsObject, concreteTypeOfObjectOrReturnVariable,
+                    formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsToObjectOrReturnVariable, pi.isVarArgs(),
                     formalParameterIndependent, concreteTypeOfArgument, pi.parameterizedType(),
-                    hcsTarget, true, indexToDirectlyLinkedField);
+                    hcsParameter, true, indexToDirectlyLinkedField);
         }
         return null;
     }
@@ -589,8 +589,8 @@ class LinkHelper {
         Integer indexOfDirectlyLinkedField = fieldValue.field() != null && !fieldValue.setter()
                 ? fieldValue.field().indexInType() : null;
 
-        LinkedVariables lvs = linkedVariables(hcsSource, objectType,
-                methodType, hcsSource, linkedVariablesOfObject,
+        LinkedVariables lvs = linkedVariables(hcsObject, objectType,
+                methodType, hcsObject, linkedVariablesOfObject,
                 false,
                 independent, returnType, methodReturnType, hcsTarget,
                 false, indexOfDirectlyLinkedField);
@@ -661,7 +661,7 @@ class LinkHelper {
      *                                      only deal with *->0 in this method, never 0->*,
      * @return the linked values of the target
      */
-    private LinkedVariables linkedVariables(HiddenContentSelector hcsSource,
+    private LinkedVariables linkedVariables(HiddenContentSelector hcsObject,
                                             ParameterizedType sourceTypeIn,
                                             ParameterizedType methodSourceType,
                                             HiddenContentSelector hiddenContentSelectorOfSource,
@@ -701,7 +701,7 @@ class LinkHelper {
         if (lvFunctional != null) return lvFunctional;
 
         Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
-                () -> hcsSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType, sourceIsVarArgs);
+                () -> hcsObject.translateHcs(runtime, genericsHelper, methodSourceType, sourceType, sourceIsVarArgs);
 
         Value.Immutable immutableOfFormalSource;
         if (sourceType.typeInfo() != null) {
