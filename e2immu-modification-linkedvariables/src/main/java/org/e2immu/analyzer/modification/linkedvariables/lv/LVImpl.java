@@ -8,7 +8,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import java.util.Map;
 import java.util.Objects;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.NoLinksImpl.NO_LINKS;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.NoLinks.NO_LINKS;
 
 /*
 initial delay: value can still become statically_assigned

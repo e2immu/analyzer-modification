@@ -11,12 +11,13 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class MultiLinksImpl implements Links {
-    private final List<SingleLinksImpl> chain;
+public class LinksChain implements Links {
+    private final List<Links> chain;
     private final Map<Integer, FromToMutable> hcMethodToFromToMutableMap;
 
-    public MultiLinksImpl(List<SingleLinksImpl> chain, Map<Integer, FromToMutable> hcMethodToFromToMutableMap) {
-        assert chain != null && chain.size() > 1;
+    public LinksChain(List<Links> chain, Map<Integer, FromToMutable> hcMethodToFromToMutableMap) {
+        assert chain != null && chain.size() > 1
+                && chain.stream().allMatch(l -> l instanceof DirectAccessLinks || l instanceof SingleLinks);
         this.chain = chain;
         assert hcMethodToFromToMutableMap != null && !hcMethodToFromToMutableMap.isEmpty();
         this.hcMethodToFromToMutableMap = hcMethodToFromToMutableMap;
@@ -27,7 +28,7 @@ public class MultiLinksImpl implements Links {
         Map<Integer, FromToMutable> newMap = hcMethodToFromToMutableMap.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey,
                         e -> e.getValue().withMutable(false)));
-        return new MultiLinksImpl(chain, newMap);
+        return new LinksChain(chain, newMap);
     }
 
     @Override
@@ -62,7 +63,7 @@ public class MultiLinksImpl implements Links {
     }
 
     @Override
-    public boolean singleMethodLinks() {
+    public boolean singleLink() {
         return false;
     }
 

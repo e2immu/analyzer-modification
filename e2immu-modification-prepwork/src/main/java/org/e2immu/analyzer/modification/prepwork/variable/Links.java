@@ -20,7 +20,7 @@ public interface Links extends DijkstraShortestPath.Connection {
 
     // if not single method links, then a chain of method calls eventually resulting in the current from -> to
 
-    boolean singleMethodLinks();
+    boolean singleLink();
 
     // hcsMethodFrom() === fullChain().getFirst().hcsMethodFrom()
     // hcsMethodTo() === fullChain().getLast().hcsMethodTo();

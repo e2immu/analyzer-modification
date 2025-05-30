@@ -4,7 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinks;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -42,7 +42,7 @@ public class TestWeightedGraph15C extends CommonWG {
 
         wg = new WeightedGraphImpl();
 
-        LV linkAR = LVImpl.createDependent(new SingleLinksImpl(Map.of(ALL_INDICES, new LinkImpl(i0, true)),
+        LV linkAR = LVImpl.createDependent(new SingleLinks(Map.of(ALL_INDICES, new LinkImpl(i0, true)),
                 ALL_INDICES, new IndicesImpl(0)));
         assertEquals("*M-2-0M|*-0", linkAR.toString());
 

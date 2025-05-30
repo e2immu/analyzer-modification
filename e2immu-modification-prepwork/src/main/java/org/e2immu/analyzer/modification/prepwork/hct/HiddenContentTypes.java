@@ -106,10 +106,6 @@ public class HiddenContentTypes implements Value {
         typeToIndex = Map.copyOf(t2i);
     }
 
-    public boolean isAll(int i) {
-        return typeInfo == typeByIndex(i);
-    }
-
     @Override
     public boolean isDefault() {
         return equals(NO_VALUE);
@@ -138,7 +134,7 @@ public class HiddenContentTypes implements Value {
             } else if (!"M".equals(key)) {
                 int index = Integer.parseInt(key);
                 NamedType namedType;
-                if (entry.getValue() instanceof CodecImpl.D d && d.s() instanceof StringLiteral sl) {
+                if (entry.getValue() instanceof CodecImpl.D(org.parsers.json.Node s) && s instanceof StringLiteral sl) {
                     String string = CodecImpl.unquote(sl.getSource());
                     char first = string.charAt(0);
                     String rest = string.substring(1);
@@ -396,5 +392,10 @@ public class HiddenContentTypes implements Value {
         if (indexToType.containsKey(index)) return true;
         if (hctTypeInfo != null) return containsIndex(index);
         return false;
+    }
+
+    public static HiddenContentTypes best(Runtime runtime, ParameterizedType parameterizedType) {
+        TypeInfo bestType = Objects.requireNonNullElse(parameterizedType.bestTypeInfo(), runtime.objectTypeInfo());
+        return bestType.analysis().getOrNull(HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
     }
 }

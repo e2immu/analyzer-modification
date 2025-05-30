@@ -2,7 +2,10 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.common.getset.ApplyGetSetTranslation;
-import org.e2immu.analyzer.modification.linkedvariables.lv.*;
+import org.e2immu.analyzer.modification.linkedvariables.lv.DirectAccessLinks;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.staticvalues.StaticValuesHelper;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
@@ -427,12 +430,17 @@ class ExpressionAnalyzer {
                     targetIndices = null;
                 }
             } else throw new UnsupportedOperationException();
-            Map<Indices, Link> linkMap;
+            HiddenContentTypes hctFrom = HiddenContentTypes.best(runtime, fieldType);
+            HiddenContentTypes hctTo = HiddenContentTypes.best(runtime, v.parameterizedType());
+            Map<Integer, Links.FromToMutable> linkMap;
             if (targetIndices == null) {
                 linkMap = Map.of();
                 assert isMutable;
             } else {
-                linkMap = Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(targetIndices, isMutable));
+                // from = hc index in
+                int from = hctFrom.indexOfAll();
+                int to = hctTo.indexOfAll();
+                linkMap = Map.of(0, new Links.FromToMutable(from, to, isMutable);
             }
 
             // recursion
@@ -444,7 +452,7 @@ class ExpressionAnalyzer {
             }
 
             // create the link, and add it
-            Links links = new SingleLinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
+            Links links = new DirectAccessLinks(linkMap, hctFrom, hctTo, sourceModificationArea, targetModificationAreaRecursion);
             LV lv;
             if (isMutable && !currentLink.isCommonHC()) {
                 lv = LVImpl.createDependent(links);
@@ -453,6 +461,7 @@ class ExpressionAnalyzer {
             }
             return lv;
         }
+
 
         /*
         situation: fieldType is T, TP#0 in M.

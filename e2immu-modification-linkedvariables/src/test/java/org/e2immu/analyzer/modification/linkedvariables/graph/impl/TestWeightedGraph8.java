@@ -4,7 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinks;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +44,7 @@ public class TestWeightedGraph8 extends CommonWG {
         wg = new WeightedGraphImpl();
 
         LV map_4_keys = v4;
-        LV map_4_values = LVImpl.createHC(new SingleLinksImpl(Map.of(i1, new LinkImpl(i0, false))));
+        LV map_4_values = LVImpl.createHC(new SingleLinks(Map.of(i1, new LinkImpl(i0, false))));
         assertEquals("1-4-0", map_4_values.toString());
         assertEquals("0-4-0", map_4_keys.reverse().toString());
 

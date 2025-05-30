@@ -10,11 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-public class NoLinksImpl implements Links {
-    public static final Links NO_LINKS = new SingleLinksImpl(null, Map.of(), null, null,
-            null, null);
+public class NoLinks implements Links {
+    public static final Links NO_LINKS = new NoLinks();
 
-    private NoLinksImpl() {
+    private NoLinks() {
         // no code here
     }
 
@@ -54,7 +53,7 @@ public class NoLinksImpl implements Links {
     }
 
     @Override
-    public boolean singleMethodLinks() {
+    public boolean singleLink() {
         throw new UnsupportedOperationException();
     }
 

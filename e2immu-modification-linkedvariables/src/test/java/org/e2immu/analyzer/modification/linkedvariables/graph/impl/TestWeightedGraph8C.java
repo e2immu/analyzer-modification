@@ -4,7 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinks;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -47,9 +47,9 @@ public class TestWeightedGraph8C extends CommonWG {
 
         wg = new WeightedGraphImpl();
 
-        LV r_2_a = LVImpl.createDependent(new SingleLinksImpl(Map.of(i0, new LinkImpl(i0, false)),
+        LV r_2_a = LVImpl.createDependent(new SingleLinks(Map.of(i0, new LinkImpl(i0, false)),
                 new IndicesImpl(0), IndicesImpl.ALL_INDICES));
-        LV r_2_b = LVImpl.createDependent(new SingleLinksImpl(Map.of(i1, new LinkImpl(i0, false)),
+        LV r_2_b = LVImpl.createDependent(new SingleLinks(Map.of(i1, new LinkImpl(i0, false)),
                 new IndicesImpl(1), IndicesImpl.ALL_INDICES));
         assertEquals("1-2-0|1-*", r_2_b.toString());
         assertEquals("0-2-0|*-0", r_2_a.reverse().toString());
