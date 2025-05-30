@@ -71,6 +71,34 @@ public class TestLinkBasics extends CommonTest {
 
 
     @Language("java")
+    private static final String INPUT00 = """
+            package a.b;
+            import java.util.List;
+            class X<T> {
+                List<T> list;
+                T remove(int pos) {
+                    return list.remove(pos*2);
+                }
+            }
+            """;
+
+    @DisplayName("get element from a list, non-getter")
+    @Test
+    public void test00() {
+        TypeInfo X = javaInspector.parse(INPUT00);
+        List<Info> analysisOrder = prepWork(X);
+        MethodInfo get = X.findUniqueMethod("remove", 1);
+        assertNull(get.getSetField().field()); // this method is not a getter!
+
+        analyzer.go(analysisOrder);
+
+        Statement s0 = get.methodBody().lastStatement();
+        VariableData vd0 = VariableDataImpl.of(s0);
+        VariableInfo viList0 = vd0.variableInfo(get.fullyQualifiedName());
+        assertEquals("*-4-0:list", viList0.linkedVariables().toString());
+    }
+
+    @Language("java")
     private static final String INPUT0B = """
             package a.b;
             import java.util.List;

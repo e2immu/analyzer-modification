@@ -1,5 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.variable;
 
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -86,4 +87,8 @@ public interface LinkedVariables extends Iterable<Map.Entry<Variable, LV>>, Valu
     LV value(Variable variable);
 
     Map<Variable, LV> variables();
+
+    // for assertions
+    boolean compatibleWith(HiddenContentSelector hcs);
+
 }

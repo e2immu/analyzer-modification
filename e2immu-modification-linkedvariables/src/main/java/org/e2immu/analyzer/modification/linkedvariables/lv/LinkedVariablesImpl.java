@@ -1,7 +1,7 @@
 package org.e2immu.analyzer.modification.linkedvariables.lv;
 
-import org.e2immu.analyzer.modification.prepwork.variable.LV;
-import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
+import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
+import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.Value;
@@ -395,5 +395,22 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
         Map<Variable, LV> map = variables.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> function.apply(e.getValue())));
         return of(map);
+    }
+
+    @Override
+    public boolean compatibleWith(HiddenContentSelector hcs) {
+        for (Map.Entry<Variable, LV> entry : this) {
+            for (Map.Entry<Indices, Link> link : entry.getValue().links().map().entrySet()) {
+                for (Index index : link.getKey().set()) {
+                    for (int i : index.list()) {
+                        if (i >= 0) {
+                            Indices indices = hcs.getMap().get(i);
+                            assert indices != null;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
     }
 }

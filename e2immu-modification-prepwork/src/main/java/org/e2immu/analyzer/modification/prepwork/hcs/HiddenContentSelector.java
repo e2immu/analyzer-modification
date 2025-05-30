@@ -11,6 +11,8 @@ import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +34,8 @@ end with extensible fields and  method parameters
 
  */
 public class HiddenContentSelector implements Value {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HiddenContentSelector.class);
+
     public static final HiddenContentSelector NONE = new HiddenContentSelector();
     public static final PropertyImpl HCS_METHOD = new PropertyImpl("hcsMethod", NONE);
     public static final PropertyImpl HCS_PARAMETER = new PropertyImpl("hcsParameter", NONE);
@@ -53,6 +57,24 @@ public class HiddenContentSelector implements Value {
     public HiddenContentSelector(HiddenContentTypes hiddenContentTypes, Map<Integer, Indices> map) {
         this.map = map;
         this.hiddenContentTypes = hiddenContentTypes;
+    }
+
+    // used for assertions!
+    public boolean compatibleWith(Runtime runtime, ParameterizedType pt) {
+        if (isNone()) return true;
+        if (hiddenContentTypes.getTypeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
+            return true;
+        }
+        if (hiddenContentTypes.getHctTypeInfo() != null
+            && hiddenContentTypes.getHctTypeInfo().getTypeInfo().asParameterizedType().isAssignableFrom(runtime, pt)) {
+            return true;
+        }
+        if (hiddenContentTypes.getTypeToIndex().keySet().stream().anyMatch(nt ->
+                nt.asParameterizedType().isAssignableFrom(runtime, pt))) {
+            return true;
+        }
+        LOGGER.warn("Assertion should fail: HCS {} vs {}", detailed(), pt);
+        return false;
     }
 
     @Override

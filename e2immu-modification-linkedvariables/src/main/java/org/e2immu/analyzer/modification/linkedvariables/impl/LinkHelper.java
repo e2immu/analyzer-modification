@@ -267,9 +267,9 @@ class LinkHelper {
             return;
         }
         ParameterizedType concreteArgumentType = parameterExpression.parameterizedType();
-        LinkedVariables lvsArgumentToMethod = linkedVariablesOfParameter(pi.parameterizedType(),
+        LinkedVariables lvsArgumentCorrectedToMethod = linkedVariablesOfParameter(pi.parameterizedType(),
                 concreteArgumentType, lvsArgument, hcsObject, pi.isVarArgs());
-        LinkedVariables lvsToObjectOrReturnVariable;
+        LinkedVariables lvsArgumentCorrectedToObjectOrReturnValue;
         Independent independentOfObjectOrReturnValue;
         EvaluationResult.Builder builder;
         ParameterizedType concreteObjectOrReturnType;
@@ -282,17 +282,17 @@ class LinkHelper {
             LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
                     .map(Map.Entry::getValue).findFirst().orElse(null);
             if (valueOfReturnValue != null) {
-                lvsToObjectOrReturnVariable = goFromArgumentToReturnVariable(lvsArgumentToMethod, valueOfReturnValue);
+                lvsArgumentCorrectedToObjectOrReturnValue = goFromArgumentToReturnVariable(lvsArgumentCorrectedToMethod, valueOfReturnValue);
                 independentOfObjectOrReturnValue = valueOfReturnValue.isCommonHC() ? INDEPENDENT_HC : DEPENDENT;
             } else {
-                lvsToObjectOrReturnVariable = LinkedVariablesImpl.EMPTY;
+                lvsArgumentCorrectedToObjectOrReturnValue = LinkedVariablesImpl.EMPTY;
                 independentOfObjectOrReturnValue = INDEPENDENT;
             }
             builder = intoResultBuilder;
             concreteObjectOrReturnType = resultPt;
             formalObjectOrReturnType = methodInfo.returnType();
         } else {
-            lvsToObjectOrReturnVariable = lvsArgumentToMethod;
+            lvsArgumentCorrectedToObjectOrReturnValue = lvsArgumentCorrectedToMethod;
             independentOfObjectOrReturnValue = formalParameterIndependent;
             builder = intoObjectBuilder;
             concreteObjectOrReturnType = objectPt;
@@ -300,20 +300,20 @@ class LinkHelper {
         }
         copyAdditionalLinksIntoBuilder(evaluationResultOfParameter, builder);
 
-        LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, lvsToObjectOrReturnVariable,
+        LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, lvsArgumentCorrectedToObjectOrReturnValue,
                 independentOfObjectOrReturnValue, concreteObjectOrReturnType, formalObjectOrReturnType);
-        LOGGER.debug("LV for parameter {}; {}: {}", pi, lvsToObjectOrReturnVariable, lv);
+        LOGGER.debug("LV for parameter {}; {}: {}", pi, lvsArgumentCorrectedToObjectOrReturnValue, lv);
         if (lv != null) {
             builder.mergeLinkedVariablesOfExpression(lv);
         }
     }
 
     private static LinkedVariables goFromArgumentToReturnVariable(LinkedVariables lvsArgumentToMethod,
-                                                                  LV valueOfReturnValue) {
+                                                                  LV lvReturnValue) {
         LinkedVariables lvsToObjectOrReturnVariable;
         Map<Variable, LV> map = new HashMap<>();
         for (Map.Entry<Variable, LV> e : lvsArgumentToMethod) {
-            LV follow = follow(valueOfReturnValue, e.getValue());
+            LV follow = follow(lvReturnValue, e.getValue());
             if (follow != null) {
                 map.put(e.getKey(), follow);
             }
@@ -335,7 +335,7 @@ class LinkHelper {
     private LinkedVariables computeLvForParameter(ParameterInfo pi,
                                                   boolean toReturnVariable,
                                                   ParameterizedType concreteTypeOfArgument,
-                                                  LinkedVariables lvsToObjectOrReturnVariable,
+                                                  LinkedVariables lvsArgumentInFunctionOfMethod,
                                                   Independent formalParameterIndependent,
                                                   ParameterizedType concreteTypeOfObjectOrReturnVariable,
                                                   ParameterizedType formalTypeOfObjectOrReturnVariable) {
@@ -343,23 +343,23 @@ class LinkHelper {
         HiddenContentSelector hcsParameter = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
         if (toReturnVariable) {
             // parameter -> return variable
-            HiddenContentSelector hcsReturnVariable = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
+            HiddenContentSelector hcsMethod = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
             return linkedVariables(this.hcsObject, concreteTypeOfArgument, pi.parameterizedType(),
-                    hcsParameter, lvsToObjectOrReturnVariable, false,
+                    hcsParameter, lvsArgumentInFunctionOfMethod, false,
                     formalParameterIndependent, concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
-                    hcsReturnVariable, false, indexToDirectlyLinkedField);
+                    hcsMethod, false, indexToDirectlyLinkedField);
         }
         Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
         if (pi.parameterizedType().isTypeParameter() && !concreteTypeOfArgument.parameters().isEmpty()) {
             if (mutable.isMutable()) {
-                return lvsToObjectOrReturnVariable;
+                return lvsArgumentInFunctionOfMethod;
             }
-            return lvsToObjectOrReturnVariable.map(LV::changeToHc);
+            return lvsArgumentInFunctionOfMethod.map(LV::changeToHc);
         }
         if (!mutable.isImmutable()) {
             // object -> parameter (rather than the other way around)
             return linkedVariables(this.hcsObject, concreteTypeOfObjectOrReturnVariable,
-                    formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsToObjectOrReturnVariable, pi.isVarArgs(),
+                    formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
                     formalParameterIndependent, concreteTypeOfArgument, pi.parameterizedType(),
                     hcsParameter, true, indexToDirectlyLinkedField);
         }
@@ -647,6 +647,8 @@ class LinkHelper {
      * Important: this method does not deal with hidden content specific to the method, because it has been designed
      * to connect the object to the return value, as called from <code>linkedVariablesMethodCallObjectToReturnType</code>.
      * Calls originating from <code>linksInvolvingParameters</code> must take this into account.
+     * <p>
+     * IMPORTANT: this method reports the linked values of the TARGET, starting off with the linked variables of the SOURCE.
      *
      * @param sourceTypeIn                  must be type of object or parameterExpression, return type, non-evaluated
      * @param methodSourceType              the method declaration's type of the source
@@ -659,7 +661,7 @@ class LinkHelper {
      * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
      * @param reverse                       reverse the link, because we're reversing source and target, because we
      *                                      only deal with *->0 in this method, never 0->*,
-     * @return the linked values of the target
+     * @return the linked values of the target.
      */
     private LinkedVariables linkedVariables(HiddenContentSelector hcsObject,
                                             ParameterizedType sourceTypeIn,
@@ -674,6 +676,10 @@ class LinkHelper {
                                             boolean reverse,
                                             Integer indexOfDirectlyLinkedField) {
         assert sourceTypeIn != null;
+     //   assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
+     //   assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
+      //  assert hiddenContentSelectorOfTarget.compatibleWith(runtime, methodTargetType);
+
         ParameterizedType sourceType = ensureTypeParameters(sourceTypeIn); // Pair -> Pair<Object, Object>
         assert targetTypeIn != null;
         ParameterizedType targetType = ensureTypeParameters(targetTypeIn);
