@@ -624,11 +624,8 @@ class ExpressionAnalyzer {
             Value.Independent independentOfMethod = mr.methodInfo().analysis().getOrDefault(INDEPENDENT_METHOD, DEPENDENT);
             HiddenContentSelector hcsMethod = ComputeHCS.safeHcsMethod(runtime, mr.methodInfo());
 
-            Map<NamedType, ParameterizedType> map = mr.parameterizedType().initialTypeParameterMap();
-            ParameterizedType typeOfReturnValue = mr.methodInfo().returnType();
-            ParameterizedType concreteTypeOfReturnValue = typeOfReturnValue.applyTranslation(runtime, map);
-            List<ParameterizedType> concreteParameterTypes = mr.methodInfo().parameters().stream()
-                    .map(pi -> pi.parameterizedType().applyTranslation(runtime, map)).toList();
+            ParameterizedType typeOfReturnValue = mr.concreteReturnType();
+            List<ParameterizedType> concreteParameterTypes = mr.concreteParameterTypes();
             List<Value.Independent> independentOfParameters = mr.methodInfo().parameters().stream()
                     .map(pi -> pi.analysis().getOrDefault(INDEPENDENT_PARAMETER, DEPENDENT))
                     .toList();
@@ -639,8 +636,8 @@ class ExpressionAnalyzer {
             LinkedVariables linkedVariablesOfObject = scopeResult.linkedVariables();
             LinkedVariables lvs = linkHelperFunctional.functional(currentMethod.primaryType(),
                     independentOfMethod, hcsMethod, linkedVariablesOfObject,
-                    concreteTypeOfReturnValue, independentOfParameters, hcsParameters, concreteParameterTypes,
-                    List.of(linkedVariablesOfObject), concreteTypeOfReturnValue);
+                    typeOfReturnValue, independentOfParameters, hcsParameters, concreteParameterTypes,
+                    List.of(linkedVariablesOfObject), mr.parameterizedType());
             return new EvaluationResult.Builder().merge(scopeResult)
                     .setLinkedVariables(lvs)
                     .setStaticValues(StaticValuesImpl.of(mr))

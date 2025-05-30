@@ -429,10 +429,7 @@ class LinkHelper {
             if (lvToResult == 0) return LinkedVariablesImpl.of(rv, LINK_DEPENDENT);
             assert lvToResult == 1;
             // this is either a *-4-n or n-4-m
-            HiddenContentSelector hcsPi = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
-            HiddenContentSelector hcsMe = pi.methodInfo().analysis().getOrDefault(HCS_METHOD, NONE);
-            // FIXME hardcoded use hcs
-            Links links = new LinksImpl(0, IndexImpl.ALL, true);
+            Links links = hcLinkParameterToResult(pi);
             return LinkedVariablesImpl.of(rv, LVImpl.createHC(links));
         }
         LinkedVariables lvMethod = pi.methodInfo().analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
@@ -445,6 +442,21 @@ class LinkHelper {
         ReturnVariable rv = new ReturnVariableImpl(pi.methodInfo());
         LV reverse = lv.reverse(); // we must link towards to result!!!
         return LinkedVariablesImpl.of(rv, reverse);
+    }
+
+    // hasPi 1=*
+    // hasMe 1=0, 2=*
+    private Links hcLinkParameterToResult(ParameterInfo pi) {
+        HiddenContentSelector hcsPi = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
+        HiddenContentSelector hcsMe = pi.methodInfo().analysis().getOrDefault(HCS_METHOD, NONE);
+        Map<Indices, Link> map = new HashMap<>();
+        for(Map.Entry<Integer, Indices> e: hcsPi.getMap().entrySet()) {
+            Indices inMethod = hcsMe.getMap().get(e.getKey());
+            if(inMethod != null) {
+                map.put(e.getValue(), new LinkImpl(inMethod, false));
+            }
+        }
+        return new LinksImpl(map);
     }
 
     private Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
