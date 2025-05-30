@@ -116,7 +116,7 @@ It bi-directionally maps the hidden content types of the method (HCT of the *met
 It is this mapping that we will use to start computing link info.
 Link info is stored in instances of the `Links` interface.
 
-Knowing that -2- and -4- links can only be created through method calls and field or array access, we create different implementations for each of the situations.
+Knowing that -D- and -HC- links can only be created through method calls and field or array access, we create different implementations for each of the situations.
 
 === Field access
 
@@ -138,10 +138,68 @@ Writing `Z z = x.y.zx`, `x` still links `1-HC-*` to `Z` because we don't make an
 
 Writing `U u = z.y.u`, `x` now links `0.1-HC-*` to `U`, where the dotted notation `0.1` must be used because `U` has no explicit mention in the list of hidden content types of `X`.
 
+=== Method linking
+
+==== Object to return value
+
+Example: `T t = list.get(1);`.
+There are three links involved:
+
+* the _object_ links `-S-` to the variable `list`,
+* the _return value_ links `*-HC-0` to the _object_ and
+* the variable `t` links to the _return value_.
+
+The _object_'s HCS (_all_ of the HCT of the method `List.get()`) can map the hidden content types of the formal `List` interface to the corresponding object type in the concrete type of the `list` variable.
+In this particular case, that is `T`, which is an unbound type parameter in this exercise, and therefore, hidden content linking is possible.
+If it were a non-extensible type such as `String`, there would be no linking because `String` has no hidden content.
+
+When linking between two objects which share some object, we write _left indices -link type- right indices_.
+When linking between one object and another which is part of the hidden content of the first, we use the `*`
+convention. `*` represents the whole object.
+
+The _return value_'s hidden content from the point of view of the method is of index type `0` (`E`, concretely, `T`) but it is exposed as `\*` or a whole object.
+Whatever we will link to the _return value_ will have to start off the whole object.
+In this particular case, the variable `t` links `-S-` to the _return value_.
+
+Combining the three links, we obtain that the variable `t` links `*-HC-0` to the variable `list`.
+
+
+==== Parameter to object
+
+Example: `list.subList(0, 5).add(t)`.
+
+* _Parameter 0 of add_ links `-S-` to the variable `t`
+* the _object of add_ links `0-HC-*` to _parameter 0_
+* the _object of add_ links `-D-` to the _object of subList_
+* the _object of subList_ links `-S-` to the variable `list`
+
+There is essentially no difference between `rv-object` and `object-param` linking.
+Eventually, we arrive at variable `list:0-HC-*:t`.
+
+==== Parameter to parameter
+
+As long as we go via the internal method objects, there cannot be a problem.
+
+Example: `Collections.add(list, t1, t2);`
+
+* _parameter 0_ links `-S-` to variable `list`
+* _parameter 1_ links `-S-` to variable `t1`
+* _parameter 2_ links `-S-` to variable `t2`
+
+There is a formal link between formal parameter 0 and the varargs parameter 1: `p0:0-HC-0:v1`.
+That translates in `p0:0-HC-\*:p1`, `p0:0-HC-*:p2`.
+
+
 === Array access
 
 
+Example `T t = ts[0];`:: Note that there cannot be a difference between array access and `List.get(index)`.
+So we must arrive at `t:*-HC-0:ts`.
+
+Example `T t = ts[0][0]`:: If we follow the `List.get` analogy, we must arrive at `t:*-HC-0.0:ts`,
+with `0.0` rather than `0` because the hidden content type `T` is not known in the outer list.
 
 
+=== Functional parameters
 
-
+Yet another layer of complexity.
