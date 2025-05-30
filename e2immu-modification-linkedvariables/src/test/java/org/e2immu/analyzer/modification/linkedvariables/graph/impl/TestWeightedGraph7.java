@@ -4,7 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -63,19 +63,19 @@ public class TestWeightedGraph7 extends CommonWG {
 
         wg = new WeightedGraphImpl();
 
-        LV thisVar_4_map = LVImpl.createHC(new LinksImpl(Map.of(i0, new LinkImpl(i1, false))));
+        LV thisVar_4_map = LVImpl.createHC(new SingleLinksImpl(Map.of(i0, new LinkImpl(i1, false))));
         assertEquals("0-4-1", thisVar_4_map.toString());
         assertEquals("1-4-0", thisVar_4_map.reverse().toString());
 
         wg.addNode(thisVar, Map.of(map, thisVar_4_map));
-        Links l01to01 = new LinksImpl(Map.of(i0, new LinkImpl(i0, false), i1, new LinkImpl(i1, false)));
+        Links l01to01 = new SingleLinksImpl(Map.of(i0, new LinkImpl(i0, false), i1, new LinkImpl(i1, false)));
         LV map_4_entries = LVImpl.createHC(l01to01);
         assertEquals("0,1-4-0,1", map_4_entries.toString());
         wg.addNode(map, Map.of(thisVar, thisVar_4_map.reverse(), entries, map_4_entries));
         wg.addNode(entries, Map.of(map, map_4_entries.reverse(), entry, map_4_entries));
 
-        LV entry_4_l = LVImpl.createHC(new LinksImpl(0, ALL, true));
-        LV entry_4_t = LVImpl.createHC(new LinksImpl(1, ALL, true));
+        LV entry_4_l = LVImpl.createHC(new SingleLinksImpl(0, ALL, true));
+        LV entry_4_t = LVImpl.createHC(new SingleLinksImpl(1, ALL, true));
         assertEquals("0-4-*", entry_4_l.toString());
         assertEquals("1-4-*", entry_4_t.toString());
         wg.addNode(entry, Map.of(entries, map_4_entries.reverse(), l, entry_4_l, t, entry_4_t));

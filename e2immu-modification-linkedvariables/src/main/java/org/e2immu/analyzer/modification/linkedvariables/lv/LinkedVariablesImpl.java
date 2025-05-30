@@ -396,21 +396,4 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> function.apply(e.getValue())));
         return of(map);
     }
-
-    @Override
-    public boolean compatibleWith(HiddenContentSelector hcs) {
-        for (Map.Entry<Variable, LV> entry : this) {
-            for (Map.Entry<Indices, Link> link : entry.getValue().links().map().entrySet()) {
-                for (Index index : link.getKey().set()) {
-                    for (int i : index.list()) {
-                        if (i >= 0) {
-                            Indices indices = hcs.getMap().get(i);
-                            assert indices != null;
-                        }
-                    }
-                }
-            }
-        }
-        return true;
-    }
 }

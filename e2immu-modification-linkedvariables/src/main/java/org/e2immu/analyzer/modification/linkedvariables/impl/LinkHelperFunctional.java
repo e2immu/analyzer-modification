@@ -2,9 +2,8 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
@@ -88,7 +87,7 @@ class LinkHelperFunctional {
                         correctedMap.put(corrected, link);
                     }
                 }
-                Links links = new LinksImpl(correctedMap);
+                Links links = new SingleLinksImpl(correctedMap);
                 LV lv = independentHC ? LVImpl.createHC(links) : LVImpl.createDependent(links);
                 map.put(e.getKey(), lv);
             }

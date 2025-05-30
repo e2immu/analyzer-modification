@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.NoLinksImpl.NO_LINKS;
 
 public class ShortestPathImpl implements ShortestPath {
     private static final Logger LOGGER = LoggerFactory.getLogger("graph-algorithm");

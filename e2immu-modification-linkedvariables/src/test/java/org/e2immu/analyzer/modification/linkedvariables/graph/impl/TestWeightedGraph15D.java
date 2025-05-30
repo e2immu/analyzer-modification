@@ -4,8 +4,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
-import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,11 +43,11 @@ public class TestWeightedGraph15D extends CommonWG {
 
         wg = new WeightedGraphImpl();
 
-        LV linkAR = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i0, false))));
+        LV linkAR = LVImpl.createHC(new SingleLinksImpl(Map.of(ALL_INDICES, new LinkImpl(i0, false))));
         assertEquals("*-4-0", linkAR.toString());
-        LV linkBR = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i2, false))));
+        LV linkBR = LVImpl.createHC(new SingleLinksImpl(Map.of(ALL_INDICES, new LinkImpl(i2, false))));
         assertEquals("*-4-2", linkBR.toString());
-        LV linkRS = LVImpl.createHC(new LinksImpl(Map.of(ALL_INDICES, new LinkImpl(i1, false))));
+        LV linkRS = LVImpl.createHC(new SingleLinksImpl(Map.of(ALL_INDICES, new LinkImpl(i1, false))));
         assertEquals("*-4-1", linkRS.toString());
 
 

@@ -87,8 +87,4 @@ public interface LinkedVariables extends Iterable<Map.Entry<Variable, LV>>, Valu
     LV value(Variable variable);
 
     Map<Variable, LV> variables();
-
-    // for assertions
-    boolean compatibleWith(HiddenContentSelector hcs);
-
 }

@@ -80,6 +80,10 @@ public class HiddenContentSelector implements Value {
                 nt.asParameterizedType().isAssignableFrom(runtime, pt));
     }
 
+    public boolean containsIndex(int key) {
+        return map.containsKey(key);
+    }
+
     @Override
     public boolean isDefault() {
         return map.isEmpty() && hiddenContentTypes.isDefault();

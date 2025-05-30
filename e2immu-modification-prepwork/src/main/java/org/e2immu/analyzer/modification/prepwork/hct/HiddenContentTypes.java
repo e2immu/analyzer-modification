@@ -106,6 +106,10 @@ public class HiddenContentTypes implements Value {
         typeToIndex = Map.copyOf(t2i);
     }
 
+    public boolean isAll(int i) {
+        return typeInfo == typeByIndex(i);
+    }
+
     @Override
     public boolean isDefault() {
         return equals(NO_VALUE);
@@ -386,5 +390,11 @@ public class HiddenContentTypes implements Value {
 
     public boolean isTypeIsExtensible() {
         return typeIsExtensible;
+    }
+
+    public boolean containsIndex(int index) {
+        if (indexToType.containsKey(index)) return true;
+        if (hctTypeInfo != null) return containsIndex(index);
+        return false;
     }
 }

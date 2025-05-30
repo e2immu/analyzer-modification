@@ -18,7 +18,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.ShortestPath;
 import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.language.cst.api.variable.Variable;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +45,7 @@ public class TestWeightedGraph13 extends CommonWG {
 
         wg = new WeightedGraphImpl();
 
-        LV map_4_newHashMap = LVImpl.createHC(new LinksImpl(Map.of(i0, new LinkImpl(i0, false), i1, new LinkImpl(i1, true))));
+        LV map_4_newHashMap = LVImpl.createHC(new SingleLinksImpl(Map.of(i0, new LinkImpl(i0, false), i1, new LinkImpl(i1, true))));
         assertEquals("0,1M-4-0,1M", map_4_newHashMap.toString());
 
         wg.addNode(map, Map.of(map, v0, newHashMap, map_4_newHashMap));

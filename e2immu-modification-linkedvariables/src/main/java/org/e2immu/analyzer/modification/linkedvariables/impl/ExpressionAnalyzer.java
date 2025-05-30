@@ -444,7 +444,7 @@ class ExpressionAnalyzer {
             }
 
             // create the link, and add it
-            Links links = new LinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
+            Links links = new SingleLinksImpl(linkMap, sourceModificationArea, targetModificationAreaRecursion);
             LV lv;
             if (isMutable && !currentLink.isCommonHC()) {
                 lv = LVImpl.createDependent(links);

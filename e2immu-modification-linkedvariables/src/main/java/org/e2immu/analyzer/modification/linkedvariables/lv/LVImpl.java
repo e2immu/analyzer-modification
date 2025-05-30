@@ -3,16 +3,12 @@ package org.e2immu.analyzer.modification.linkedvariables.lv;
 import org.e2immu.analyzer.modification.prepwork.delay.CausesOfDelay;
 import org.e2immu.analyzer.modification.prepwork.variable.Indices;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
-import org.e2immu.analyzer.modification.prepwork.variable.Link;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Map;
+import java.util.Objects;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl.NO_LINKS;
-import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.NoLinksImpl.NO_LINKS;
 
 /*
 initial delay: value can still become statically_assigned
@@ -50,7 +46,7 @@ public class LVImpl implements LV {
 
     @Override
     public boolean haveLinks() {
-        return !links.map().isEmpty();
+        return links != NO_LINKS;
     }
 
     @Override
@@ -131,7 +127,7 @@ public class LVImpl implements LV {
         if (isDelayed()) return this;
         if (other.isDelayed()) return other;
         if (value > other.value()) return other;
-        if (!links.map().isEmpty() && !other.links().map().isEmpty()) {
+        if (haveLinks() && other.haveLinks()) {
             // IMPORTANT: the union only "compacts" on the "to" side for now, see Linking_1A.f9m()
             Links union = union(other.links());
             return new LVImpl(value, union, createLabel(union, value));
@@ -142,7 +138,7 @@ public class LVImpl implements LV {
     // both this and other have links
     // we start off with ours
     private Links union(Links other) {
-        Map<Indices, Link> res = new HashMap<>();
+   /*     Map<Indices, Link> res = new HashMap<>();
         List<Indices> keysThatLinkToAll = new ArrayList<>();
         AtomicBoolean linkToAllMutable = new AtomicBoolean();
 
@@ -160,7 +156,8 @@ public class LVImpl implements LV {
         }
         Indices maSource = links.modificationAreaSource().merge(other.modificationAreaSource());
         Indices maTarget = links.modificationAreaTarget().merge(other.modificationAreaTarget());
-        return new LinksImpl(Map.copyOf(res), maSource, maTarget);
+        return new SingleLinksImpl(Map.copyOf(res), maSource, maTarget);*/
+        throw new UnsupportedOperationException();
     }
 
     private boolean sameLinks(LV other) {
@@ -207,7 +204,7 @@ public class LVImpl implements LV {
 
     @Override
     public String minimal() {
-        if (!links.map().isEmpty()) {
+        if (haveLinks()) {
             return label;
         }
         return Integer.toString(value);
@@ -220,27 +217,26 @@ public class LVImpl implements LV {
 
     @Override
     public boolean mineIsAll() {
-        return links.map().size() == 1 && links.map().containsKey(ALL_INDICES);
+        return links.fromIsAll();
     }
 
     @Override
     public boolean theirsIsAll() {
-        return links.map().size() == 1 && links.map().values().stream().findFirst().orElseThrow().to().isAll();
+        return links.toIsAll();
     }
 
     @Override
     public boolean theirsContainsAll() {
-        return links.map().values().stream().anyMatch(l -> l.to().isAll());
+        return links.toContainsAll();
     }
 
     @Override
     public boolean propagateModification() {
-        return isDependent()
-               || isStaticallyAssignedOrAssigned();
+        return isDependent() || isStaticallyAssignedOrAssigned();
         // uncomment the following if you want to follow *-4-M
         //       || isCommonHC() && allToNonAllMod();
     }
-
+    /*
     // *M-...0M
     private boolean allToNonAllMod() {
         for (Map.Entry<Indices, Link> e : links.map().entrySet()) {
@@ -248,36 +244,42 @@ public class LVImpl implements LV {
             if (!e.getValue().mutable() || e.getValue().to().isAll()) return false;
         }
         return true;
-    }
+    }*/
 
     @Override
     public LV correctTo(Map<Indices, Indices> correctionMap) {
-        if (links.map().isEmpty()) return this;
+        if (!haveLinks()) return this;
+        /*
         boolean isHc = isCommonHC();
         Map<Indices, Link> updatedMap = links.map().entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().correctTo(correctionMap)));
-        Links updatedLinks = new LinksImpl(updatedMap);
-        return isHc ? createHC(updatedLinks) : createDependent(updatedLinks);
+        Links updatedLinks = new SingleLinksImpl(updatedMap);
+        return isHc ? createHC(updatedLinks) : createDependent(updatedLinks);*/
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public LV prefixMine(int index) {
         if (isDelayed() || isStaticallyAssignedOrAssigned()) return this;
-        if (links.map().isEmpty()) return this;
+        if (!haveLinks()) return this;
+        /*
         Map<Indices, Link> newMap = links.map().entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(e -> e.getKey().prefix(index), Map.Entry::getValue));
-        Links newLinks = new LinksImpl(newMap);
-        return isCommonHC() ? createHC(newLinks) : createDependent(newLinks);
+        Links newLinks = new SingleLinksImpl(newMap);
+        return isCommonHC() ? createHC(newLinks) : createDependent(newLinks);*/
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public LV prefixTheirs(int index) {
         if (isDelayed() || isStaticallyAssignedOrAssigned()) return this;
-        if (links.map().isEmpty()) return this;
+        if (!haveLinks()) return this;
+        /*
         Map<Indices, Link> newMap = links.map().entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, e -> e.getValue().prefixTheirs(index)));
-        Links newLinks = new LinksImpl(newMap);
-        return isCommonHC() ? createHC(newLinks) : createDependent(newLinks);
+        Links newLinks = new SingleLinksImpl(newMap);
+        return isCommonHC() ? createHC(newLinks) : createDependent(newLinks);*/
+        throw new UnsupportedOperationException();
     }
 
     @Override

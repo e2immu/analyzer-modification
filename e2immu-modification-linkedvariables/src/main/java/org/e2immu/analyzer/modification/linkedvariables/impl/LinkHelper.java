@@ -194,7 +194,7 @@ class LinkHelper {
             if (linkMap.isEmpty()) {
                 return createDependent(linkAllSameType(concreteParameterType));
             }
-            Links links = new LinksImpl(Map.copyOf(linkMap));
+            Links links = new SingleLinksImpl(Map.copyOf(linkMap));
             boolean independentHc = lv.isCommonHC();
             return independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
         }
@@ -488,7 +488,7 @@ class LinkHelper {
                 map.put(e.getValue(), new LinkImpl(inMethod, false));
             }
         }
-        return new LinksImpl(map);
+        return new SingleLinksImpl(map);
     }
 
     private Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
@@ -518,7 +518,7 @@ class LinkHelper {
 
     public Links linkAllSameType(ParameterizedType parameterizedType) {
         TypeInfo typeInfo = parameterizedType.bestTypeInfo();
-        if (typeInfo == null) return LinksImpl.NO_LINKS;
+        if (typeInfo == null) return SingleLinksImpl.NO_LINKS;
         HiddenContentTypes hct = typeInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
                 () -> new ComputeHiddenContent(runtime).compute(typeInfo));
         if (hct.hasHiddenContent()) {
@@ -528,9 +528,9 @@ class LinkHelper {
                 // from i to i, because we have a -1- relation, so the type must be the same
                 map.put(new IndicesImpl(i), new LinkImpl(new IndicesImpl(i), false));
             }
-            return new LinksImpl(Map.copyOf(map));
+            return new SingleLinksImpl(Map.copyOf(map));
         }
-        return LinksImpl.NO_LINKS;
+        return SingleLinksImpl.NO_LINKS;
     }
 
     /*
@@ -629,9 +629,9 @@ class LinkHelper {
                 if (!immutableMethodReturnType.isImmutable()) {
                     LV lv;
                     if (immutableMethodReturnType.isImmutableHC()) {
-                        lv = createHC(new LinksImpl(IndexImpl.ALL, 0, false));
+                        lv = createHC(new SingleLinksImpl(IndexImpl.ALL, 0, false));
                     } else {
-                        lv = createDependent(new LinksImpl(IndexImpl.ALL, 0, false));
+                        lv = createDependent(new SingleLinksImpl(IndexImpl.ALL, 0, false));
                     }
                     LV prev = lvMap.put(fr, lv);
                     assert prev == null;
@@ -918,7 +918,7 @@ class LinkHelper {
                         theLink = reverse ? LVImpl.createDependent(links.reverse()) : LVImpl.createDependent(links);
                     }
                 } else if (!linkMap.isEmpty()) {
-                    Links links = new LinksImpl(Map.copyOf(linkMap));
+                    Links links = new SingleLinksImpl(Map.copyOf(linkMap));
                     theLink = reverse ? LVImpl.createHC(links.reverse()) : LVImpl.createHC(links);
                 } else {
                     theLink = null;
@@ -952,7 +952,7 @@ class LinkHelper {
                 modificationAreaTarget = ALL_INDICES;
             }
         }
-        return new LinksImpl(Map.copyOf(linkMap), modificationAreaSource, modificationAreaTarget);
+        return new SingleLinksImpl(Map.copyOf(linkMap), modificationAreaSource, modificationAreaTarget);
     }
 
     private boolean isDependent(Value.Independent transferIndependent,

@@ -18,7 +18,7 @@ import org.e2immu.analyzer.modification.linkedvariables.graph.WeightedGraph;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
-import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.SingleLinksImpl;
 import org.e2immu.analyzer.modification.prepwork.variable.LV;
 import org.e2immu.analyzer.modification.prepwork.variable.Links;
 import org.e2immu.language.cst.api.variable.Variable;
@@ -45,11 +45,11 @@ public class TestWeightedGraph3 extends CommonWG {
         list = makeVariable("l");
 
         wg = new WeightedGraphImpl();
-        Links star0 = new LinksImpl(Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(new IndicesImpl(0), true)));
+        Links star0 = new SingleLinksImpl(Map.of(IndicesImpl.ALL_INDICES, new LinkImpl(new IndicesImpl(0), true)));
         LV star0Lv = LVImpl.createHC(star0);
         assertEquals("*M-4-0M", star0Lv.toString());
         wg.addNode(element, Map.of(subList, star0Lv));
-        Links d00M = new LinksImpl(Map.of(i0, new LinkImpl(i0, true)));
+        Links d00M = new SingleLinksImpl(Map.of(i0, new LinkImpl(i0, true)));
         LV d00Lv = LVImpl.createDependent(d00M);
         assertEquals("0M-2-0M", d00Lv.toString());
         wg.addNode(subList, Map.of(list, d00Lv));
