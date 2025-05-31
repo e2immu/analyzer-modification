@@ -180,32 +180,28 @@ class LinkHelperMethod extends CommonLinkHelper {
                                                   ParameterizedType concreteTypeOfObjectOrReturnVariable,
                                                   ParameterizedType formalTypeOfObjectOrReturnVariable) {
         Integer indexToDirectlyLinkedField = computeIndexToDirectlyLinkedField(pi);
+        HiddenContentSelector hcsTarget;
         if (toReturnVariable) {
             // parameter -> return variable
-            HiddenContentSelector hcsMethod = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
-            return linkHelperCore.linkedVariables(concreteTypeOfArgument, pi.parameterizedType(),
-                    hcsParameter, lvsArgumentInFunctionOfMethod,
-                    false,
-                    formalParameterIndependent,
-                    concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
-                    hcsMethod, false, indexToDirectlyLinkedField);
-        }
-        Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
-        if (pi.parameterizedType().isTypeParameter() && !concreteTypeOfArgument.parameters().isEmpty()) {
-            if (mutable.isMutable()) {
-                return lvsArgumentInFunctionOfMethod;
+            hcsTarget = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
+        } else {
+            // parameter -> object
+            hcsTarget = this.hcsObject;
+            Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
+            if (pi.parameterizedType().isTypeParameter() && !concreteTypeOfArgument.parameters().isEmpty()) {
+                if (mutable.isMutable()) {
+                    return lvsArgumentInFunctionOfMethod;
+                }
+                return lvsArgumentInFunctionOfMethod.map(LV::changeToHc);
             }
-            return lvsArgumentInFunctionOfMethod.map(LV::changeToHc);
+            if (mutable.isImmutable()) return LinkedVariablesImpl.EMPTY;
         }
-        if (!mutable.isImmutable()) {
-            // object -> parameter (rather than the other way around)
-            return linkHelperCore.linkedVariables(concreteTypeOfObjectOrReturnVariable,
-                    formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
-                    formalParameterIndependent,
-                    concreteTypeOfArgument, pi.parameterizedType(),
-                    hcsParameter, true, indexToDirectlyLinkedField);
-        }
-        return null;
+        return linkHelperCore.linkedVariables(concreteTypeOfArgument, pi.parameterizedType(),
+                hcsParameter, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
+                formalParameterIndependent,
+                concreteTypeOfObjectOrReturnVariable,
+                formalTypeOfObjectOrReturnVariable, hcsTarget,
+                indexToDirectlyLinkedField);
     }
 
     private static Integer computeIndexToDirectlyLinkedField(ParameterInfo pi) {
@@ -327,7 +323,7 @@ class LinkHelperMethod extends CommonLinkHelper {
                 false,
                 independent,
                 returnType, methodReturnType, hcsTarget,
-                false, indexOfDirectlyLinkedField);
+                indexOfDirectlyLinkedField);
 
         Value.FieldValue getSetField = methodInfo.getSetField();
         if (getSetField.field() != null && !getSetField.setter()) {

@@ -92,11 +92,12 @@ class LinkHelperBetweenParameters {
 
                 Value.Independent independentDv = level.isCommonHC() ? INDEPENDENT_HC
                         : DEPENDENT;
-                LinkedVariables mergedLvs = linkHelperObjectToReturnValue.linkedVariables(targetType,
+                LinkedVariables mergedLvs1 = linkHelperObjectToReturnValue.linkedVariables(targetType,
                         target.parameterizedType(), hcsSource,
                         targetLinkedVariables, targetIsVarArgs, independentDv,
                         sourceType, pi.parameterizedType(),
-                        hcsTarget, targetIsVarArgs, null); // IMPROVE indexOfDirectlyLinkedField??
+                        hcsTarget, null); // IMPROVE indexOfDirectlyLinkedField??
+                LinkedVariables mergedLvs = targetIsVarArgs ? mergedLvs1: mergedLvs1; // FIXME reverse?
                 crossLink(sourceLvs, mergedLvs, builder);
             }
         } // else: no value... empty varargs

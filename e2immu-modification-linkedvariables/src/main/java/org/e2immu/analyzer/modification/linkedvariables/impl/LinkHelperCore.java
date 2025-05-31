@@ -57,8 +57,6 @@ class LinkHelperCore extends CommonLinkHelper {
      * @param targetTypeIn                  must be type of object or parameterExpression, return type, non-evaluated
      * @param methodTargetType              the method declaration's type of the target
      * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
-     * @param reverse                       reverse the link, because we're reversing source and target, because we
-     *                                      only deal with *->0 in this method, never 0->*,
      * @param indexOfDirectlyLinkedField    helper info to build the modification area part of the link
      * @return the linked values of the target.
      */
@@ -71,7 +69,6 @@ class LinkHelperCore extends CommonLinkHelper {
                                     ParameterizedType targetTypeIn,
                                     ParameterizedType methodTargetType,
                                     HiddenContentSelector hiddenContentSelectorOfTarget,
-                                    boolean reverse,
                                     Integer indexOfDirectlyLinkedField) {
         assert hiddenContentSelectorOfSource.hiddenContentTypes() == hiddenContentSelectorOfTarget.hiddenContentTypes();
         assert sourceTypeIn != null;
@@ -101,7 +98,7 @@ class LinkHelperCore extends CommonLinkHelper {
             return LinkedVariablesImpl.EMPTY;
         }
 
-        LinkedVariables lvFunctional = lvFunctional(transferIndependent, hiddenContentSelectorOfTarget, reverse,
+        LinkedVariables lvFunctional = lvFunctional(transferIndependent, hiddenContentSelectorOfTarget,
                 targetType, sourceType, immutableOfSource, sourceLvs, sourceIsVarArgs, indexOfDirectlyLinkedField);
         if (lvFunctional != null) return lvFunctional;
 
@@ -127,13 +124,12 @@ class LinkHelperCore extends CommonLinkHelper {
         return continueLinkedVariables(
                 hiddenContentSelectorOfSource,
                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
-                methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse,
+                methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier,
                 indexOfDirectlyLinkedField);
     }
 
     private LinkedVariables lvFunctional(Value.Independent transferIndependent,
                                          HiddenContentSelector hiddenContentSelectorOfTarget,
-                                         boolean reverse,
                                          ParameterizedType targetType,
                                          ParameterizedType sourceType,
                                          Value.Immutable immutableOfSource,
@@ -171,11 +167,7 @@ class LinkHelperCore extends CommonLinkHelper {
                         () -> Map.of(newIndices, new HiddenContentSelector.IndicesAndType(newIndices, newSourceType));
                 HiddenContentSelector newHcsTarget;
                 ParameterizedType newTargetType;
-                if (reverse && !targetType.isTypeParameter()) {
-                    // List<T> as parameter
-                    newHcsTarget = newHiddenContentSelectorOfSource;
-                    newTargetType = newSourceType;
-                } else if (!reverse && !targetType.isTypeParameter()) {
+                if (!targetType.isTypeParameter()) {
                     // List<T> as return type
                     newTargetType = targetType;
                     newHcsTarget = newHiddenContentSelectorOfSource;
@@ -190,7 +182,7 @@ class LinkHelperCore extends CommonLinkHelper {
                     LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
                             sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
                             newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
-                            reverse, indexOfDirectlyLinkedField);
+                            indexOfDirectlyLinkedField);
                     lvsList.add(lvs);
                 }
             }
@@ -210,7 +202,6 @@ class LinkHelperCore extends CommonLinkHelper {
                                                     ParameterizedType methodTargetType,
                                                     HiddenContentSelector hiddenContentSelectorOfTarget,
                                                     Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier,
-                                                    boolean reverse,
                                                     Integer indexOfDirectlyLinkedField) {
         Map<Indices, HiddenContentSelector.IndicesAndType> hctMethodToHcsTarget = hiddenContentSelectorOfTarget
                 .translateHcs(runtime, genericsHelper, methodTargetType, targetType, sourceIsVarArgs);
@@ -289,14 +280,11 @@ class LinkHelperCore extends CommonLinkHelper {
                     }
 
                     // IMPROVE this feels rather arbitrary, see Linking_0P.reverse4 yet the 2nd clause seems needed for 1A.f10()
-                    Indices indicesInTargetWrtType = (lv.theirsIsAll()
-                                                      && entrySet.size() < hiddenContentSelectorOfTarget.getMap().size()
-                                                      && reverse) ? ALL_INDICES : targetIndices;
                     Indices correctedIndicesInTargetWrtType;
                     if (correctForVarargsMutable != null) {
                         correctedIndicesInTargetWrtType = ALL_INDICES;
                     } else {
-                        correctedIndicesInTargetWrtType = indicesInTargetWrtType;
+                        correctedIndicesInTargetWrtType = targetIndices;
                     }
                     assert correctedIndicesInTargetWrtType != null;
                     // see TestLinkToReturnValueMap,1(copy8) for an example of merging
@@ -315,11 +303,11 @@ class LinkHelperCore extends CommonLinkHelper {
                     } else {
                         Links links = buildLinks(hiddenContentSelectorOfTarget, immutable, linkMap,
                                 indexOfDirectlyLinkedField);
-                        theLink = reverse ? LVImpl.createDependent(links.reverse()) : LVImpl.createDependent(links);
+                        theLink = LVImpl.createDependent(links);
                     }
                 } else if (!linkMap.isEmpty()) {
                     Links links = new LinksImpl(Map.copyOf(linkMap));
-                    theLink = reverse ? LVImpl.createHC(links.reverse()) : LVImpl.createHC(links);
+                    theLink = LVImpl.createHC(links);
                 } else {
                     theLink = null;
                 }
