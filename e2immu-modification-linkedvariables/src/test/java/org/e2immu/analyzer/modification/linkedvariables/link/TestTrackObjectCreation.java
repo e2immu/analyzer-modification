@@ -175,11 +175,10 @@ public class TestTrackObjectCreation extends CommonTest {
             MethodInfo makeList = X.findUniqueMethod("makeList2", 1);
             Statement lastStatement = makeList.methodBody().lastStatement();
             VariableData vd1 = VariableDataImpl.of(lastStatement);
-            assertEquals("0M-4-*M:m, 0M-4-*M:oc:6-15",
+            assertEquals("0M-4-*M:oc:6-24",
                     vd1.variableInfo(makeList.fullyQualifiedName()).linkedVariables().toString());
         }
     }
-
 
     @Language("java")
     private static final String INPUT3 = """

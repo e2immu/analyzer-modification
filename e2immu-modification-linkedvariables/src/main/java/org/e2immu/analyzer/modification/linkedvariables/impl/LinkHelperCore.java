@@ -21,11 +21,13 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.function.Supplier;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_DEPENDENT;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_INDEPENDENT;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT_HC;
 
 class LinkHelperCore extends CommonLinkHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(LinkHelperCore.class);
@@ -52,6 +54,8 @@ class LinkHelperCore extends CommonLinkHelper {
      * @param sourceLvs                     linked variables of the source
      * @param sourceIsVarArgs               allow for a correction of array -> element
      * @param transferIndependent           the transfer mode (dependent, independent HC, independent)
+     * @param transferIndependentLv         the detailed transfer in terms of hcsTarget -> hcsSource, in case
+     *                                      transferIndependent is HC. Is null when transferIndependent is Independent.
      * @param targetTypeIn                  must be type of object or parameterExpression, return type, non-evaluated
      * @param methodTargetType              the method declaration's type of the target
      * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
@@ -66,6 +70,7 @@ class LinkHelperCore extends CommonLinkHelper {
                                     LinkedVariables sourceLvs,
                                     boolean sourceIsVarArgs,
                                     Value.Independent transferIndependent,
+                                    LV transferIndependentLv,
                                     ParameterizedType targetTypeIn,
                                     ParameterizedType methodTargetType,
                                     HiddenContentSelector hiddenContentSelectorOfTarget,
@@ -84,8 +89,8 @@ class LinkHelperCore extends CommonLinkHelper {
             return LinkedVariablesImpl.EMPTY;
         }
         if (hiddenContentSelectorOfTarget.isNone() && transferIndependent.isIndependentHc()) {
-            LOGGER.warn("Impossible to have no knowledge of hidden content, and INDEPENDENT_HC: {}", methodInfo);
-            return LinkedVariablesImpl.EMPTY;
+            throw new UnsupportedOperationException(
+                    "Impossible to have no knowledge of hidden content, and INDEPENDENT_HC: " + methodInfo);
         }
         Value.Immutable immutableOfSource = analysisHelper.typeImmutable(currentPrimaryType, sourceType);
 

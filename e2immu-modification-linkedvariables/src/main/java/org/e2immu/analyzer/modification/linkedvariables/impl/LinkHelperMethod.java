@@ -211,7 +211,9 @@ class LinkHelperMethod extends CommonLinkHelper {
             return linkHelperCore.linkedVariables(concreteTypeOfArgument, pi.parameterizedType(),
                     hcsParameter, lvsArgumentInFunctionOfMethod,
                     false,
-                    formalParameterIndependent, concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
+                    formalParameterIndependent,
+                    null, // FIXME
+                    concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
                     hcsMethod, false, indexToDirectlyLinkedField);
         }
         Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
@@ -225,7 +227,9 @@ class LinkHelperMethod extends CommonLinkHelper {
             // object -> parameter (rather than the other way around)
             return linkHelperCore.linkedVariables(concreteTypeOfObjectOrReturnVariable,
                     formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
-                    formalParameterIndependent, concreteTypeOfArgument, pi.parameterizedType(),
+                    formalParameterIndependent,
+                    null, // FIXME
+                    concreteTypeOfArgument, pi.parameterizedType(),
                     hcsParameter, true, indexToDirectlyLinkedField);
         }
         return null;
@@ -405,7 +409,9 @@ class LinkHelperMethod extends CommonLinkHelper {
         LinkedVariables lvs = linkHelperCore.linkedVariables(objectType,
                 methodType, hcsObject, linkedVariablesOfObject,
                 false,
-                independent, returnType, methodReturnType, hcsTarget,
+                independent,
+                null, // FIXME
+                returnType, methodReturnType, hcsTarget,
                 false, indexOfDirectlyLinkedField);
 
         Value.FieldValue getSetField = methodInfo.getSetField();
