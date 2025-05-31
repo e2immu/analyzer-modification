@@ -333,12 +333,12 @@ class LinkHelperCore extends CommonLinkHelper {
             modificationAreaSource = IndicesImpl.NO_MODIFICATION_INDICES;
             modificationAreaTarget = IndicesImpl.NO_MODIFICATION_INDICES;
         } else {
-            modificationAreaSource = ALL_INDICES;
             if (hiddenContentSelectorOfTarget.containsAll() && indexOfDirectlyLinkedField != null) {
-                modificationAreaTarget = new IndicesImpl(indexOfDirectlyLinkedField);
+                modificationAreaSource = new IndicesImpl(indexOfDirectlyLinkedField);
             } else {
-                modificationAreaTarget = ALL_INDICES;
+                modificationAreaSource = ALL_INDICES;
             }
+            modificationAreaTarget = ALL_INDICES;
         }
         return new LinksImpl(Map.copyOf(linkMap), modificationAreaSource, modificationAreaTarget);
     }

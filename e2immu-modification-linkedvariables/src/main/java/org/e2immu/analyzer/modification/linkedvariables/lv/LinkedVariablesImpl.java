@@ -413,4 +413,13 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
         }
         return true;
     }
+
+    @Override
+    public LinkedVariables reverseAll() {
+        if (isEmpty() || this == NOT_YET_SET) return this;
+        Map<Variable, LV> map = variables.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().reverse()));
+        return of(map);
+    }
+
 }

@@ -97,7 +97,7 @@ class LinkHelperBetweenParameters {
                         targetLinkedVariables, targetIsVarArgs, independentDv,
                         sourceType, pi.parameterizedType(),
                         hcsTarget, null); // IMPROVE indexOfDirectlyLinkedField??
-                LinkedVariables mergedLvs = targetIsVarArgs ? mergedLvs1: mergedLvs1; // FIXME reverse?
+                LinkedVariables mergedLvs = targetIsVarArgs ? mergedLvs1.reverseAll(): mergedLvs1;
                 crossLink(sourceLvs, mergedLvs, builder);
             }
         } // else: no value... empty varargs

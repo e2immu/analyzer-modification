@@ -14,6 +14,8 @@ import java.util.stream.Stream;
 
 public interface LinkedVariables extends Iterable<Map.Entry<Variable, LV>>, Value {
 
+    LinkedVariables reverseAll();
+
     interface ListOfLinkedVariables extends Value {
         List<LinkedVariables> list();
     }
