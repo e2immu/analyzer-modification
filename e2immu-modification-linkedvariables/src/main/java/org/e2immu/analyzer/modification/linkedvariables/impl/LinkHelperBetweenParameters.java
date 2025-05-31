@@ -56,7 +56,7 @@ class LinkHelperBetweenParameters {
 
                 Value.Independent independentDv = level.isCommonHC() ? INDEPENDENT_HC
                         : DEPENDENT;
-                LinkedVariables mergedLvs = linkHelperObjectToReturnValue.linkedVariables(hcsSource, targetType,
+                LinkedVariables mergedLvs = linkHelperObjectToReturnValue.linkedVariables(targetType,
                         target.parameterizedType(), hcsSource,
                         targetLinkedVariables, targetIsVarArgs, independentDv, sourceType, pi.parameterizedType(),
                         hcsTarget, targetIsVarArgs, null); // IMPROVE indexOfDirectlyLinkedField??

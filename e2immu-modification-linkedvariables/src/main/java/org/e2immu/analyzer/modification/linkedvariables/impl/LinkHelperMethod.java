@@ -203,7 +203,7 @@ class LinkHelperMethod extends CommonLinkHelper {
         if (toReturnVariable) {
             // parameter -> return variable
             HiddenContentSelector hcsMethod = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
-            return linkHelperObjectToReturnValue.linkedVariables(this.hcsObject, concreteTypeOfArgument, pi.parameterizedType(),
+            return linkHelperObjectToReturnValue.linkedVariables(concreteTypeOfArgument, pi.parameterizedType(),
                     hcsParameter, lvsArgumentInFunctionOfMethod, false,
                     formalParameterIndependent, concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
                     hcsMethod, false, indexToDirectlyLinkedField);
@@ -217,7 +217,7 @@ class LinkHelperMethod extends CommonLinkHelper {
         }
         if (!mutable.isImmutable()) {
             // object -> parameter (rather than the other way around)
-            return linkHelperObjectToReturnValue.linkedVariables(this.hcsObject, concreteTypeOfObjectOrReturnVariable,
+            return linkHelperObjectToReturnValue.linkedVariables(concreteTypeOfObjectOrReturnVariable,
                     formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
                     formalParameterIndependent, concreteTypeOfArgument, pi.parameterizedType(),
                     hcsParameter, true, indexToDirectlyLinkedField);

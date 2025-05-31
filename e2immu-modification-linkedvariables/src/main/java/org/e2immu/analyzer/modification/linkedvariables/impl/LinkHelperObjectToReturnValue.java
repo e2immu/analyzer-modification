@@ -106,7 +106,7 @@ class LinkHelperObjectToReturnValue extends CommonLinkHelper {
         Integer indexOfDirectlyLinkedField = fieldValue.field() != null && !fieldValue.setter()
                 ? fieldValue.field().indexInType() : null;
 
-        LinkedVariables lvs = linkedVariables(hcsObject, objectType,
+        LinkedVariables lvs = linkedVariables(objectType,
                 methodType, hcsObject, linkedVariablesOfObject,
                 false,
                 independent, returnType, methodReturnType, hcsTarget,
@@ -180,8 +180,7 @@ class LinkHelperObjectToReturnValue extends CommonLinkHelper {
      *                                      only deal with *->0 in this method, never 0->*,
      * @return the linked values of the target.
      */
-    LinkedVariables linkedVariables(HiddenContentSelector hcsObject,
-                                    ParameterizedType sourceTypeIn,
+    LinkedVariables linkedVariables(ParameterizedType sourceTypeIn,
                                     ParameterizedType methodSourceType,
                                     HiddenContentSelector hiddenContentSelectorOfSource,
                                     LinkedVariables sourceLvs,
@@ -194,7 +193,7 @@ class LinkHelperObjectToReturnValue extends CommonLinkHelper {
                                     Integer indexOfDirectlyLinkedField) {
         assert sourceTypeIn != null;
         assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
-        //   assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
+        //assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
         assert hiddenContentSelectorOfTarget.compatibleWith(runtime, methodTargetType);
 
         ParameterizedType sourceType = ensureTypeParameters(sourceTypeIn); // Pair -> Pair<Object, Object>
@@ -224,7 +223,8 @@ class LinkHelperObjectToReturnValue extends CommonLinkHelper {
         if (lvFunctional != null) return lvFunctional;
 
         Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
-                () -> hcsObject.translateHcs(runtime, genericsHelper, methodSourceType, sourceType, sourceIsVarArgs);
+                () -> hiddenContentSelectorOfSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType,
+                        sourceIsVarArgs);
 
         Value.Immutable immutableOfFormalSource;
         if (sourceType.typeInfo() != null) {
