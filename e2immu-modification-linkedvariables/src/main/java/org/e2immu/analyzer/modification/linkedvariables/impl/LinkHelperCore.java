@@ -54,8 +54,6 @@ class LinkHelperCore extends CommonLinkHelper {
      * @param sourceLvs                     linked variables of the source
      * @param sourceIsVarArgs               allow for a correction of array -> element
      * @param transferIndependent           the transfer mode (dependent, independent HC, independent)
-     * @param transferIndependentLv         the detailed transfer in terms of hcsTarget -> hcsSource, in case
-     *                                      transferIndependent is HC. Is null when transferIndependent is Independent.
      * @param targetTypeIn                  must be type of object or parameterExpression, return type, non-evaluated
      * @param methodTargetType              the method declaration's type of the target
      * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
@@ -70,7 +68,6 @@ class LinkHelperCore extends CommonLinkHelper {
                                     LinkedVariables sourceLvs,
                                     boolean sourceIsVarArgs,
                                     Value.Independent transferIndependent,
-                                    LV transferIndependentLv,
                                     ParameterizedType targetTypeIn,
                                     ParameterizedType methodTargetType,
                                     HiddenContentSelector hiddenContentSelectorOfTarget,

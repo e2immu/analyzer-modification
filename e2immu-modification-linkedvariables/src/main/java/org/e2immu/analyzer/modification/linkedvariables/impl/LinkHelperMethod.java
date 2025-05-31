@@ -212,7 +212,6 @@ class LinkHelperMethod extends CommonLinkHelper {
                     hcsParameter, lvsArgumentInFunctionOfMethod,
                     false,
                     formalParameterIndependent,
-                    null, // FIXME
                     concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
                     hcsMethod, false, indexToDirectlyLinkedField);
         }
@@ -228,7 +227,6 @@ class LinkHelperMethod extends CommonLinkHelper {
             return linkHelperCore.linkedVariables(concreteTypeOfObjectOrReturnVariable,
                     formalTypeOfObjectOrReturnVariable, this.hcsObject, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
                     formalParameterIndependent,
-                    null, // FIXME
                     concreteTypeOfArgument, pi.parameterizedType(),
                     hcsParameter, true, indexToDirectlyLinkedField);
         }
@@ -410,7 +408,6 @@ class LinkHelperMethod extends CommonLinkHelper {
                 methodType, hcsObject, linkedVariablesOfObject,
                 false,
                 independent,
-                null, // FIXME
                 returnType, methodReturnType, hcsTarget,
                 false, indexOfDirectlyLinkedField);
 

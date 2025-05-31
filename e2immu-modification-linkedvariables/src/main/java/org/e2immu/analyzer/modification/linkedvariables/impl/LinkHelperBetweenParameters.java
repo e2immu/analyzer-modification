@@ -59,7 +59,6 @@ class LinkHelperBetweenParameters {
                 LinkedVariables mergedLvs = linkHelperObjectToReturnValue.linkedVariables(targetType,
                         target.parameterizedType(), hcsSource,
                         targetLinkedVariables, targetIsVarArgs, independentDv,
-                        null, // FIXME
                         sourceType, pi.parameterizedType(),
                         hcsTarget, targetIsVarArgs, null); // IMPROVE indexOfDirectlyLinkedField??
                 crossLink(sourceLvs, mergedLvs, builder);
