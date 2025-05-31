@@ -25,17 +25,14 @@ import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.H
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 
 public class LinkHelperParameter extends CommonLinkHelper {
-    private final HiddenContentTypes hiddenContentTypes;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LinkHelperParameter.class);
 
     protected LinkHelperParameter(TypeInfo currentPrimaryType,
                                   Runtime runtime,
                                   AnalysisHelper analysisHelper,
-                                  GenericsHelper genericsHelper,
-                                  HiddenContentTypes hiddenContentTypes) {
+                                  GenericsHelper genericsHelper) {
         super(currentPrimaryType, runtime, analysisHelper, genericsHelper);
-        this.hiddenContentTypes = hiddenContentTypes;
     }
 
 
@@ -74,7 +71,8 @@ public class LinkHelperParameter extends CommonLinkHelper {
                                                LinkedVariables linkedVariablesOfParameter,
                                                HiddenContentSelector hcsSource,
                                                boolean allowVarargs) {
-        LinkedVariables res = linkedVariablesOfParameter(hiddenContentTypes, formalParameterType, concreteParameterType,
+        LinkedVariables res = linkedVariablesOfParameter(hcsSource.hiddenContentTypes(),
+                formalParameterType, concreteParameterType,
                 linkedVariablesOfParameter, hcsSource, allowVarargs);
         LOGGER.debug("LV of parameter {}; {}; {}; {} = {}", formalParameterType, concreteParameterType,
                 linkedVariablesOfParameter, hcsSource, res);
@@ -163,14 +161,16 @@ public class LinkHelperParameter extends CommonLinkHelper {
                     assert prev == null;
                 }
             }
-            if (linkMap.isEmpty()) {
-                return createDependent(linkAllSameType(concreteParameterType));
+            if (!linkMap.isEmpty()) {
+                Links links = new LinksImpl(Map.copyOf(linkMap));
+                boolean independentHc = lv.isCommonHC();
+                return independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
             }
-            Links links = new LinksImpl(Map.copyOf(linkMap));
-            boolean independentHc = lv.isCommonHC();
-            return independentHc ? LVImpl.createHC(links) : LVImpl.createDependent(links);
         }
-        return createDependent(linkAllSameType(concreteParameterType));
+        return LVImpl.LINK_DEPENDENT;
+        // org.e2immu.analyzer.modification.linkedvariables.staticvalues.TestStaticValuesRecord.test4
+        // createDependent(linkAllSameType(concreteParameterType));
+        // FIXME we should link to the indices of the HCSparam, not the existing ones
     }
 
 

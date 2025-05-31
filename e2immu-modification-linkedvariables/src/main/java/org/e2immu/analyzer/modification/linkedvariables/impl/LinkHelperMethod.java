@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl.LINKED_VARIABLES_PARAMETER;
@@ -61,11 +60,11 @@ class LinkHelperMethod extends CommonLinkHelper {
         this.methodInfo = methodInfo;
         ParameterizedType formalObject = this.methodInfo.typeInfo().asParameterizedType();
         this.hcsObject = HiddenContentSelector.selectAll(hiddenContentTypes, formalObject);
-        this.linkHelperParameter = new LinkHelperParameter(currentMethod.primaryType(), runtime,
-                analysisHelper, genericsHelper, hiddenContentTypes);
+        this.linkHelperParameter = new LinkHelperParameter(currentMethod.primaryType(), runtime, analysisHelper,
+                genericsHelper);
         this.linkHelperCore = new LinkHelperCore(methodInfo, runtime, analysisHelper,
                 genericsHelper);
-        this.linkHelperBetweenParameters = new LinkHelperBetweenParameters(linkHelperCore,
+        this.linkHelperBetweenParameters = new LinkHelperBetweenParameters(runtime, linkHelperCore,
                 linkHelperParameter);
     }
 
@@ -134,6 +133,8 @@ class LinkHelperMethod extends CommonLinkHelper {
         LinkedVariables lvsArgumentCorrectedToHcsParameter = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
                 concreteArgumentType, lvsArgument, hcsParameter,
                 pi.isVarArgs());
+        assert lvsArgumentCorrectedToHcsParameter.compatibleWith(hcsParameter);
+
         Independent independentOfObjectOrReturnValue;
         EvaluationResult.Builder builder;
         ParameterizedType concreteObjectOrReturnType;
@@ -158,20 +159,6 @@ class LinkHelperMethod extends CommonLinkHelper {
         if (lv != null) {
             builder.mergeLinkedVariablesOfExpression(lv);
         }
-    }
-
-    private static LinkedVariables goFromArgumentToReturnVariable(LinkedVariables lvsArgumentToMethod,
-                                                                  LV lvReturnValue) {
-        LinkedVariables lvsToObjectOrReturnVariable;
-        Map<Variable, LV> map = new HashMap<>();
-        for (Map.Entry<Variable, LV> e : lvsArgumentToMethod) {
-            LV follow = LinkHelperBetweenParameters.follow(lvReturnValue, e.getValue());
-            if (follow != null) {
-                map.put(e.getKey(), follow);
-            }
-        }
-        lvsToObjectOrReturnVariable = LinkedVariablesImpl.of(map);
-        return lvsToObjectOrReturnVariable;
     }
 
     private static void copyAdditionalLinksIntoBuilder(EvaluationResult evaluationResultOfParameter,
@@ -243,33 +230,12 @@ class LinkHelperMethod extends CommonLinkHelper {
                                        MethodInfo methodInfo,
                                        List<Expression> parameterExpressions,
                                        List<EvaluationResult> linkedVariables) {
-        Map<ParameterInfo, LinkedVariables> crossLinks = translateLinksToParameters(methodInfo);
+        Map<ParameterInfo, LinkedVariables> crossLinks = linkHelperBetweenParameters.translateLinksToParameters(methodInfo);
         if (crossLinks.isEmpty()) return;
         crossLinks.forEach((pi, lv) ->
-                doCrossLinkOfParameter(builder, methodInfo, parameterExpressions, linkedVariables, pi, lv));
+                linkHelperBetweenParameters.doCrossLinkOfParameter(builder, methodInfo, parameterExpressions,
+                        linkedVariables, pi, lv));
     }
-
-    private void doCrossLinkOfParameter(EvaluationResult.Builder builder,
-                                        MethodInfo methodInfo,
-                                        List<Expression> parameterExpressions,
-                                        List<EvaluationResult> linkedVariables,
-                                        ParameterInfo pi,
-                                        LinkedVariables lv) {
-        boolean sourceIsVarArgs = pi.isVarArgs();
-        assert !sourceIsVarArgs : "Varargs must always be a target";
-        HiddenContentSelector hcsSource = methodInfo.parameters().get(pi.index()).analysis()
-                .getOrDefault(HCS_PARAMETER, NONE);
-        ParameterizedType sourceType = parameterExpressions.get(pi.index()).parameterizedType();
-        LinkedVariables sourceLvs = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
-                parameterExpressions.get(pi.index()).parameterizedType(),
-                linkedVariables.get(pi.index()).linkedVariables(), hcsSource, false);
-        lv.stream().forEach(e -> {
-            ParameterInfo target = (ParameterInfo) e.getKey();
-            linkHelperBetweenParameters.doCrossLinkFromTo(builder, methodInfo, parameterExpressions, linkedVariables,
-                    pi, e, target, hcsSource, sourceType, sourceLvs);
-        });
-    }
-
 
     private Independent independentParameterToResult(ParameterInfo pi, Independent formalParameterIndependent) {
         Integer lvToResult = formalParameterIndependent.linkToParametersReturnValue() == null ? null :
@@ -298,31 +264,6 @@ class LinkHelperMethod extends CommonLinkHelper {
             return DEPENDENT;
         }
         return INDEPENDENT;
-    }
-
-    private Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
-        Map<ParameterInfo, Map<Variable, LV>> res = new HashMap<>();
-        for (ParameterInfo pi : methodInfo.parameters()) {
-            Independent independent = pi.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
-                    DEPENDENT);
-            Map<Variable, LV> lvMap = new HashMap<>();
-            for (Map.Entry<Integer, Integer> e : independent.linkToParametersReturnValue().entrySet()) {
-                if (e.getKey() >= 0) {
-                    ParameterInfo target = methodInfo.parameters().get(e.getKey());
-                    LV lv;
-                    if (e.getValue() == 0) {
-                        lv = LINK_DEPENDENT;
-                    } else {
-                        lv = createHC(linkAllSameType(pi.parameterizedType()));
-                    }
-                    LV prev = lvMap.put(target, lv);
-                    assert prev == null;
-                }
-            }
-            if (!lvMap.isEmpty()) res.put(pi, lvMap);
-        }
-        return res.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getKey,
-                e -> LinkedVariablesImpl.of(e.getValue())));
     }
 
     /*

@@ -76,7 +76,7 @@ class LinkHelperCore extends CommonLinkHelper {
         assert hiddenContentSelectorOfSource.hiddenContentTypes() == hiddenContentSelectorOfTarget.hiddenContentTypes();
         assert sourceTypeIn != null;
         assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
-        //assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
+        assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
         assert hiddenContentSelectorOfTarget.compatibleWith(runtime, methodTargetType);
 
         ParameterizedType sourceType = ensureTypeParameters(sourceTypeIn); // Pair -> Pair<Object, Object>

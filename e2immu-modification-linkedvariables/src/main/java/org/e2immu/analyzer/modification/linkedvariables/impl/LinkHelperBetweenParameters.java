@@ -1,33 +1,69 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.prepwork.variable.LV;
-import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
+import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
+import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
+import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
+import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.ParameterInfo;
+import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.Variable;
+import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_DEPENDENT;
+import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.createHC;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
+import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT_HC;
 
 class LinkHelperBetweenParameters {
     private final LinkHelperCore linkHelperObjectToReturnValue;
     private final LinkHelperParameter linkHelperParameter;
+    private final Runtime runtime;
 
-    LinkHelperBetweenParameters(LinkHelperCore linkHelperObjectToReturnValue,
+    LinkHelperBetweenParameters(Runtime runtime,
+                                LinkHelperCore linkHelperObjectToReturnValue,
                                 LinkHelperParameter linkHelperParameter) {
+        this.runtime = runtime;
         this.linkHelperObjectToReturnValue = linkHelperObjectToReturnValue;
         this.linkHelperParameter = linkHelperParameter;
+    }
+
+    void doCrossLinkOfParameter(EvaluationResult.Builder builder,
+                                        MethodInfo methodInfo,
+                                        List<Expression> parameterExpressions,
+                                        List<EvaluationResult> linkedVariables,
+                                        ParameterInfo pi,
+                                        LinkedVariables lv) {
+        boolean sourceIsVarArgs = pi.isVarArgs();
+        assert !sourceIsVarArgs : "Varargs must always be a target";
+        HiddenContentSelector hcsSource = methodInfo.parameters().get(pi.index()).analysis()
+                .getOrDefault(HCS_PARAMETER, NONE);
+        ParameterizedType sourceType = parameterExpressions.get(pi.index()).parameterizedType();
+        LinkedVariables sourceLvs = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
+                parameterExpressions.get(pi.index()).parameterizedType(),
+                linkedVariables.get(pi.index()).linkedVariables(), hcsSource, false);
+        lv.stream().forEach(e -> {
+            ParameterInfo target = (ParameterInfo) e.getKey();
+            doCrossLinkFromTo(builder, methodInfo, parameterExpressions, linkedVariables,
+                    pi, e, target, hcsSource, sourceType, sourceLvs);
+        });
     }
 
     void doCrossLinkFromTo(EvaluationResult.Builder builder,
@@ -122,4 +158,48 @@ class LinkHelperBetweenParameters {
         }
         return null;
     }
+
+    Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
+        Map<ParameterInfo, Map<Variable, LV>> res = new HashMap<>();
+        for (ParameterInfo pi : methodInfo.parameters()) {
+            Value.Independent independent = pi.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
+                    DEPENDENT);
+            Map<Variable, LV> lvMap = new HashMap<>();
+            for (Map.Entry<Integer, Integer> e : independent.linkToParametersReturnValue().entrySet()) {
+                if (e.getKey() >= 0) {
+                    ParameterInfo target = methodInfo.parameters().get(e.getKey());
+                    LV lv;
+                    if (e.getValue() == 0) {
+                        lv = LINK_DEPENDENT;
+                    } else {
+                        lv = createHC(linkAllSameType(pi.parameterizedType()));
+                    }
+                    LV prev = lvMap.put(target, lv);
+                    assert prev == null;
+                }
+            }
+            if (!lvMap.isEmpty()) res.put(pi, lvMap);
+        }
+        return res.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getKey,
+                e -> LinkedVariablesImpl.of(e.getValue())));
+    }
+
+
+    Links linkAllSameType(ParameterizedType parameterizedType) {
+        TypeInfo typeInfo = parameterizedType.bestTypeInfo();
+        if (typeInfo == null) return LinksImpl.NO_LINKS;
+        HiddenContentTypes hct = typeInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
+                () -> new ComputeHiddenContent(runtime).compute(typeInfo));
+        if (hct.hasHiddenContent()) {
+            Map<Indices, Link> map = new HashMap<>();
+            for (int i = 0; i < hct.size(); i++) {
+                // not mutable, because hidden content
+                // from i to i, because we have a -1- relation, so the type must be the same
+                map.put(new IndicesImpl(i), new LinkImpl(new IndicesImpl(i), false));
+            }
+            return new LinksImpl(Map.copyOf(map));
+        }
+        return LinksImpl.NO_LINKS;
+    }
+
 }

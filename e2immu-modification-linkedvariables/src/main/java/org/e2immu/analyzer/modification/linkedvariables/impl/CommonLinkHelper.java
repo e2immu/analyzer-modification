@@ -34,23 +34,6 @@ public abstract class CommonLinkHelper {
         this.genericsHelper = genericsHelper;
     }
 
-    Links linkAllSameType(ParameterizedType parameterizedType) {
-        TypeInfo typeInfo = parameterizedType.bestTypeInfo();
-        if (typeInfo == null) return LinksImpl.NO_LINKS;
-        HiddenContentTypes hct = typeInfo.analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
-                () -> new ComputeHiddenContent(runtime).compute(typeInfo));
-        if (hct.hasHiddenContent()) {
-            Map<Indices, Link> map = new HashMap<>();
-            for (int i = 0; i < hct.size(); i++) {
-                // not mutable, because hidden content
-                // from i to i, because we have a -1- relation, so the type must be the same
-                map.put(new IndicesImpl(i), new LinkImpl(new IndicesImpl(i), false));
-            }
-            return new LinksImpl(Map.copyOf(map));
-        }
-        return LinksImpl.NO_LINKS;
-    }
-
     ParameterizedType ensureTypeParameters(ParameterizedType pt) {
         if (!pt.parameters().isEmpty() || pt.typeInfo() == null) return pt;
         ParameterizedType formal = pt.typeInfo().asParameterizedType();
