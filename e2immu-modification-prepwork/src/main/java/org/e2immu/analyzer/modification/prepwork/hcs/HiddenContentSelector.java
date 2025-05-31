@@ -264,8 +264,15 @@ public class HiddenContentSelector implements Value {
     public Map<Indices, IndicesAndType> translateHcs(Runtime runtime,
                                                      GenericsHelper genericsHelper,
                                                      ParameterizedType from,
-                                                     ParameterizedType to,
+                                                     ParameterizedType toIn,
                                                      boolean allowVarargs) {
+        ParameterizedType to;
+        if (toIn.typeParameter() != null && !toIn.typeParameter().typeBounds().isEmpty()) {
+            // TestVarArgs,3: T extends Collection<I> -> Collection<I>
+            to = toIn.typeParameter().typeBounds().getFirst();
+        } else {
+            to = toIn;
+        }
         if (allowVarargs && from.arrays() == to.arrays() + 1) {
             return translateHcs(runtime, genericsHelper, from.copyWithOneFewerArrays(), to, false);
         }
