@@ -12,7 +12,6 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -135,7 +134,7 @@ public class TestLinkFunctional extends CommonTest {
         HiddenContentTypes hctFilter = filter.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=T, 1=Stream - 2=Predicate", hctFilter.detailedSortedTypes());
         HiddenContentSelector hcsFilter = filter.analysis().getOrDefault(HiddenContentSelector.HCS_METHOD, HiddenContentSelector.NONE);
-        assertEquals("0=0,1=*", hcsFilter.detailed());
+        assertEquals("0=0,1=*", hcsFilter.toString());
 
         MethodInfo test = (MethodInfo) analysisOrder.stream()
                 .filter(i -> "a.b.X.$0.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
@@ -294,7 +293,7 @@ public class TestLinkFunctional extends CommonTest {
         assertEquals(" - 0=X, 1=Y, 2=Stream, 3=Function", m1.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.class).detailedSortedTypes());
         assertEquals("1=0,2=*", m1.analysis().getOrNull(HiddenContentSelector.HCS_METHOD,
-                HiddenContentSelector.class).detailed());
+                HiddenContentSelector.class).toString());
 
         analyzer.go(analysisOrder);
 

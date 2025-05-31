@@ -38,6 +38,8 @@ public class HiddenContentSelector implements Value {
     private static final Logger LOGGER = LoggerFactory.getLogger(HiddenContentSelector.class);
 
     public static final HiddenContentSelector NONE = new HiddenContentSelector();
+
+    // is the HCS of the return variable in case of a method, and of the whole type in case of a constructor
     public static final PropertyImpl HCS_METHOD = new PropertyImpl("hcsMethod", NONE);
     public static final PropertyImpl HCS_PARAMETER = new PropertyImpl("hcsParameter", NONE);
 
@@ -68,7 +70,7 @@ public class HiddenContentSelector implements Value {
         if (hiddenContentTypes.getHctTypeInfo() != null) {
             if (findType(hiddenContentTypes.getHctTypeInfo(), runtime, ptWithoutArrays)) return true;
         }
-        LOGGER.warn("Assertion should fail: HCS {} vs {}", detailed(), pt);
+        LOGGER.warn("Assertion should fail: HCS {} vs {}", toString(), pt);
         return false;
     }
 
@@ -115,31 +117,21 @@ public class HiddenContentSelector implements Value {
 
     @Override
     public String toString() {
-        return toString(false);
-    }
-
-    public String detailed() {
-        return toString(true);
-    }
-
-    private String toString(boolean detailed) {
         if (map.isEmpty()) {
             return "X"; // None
         }
         return map.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                .map(e -> print(e.getKey(), e.getValue(), detailed))
+                .map(e -> print(e.getKey(), e.getValue()))
                 .collect(Collectors.joining(","));
     }
 
     /*
     '*' means: the whole object; otherwise, we're digging deeper
      */
-    private static String print(int i, Indices indices, boolean detailed) {
-        if (indices.isAll()) return detailed ? i + "=*" : "*";
+    private static String print(int i, Indices indices) {
+        if (indices.isAll()) return i + "=*";
         String is = indices.toString();
-        String iToString = "" + i;
-        if (!detailed && is.equals(iToString)) return iToString;
-        return iToString + "=" + is;
+        return i + "=" + is;
     }
 
     public Set<Integer> set() {

@@ -124,9 +124,6 @@ public class TestTrackObjectCreation extends CommonTest {
                     M m = new M(i);
                     return List.of(m);
                 }
-                static List<M> makeList2(int i) {
-                    return List.of(new M(i));
-                }
             }
             """;
 
@@ -150,6 +147,33 @@ public class TestTrackObjectCreation extends CommonTest {
             Value.Independent independent = p0.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT);
             assertEquals(1, independent.linkToParametersReturnValue().get(-1));
 
+            VariableData vd1 = VariableDataImpl.of(lastStatement);
+            assertEquals("0M-4-*M:m, 0M-4-*M:oc:6-15",
+                    vd1.variableInfo(makeList.fullyQualifiedName()).linkedVariables().toString());
+        }
+    }
+
+
+    @Language("java")
+    private static final String INPUT2b = """
+            package a.b;
+            import java.util.List;
+            public class X {
+                static class M { int i; M(int i) { this.i = i; } void setI(int i) { this.i = i; } }
+                static List<M> makeList2(int i) {
+                    return List.of(new M(i));
+                }
+            }
+            """;
+
+    @DisplayName("creation to return value via immutable HC, bis")
+    @Test
+    public void test2b() {
+        TypeInfo X = javaInspector.parse(INPUT2b);
+        analyze(X);
+        {
+            MethodInfo makeList = X.findUniqueMethod("makeList2", 1);
+            Statement lastStatement = makeList.methodBody().lastStatement();
             VariableData vd1 = VariableDataImpl.of(lastStatement);
             assertEquals("0M-4-*M:m, 0M-4-*M:oc:6-15",
                     vd1.variableInfo(makeList.fullyQualifiedName()).linkedVariables().toString());

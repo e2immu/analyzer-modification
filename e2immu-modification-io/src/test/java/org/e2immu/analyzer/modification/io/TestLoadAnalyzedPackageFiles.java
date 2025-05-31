@@ -22,8 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.FALSE;
-import static org.e2immu.language.cst.impl.analysis.ValueImpl.BoolImpl.TRUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.IMMUTABLE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.ImmutableImpl.MUTABLE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
@@ -117,6 +115,6 @@ public class TestLoadAnalyzedPackageFiles {
         MethodInfo listAdd = list.findUniqueMethod("add", 1);
         ParameterInfo listAdd0 = listAdd.parameters().getFirst();
         Assertions.assertEquals("0=*", listAdd0.analysis().getOrNull(HiddenContentSelector.HCS_PARAMETER,
-                HiddenContentSelector.class).detailed());
+                HiddenContentSelector.class).toString());
     }
 }

@@ -134,7 +134,7 @@ public class TestLinkToReturnValueListGet extends CommonTest {
 
         ParameterInfo p0 = arrayListConstructor.parameters().getFirst();
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
-        assertEquals("0=0,1=*", paramHcs.detailed());
+        assertEquals("0=0,1=*", paramHcs.toString());
         assertSame(ValueImpl.IndependentImpl.INDEPENDENT_HC, p0.analysis()
                 .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT));
         List<Info> analysisOrder = prepWork(X);

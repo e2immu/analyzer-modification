@@ -2,7 +2,6 @@ package org.e2immu.analyzer.modification.prepwork.hcs;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
 import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -46,6 +45,6 @@ public class TestStream extends CommonTest {
         HiddenContentTypes hctFilter = filter.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=T, 1=Stream - 2=Predicate", hctFilter.detailedSortedTypes());
         HiddenContentSelector hcsFilter = filter.analysis().getOrDefault(HiddenContentSelector.HCS_METHOD, HiddenContentSelector.NONE);
-        assertEquals("0=0,1=*", hcsFilter.detailed());
+        assertEquals("0=0,1=*", hcsFilter.toString());
     }
 }

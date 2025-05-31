@@ -2,6 +2,7 @@ package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
 import org.e2immu.analyzer.modification.linkedvariables.lv.*;
+import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -68,10 +69,6 @@ class LinkHelperMethod extends CommonLinkHelper {
         return linkHelperBetweenParameters;
     }
 
-    public LinkHelperCore linkHelperObjectToReturnValue() {
-        return linkHelperCore;
-    }
-
     public record FromParameters(EvaluationResult intoObject, EvaluationResult intoResult) {
     }
 
@@ -130,8 +127,11 @@ class LinkHelperMethod extends CommonLinkHelper {
             return;
         }
         ParameterizedType concreteArgumentType = parameterExpression.parameterizedType();
-        LinkedVariables lvsArgumentCorrectedToMethod = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
-                concreteArgumentType, lvsArgument, hcsObject, pi.isVarArgs());
+        HiddenContentSelector hcsParameter = pi.analysis().getOrCreate(HCS_PARAMETER,
+                () -> new ComputeHCS(runtime).doHiddenContentSelector(methodInfo));
+        LinkedVariables lvsArgumentCorrectedToHcsParameter = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
+                concreteArgumentType, lvsArgument, hcsObject, // FIXME to become hcsParameter
+                pi.isVarArgs());
         LinkedVariables lvsArgumentCorrectedToObjectOrReturnValue;
         Independent independentOfObjectOrReturnValue;
         EvaluationResult.Builder builder;
@@ -145,7 +145,7 @@ class LinkHelperMethod extends CommonLinkHelper {
             LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
                     .map(Map.Entry::getValue).findFirst().orElse(null);
             if (valueOfReturnValue != null) {
-                lvsArgumentCorrectedToObjectOrReturnValue = goFromArgumentToReturnVariable(lvsArgumentCorrectedToMethod, valueOfReturnValue);
+                lvsArgumentCorrectedToObjectOrReturnValue = goFromArgumentToReturnVariable(lvsArgumentCorrectedToHcsParameter, valueOfReturnValue);
                 independentOfObjectOrReturnValue = valueOfReturnValue.isCommonHC() ? INDEPENDENT_HC : DEPENDENT;
             } else {
                 lvsArgumentCorrectedToObjectOrReturnValue = LinkedVariablesImpl.EMPTY;
@@ -155,7 +155,7 @@ class LinkHelperMethod extends CommonLinkHelper {
             concreteObjectOrReturnType = resultPt;
             formalObjectOrReturnType = methodInfo.returnType();
         } else {
-            lvsArgumentCorrectedToObjectOrReturnValue = lvsArgumentCorrectedToMethod;
+            lvsArgumentCorrectedToObjectOrReturnValue = lvsArgumentCorrectedToHcsParameter;
             independentOfObjectOrReturnValue = formalParameterIndependent;
             builder = intoObjectBuilder;
             concreteObjectOrReturnType = objectPt;
@@ -163,7 +163,8 @@ class LinkHelperMethod extends CommonLinkHelper {
         }
         copyAdditionalLinksIntoBuilder(evaluationResultOfParameter, builder);
 
-        LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, lvsArgumentCorrectedToObjectOrReturnValue,
+        LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, hcsParameter,
+                lvsArgumentCorrectedToObjectOrReturnValue,
                 independentOfObjectOrReturnValue, concreteObjectOrReturnType, formalObjectOrReturnType);
         LOGGER.debug("LV for parameter {}; {}: {}", pi, lvsArgumentCorrectedToObjectOrReturnValue, lv);
         if (lv != null) {
@@ -198,17 +199,18 @@ class LinkHelperMethod extends CommonLinkHelper {
     private LinkedVariables computeLvForParameter(ParameterInfo pi,
                                                   boolean toReturnVariable,
                                                   ParameterizedType concreteTypeOfArgument,
+                                                  HiddenContentSelector hcsParameter,
                                                   LinkedVariables lvsArgumentInFunctionOfMethod,
                                                   Independent formalParameterIndependent,
                                                   ParameterizedType concreteTypeOfObjectOrReturnVariable,
                                                   ParameterizedType formalTypeOfObjectOrReturnVariable) {
         Integer indexToDirectlyLinkedField = computeIndexToDirectlyLinkedField(pi);
-        HiddenContentSelector hcsParameter = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
         if (toReturnVariable) {
             // parameter -> return variable
             HiddenContentSelector hcsMethod = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
             return linkHelperCore.linkedVariables(concreteTypeOfArgument, pi.parameterizedType(),
-                    hcsParameter, lvsArgumentInFunctionOfMethod, false,
+                    hcsParameter, lvsArgumentInFunctionOfMethod,
+                    false,
                     formalParameterIndependent, concreteTypeOfObjectOrReturnVariable, formalTypeOfObjectOrReturnVariable,
                     hcsMethod, false, indexToDirectlyLinkedField);
         }

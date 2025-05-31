@@ -43,7 +43,7 @@ public class TestVarArgs extends CommonTest {
         assertEquals("X", closeAndIgnoreErrors.analysis()
                 .getOrDefault(HiddenContentSelector.HCS_METHOD, HiddenContentSelector.NONE).toString());
         ParameterInfo p0 = closeAndIgnoreErrors.parameters().get(0);
-        assertEquals("0", p0.analysis()
+        assertEquals("0=0", p0.analysis()
                 .getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
     }
 

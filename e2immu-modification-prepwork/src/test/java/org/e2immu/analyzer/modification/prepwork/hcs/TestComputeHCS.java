@@ -80,9 +80,9 @@ public class TestComputeHCS extends CommonTest {
         Im.analysis().set(HIDDEN_CONTENT_TYPES, hctIM);
 
         HiddenContentSelector hcsIm = computeHCS.doHiddenContentSelector(Im);
-        assertEquals("X", hcsIm.detailed());
+        assertEquals("X", hcsIm.toString());
         HiddenContentSelector hcsImM = Im.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("0=*", hcsImM.detailed());
+        assertEquals("0=*", hcsImM.toString());
 
         TypeInfo C1 = X.findSubType("C1");
         HiddenContentTypes hctC1 = chc.compute(C1);
@@ -125,7 +125,7 @@ public class TestComputeHCS extends CommonTest {
         COGetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCoGetO);
 
         HiddenContentSelector hcsCOGet = computeHCS.doHiddenContentSelector(COGetO);
-        assertEquals("0=*", hcsCOGet.detailed());
+        assertEquals("0=*", hcsCOGet.toString());
     }
 
 
@@ -185,9 +185,9 @@ public class TestComputeHCS extends CommonTest {
         CsetO.analysis().set(HIDDEN_CONTENT_TYPES, hctCgetO);
 
         HiddenContentSelector hcsCgetO = computeHCS.doHiddenContentSelector(CgetO);
-        assertEquals("0=*", hcsCgetO.detailed());
+        assertEquals("0=*", hcsCgetO.toString());
         HiddenContentSelector hcsCSetO0 = CsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("X", hcsCSetO0.detailed());
+        assertEquals("X", hcsCSetO0.toString());
 
         TypeInfo CO = X.findSubType("CO");
         HiddenContentTypes hctCO = chc.compute(CO);
@@ -206,9 +206,9 @@ public class TestComputeHCS extends CommonTest {
 
         // We go via the override...
         HiddenContentSelector hcsCOgetO = computeHCS.doHiddenContentSelector(COgetO);
-        assertEquals("0=*", hcsCOgetO.detailed());
+        assertEquals("0=*", hcsCOgetO.toString());
         HiddenContentSelector hcsCOSetO0 = COsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("X", hcsCOSetO0.detailed());
+        assertEquals("X", hcsCOSetO0.toString());
     }
 
 
@@ -277,9 +277,9 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("C:Object - setO:", hctCsetO.toString());
 
         HiddenContentSelector hcsCgetO = CgetO.analysis().getOrDefault(HCS_METHOD, NONE);
-        assertEquals("0=*", hcsCgetO.detailed());
+        assertEquals("0=*", hcsCgetO.toString());
         HiddenContentSelector hcsCSetO0 = CsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("0=*", hcsCSetO0.detailed());
+        assertEquals("0=*", hcsCSetO0.toString());
 
         TypeInfo CO = X.findSubType("CO");
         HiddenContentTypes hctCO = CO.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
@@ -294,9 +294,9 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("CO:Object - setO:", hctCOsetO.toString());
 
         HiddenContentSelector hcsCOgetO = COgetO.analysis().getOrDefault(HCS_METHOD, NONE);
-        assertEquals("0=*", hcsCOgetO.detailed());
+        assertEquals("0=*", hcsCOgetO.toString());
         HiddenContentSelector hcsCOSetO0 = COsetO.parameters().get(0).analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("0=*", hcsCOSetO0.detailed());
+        assertEquals("0=*", hcsCOSetO0.toString());
     }
 
     @Language("java")
@@ -333,14 +333,14 @@ public class TestComputeHCS extends CommonTest {
         HiddenContentSelector hcsObjects = objects.analysis().getOrDefault(HCS_METHOD, NONE);
         // 0=* means: return an object of type List (0), access is direct '*'
         // 1=0 means: objects of type Object (1) can be found at index '0'
-        assertEquals("0=*,1=0", hcsObjects.detailed());
+        assertEquals("0=*,1=0", hcsObjects.toString());
 
         MethodInfo get = X.findUniqueMethod("get", 1);
         HiddenContentTypes hctGet = get.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=List, 1=Object, 2=Comparable, 3=X - ", hctGet.detailedSortedTypes());
         HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
         // 1=* means: return an object of type Object (1), direct access
-        assertEquals("1=*", hcsGet.detailed());
+        assertEquals("1=*", hcsGet.toString());
     }
 
 
@@ -376,14 +376,14 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=T, 1=List, 2=Comparable - ", hctObjects.detailedSortedTypes());
         HiddenContentSelector hcsObjects = objects.analysis().getOrDefault(HCS_METHOD, NONE);
         // 1=* objects of type List, direct access; 0=0: access to T via index 0 in List
-        assertEquals("0=0,1=*", hcsObjects.detailed());
+        assertEquals("0=0,1=*", hcsObjects.toString());
 
         // the outcome "0=*" means: a single Object
         MethodInfo get = X.findUniqueMethod("get", 1);
         HiddenContentTypes hctGet = get.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=T, 1=List, 2=Comparable - ", hctGet.detailedSortedTypes());
         HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
-        assertEquals("0=*", hcsGet.detailed());
+        assertEquals("0=*", hcsGet.toString());
     }
 
 
@@ -418,14 +418,14 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=Object, 1=Comparable, 2=X - ", hctObjects.detailedSortedTypes());
         HiddenContentSelector hcsObjects = objects.analysis().getOrDefault(HCS_METHOD, NONE);
         // 0=0 means: objects of type "Object" can be found at index 0
-        assertEquals("0=0", hcsObjects.detailed());
+        assertEquals("0=0", hcsObjects.toString());
 
         // the outcome "0=*" means: objects of type Object, direct access
         MethodInfo get = X.findUniqueMethod("get", 1);
         HiddenContentTypes hctGet = get.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=Object, 1=Comparable, 2=X - ", hctGet.detailedSortedTypes());
         HiddenContentSelector hcsGet = get.analysis().getOrDefault(HCS_METHOD, NONE);
-        assertEquals("0=*", hcsGet.detailed());
+        assertEquals("0=*", hcsGet.toString());
     }
 
     @Language("java")
@@ -462,7 +462,7 @@ public class TestComputeHCS extends CommonTest {
 
         ParameterInfo Rc0 = constructorR.parameters().get(0);
         HiddenContentSelector hcsRc0 = Rc0.analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("1=*", hcsRc0.detailed());
+        assertEquals("1=*", hcsRc0.toString());
 
         ParameterizedType setInteger = Rc0.parameterizedType();
         Map<Indices, IndicesAndType> translate = hcsRc0.translateHcs(runtime, genericsHelper, setInteger, setInteger,
@@ -471,31 +471,31 @@ public class TestComputeHCS extends CommonTest {
 
         ParameterInfo Rc1 = constructorR.parameters().get(1);
         HiddenContentSelector hcsRc1 = Rc1.analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("X", hcsRc1.detailed());
+        assertEquals("X", hcsRc1.toString());
         ParameterInfo Rc2 = constructorR.parameters().get(2);
         HiddenContentSelector hcsRc2 = Rc2.analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("2=*", hcsRc2.detailed());
+        assertEquals("2=*", hcsRc2.toString());
 
         ParameterInfo Rc3 = constructorR.parameters().get(3);
         HiddenContentSelector hcsRc3 = Rc3.analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("0=*", hcsRc3.detailed());
+        assertEquals("0=*", hcsRc3.toString());
         ParameterInfo Rc4 = constructorR.parameters().get(4);
         HiddenContentSelector hcsRc4 = Rc4.analysis().getOrDefault(HCS_PARAMETER, NONE);
-        assertEquals("0=0,2=*", hcsRc4.detailed());
+        assertEquals("0=0,2=*", hcsRc4.toString());
 
         ParameterizedType formalR = R.asParameterizedType();
         assertEquals("Type a.b.X.R<T>", formalR.toString());
         HiddenContentSelector hcsFormal = HiddenContentSelector.selectAll(hctR, formalR);
-        assertEquals("0=0,1=1,2=2", hcsFormal.detailed());
+        assertEquals("0=0,1=1,2=2", hcsFormal.toString());
 
         HiddenContentTypes hctX = X.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=R", hctX.detailedSortedTypes());
         ParameterizedType formalX = X.asParameterizedType();
         HiddenContentSelector hcsXFormal = HiddenContentSelector.selectAll(hctX, formalX);
-        assertEquals("0=0", hcsXFormal.detailed());
+        assertEquals("0=0", hcsXFormal.toString());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctRConstructor, formalR);
-        assertEquals("0=0,1=1,2=2", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=1,2=2", hcsFormalViaConstructor.toString());
 
         Map<Indices, IndicesAndType> t = hcsFormalViaConstructor.translateHcs(runtime, genericsHelper, formalR,
                 formalR, false);
@@ -542,7 +542,7 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=T, 1=LL - 2=Object", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.toString());
 
         This thisVar = runtime.newThis(LLpt);
         assertSame(LLpt, thisVar.parameterizedType());
@@ -606,7 +606,7 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=T, 1=L - 2=Object", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.toString());
 
         ParameterizedType Lpt = L.asParameterizedType();
         assertEquals("Type a.b.X.L<T>", Lpt.toString());
@@ -681,7 +681,7 @@ public class TestComputeHCS extends CommonTest {
         assertEquals("0=Object, 1=L - ", hctLLC.detailedSortedTypes());
 
         HiddenContentSelector hcsFormalViaConstructor = HiddenContentSelector.selectAll(hctLLC, LLpt);
-        assertEquals("0=0,1=*", hcsFormalViaConstructor.detailed());
+        assertEquals("0=0,1=*", hcsFormalViaConstructor.toString());
 
         ParameterizedType Lpt = L.asParameterizedType();
         assertEquals("Type a.b.X.L", Lpt.toString());
@@ -727,12 +727,12 @@ public class TestComputeHCS extends CommonTest {
         assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
 
         ParameterInfo ts = add.parameters().get(0);
-        assertEquals("0=0,1=*", HiddenContentSelector.selectAll(hctMethod, ts.parameterizedType()).detailed());
+        assertEquals("0=0,1=*", selectAll(hctMethod, ts.parameterizedType()).toString());
 
         ParameterInfo tArray = add.parameters().get(1);
-        assertEquals("0=0",  HiddenContentSelector.selectAll(hctMethod, tArray.parameterizedType()).detailed());
+        assertEquals("0=0", selectAll(hctMethod, tArray.parameterizedType()).toString());
 
         ParameterInfo intArray = add.parameters().get(2);
-        assertEquals("X",  HiddenContentSelector.selectAll(hctMethod, intArray.parameterizedType()).detailed());
+        assertEquals("X", selectAll(hctMethod, intArray.parameterizedType()).toString());
     }
 }

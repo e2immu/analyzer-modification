@@ -291,9 +291,9 @@ public class TestLinkBasics extends CommonTest {
         MethodInfo methodInfo = X.findUniqueMethod("copy", 1);
         assertEquals(" - 0=T, 1=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
-        assertEquals("0=0,1=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
+        assertEquals("0=0,1=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).toString());
         ParameterInfo p0 = methodInfo.parameters().getFirst();
-        assertEquals("0=0,1=*", p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
+        assertEquals("0=0,1=*", p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
 
         LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LINKED_VARIABLES_METHOD, LinkedVariablesImpl.EMPTY);
         assertEquals("0-4-0:list", lvRv.toString());
@@ -326,9 +326,9 @@ public class TestLinkBasics extends CommonTest {
 
         assertEquals(" - 0=List", methodInfoS.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
-        assertEquals("0=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).detailed());
+        assertEquals("0=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).toString());
         ParameterInfo p0S = methodInfoS.parameters().getFirst();
-        assertEquals("0=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).detailed());
+        assertEquals("0=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
         assertEquals("", lvRvS.toString());
     }
 
@@ -342,11 +342,11 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
         assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
         HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE);
-        assertEquals("0=0", methodHcs.detailed());
+        assertEquals("0=0", methodHcs.toString());
 
         ParameterInfo p0 = methodInfo.parameters().getFirst();
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
-        assertEquals("0=0,1=*", paramHcs.detailed());
+        assertEquals("0=0,1=*", paramHcs.toString());
     }
 
     @Language("java")
