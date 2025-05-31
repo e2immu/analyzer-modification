@@ -339,7 +339,7 @@ public class TestLinkBasics extends CommonTest {
         MethodInfo methodInfo = typeInfo.findConstructor(collectionTypeInfo);
         assertEquals("java.util.ArrayList.<init>(java.util.Collection<? extends E>)", methodInfo.fullyQualifiedName());
         HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
+        assertEquals("0=E, 1=ArrayList - 2=Collection", methodHct.detailedSortedTypes());
         assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
         HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE);
         assertEquals("0=0", methodHcs.toString());
