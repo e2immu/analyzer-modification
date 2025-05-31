@@ -655,9 +655,9 @@ class ExpressionAnalyzer {
                 cc.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_ARGUMENTS, list);
             }
 
-            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
+            LinkHelperMethod linkHelper = new LinkHelperMethod(runtime, genericsHelper, analysisHelper, currentMethod,
                     cc.constructor());
-            LinkHelper.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
+            LinkHelperMethod.FromParameters from = linkHelper.linksInvolvingParameters(cc.parameterizedType(),
                     null, cc.parameterExpressions(), evaluationResults);
             LOGGER.debug("links involving parameters: {}", from);
 
@@ -1138,7 +1138,7 @@ class ExpressionAnalyzer {
                                      EvaluationResult leObject,
                                      List<EvaluationResult> leParams,
                                      ParameterizedType forwardType) {
-            LinkHelper linkHelper = new LinkHelper(runtime, genericsHelper, analysisHelper, currentMethod,
+            LinkHelperMethod linkHelper = new LinkHelperMethod(runtime, genericsHelper, analysisHelper, currentMethod,
                     mc.methodInfo());
             ParameterizedType objectType = mc.methodInfo().isStatic() ? null : mc.object().parameterizedType();
             ParameterizedType concreteReturnType = forwardType == null ? mc.concreteReturnType() : forwardType;
@@ -1147,7 +1147,7 @@ class ExpressionAnalyzer {
                     .map(EvaluationResult::linkedVariables).toList();
 
             // from parameters to object
-            LinkHelper.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
+            LinkHelperMethod.FromParameters fp = linkHelper.linksInvolvingParameters(objectType, concreteReturnType,
                     mc.parameterExpressions(), leParams);
             LinkedVariables linkedVariablesOfObjectFromParams = fp.intoObject().linkedVariables();
             if (mc.object() instanceof VariableExpression ve) {
@@ -1156,14 +1156,15 @@ class ExpressionAnalyzer {
             builder.merge(fp.intoObject());
 
             // in between parameters (A)
-            linkHelper.crossLink(leObject.linkedVariables(), linkedVariablesOfObjectFromParams, builder);
+            linkHelper.linkHelperBetweenParameters().crossLink(leObject.linkedVariables(),
+                    linkedVariablesOfObjectFromParams, builder);
 
             // from object to return value
             LinkedVariables lvsResult1;
             if (objectType == null) lvsResult1 = EMPTY;
             else {
-                lvsResult1 = linkHelper.linkedVariablesMethodCallObjectToReturnType(mc, objectType, leObject.linkedVariables(),
-                        linkedVariablesOfParameters, concreteReturnType);
+                lvsResult1 = linkHelper.linkHelperObjectToReturnValue().linkedVariablesMethodCallObjectToReturnType(mc,
+                        objectType, leObject.linkedVariables(), linkedVariablesOfParameters, concreteReturnType);
                 if (!mc.analysis().haveAnalyzedValueFor(LinkedVariablesImpl.LINKS_TO_OBJECT)) {
                     mc.analysis().set(LinkedVariablesImpl.LINKS_TO_OBJECT, lvsResult1);
                 }

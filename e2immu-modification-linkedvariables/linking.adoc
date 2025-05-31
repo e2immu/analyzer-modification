@@ -1,4 +1,3 @@
-
 == Linking rules
 
 === Hidden content
@@ -6,19 +5,32 @@
 Each object (graph) consists of accessible content and hidden content.
 
 - Recursively immutable objects have no hidden content, and their accessible content is not modifiable.
-- Immutable objects are characterized by non-modifiable accessible content. In practice, because the hidden content is not accessible neither, no modifications can be made to an immutable object by calling methods or accessing fields; that justifies its name.
+- Immutable objects are characterized by non-modifiable accessible content.
+In practice, because the hidden content is not accessible neither, no modifications can be made to an immutable object by calling methods or accessing fields; that justifies its name.
 
 Two objects are independent when a modification in one object’s object graph can never imply a modification on the other, or vice versa.
 
-When two objects are not independent, they must share common, mutable sub-objects. We say they are independent HC when all common objects are part of the hidden content, and dependent when some common, mutable, content is accessible.
+When two objects are not independent, they must share common, mutable sub-objects.
+We say they are independent HC when all common objects are part of the hidden content, and dependent when some common, mutable, content is accessible.
 
-Recursively immutable objects must be independent. Immutable objects cannot be dependent, because they have no mutable accessible content.
+Recursively immutable objects must be independent.
+Immutable objects cannot be dependent, because they have no mutable accessible content.
 
 Extensible objects (objects which can be extended via interface implementation, inheritance) have hidden content (think interface, type parameter, non-final class).
 
-Recursively immutable objects cannot be extensible. Almost by definition, java.lang.Object is extensible. It is immutable, but not recursively so. All primitives, and java.lang.String, are non-extensible, and recursively immutable, and independent of each other. Unbound type parameters are extensible, immutable HC, very much like JLO.
+Recursively immutable objects cannot be extensible.
+Almost by definition, java.lang.Object is extensible.
+It is immutable, but not recursively so.
+All primitives, and java.lang.String, are non-extensible, and recursively immutable, and independent of each other.
+Unbound type parameters are extensible, immutable HC, very much like JLO.
 
-Hidden content in a type is characterized by the types its fields, and an as yet unknown component if the type is extensible. Our implementation groups all hidden content by field type. This simplification will be apparent in the linking info to be discussed soon. The different hidden content types are numbered, starting with the indices of a type’s type parameters.
+Hidden content in a type is characterized by the types its fields, and an as yet unknown component if the type is extensible.
+Our implementation groups all hidden content by field type.
+This simplification will be apparent in the linking info to be discussed soon.
+The different hidden content types are numbered, starting with the indices of a type’s type parameters.
+By convention, the last index represents the whole type.
+
+Note: even if the type that holds hidden content is itself not extensible, the whole type holds hidden content, and we can refer to it.
 
 Sealed classes must determine their subclasses; as such, the unknown hidden component is absent.
 
@@ -39,7 +51,7 @@ There are 4 levels of linking
 
 - -0- indicates that two variables point to the same object, in a static way (assignment in the code)
 - -1- indicates that two variables point to the same object, computed, e.g., by means of an `@Identity` method or some other computation
-- -2- indicates that the two objects share some accessible content
+- -2- indicates that the two objects share some accessible content (they are Dependent)
 - -4- indicates that the two objects do not share accessible content, but do share hidden content
 
 Note:
@@ -53,8 +65,9 @@ It is of the form n1,n2,n3-2/4-m1,m2,m3, where hidden content type n1 on the ‘
 
 Examples
 
-- -2- indicates that two objects share mutable accessible content, and there is either no information about how their hidden content (if present) is shared, or they have no hidden content in common
-- 0-2-1 indicates that two objects share mutable accessible content, and objects of the hidden content type with index 0 are shared with the other object, where the same (at least, assignable) type has index 1. A typical first example is List<T> sub = list.subList(0, 3). The result of this action is sub 0-2-0 list.
+- `-2-` indicates that two objects share mutable accessible content, and there is either no information about how their hidden content (if present) is shared, or they have no hidden content in common
+- `0-2-1` indicates that two objects share mutable accessible content, and objects of the hidden content type with index 0 are shared with the other object, where the same (at least, assignable) type has index 1. A typical first example is List<T> sub = list.subList(0, 3).
+The result of this action is sub `0-2-0` list.
 
 === Addition 1: decoration with M
 
@@ -64,11 +77,12 @@ When the hidden content of a type is filled with mutable objects, in an accessib
 
 `Set<Map.Entry<Mutable, T>> entrySet = map.entrySet` results in `0.0M,0.1-2-0,1`.
 
-Why do this? Propagation of mutations.
+Why do this?
+Propagation of mutations.
 
 === Addition 2: *
 
-When the whole object is included as part of the hidden content of the other, that side gets * instead of an index (which still is implicitly present).
+We use the convention `*` to denote the whole object, which has the highest index of the hidden content types of the object.
 
 `X x = listX.get(3);` results in x `*-4-0` listX
 
@@ -88,7 +102,121 @@ Finally, the index can be replaced by an asterisk.
 
 Summary: how does a field link to its holding object?
 
-== Computing the propagation of modifications through a linking graph.
+NOTE
 
- the convention is that modification on a functional interface type indicates that the SAM (single abstract method)
-    has been called.
+A convention is that modification on a functional interface type indicates that the SAM (single abstract method) has been called.
+
+== Computation
+
+New implementation proposal for summer 2025
+
+A hidden content selector is computed for each method's parameter, and its return variable.
+It bi-directionally maps the hidden content types of the method (HCT of the *method*) to that of the formal type of the parameter or return variable (HCT of the *type*).
+
+It is this mapping that we will use to start computing link info.
+Link info is stored in instances of the `Links` interface.
+
+Knowing that -2- and -4- links can only be created through method calls and field or array access, we create different implementations for each of the situations.
+
+=== Field access
+
+Consider the data structures
+
+[source,java]
+----
+class U { } // hc 0 = U
+class Z { }  // hc 0 = Z
+class Y { Z zx; U u; } // hc 0 = Z; hc 1 = U; hc 2 = Y
+class X { Y y; Z zy; } // hc 0 = Y; hc 1 = Z; hc 2 = X
+----
+
+When writing `Y y = x.y`, we link part of the hidden content of `x` to variable `y`: `x` links `0-4-2` or `0-4-\*` to `y`, where `0` is the index of the hidden content of type `Y` in `X`, and `2` or `*` is the hidden content of `Y` itself.
+
+So after `Z z = x.zy`, `x` links `1-4-*` to `Z`, or `Z` links `0-4-1` to `X`; all links are reversible and bidirectional.
+
+Writing `Z z = x.y.zx`, `x` still links `1-4-*` to `Z` because we don't make any distinction between the different fields of the same hidden content type.
+
+Writing `U u = z.y.u`, `x` now links `0.1-4-*` to `U`, where the dotted notation `0.1` must be used because `U` has no explicit mention in the list of hidden content types of `X`.
+
+=== Method linking
+
+==== Object to return value
+
+Example: `T t = list.get(1);`.
+There are three links involved:
+
+* the _object_ links `-0-` to the variable `list`,
+* the _return value_ links `*-4-0` to the _object_ and
+* the variable `t` links to the _return value_.
+
+The _object_'s HCS (_all_ of the HCT of the method `List.get()`) can map the hidden content types of the formal `List` interface to the corresponding object type in the concrete type of the `list` variable.
+In this particular case, that is `T`, which is an unbound type parameter in this exercise, and therefore, hidden content linking is possible.
+If it were a non-extensible type such as `String`, there would be no linking because `String` has no hidden content.
+
+When linking between two objects which share some object, we write _left indices -link type- right indices_.
+When linking between one object and another which is part of the hidden content of the first, we use the `*`
+convention. `*` represents the whole object.
+
+The _return value_'s hidden content from the point of view of the method is of index type `0` (`E`, concretely, `T`) but it is exposed as `\*` or a whole object.
+Whatever we will link to the _return value_ will have to start off the whole object.
+In this particular case, the variable `t` links `-0-` to the _return value_.
+
+Combining the three links, we obtain that the variable `t` links `*-4-0` to the variable `list`.
+
+==== Parameter to object
+
+Example: `list.subList(0, 5).add(t)`.
+
+* _Parameter 0 of add_ links `-0-` to the variable `t`
+* the _object of add_ links `0-4-*` to _parameter 0_
+* the _object of add_ links `-2-` to the _object of subList_
+* the _object of subList_ links `-0-` to the variable `list`
+
+There is essentially no difference between `rv-object` and `object-param` linking.
+Eventually, we arrive at variable `list:0-4-*:t`.
+
+==== Parameter to parameter
+
+As long as we go via the internal method objects, there cannot be a problem.
+
+Example: `Collections.add(list, t1, t2);`
+
+* _parameter 0_ links `-0-` to variable `list`
+* _parameter 1_ links `-0-` to variable `t1`
+* _parameter 2_ links `-0-` to variable `t2`
+
+There is a formal link between formal parameter 0 and the varargs parameter 1: `p0:0-4-0:v1`.
+That translates in `p0:0-4-\*:p1`, `p0:0-4-*:p2`.
+
+=== Array access
+
+Example `T t = ts[0];`:: Note that there cannot be a difference between array access and `List.get(index)`.
+So we must arrive at `t:*-4-0:ts`.
+
+Example `T t = ts[0][0]`:: If we follow the `List.get` analogy, we must arrive at `t:*-4-0.0:ts`, with `0.0` rather than `0` because the hidden content type `T` is not known in the outer list.
+
+=== Functional parameters
+
+What do we want in concrete examples?
+
+Example `Stream<T> s = IntStream.range(0, 3).mapToObj(list::get)`:: should end up `s:0-4-0:list`: the hidden content of the `list` is propagated to the hidden content of the stream `s`.
+Can also be written as `Stream<T> s = IntStream.range(0, 3).mapToObj(index -> list.get(index))`
+
+Example `list1.forEach(list2::add)`:: should end up `list1:0-4-0:list2`: the hidden content of the first list is propagated to the second list.
+This is easier seen as `list1.forEach(t -> list.add(t))`
+
+* `forEach takes a `Consumer c`, with method `void accept(T t)`.
+We write `list1:0-4-0:c`, but what we intend is to iteratively link the hidden content of `list1` to the parameter of the `accept` method.
+* in the actual implementation `List.add(T)` accepts the consumer's parameter, and links it to the object, `list`.
+
+
+For each concrete functional type, we query: what is the hidden content input or source, and what is the output or destination?
+
+In the first example, the input is the _object_, and the output is the _return value_.
+If the result of the method that applies the functional type has the output as its hidden content, we move on from a single return value `\*` to its place in the hidden content of that result.
+
+In the second example, the input is _parameter 0_ of `List.add`, and the output, or rather destination, is the _object_.
+
+* _outer method object_ (Example 2) and/or SAM _object_ (Example 1) provide source
+* _outer method return value_ in combination of SAM _return value_ (Example 1), or SAM _object_ (Example 2) provide the target
+
