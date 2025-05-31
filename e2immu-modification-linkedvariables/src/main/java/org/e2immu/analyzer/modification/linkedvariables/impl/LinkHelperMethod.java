@@ -129,8 +129,9 @@ class LinkHelperMethod extends CommonLinkHelper {
         ParameterizedType concreteArgumentType = parameterExpression.parameterizedType();
         HiddenContentSelector hcsParameter = pi.analysis().getOrCreate(HCS_PARAMETER,
                 () -> new ComputeHCS(runtime).doHiddenContentSelector(methodInfo));
+        if (hcsParameter.isNone()) return;
         LinkedVariables lvsArgumentCorrectedToHcsParameter = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
-                concreteArgumentType, lvsArgument, hcsObject, // FIXME to become hcsParameter
+                concreteArgumentType, lvsArgument, hcsParameter,
                 pi.isVarArgs());
         LinkedVariables lvsArgumentCorrectedToObjectOrReturnValue;
         Independent independentOfObjectOrReturnValue;
@@ -399,7 +400,7 @@ class LinkHelperMethod extends CommonLinkHelper {
         ParameterizedType methodReturnType = methodInfo.returnType();
 
         HiddenContentSelector hcsTarget = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
-
+        if (hcsTarget.isNone()) return LinkedVariablesImpl.EMPTY;
         Value.FieldValue fieldValue = methodInfo.getSetField();
         Integer indexOfDirectlyLinkedField = fieldValue.field() != null && !fieldValue.setter()
                 ? fieldValue.field().indexInType() : null;

@@ -21,8 +21,7 @@ import java.util.stream.Stream;
 public class HiddenContentTypes implements Value {
     private static final Logger LOGGER = LoggerFactory.getLogger(HiddenContentTypes.class);
 
-    public static HiddenContentTypes OF_PRIMITIVE = new HiddenContentTypes(null, false, Map.of(), Map.of());
-    public static HiddenContentTypes NO_VALUE = new HiddenContentTypes(null, false, Map.of(), Map.of());
+    public static HiddenContentTypes NO_VALUE = new HiddenContentTypes();
 
     // IMPORTANT: hc is lexicographically less that hcsMethod, hcsParameter, it has to be parsed earlier!
     public static PropertyImpl HIDDEN_CONTENT_TYPES = new PropertyImpl("hc", NO_VALUE);
@@ -69,10 +68,21 @@ public class HiddenContentTypes implements Value {
         return new HiddenContentTypes(hctType, methodInfo, typeToIndex, true);
     }
 
+    // can only be used for NONE
+    private HiddenContentTypes() {
+        typeInfo = null;
+        typeIsExtensible = false;
+        indexToType = Map.of();
+        typeToIndex = Map.of();
+        startOfMethodParameters = 0;
+        hctTypeInfo = null;
+        methodInfo = null;
+    }
+
     private HiddenContentTypes(TypeInfo typeInfo, boolean typeIsExtensible,
                                Map<NamedType, Integer> typeToIndex,
                                Map<Integer, NamedType> indexToType) {
-        this.typeInfo = typeInfo;
+        this.typeInfo = Objects.requireNonNull(typeInfo);
         this.typeIsExtensible = typeIsExtensible;
         this.typeToIndex = typeToIndex;
         this.indexToType = indexToType;
@@ -236,6 +246,7 @@ public class HiddenContentTypes implements Value {
 
     @Override
     public String toString() {
+        if (this == NO_VALUE) return "NO_VALUE";
         String s = hctTypeInfo == null ? "" : hctTypeInfo + " - ";
         String l = hctTypeInfo == null ? typeInfo.simpleName() : methodInfo.name();
         return s + l + ":" + indexToType.values().stream()

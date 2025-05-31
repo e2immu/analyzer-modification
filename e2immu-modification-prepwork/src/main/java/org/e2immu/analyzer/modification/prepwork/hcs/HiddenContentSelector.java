@@ -53,7 +53,7 @@ public class HiddenContentSelector implements Value {
     // only used for NONE
     private HiddenContentSelector() {
         map = Map.of();
-        hiddenContentTypes = HiddenContentTypes.OF_PRIMITIVE;
+        hiddenContentTypes = HiddenContentTypes.NO_VALUE;
     }
 
     // note: if map is empty, isNone() will be true
@@ -234,7 +234,7 @@ public class HiddenContentSelector implements Value {
 
     // useful for testing
     public boolean isOnlyAll() {
-        return map.keySet().size() == 1 && map.entrySet().stream().findFirst().orElseThrow().getValue().isAll();
+        return map.size() == 1 && map.entrySet().stream().findFirst().orElseThrow().getValue().isAll();
     }
 
     public boolean containsAll() {

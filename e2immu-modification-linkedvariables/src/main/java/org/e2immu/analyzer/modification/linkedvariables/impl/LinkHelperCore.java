@@ -73,6 +73,7 @@ class LinkHelperCore extends CommonLinkHelper {
                                     HiddenContentSelector hiddenContentSelectorOfTarget,
                                     boolean reverse,
                                     Integer indexOfDirectlyLinkedField) {
+        assert hiddenContentSelectorOfSource.hiddenContentTypes() == hiddenContentSelectorOfTarget.hiddenContentTypes();
         assert sourceTypeIn != null;
         assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
         //assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);

@@ -332,7 +332,7 @@ public class TestStaticValuesOfTryData extends CommonTest {
         HiddenContentTypes hctTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
         assertEquals("0=ThrowingFunction, 1=Object, 2=Exception - ", hctTryDataImplGet.detailedSortedTypes());
         HiddenContentSelector hcsTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HCS_METHOD, NONE);
-        assertEquals("2=*", hcsTryDataImplGet.toString());
+        assertEquals("1=*", hcsTryDataImplGet.toString());
     }
 
     private static void testXRun(TypeInfo X) {
