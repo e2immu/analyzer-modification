@@ -273,10 +273,10 @@ public class HiddenContentSelector implements Value {
             && to.arrays() > 0) {
             // e.g. from = Iterable<T>, to = Closeable[]
             Map<Indices, ParameterizedType> map1 = extract(runtime, from);
-            assert map1.size() == 1;
-            Map.Entry<Indices, ParameterizedType> entry1 = map1.entrySet().stream().findFirst().orElseThrow();
-            assert "0".equals(entry1.getKey().toString());
-            return Map.of(entry1.getKey(), new IndicesAndType(entry1.getKey(), to.copyWithFewerArrays(1)));
+            IndicesImpl i0 = new IndicesImpl(0);
+            ParameterizedType pt = map1.get(i0);
+            assert pt != null;
+            return Map.of(i0, new IndicesAndType(i0, to.copyWithFewerArrays(1)));
         }
         assert from.isAssignableFrom(runtime, to) : from + " is not assignable from " + to;
 
