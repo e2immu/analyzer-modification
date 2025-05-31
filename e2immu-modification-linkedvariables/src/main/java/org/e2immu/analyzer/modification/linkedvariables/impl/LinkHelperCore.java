@@ -301,8 +301,7 @@ class LinkHelperCore extends CommonLinkHelper {
                     if (linkMap.isEmpty()) {
                         theLink = LINK_DEPENDENT;
                     } else {
-                        Links links = buildLinks(hiddenContentSelectorOfTarget, immutable, linkMap,
-                                indexOfDirectlyLinkedField);
+                        Links links = buildLinks(immutable, linkMap, indexOfDirectlyLinkedField);
                         theLink = LVImpl.createDependent(links);
                     }
                 } else if (!linkMap.isEmpty()) {
@@ -323,8 +322,7 @@ class LinkHelperCore extends CommonLinkHelper {
     /*
     special code to add the modificationArea objects in case of a Getter
      */
-    private Links buildLinks(HiddenContentSelector hiddenContentSelectorOfTarget,
-                             Value.Immutable immutable,
+    private Links buildLinks(Value.Immutable immutable,
                              Map<Indices, Link> linkMap,
                              Integer indexOfDirectlyLinkedField) {
         Indices modificationAreaSource;
@@ -333,7 +331,7 @@ class LinkHelperCore extends CommonLinkHelper {
             modificationAreaSource = IndicesImpl.NO_MODIFICATION_INDICES;
             modificationAreaTarget = IndicesImpl.NO_MODIFICATION_INDICES;
         } else {
-            if (hiddenContentSelectorOfTarget.containsAll() && indexOfDirectlyLinkedField != null) {
+            if (indexOfDirectlyLinkedField != null) {
                 modificationAreaSource = new IndicesImpl(indexOfDirectlyLinkedField);
             } else {
                 modificationAreaSource = ALL_INDICES;
