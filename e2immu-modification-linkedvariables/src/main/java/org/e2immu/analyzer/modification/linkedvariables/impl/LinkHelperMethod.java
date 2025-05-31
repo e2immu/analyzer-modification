@@ -126,15 +126,29 @@ class LinkHelperMethod extends CommonLinkHelper {
             intoResultBuilder.setLinkedVariables(lvsArgument);
             return;
         }
-        ParameterizedType concreteArgumentType = parameterExpression.parameterizedType();
-        HiddenContentSelector hcsParameter = pi.analysis().getOrCreate(HCS_PARAMETER,
-                () -> new ComputeHCS(runtime).doHiddenContentSelector(methodInfo));
-        if (hcsParameter.isNone()) return;
-        LinkedVariables lvsArgumentCorrectedToHcsParameter = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
-                concreteArgumentType, lvsArgument, hcsParameter,
-                pi.isVarArgs());
+        ParameterizedType concreteArgumentType;
+        HiddenContentSelector hcsParameter;
+        LinkedVariables lvsArgumentCorrectedToHcsParameter;
+        ParameterizedType formalTypeOfParameter;
+        if (pi.parameterizedType().isFunctionalInterface()) {
+            LinkHelperParameter.F f = linkHelperParameter.linkedVariablesOfFunctionalParameter(pi, parameterExpression,
+                    lvsArgument);
+            if (f == null) return;
+            hcsParameter = f.hcs();
+            lvsArgumentCorrectedToHcsParameter = f.lvs();
+            concreteArgumentType = f.concreteArgumentType();
+            formalTypeOfParameter = f.formalParameterType();
+        } else {
+            concreteArgumentType = parameterExpression.parameterizedType();
+            formalTypeOfParameter = pi.parameterizedType();
+            hcsParameter = pi.analysis().getOrCreate(HCS_PARAMETER,
+                    () -> new ComputeHCS(runtime).doHiddenContentSelector(methodInfo));
+            if (hcsParameter.isNone()) return;
+            lvsArgumentCorrectedToHcsParameter = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
+                    concreteArgumentType, lvsArgument, hcsParameter,
+                    pi.isVarArgs());
+        }
         assert lvsArgumentCorrectedToHcsParameter.compatibleWith(hcsParameter);
-
         Independent independentOfObjectOrReturnValue;
         EvaluationResult.Builder builder;
         ParameterizedType concreteObjectOrReturnType;
@@ -152,7 +166,7 @@ class LinkHelperMethod extends CommonLinkHelper {
         }
         copyAdditionalLinksIntoBuilder(evaluationResultOfParameter, builder);
 
-        LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, hcsParameter,
+        LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, formalTypeOfParameter, hcsParameter,
                 lvsArgumentCorrectedToHcsParameter,
                 independentOfObjectOrReturnValue, concreteObjectOrReturnType, formalObjectOrReturnType);
         LOGGER.debug("LV for parameter {}; {}: {}", pi, lvsArgumentCorrectedToHcsParameter, lv);
@@ -174,6 +188,7 @@ class LinkHelperMethod extends CommonLinkHelper {
     private LinkedVariables computeLvForParameter(ParameterInfo pi,
                                                   boolean toReturnVariable,
                                                   ParameterizedType concreteTypeOfArgument,
+                                                  ParameterizedType formalTypeOfParameter,
                                                   HiddenContentSelector hcsParameter,
                                                   LinkedVariables lvsArgumentInFunctionOfMethod,
                                                   Independent formalParameterIndependent,
@@ -187,8 +202,8 @@ class LinkHelperMethod extends CommonLinkHelper {
         } else {
             // parameter -> object
             hcsTarget = this.hcsObject;
-            Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, pi.parameterizedType());
-            if (pi.parameterizedType().isTypeParameter() && !concreteTypeOfArgument.parameters().isEmpty()) {
+            Immutable mutable = analysisHelper.typeImmutable(currentPrimaryType, formalTypeOfParameter);
+            if (formalTypeOfParameter.isTypeParameter() && !concreteTypeOfArgument.parameters().isEmpty()) {
                 if (mutable.isMutable()) {
                     return lvsArgumentInFunctionOfMethod;
                 }
@@ -196,7 +211,7 @@ class LinkHelperMethod extends CommonLinkHelper {
             }
             if (mutable.isImmutable()) return LinkedVariablesImpl.EMPTY;
         }
-        return linkHelperCore.linkedVariables(concreteTypeOfArgument, pi.parameterizedType(),
+        return linkHelperCore.linkedVariables(concreteTypeOfArgument, formalTypeOfParameter,
                 hcsParameter, lvsArgumentInFunctionOfMethod, pi.isVarArgs(),
                 formalParameterIndependent,
                 concreteTypeOfObjectOrReturnVariable,

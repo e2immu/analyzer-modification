@@ -384,6 +384,67 @@ public class TestLinkFunctional extends CommonTest {
     }
 
     @Language("java")
+    private static final String INPUT5b = """
+            package a.b;
+            import java.util.function.Consumer;
+            import java.util.List;
+            class C {
+                static class M { private int i; int getI() { return i; } void setI(int i) { this.i = i; } }
+            
+                static List<String> m1(List<String> in, List<String> out) {
+                    //noinspection ALL
+                    in.forEach(s -> out.add(s));
+                    return out;
+                }
+            
+                static <X> List<X> m2(List<X> in, List<X> out) {
+                    //noinspection ALL
+                    in.forEach(x -> out.add(x));
+                    return out;
+                }
+            
+                static <X> List<X> m3(List<X> in, List<X> out) {
+                    //noinspection ALL
+                    Consumer<X> add = s -> out.add(s);
+                    in.forEach(add);
+                    return out;
+                }
+            
+                static List<M> m4(List<M> in, List<M> out) {
+                    //noinspection ALL
+                    in.forEach(m -> out.add(m));
+                    return out;
+                }
+            }
+            """;
+
+    @DisplayName("forEach basics, using lambdas")
+    @Test
+    public void test5b() {
+        TypeInfo X = javaInspector.parse(INPUT5b);
+        List<Info> analysisOrder = prepWork(X);
+        analyzer.go(analysisOrder);
+
+        MethodInfo m1 = X.findUniqueMethod("m1", 2);
+        assertEquals("-1-:out", lvs(m1));
+
+        MethodInfo m2 = X.findUniqueMethod("m2", 2);
+        assertEquals("0-4-0:in, -1-:out", lvs(m2));
+
+        MethodInfo m3 = X.findUniqueMethod("m3", 2);
+        Statement s0 = m3.methodBody().statements().getFirst();
+        VariableData vd0 = VariableDataImpl.of(s0);
+        VariableInfo vi0add = vd0.variableInfo("add");
+        assertEquals("E=out::add", vi0add.staticValues().toString());
+        assertEquals("0-4-0:out", vi0add.linkedVariables().toString());
+
+        assertEquals("0-4-0:in, -1-:out", lvs(m3));
+
+        MethodInfo m4 = X.findUniqueMethod("m4", 2);
+        assertEquals("0M-4-0M:in, -1-:out", lvs(m4));
+    }
+
+    @Language("java")
     private static final String INPUT6 = """
             package a.b;
             import java.util.function.Supplier;

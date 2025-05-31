@@ -1,16 +1,16 @@
-== Linking rules
+= Linking
 
-=== Hidden content
+== Terminology
 
 Each object (graph) consists of accessible content and hidden content.
 
 - Recursively immutable objects have no hidden content, and their accessible content is not modifiable.
 - Immutable objects are characterized by non-modifiable accessible content.
-In practice, because the hidden content is not accessible neither, no modifications can be made to an immutable object by calling methods or accessing fields; that justifies its name.
+In practice, because the hidden content is not accessible either, no modifications can be made to an immutable object by calling methods or accessing fields; that justifies its name.
 
 Two objects are independent when a modification in one object’s object graph can never imply a modification on the other, or vice versa.
 
-When two objects are not independent, they must share common, mutable sub-objects.
+When two objects are not independent, they must share common sub-objects.
 We say they are independent HC when all common objects are part of the hidden content, and dependent when some common, mutable, content is accessible.
 
 Recursively immutable objects must be independent.
@@ -21,53 +21,60 @@ Extensible objects (objects which can be extended via interface implementation, 
 Recursively immutable objects cannot be extensible.
 Almost by definition, java.lang.Object is extensible.
 It is immutable, but not recursively so.
-All primitives, and java.lang.String, are non-extensible, and recursively immutable, and independent of each other.
-Unbound type parameters are extensible, immutable HC, very much like JLO.
+We also will use the term "immutable HC" for immutable type that are not recursively immutable.
+All primitives are non-extensible, recursively immutable, and independent of each other.
+Other type like `java.lang.String` also fall in this category.
 
-Hidden content in a type is characterized by the types its fields, and an as yet unknown component if the type is extensible.
-Our implementation groups all hidden content by field type.
+Unbound type parameters are extensible, immutable HC, very much like `java.lang.Object`.
+
+Hidden content in a type is characterized by the types of its fields, and an as yet unknown component if the type is extensible.
+The current _e2immu_ implementation groups all hidden content by field type.
 This simplification will be apparent in the linking info to be discussed soon.
-The different hidden content types are numbered, starting with the indices of a type’s type parameters.
+The different hidden content types are numbered, starting with the indices of a type’s type parameters, if present.
 By convention, the last index represents the whole type.
 
-Note: even if the type that holds hidden content is itself not extensible, the whole type holds hidden content, and we can refer to it.
+Note: a non-extensible type can hold hidden content, as can an extensible one without type parameters.
 
-Sealed classes must determine their subclasses; as such, the unknown hidden component is absent.
+Sealed classes must determine their subclasses; as such, the unknown hidden component due to extensibility is absent (unless, of course, these sub-classes are marked `non-sealed`).
 
-A type's accessible content is determined by the concrete values of the type parameters.
-Unbound type parameters represent JLO, immutable with hidden content.
+A generic type's accessible content is determined by the concrete values of its type parameters.
+Unbound type parameters represent `java.lang.Object`, immutable HC.
 
 Indexing (of hidden content in case of concrete instances of type parameters) is done via a ‘dot’ notation.
+This can occur because the list of hidden content types of a type only contains the directly referenced types of fields (of non-recursively immutable nature).
+Components of those types are not listed; that would result in excessively long lists.
 
 === Semantics of linking
 
 - linking reflects how a modification travels from one object to the next
 - linking is computed between variables, which each represent objects
 - modification = somewhere in my object graph, a (re)assignment occurs.
-- only (re)assignments and method calls cause modifications
+- only (re)assignments and method/constructor calls cause modifications
 - linking is not applicable to recursively immutable objects
 
 There are 4 levels of linking
 
 - -0- indicates that two variables point to the same object, in a static way (assignment in the code)
 - -1- indicates that two variables point to the same object, computed, e.g., by means of an `@Identity` method or some other computation
-- -2- indicates that the two objects share some accessible content (they are Dependent)
-- -4- indicates that the two objects do not share accessible content, but do share hidden content
+- -2- indicates that the two objects share some accessible content (they are dependent)
+- -4- indicates that the two objects do not share accessible content, but do share hidden content (they are independent HC)
 
 Note:
 
 1. -0- and -1- are different only from an implementation point of view.
 2. -2- optionally takes linking info; -4- links always take linking info.
 
-Linking info describes how the relationship between the different hidden content types, and occurs in couples (mine-theirs), the order depending on the direction of the link.
+_Linking info_ describes how relationship between the hidden content types of the related variables, and occurs in couples (mine-theirs).
 
 It is of the form n1,n2,n3-2/4-m1,m2,m3, where hidden content type n1 on the ‘mine’ side relates to hidden content type m1 on the ‘theirs’ side.
 
 Examples
 
 - `-2-` indicates that two objects share mutable accessible content, and there is either no information about how their hidden content (if present) is shared, or they have no hidden content in common
-- `0-2-1` indicates that two objects share mutable accessible content, and objects of the hidden content type with index 0 are shared with the other object, where the same (at least, assignable) type has index 1. A typical first example is List<T> sub = list.subList(0, 3).
-The result of this action is sub `0-2-0` list.
+- `0-2-1` indicates that two objects share mutable accessible content, and objects of the hidden content type with index 0 are shared with the other object, where the same (at least, assignable) type has index 1.
+
+A typical first example would be `List<T> sub = list.subList(0, 3)`.
+The result of this action would be that the variable `sub` links `0-2-0` to the variable `list`.
 
 === Addition 1: decoration with M
 
@@ -77,12 +84,11 @@ When the hidden content of a type is filled with mutable objects, in an accessib
 
 `Set<Map.Entry<Mutable, T>> entrySet = map.entrySet` results in `0.0M,0.1-2-0,1`.
 
-Why do this?
-Propagation of mutations.
+This marker allows _e2immu_ to propagate modifications, when one side is decorated with `*`.
 
 === Addition 2: *
 
-We use the convention `*` to denote the whole object, which has the highest index of the hidden content types of the object.
+We use the convention `*` to denote linking to the whole object when extracted from the hidden content.
 
 `X x = listX.get(3);` results in x `*-4-0` listX
 
@@ -90,31 +96,19 @@ We use the convention `*` to denote the whole object, which has the highest inde
 
 Note that `X` and `M` do not share any accessible content with the actual list implementation.
 X's instances are part of the list's hidden content.
-M's instances are part of the list's accessible content: `List<M>` is fully accessible.
+M's instances are also part of the list's accessible content.
+However, a modification in `m` will result in a change in the object graph of `listM`.
 
-=== Addition 3: M without index
+== Implementation
 
-M without index represents the mutable part.
+=== Hidden content selectors
 
-Each component can be decorated with M; M without an index is also possible.
+For practical purposes, we also compute hidden content of methods: we add indices for the non-recursively immutable types of parameters and return value.
 
-Finally, the index can be replaced by an asterisk.
+A hidden content selector (HCS) for a parameter or a method value bi-directionally maps the (indices of the) hidden content types of that parameter, or the return value, to the (indices of the) hidden content of the formal parameter or return type.
+As such, the HCS forms the bridge between hidden content types of the different components of a method.
 
-Summary: how does a field link to its holding object?
-
-NOTE
-
-A convention is that modification on a functional interface type indicates that the SAM (single abstract method) has been called.
-
-== Computation
-
-New implementation proposal for summer 2025
-
-A hidden content selector is computed for each method's parameter, and its return variable.
-It bi-directionally maps the hidden content types of the method (HCT of the *method*) to that of the formal type of the parameter or return variable (HCT of the *type*).
-
-It is this mapping that we will use to start computing link info.
-Link info is stored in instances of the `Links` interface.
+In case of a constructor, the HCS of the method return value is actually the HCS representing all the types in the method's HCT.
 
 Knowing that -2- and -4- links can only be created through method calls and field or array access, we create different implementations for each of the situations.
 
@@ -143,33 +137,20 @@ Writing `U u = z.y.u`, `x` now links `0.1-4-*` to `U`, where the dotted notation
 ==== Object to return value
 
 Example: `T t = list.get(1);`.
-There are three links involved:
+There are two links involved, and one relation:
 
 * the _object_ links `-0-` to the variable `list`,
-* the _return value_ links `*-4-0` to the _object_ and
+* the _return value_ is independent HC related to the _object_; in this particular case, the return value is actually part of the object.
+We may represent this with `*-4-0`, although we need not create this link.
 * the variable `t` links to the _return value_.
-
-The _object_'s HCS (_all_ of the HCT of the method `List.get()`) can map the hidden content types of the formal `List` interface to the corresponding object type in the concrete type of the `list` variable.
-In this particular case, that is `T`, which is an unbound type parameter in this exercise, and therefore, hidden content linking is possible.
-If it were a non-extensible type such as `String`, there would be no linking because `String` has no hidden content.
-
-When linking between two objects which share some object, we write _left indices -link type- right indices_.
-When linking between one object and another which is part of the hidden content of the first, we use the `*`
-convention. `*` represents the whole object.
-
-The _return value_'s hidden content from the point of view of the method is of index type `0` (`E`, concretely, `T`) but it is exposed as `\*` or a whole object.
-Whatever we will link to the _return value_ will have to start off the whole object.
-In this particular case, the variable `t` links `-0-` to the _return value_.
-
-Combining the three links, we obtain that the variable `t` links `*-4-0` to the variable `list`.
 
 ==== Parameter to object
 
 Example: `list.subList(0, 5).add(t)`.
 
 * _Parameter 0 of add_ links `-0-` to the variable `t`
-* the _object of add_ links `0-4-*` to _parameter 0_
-* the _object of add_ links `-2-` to the _object of subList_
+* the _object of add_ contains hidden content instances of the type of _parameter 0_, represented by `0-4-*`
+* the _object of add_ shares mutable content with the _object of subList_, represented by `-2-`
 * the _object of subList_ links `-0-` to the variable `list`
 
 There is essentially no difference between `rv-object` and `object-param` linking.
@@ -177,16 +158,58 @@ Eventually, we arrive at variable `list:0-4-*:t`.
 
 ==== Parameter to parameter
 
-As long as we go via the internal method objects, there cannot be a problem.
-
 Example: `Collections.add(list, t1, t2);`
 
 * _parameter 0_ links `-0-` to variable `list`
 * _parameter 1_ links `-0-` to variable `t1`
 * _parameter 2_ links `-0-` to variable `t2`
 
-There is a formal link between formal parameter 0 and the varargs parameter 1: `p0:0-4-0:v1`.
+There is an independent HC relation between formal parameter 0 and the varargs parameter 1, which we could present by `p0:0-4-0:v1`.
 That translates in `p0:0-4-\*:p1`, `p0:0-4-*:p2`.
+
+==== Functional types
+
+They are substantially more complex.
+When passing a parameter of functional type, we first assume that this parameter's SAM (single abstract method) is called.
+When the code of the functional type is known, _e2immu_ uses the convention that a modification on a functional interface type indicates that the SAM (single abstract method) has been called.
+
+The main approach tho functional type parameters is to modify the linking and the parameter's HCS to suit the actual semantics, whilst still being able to use the same machinery as for other method links.
+
+We consider three main situations:
+
+1. if the SAM modifies some external variable (field, scope variable), and a parameter parameter of the SAM links to this external variable, we will consider linking from the point of view of this parameter to the external variable.
+
+Example `list1.forEach(list2::add)`:: should end up `list1:0-4-0:list2`: the hidden content of the first list is propagated to the second list.
+This is easier seen as `list1.forEach(t -> list.add(t))`: `t` links to the external variable `list`; and we will present an object of type `T` rather than the functional type to the linking algorithm.
+
+2. if the return value links to some external variable, return linking from the point of view of the return variable.
+Number 2 gets priority over number 1
+
+Example `Stream<T> s = IntStream.range(0, 3).mapToObj(list::get)`:: should end up `s:0-4-0:list`: the hidden content of the `list` is propagated to the hidden content of the stream `s`.
+Can also be written as `Stream<T> s = IntStream.range(0, 3).mapToObj(index -> list.get(index))`
+
+3. if there is no "object", i.e. no real reference to external variables, but the return variable links to the parameter, then return the linking from the return variable to the parameter
+
+Example `list.stream().map(x -> x.withSomeValue()).forEach(x -> ...)`:: here there is no external variable, and we present a parameter of type `X[]` to the algorithm, to be linked to the return type `X`, effectively, `0-4-*`.
+
+There may be many other functional situations.
+Consider, for example, a parameter of concrete functional type `Function<X,Y>`, as in `listY = listX.stream().map(function).toList()`.
+There is no information here about how hidden content type `X` gets transformed into HC type `Y`, so we cannot link them.
+Maybe `X` and `Y` are related for concrete implementations, maybe the mapping is backed up by an actual `Map`.
+
+
+TODO Step 1
+
+write separate tests on lambda, method reference, anonymous sam so that the linking of the these constructs handles one of the three situations above.
+
+As an extra note: it is well possible that more than one parameter link to the "object".
+In this situation, we must return multiple linked variables, one for each parameter.
+This can be implemented as an extension once all the other situations are fully tested.
+
+Step 2
+
+Either the argument's, or the return variable's type should exist in the HC of the method.
+Create the quadruple "F" of formal type, concrete type, HCS to go with the linking.
 
 === Array access
 
@@ -194,29 +217,3 @@ Example `T t = ts[0];`:: Note that there cannot be a difference between array ac
 So we must arrive at `t:*-4-0:ts`.
 
 Example `T t = ts[0][0]`:: If we follow the `List.get` analogy, we must arrive at `t:*-4-0.0:ts`, with `0.0` rather than `0` because the hidden content type `T` is not known in the outer list.
-
-=== Functional parameters
-
-What do we want in concrete examples?
-
-Example `Stream<T> s = IntStream.range(0, 3).mapToObj(list::get)`:: should end up `s:0-4-0:list`: the hidden content of the `list` is propagated to the hidden content of the stream `s`.
-Can also be written as `Stream<T> s = IntStream.range(0, 3).mapToObj(index -> list.get(index))`
-
-Example `list1.forEach(list2::add)`:: should end up `list1:0-4-0:list2`: the hidden content of the first list is propagated to the second list.
-This is easier seen as `list1.forEach(t -> list.add(t))`
-
-* `forEach takes a `Consumer c`, with method `void accept(T t)`.
-We write `list1:0-4-0:c`, but what we intend is to iteratively link the hidden content of `list1` to the parameter of the `accept` method.
-* in the actual implementation `List.add(T)` accepts the consumer's parameter, and links it to the object, `list`.
-
-
-For each concrete functional type, we query: what is the hidden content input or source, and what is the output or destination?
-
-In the first example, the input is the _object_, and the output is the _return value_.
-If the result of the method that applies the functional type has the output as its hidden content, we move on from a single return value `\*` to its place in the hidden content of that result.
-
-In the second example, the input is _parameter 0_ of `List.add`, and the output, or rather destination, is the _object_.
-
-* _outer method object_ (Example 2) and/or SAM _object_ (Example 1) provide source
-* _outer method return value_ in combination of SAM _return value_ (Example 1), or SAM _object_ (Example 2) provide the target
-

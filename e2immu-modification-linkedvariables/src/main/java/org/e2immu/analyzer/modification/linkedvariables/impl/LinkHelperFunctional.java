@@ -33,6 +33,7 @@ class LinkHelperFunctional {
         this.analysisHelper = analysisHelper;
     }
 
+    // called by ExpressionAnalyzer.linkEvaluationOf AnonymousClass, MethodReference
     public LinkedVariables functional(TypeInfo currentPrimaryTYpe,
                                       Value.Independent independentOfMethod,
                                       HiddenContentSelector hcsMethod,
@@ -154,15 +155,14 @@ class LinkHelperFunctional {
 
     do both of 1 and 2, and take union. 0.0-4-0.1 and 0.0-4-0.0 may result in 0.0;0.1-4-0.0;0.1
     example??
-
-    FIXME split method so that it can be called from MR as well
     */
+
+    // called by ExpressionAnalyzer.linkEvaluationOf AnonymousClass, MethodReference
     public static LambdaResult lambdaLinking(Runtime runtime, MethodInfo concreteMethod) {
         if (concreteMethod.methodBody().isEmpty()) {
             return new LambdaResult(List.of(), LinkedVariablesImpl.EMPTY);
         }
-        List<Statement> statements = concreteMethod.methodBody().statements();
-        Statement lastStatement = statements.get(statements.size() - 1);
+        Statement lastStatement = concreteMethod.methodBody().statements().getLast();
         List<LinkedVariables> result = new ArrayList<>(concreteMethod.parameters().size() + 1);
 
         for (ParameterInfo pi : concreteMethod.parameters()) {
@@ -177,21 +177,14 @@ class LinkHelperFunctional {
         }
         if (concreteMethod.hasReturnValue()) {
             ReturnVariable returnVariable = new ReturnVariableImpl(concreteMethod);
-            VariableInfoContainer vic = VariableDataImpl.of(lastStatement).variableInfoContainerOrNull(returnVariable.fullyQualifiedName());
+            VariableInfoContainer vic = VariableDataImpl.of(lastStatement)
+                    .variableInfoContainerOrNull(returnVariable.fullyQualifiedName());
             if (vic != null) {
                 LinkedVariables lv = vic.best().linkedVariables();
-                //  if (concreteMethod.parameters().isEmpty()) {
-                if (lv != null) {
+                if (lv != null && !lv.isEmpty()) {
                     return new LambdaResult(result, lv);
                 }
             }
-            //  }
-            // link to the input types rather than the output type, see also HCT.mapMethodToTypeIndices
-            // Map<Indices, Indices> correctionMap = new HashMap<>();
-          /*  // FIXME 1??
-            correctionMap.put(new IndicesImpl(1), new IndicesImpl(0));
-            LinkedVariables corrected = vi.linkedVariables().map(lv -> lv.correctTo(correctionMap));
-            return new LambdaResult(result, corrected);*/// throw new UnsupportedOperationException();
         }
         return new LambdaResult(result, LinkedVariablesImpl.EMPTY);
     }

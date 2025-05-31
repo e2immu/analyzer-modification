@@ -5,10 +5,13 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
+import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Value;
+import org.e2immu.language.cst.api.expression.Expression;
+import org.e2immu.language.cst.api.info.ParameterInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
@@ -17,9 +20,11 @@ import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
-import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.createDependent;
+import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_PARAMETER;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
@@ -34,7 +39,6 @@ public class LinkHelperParameter extends CommonLinkHelper {
                                   GenericsHelper genericsHelper) {
         super(currentPrimaryType, runtime, analysisHelper, genericsHelper);
     }
-
 
     /*
     Linked variables of parameter.
@@ -173,6 +177,21 @@ public class LinkHelperParameter extends CommonLinkHelper {
         // FIXME we should link to the indices of the HCSparam, not the existing ones
     }
 
+    record F(LinkedVariables lvs,
+             HiddenContentSelector hcs,
+             ParameterizedType concreteArgumentType,
+             ParameterizedType formalParameterType) {
+    }
+
+    F linkedVariablesOfFunctionalParameter(ParameterInfo pi,
+                                           Expression argument,
+                                           LinkedVariables lvsArgument) {
+        HiddenContentSelector hcsFunctionalParameter = pi.analysis().getOrCreate(HCS_PARAMETER,
+                () -> new ComputeHCS(runtime).doHiddenContentSelector(pi.methodInfo()));
+
+
+        return null;
+    }
 
 
 }
