@@ -1163,7 +1163,7 @@ class ExpressionAnalyzer {
             LinkedVariables lvsResult1;
             if (objectType == null) lvsResult1 = EMPTY;
             else {
-                lvsResult1 = linkHelper.linkHelperObjectToReturnValue().linkedVariablesMethodCallObjectToReturnType(mc,
+                lvsResult1 = linkHelper.linkedVariablesMethodCallObjectToReturnType(mc,
                         objectType, leObject.linkedVariables(), linkedVariablesOfParameters, concreteReturnType);
                 if (!mc.analysis().haveAnalyzedValueFor(LinkedVariablesImpl.LINKS_TO_OBJECT)) {
                     mc.analysis().set(LinkedVariablesImpl.LINKS_TO_OBJECT, lvsResult1);

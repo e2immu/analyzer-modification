@@ -6,20 +6,14 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
-import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Value;
-import org.e2immu.language.cst.api.expression.Expression;
-import org.e2immu.language.cst.api.expression.MethodCall;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.Variable;
-import org.e2immu.language.cst.impl.analysis.PropertyImpl;
-import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.language.inspection.api.parser.GenericsHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,136 +22,21 @@ import java.util.*;
 import java.util.function.Supplier;
 
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.*;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.HCS_METHOD;
-import static org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector.NONE;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.*;
 
-class LinkHelperObjectToReturnValue extends CommonLinkHelper {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LinkHelperObjectToReturnValue.class);
+class LinkHelperCore extends CommonLinkHelper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LinkHelperCore.class);
     private final MethodInfo methodInfo;
-    private final HiddenContentSelector hcsObject; // == HCS.selectAll of methodInfo.typeInfo
 
-    LinkHelperObjectToReturnValue(MethodInfo methodInfo,
-                                  Runtime runtime,
-                                  AnalysisHelper analysisHelper,
-                                  GenericsHelper genericsHelper,
-                                  HiddenContentSelector hcsObject) {
+    LinkHelperCore(MethodInfo methodInfo,
+                   Runtime runtime,
+                   AnalysisHelper analysisHelper,
+                   GenericsHelper genericsHelper) {
         super(methodInfo.primaryType(), runtime, analysisHelper, genericsHelper);
         this.methodInfo = methodInfo;
-        this.hcsObject = hcsObject;
-    }
-
-    /*
-   In general, the method result 'a', in 'a = b.method(c, d)', can link to 'b', 'c' and/or 'd'.
-   Independence and immutability restrict the ability to link.
-
-   The current implementation is heavily focused on understanding links towards the fields of a type,
-   i.e., in sub = list.subList(0, 10), we want to link sub to list.
-
-   Links from the parameters to the result (from 'c' to 'a', from 'd' to 'a') have currently only
-   been implemented for @Identity methods (i.e., between 'a' and 'c').
-
-   So we implement
-   1/ void methods cannot link
-   2/ if the method is @Identity, the result is linked to the 1st parameter 'c'
-   3/ if the method is a factory method, the result is linked to the parameter values
-
-   all other rules now determine whether we return an empty set, or the set {'a'}.
-
-   4/ independence is determined by the independence value of the method, and the independence value of the object 'a'
-    */
-
-    public LinkedVariables linkedVariablesMethodCallObjectToReturnType(MethodCall methodCall,
-                                                                       ParameterizedType objectType,
-                                                                       LinkedVariables linkedVariablesOfObjectIn,
-                                                                       List<LinkedVariables> linkedVariables,
-                                                                       ParameterizedType returnType) {
-        // RULE 1: void methods cannot link
-        if (methodInfo.noReturnValue()) return LinkedVariablesImpl.EMPTY;
-
-        // RULE 2: @Identity links to the 1st parameter
-        if (methodInfo.isIdentity()) {
-            return linkedVariables.getFirst().maximum(LINK_ASSIGNED);
-        }
-        LinkedVariables linkedVariablesOfObject = linkedVariablesOfObjectIn.maximum(LINK_ASSIGNED);
-
-        // RULE 3: @Fluent simply returns the same object, hence, the same linked variables
-        Value.Bool fluent = methodInfo.analysis().getOrDefault(PropertyImpl.FLUENT_METHOD, ValueImpl.BoolImpl.FALSE);
-        if (fluent.isTrue()) {
-            return linkedVariablesOfObject;
-        }
-
-        Value.Independent independent = methodInfo.analysis().getOrDefault(PropertyImpl.INDEPENDENT_METHOD,
-                DEPENDENT);
-        Value.Immutable immutable = methodInfo.analysis().getOrDefault(PropertyImpl.IMMUTABLE_METHOD,
-                ValueImpl.ImmutableImpl.MUTABLE);
-        assert !immutable.isImmutable() || independent.isIndependent();
-        assert !immutable.isImmutableHC() || independent.isAtLeastIndependentHc();
-
-        ParameterizedType methodType = methodInfo.typeInfo().asParameterizedType();
-        ParameterizedType methodReturnType = methodInfo.returnType();
-
-        HiddenContentSelector hcsTarget = methodInfo.analysis().getOrDefault(HCS_METHOD, NONE);
-
-        Value.FieldValue fieldValue = methodInfo.getSetField();
-        Integer indexOfDirectlyLinkedField = fieldValue.field() != null && !fieldValue.setter()
-                ? fieldValue.field().indexInType() : null;
-
-        LinkedVariables lvs = linkedVariables(objectType,
-                methodType, hcsObject, linkedVariablesOfObject,
-                false,
-                independent, returnType, methodReturnType, hcsTarget,
-                false, indexOfDirectlyLinkedField);
-
-        Value.FieldValue getSetField = methodInfo.getSetField();
-        if (getSetField.field() != null && !getSetField.setter()) {
-            return handleGetter(methodCall, returnType, getSetField, lvs, linkedVariablesOfObject);
-        }
-        return lvs;
-    }
-
-    private LinkedVariables handleGetter(MethodCall methodCall,
-                                         ParameterizedType returnType,
-                                         Value.FieldValue getSetField,
-                                         LinkedVariables lvs,
-                                         LinkedVariables linkedVariablesOfObject) {
-        Value.Immutable immutable = analysisHelper.typeImmutable(getSetField.field().type());
-        if (immutable.isImmutable()) return lvs;
-        Map<Variable, LV> lvMap = new HashMap<>();
-        linkedVariablesOfObject.variablesAssigned().forEach(v -> {
-            // NOTE: pretty similar code in Factory.getterVariable(MethodCall)
-            Variable variable;
-            if (methodCall.parameterExpressions().isEmpty()) {
-                variable = runtime.newFieldReference(getSetField.field(), runtime.newVariableExpression(v), returnType);
-            } else {
-                // indexing
-                FieldReference fr = runtime.newFieldReference(getSetField.field(), runtime.newVariableExpression(v),
-                        returnType.copyWithArrays(returnType.arrays() + 1));
-                Expression array = runtime.newVariableExpressionBuilder()
-                        .setVariable(fr).setSource(methodCall.object().source())
-                        .build();
-                Expression index = methodCall.parameterExpressions().getFirst();
-                assert index.parameterizedType().isMathematicallyInteger();
-                variable = runtime.newDependentVariable(array, index, returnType);
-                Value.Immutable immutableMethodReturnType = analysisHelper.typeImmutable(returnType);
-                if (!immutableMethodReturnType.isImmutable()) {
-                    LV lv;
-                    if (immutableMethodReturnType.isImmutableHC()) {
-                        lv = createHC(new LinksImpl(IndexImpl.ALL, 0, false));
-                    } else {
-                        lv = createDependent(new LinksImpl(IndexImpl.ALL, 0, false));
-                    }
-                    LV prev = lvMap.put(fr, lv);
-                    assert prev == null;
-                }
-            }
-            LV prev = lvMap.put(variable, LINK_ASSIGNED);
-            assert prev == null;
-        });
-        return LinkedVariablesImpl.of(lvMap).merge(lvs);
     }
 
     /**
@@ -178,6 +57,7 @@ class LinkHelperObjectToReturnValue extends CommonLinkHelper {
      * @param hiddenContentSelectorOfTarget with respect to the method's HCT and methodTargetType
      * @param reverse                       reverse the link, because we're reversing source and target, because we
      *                                      only deal with *->0 in this method, never 0->*,
+     * @param indexOfDirectlyLinkedField    helper info to build the modification area part of the link
      * @return the linked values of the target.
      */
     LinkedVariables linkedVariables(ParameterizedType sourceTypeIn,

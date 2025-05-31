@@ -21,10 +21,10 @@ import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DE
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT_HC;
 
 class LinkHelperBetweenParameters {
-    private final LinkHelperObjectToReturnValue linkHelperObjectToReturnValue;
+    private final LinkHelperCore linkHelperObjectToReturnValue;
     private final LinkHelperParameter linkHelperParameter;
 
-    LinkHelperBetweenParameters(LinkHelperObjectToReturnValue linkHelperObjectToReturnValue,
+    LinkHelperBetweenParameters(LinkHelperCore linkHelperObjectToReturnValue,
                                 LinkHelperParameter linkHelperParameter) {
         this.linkHelperObjectToReturnValue = linkHelperObjectToReturnValue;
         this.linkHelperParameter = linkHelperParameter;
