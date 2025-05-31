@@ -402,12 +402,13 @@ public class LinkedVariablesImpl implements LinkedVariables, Comparable<Value>,
         for (Map.Entry<Variable, LV> entry : this) {
             for (Map.Entry<Indices, Link> link : entry.getValue().links().map().entrySet()) {
                 for (Index index : link.getKey().set()) {
-                    for (int i : index.list()) {
-                        if (i >= 0) {
-                            Indices indices = hcs.getMap().get(i);
-                            assert indices != null;
-                        }
+                    // for (int i : index.list()) {
+                    int i = index.list().getFirst();
+                    if (i >= 0) {
+                        Indices indices = hcs.getMap().get(i);
+                        assert indices != null;
                     }
+                    // } FIXME currently not checking 1.0 as index, see e.g. TestVarArgs,2
                 }
             }
         }

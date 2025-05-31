@@ -7,7 +7,6 @@ import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
 import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl;
-import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
 import org.e2immu.analyzer.modification.prepwork.variable.*;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -24,8 +23,6 @@ import java.util.function.Supplier;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_DEPENDENT;
 import static org.e2immu.analyzer.modification.linkedvariables.lv.LVImpl.LINK_INDEPENDENT;
 import static org.e2immu.analyzer.modification.prepwork.hcs.IndicesImpl.ALL_INDICES;
-import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
-import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT;
 import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.INDEPENDENT_HC;
 
@@ -98,10 +95,6 @@ class LinkHelperCore extends CommonLinkHelper {
             return LinkedVariablesImpl.EMPTY;
         }
 
-        LinkedVariables lvFunctional = lvFunctional(transferIndependent, hiddenContentSelectorOfTarget,
-                targetType, sourceType, immutableOfSource, sourceLvs, sourceIsVarArgs, indexOfDirectlyLinkedField);
-        if (lvFunctional != null) return lvFunctional;
-
         Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
                 () -> hiddenContentSelectorOfSource.translateHcs(runtime, genericsHelper, methodSourceType, sourceType,
                         sourceIsVarArgs);
@@ -126,71 +119,6 @@ class LinkHelperCore extends CommonLinkHelper {
                 sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
                 methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier,
                 indexOfDirectlyLinkedField);
-    }
-
-    private LinkedVariables lvFunctional(Value.Independent transferIndependent,
-                                         HiddenContentSelector hiddenContentSelectorOfTarget,
-                                         ParameterizedType targetType,
-                                         ParameterizedType sourceType,
-                                         Value.Immutable immutableOfSource,
-                                         LinkedVariables sourceLvs,
-                                         boolean sourceIsVarArgs,
-                                         Integer indexOfDirectlyLinkedField) {
-
-        // special code block for functional interfaces with both return value and parameters (i.e. variants
-        // on Function<T,R>, BiFunction<T,S,R> etc. Not Consumers (no return value) nor Suppliers (no parameters))
-        if (!hiddenContentSelectorOfTarget.isOnlyAll() || !transferIndependent.isIndependentHc()) {
-            return null;
-        }
-
-        HiddenContentTypes hctContext = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        HiddenContentSelector hcsTargetContext = HiddenContentSelector.selectAll(hctContext, targetType);
-        HiddenContentSelector hcsSourceContext = HiddenContentSelector.selectAll(hctContext, sourceType);
-        Set<Integer> set = new HashSet<>(hcsSourceContext.set());
-        set.retainAll(hcsTargetContext.set());
-        if (set.isEmpty()) {
-            return null;
-        }
-
-        List<LinkedVariables> lvsList = new ArrayList<>();
-        for (int index : set) {
-            LOGGER.debug("Linked variables functional: do {} in hcs source {} overlapping with hcsTarget {}: {}", index,
-                    hcsSourceContext, hcsTargetContext, set);
-            Indices indices = hcsSourceContext.getMap().get(index);
-            if (indices.containsSize2Plus()) {
-                Indices newIndices = indices.size2PlusDropOne();
-                Indices base = indices.first();
-                HiddenContentSelector newHiddenContentSelectorOfSource
-                        = new HiddenContentSelector(hctContext, Map.of(index, newIndices));
-                ParameterizedType newSourceType = base.find(runtime, sourceType);
-                Supplier<Map<Indices, HiddenContentSelector.IndicesAndType>> hctMethodToHctSourceSupplier =
-                        () -> Map.of(newIndices, new HiddenContentSelector.IndicesAndType(newIndices, newSourceType));
-                HiddenContentSelector newHcsTarget;
-                ParameterizedType newTargetType;
-                if (!targetType.isTypeParameter()) {
-                    // List<T> as return type
-                    newTargetType = targetType;
-                    newHcsTarget = newHiddenContentSelectorOfSource;
-                } else {
-                    // object -> return
-                    newHcsTarget = new HiddenContentSelector(hctContext, Map.of(index, ALL_INDICES));
-                    newTargetType = targetType;
-                }
-
-                Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, targetType);
-                if (!immutable.isImmutable()) {
-                    LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
-                            sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
-                            newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
-                            indexOfDirectlyLinkedField);
-                    lvsList.add(lvs);
-                }
-            }
-        }
-        if (!lvsList.isEmpty()) {
-            return lvsList.stream().reduce(LinkedVariablesImpl.EMPTY, LinkedVariables::merge);
-        }
-        return null;
     }
 
     private LinkedVariables continueLinkedVariables(HiddenContentSelector hiddenContentSelectorOfSource,
