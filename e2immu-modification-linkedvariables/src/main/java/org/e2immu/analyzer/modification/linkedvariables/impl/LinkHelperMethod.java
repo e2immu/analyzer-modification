@@ -1,12 +1,16 @@
 package org.e2immu.analyzer.modification.linkedvariables.impl;
 
 import org.e2immu.analyzer.modification.common.AnalysisHelper;
-import org.e2immu.analyzer.modification.linkedvariables.lv.*;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinkedVariablesImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.LinksImpl;
+import org.e2immu.analyzer.modification.linkedvariables.lv.StaticValuesImpl;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hcs.HiddenContentSelector;
 import org.e2immu.analyzer.modification.prepwork.hcs.IndexImpl;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
-import org.e2immu.analyzer.modification.prepwork.variable.*;
+import org.e2immu.analyzer.modification.prepwork.variable.LV;
+import org.e2immu.analyzer.modification.prepwork.variable.LinkedVariables;
+import org.e2immu.analyzer.modification.prepwork.variable.StaticValues;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.ReturnVariableImpl;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.expression.Expression;
@@ -83,7 +87,6 @@ class LinkHelperMethod extends CommonLinkHelper {
         EvaluationResult.Builder intoResultBuilder = resultPt == null || resultPt.isVoid() ? null
                 : new EvaluationResult.Builder();
         if (!methodInfo.parameters().isEmpty()) {
-            boolean isFactoryMethod = methodInfo.isFactoryMethod();
             // links between object/return value and parameters
             int i = 0;
             int nMinusOne = methodInfo.parameters().size() - 1;
@@ -92,7 +95,7 @@ class LinkHelperMethod extends CommonLinkHelper {
                 EvaluationResult evaluationResult = linkedVariables.get(i);
                 if (!evaluationResult.linkedVariables().isEmpty()) {
                     linkParameterToObjectOrResult(pi, objectPt, resultPt, parameterExpression, evaluationResult,
-                            isFactoryMethod, intoResultBuilder, intoObjectBuilder);
+                            intoResultBuilder, intoObjectBuilder);
                 } // else: see e.g. link.TestArrayInitializer
                 ++i;
             }
@@ -106,15 +109,13 @@ class LinkHelperMethod extends CommonLinkHelper {
                                                ParameterizedType resultPt,
                                                Expression parameterExpression,
                                                EvaluationResult evaluationResultOfParameter,
-                                               boolean isFactoryMethod,
                                                EvaluationResult.Builder intoResultBuilder,
                                                EvaluationResult.Builder intoObjectBuilder) {
         Independent formalParameterIndependent = pi.analysis().getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER,
                 DEPENDENT);
-        LinkedVariables lvsFactory = isFactoryMethod ? pi.analysis().getOrDefault(LINKED_VARIABLES_PARAMETER,
-                LinkedVariablesImpl.EMPTY) : LinkedVariablesImpl.EMPTY;
-        LinkedVariables lvsToResult = lvsFactory.merge(linkedVariablesToResult(pi, formalParameterIndependent));
-        boolean inResult = intoResultBuilder != null && !lvsToResult.isEmpty();
+
+        Independent parameterToResult = independentParameterToResult(pi, formalParameterIndependent);
+        boolean inResult = intoResultBuilder != null && !parameterToResult.isIndependent();
         if (!inResult && objectPt == null) return; // no chance
         if (formalParameterIndependent.isIndependent() && !inResult) {
             // formal parameter independent -> not linked to object
@@ -133,30 +134,16 @@ class LinkHelperMethod extends CommonLinkHelper {
         LinkedVariables lvsArgumentCorrectedToHcsParameter = linkHelperParameter.linkedVariablesOfParameter(pi.parameterizedType(),
                 concreteArgumentType, lvsArgument, hcsParameter,
                 pi.isVarArgs());
-        LinkedVariables lvsArgumentCorrectedToObjectOrReturnValue;
         Independent independentOfObjectOrReturnValue;
         EvaluationResult.Builder builder;
         ParameterizedType concreteObjectOrReturnType;
         ParameterizedType formalObjectOrReturnType;
         if (inResult) {
-            /*
-            change the links of the parameter to the value of the return variable (see also MethodReference,
-            computation of links when modified is true)
-             */
-            LV valueOfReturnValue = lvsToResult.stream().filter(e -> e.getKey() instanceof ReturnVariable)
-                    .map(Map.Entry::getValue).findFirst().orElse(null);
-            if (valueOfReturnValue != null) {
-                lvsArgumentCorrectedToObjectOrReturnValue = goFromArgumentToReturnVariable(lvsArgumentCorrectedToHcsParameter, valueOfReturnValue);
-                independentOfObjectOrReturnValue = valueOfReturnValue.isCommonHC() ? INDEPENDENT_HC : DEPENDENT;
-            } else {
-                lvsArgumentCorrectedToObjectOrReturnValue = LinkedVariablesImpl.EMPTY;
-                independentOfObjectOrReturnValue = INDEPENDENT;
-            }
+            independentOfObjectOrReturnValue = parameterToResult;
             builder = intoResultBuilder;
             concreteObjectOrReturnType = resultPt;
             formalObjectOrReturnType = methodInfo.returnType();
         } else {
-            lvsArgumentCorrectedToObjectOrReturnValue = lvsArgumentCorrectedToHcsParameter;
             independentOfObjectOrReturnValue = formalParameterIndependent;
             builder = intoObjectBuilder;
             concreteObjectOrReturnType = objectPt;
@@ -165,9 +152,9 @@ class LinkHelperMethod extends CommonLinkHelper {
         copyAdditionalLinksIntoBuilder(evaluationResultOfParameter, builder);
 
         LinkedVariables lv = computeLvForParameter(pi, inResult, concreteArgumentType, hcsParameter,
-                lvsArgumentCorrectedToObjectOrReturnValue,
+                lvsArgumentCorrectedToHcsParameter,
                 independentOfObjectOrReturnValue, concreteObjectOrReturnType, formalObjectOrReturnType);
-        LOGGER.debug("LV for parameter {}; {}: {}", pi, lvsArgumentCorrectedToObjectOrReturnValue, lv);
+        LOGGER.debug("LV for parameter {}; {}: {}", pi, lvsArgumentCorrectedToHcsParameter, lv);
         if (lv != null) {
             builder.mergeLinkedVariablesOfExpression(lv);
         }
@@ -283,45 +270,34 @@ class LinkHelperMethod extends CommonLinkHelper {
         });
     }
 
-    private LinkedVariables linkedVariablesToResult(ParameterInfo pi, Independent formalParameterIndependent) {
+
+    private Independent independentParameterToResult(ParameterInfo pi, Independent formalParameterIndependent) {
         Integer lvToResult = formalParameterIndependent.linkToParametersReturnValue() == null ? null :
                 formalParameterIndependent.linkToParametersReturnValue().get(-1);
         if (lvToResult != null) {
             // we know that there is linking
-            ReturnVariable rv = new ReturnVariableImpl(pi.methodInfo());
-            if (lvToResult == 0) return LinkedVariablesImpl.of(rv, LINK_DEPENDENT);
-            assert lvToResult == 1;
-            // this is either a *-4-n or n-4-m
-            Links links = hcLinkParameterToResult(pi);
-            return LinkedVariablesImpl.of(rv, LVImpl.createHC(links));
+            if (lvToResult == 0) return DEPENDENT;
+            if (lvToResult == 1) return INDEPENDENT_HC;
+            throw new UnsupportedOperationException("Only accept 0, 1 a t m");
         }
-        LinkedVariables lvMethod = pi.methodInfo().analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
-                LinkedVariablesImpl.EMPTY);
-        LV lv = lvMethod.stream().filter(e -> e.getKey() == pi)
-                .map(Map.Entry::getValue)
-                .findFirst().orElse(null);
-        if (pi.methodInfo().isIdentity() && pi.index() == 0) {
-            return LinkedVariablesImpl.of(pi, LINK_ASSIGNED);
+        boolean isFactoryMethod = pi.methodInfo().isFactoryMethod();
+        LV lv;
+        if (isFactoryMethod) {
+            LinkedVariables lvsFactory = pi.analysis().getOrDefault(LINKED_VARIABLES_PARAMETER, LinkedVariablesImpl.EMPTY);
+            lv = lvsFactory.value(new ReturnVariableImpl(pi.methodInfo()));
+        } else {
+            LinkedVariables lvMethod = pi.methodInfo().analysis().getOrDefault(LinkedVariablesImpl.LINKED_VARIABLES_METHOD,
+                    LinkedVariablesImpl.EMPTY);
+            lv = lvMethod.stream().filter(e -> e.getKey() == pi)
+                    .map(Map.Entry::getValue)
+                    .findFirst().orElse(null);
         }
-        if (lv == null) return LinkedVariablesImpl.EMPTY;
-        ReturnVariable rv = new ReturnVariableImpl(pi.methodInfo());
-        LV reverse = lv.reverse(); // we must link towards to result!!!
-        return LinkedVariablesImpl.of(rv, reverse);
-    }
-
-    // hasPi 1=*
-    // hasMe 1=0, 2=*
-    private Links hcLinkParameterToResult(ParameterInfo pi) {
-        HiddenContentSelector hcsPi = pi.analysis().getOrDefault(HCS_PARAMETER, NONE);
-        HiddenContentSelector hcsMe = pi.methodInfo().analysis().getOrDefault(HCS_METHOD, NONE);
-        Map<Indices, Link> map = new HashMap<>();
-        for (Map.Entry<Integer, Indices> e : hcsPi.getMap().entrySet()) {
-            Indices inMethod = hcsMe.getMap().get(e.getKey());
-            if (inMethod != null) {
-                map.put(e.getValue(), new LinkImpl(inMethod, false));
-            }
+        if (lv != null) {
+            assert lv != LINK_INDEPENDENT;
+            if (lv.isCommonHC()) return INDEPENDENT_HC;
+            return DEPENDENT;
         }
-        return new LinksImpl(map);
+        return INDEPENDENT;
     }
 
     private Map<ParameterInfo, LinkedVariables> translateLinksToParameters(MethodInfo methodInfo) {
