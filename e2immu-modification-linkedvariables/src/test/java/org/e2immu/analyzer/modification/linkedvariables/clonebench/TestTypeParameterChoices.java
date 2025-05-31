@@ -46,7 +46,7 @@ public class TestTypeParameterChoices extends CommonTest {
         List<Info> ao = prepWork(B);
         analyzer.go(ao);
         TypeInfo properties = javaInspector.compiledTypesManager().get(Properties.class);
-        assertEquals("0=Object", properties.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+        assertEquals("0=Object, 1=Properties", properties.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.class).detailedSortedTypes());
     }
 }

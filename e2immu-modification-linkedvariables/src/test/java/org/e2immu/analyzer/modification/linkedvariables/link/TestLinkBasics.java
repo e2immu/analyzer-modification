@@ -289,11 +289,11 @@ public class TestLinkBasics extends CommonTest {
         analyzer.go(analysisOrder);
 
         MethodInfo methodInfo = X.findUniqueMethod("copy", 1);
-        assertEquals(" - 0=T, 1=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
+        assertEquals("0=X - 1=T, 2=List", methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
-        assertEquals("0=0,1=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).toString());
+        assertEquals("1=0,2=*", methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).toString());
         ParameterInfo p0 = methodInfo.parameters().getFirst();
-        assertEquals("0=0,1=*", p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
+        assertEquals("1=0,2=*", p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
 
         LinkedVariables lvRv = methodInfo.analysis().getOrDefault(LINKED_VARIABLES_METHOD, LinkedVariablesImpl.EMPTY);
         assertEquals("0-4-0:list", lvRv.toString());
@@ -324,11 +324,11 @@ public class TestLinkBasics extends CommonTest {
         LinkedVariables lvRvS = methodInfoS.analysis().getOrDefault(LINKED_VARIABLES_METHOD,
                 LinkedVariablesImpl.EMPTY);
 
-        assertEquals(" - 0=List", methodInfoS.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
+        assertEquals("0=X - 1=List", methodInfoS.analysis().getOrDefault(HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.NO_VALUE).detailedSortedTypes());
-        assertEquals("0=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).toString());
+        assertEquals("1=*", methodInfoS.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE).toString());
         ParameterInfo p0S = methodInfoS.parameters().getFirst();
-        assertEquals("0=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
+        assertEquals("1=*", p0S.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
         assertEquals("", lvRvS.toString());
     }
 

@@ -32,7 +32,7 @@ public class ComputeHiddenContent {
         Map<NamedType, Integer> typeToIndex = new HashMap<>();
 
         Stream<ParameterizedType> parameterTypeStream = methodInfo.parameters().stream().map(Variable::parameterizedType);
-        Stream<ParameterizedType> methodTypeStream =Stream.of( methodInfo.returnType());
+        Stream<ParameterizedType> methodTypeStream = Stream.of(methodInfo.returnType());
         Set<TypeParameter> methodTypeParameters = Stream.concat(parameterTypeStream, methodTypeStream)
                 .flatMap(this::typeParameterStream)
                 .filter(TypeParameter::isMethodTypeParameter)
@@ -55,8 +55,7 @@ public class ComputeHiddenContent {
 
     private HiddenContentTypes compute(TypeInfo typeInfo, Set<TypeInfo> cycleProtection) {
         assert typeInfo != null && typeInfo.source() != null;
-        boolean compiledCode = typeInfo.source().isCompiledClass();
-
+        boolean compiledCode = typeInfo.primaryType().compilationUnit().externalLibrary();
         int offset;
         Map<NamedType, Integer> fromEnclosing;
         if (typeInfo.isInnerClass()) {
@@ -120,6 +119,10 @@ public class ComputeHiddenContent {
                     addExtensible(f.type(), fromThis, cycleProtection, nt -> true);
                 }
             }
+        }
+        if (typeInfo.isExtensible() && !fromThis.containsKey(typeInfo) && !typeInfo.isAnonymous()) {
+            int ih = fromThis.size();
+            fromThis.put(typeInfo, ih);
         }
         return HiddenContentTypes.of(typeInfo, typeInfo.isExtensible(), fromThis, superTypeToIndex);
     }

@@ -42,7 +42,7 @@ public class TestHCTNotYetLoaded extends CommonTest {
 
         TypeInfo bigInt = javaInspector.compiledTypesManager().get(BigInteger.class);
         HiddenContentTypes hct = bigInt.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.class);
-        assertEquals("", hct.detailedSortedTypes());
+        assertEquals("0=BigInteger", hct.detailedSortedTypes());
 
         analyzer.go(ao);
     }

@@ -95,7 +95,7 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
 
         {
             HiddenContentTypes ldiHct = loopDataImpl.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-            assertEquals("0=Exit", ldiHct.detailedSortedTypes());
+            assertEquals("0=Exit, 1=LoopDataImpl", ldiHct.detailedSortedTypes());
 
             {
                 MethodInfo constructor = loopDataImpl.findConstructor(1);

@@ -40,11 +40,11 @@ public class TestVarargs extends CommonTest {
 
         MethodInfo combine = B.findUniqueMethod("combine", 2);
         HiddenContentTypes combineHCT = combine.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals(" - 0=T, 1=I, 2=Collection", combineHCT.detailedSortedTypes());
+        assertEquals("0=B - 1=T, 2=I, 3=Collection", combineHCT.detailedSortedTypes());
         ParameterInfo pi0 = combine.parameters().get(0);
-        assertEquals("0=*", pi0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
+        assertEquals("1=*", pi0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
         ParameterInfo pi1 = combine.parameters().get(1);
-        // the 0 is the index in the type parameters of Collection; 2=2 is for the array type
-        assertEquals("1=0,2=2", pi1.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
+        // the 1 is the index in the type parameters of Collection; 3=3 is for the array type
+        assertEquals("2=0,3=3", pi1.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE).toString());
     }
 }

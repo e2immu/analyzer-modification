@@ -319,18 +319,18 @@ public class TestStaticValuesOfTryData extends CommonTest {
 
     private static void testGetSet(TypeInfo tryData, TypeInfo tryDataImpl) {
         HiddenContentTypes hctTryData = tryData.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object", hctTryData.detailedSortedTypes());
+        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object, 3=TryData", hctTryData.detailedSortedTypes());
         MethodInfo tryDataGet = tryData.findUniqueMethod("get", 1);
         HiddenContentTypes hctTryDataGet = tryDataGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object - ", hctTryDataGet.detailedSortedTypes());
+        assertEquals("0=ThrowingFunction, 1=Exception, 2=Object, 3=TryData - ", hctTryDataGet.detailedSortedTypes());
 
         // the implementation does see Object
         HiddenContentTypes hctTryDataImpl = tryDataImpl.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception", hctTryDataImpl.detailedSortedTypes());
+        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception, 3=TryDataImpl", hctTryDataImpl.detailedSortedTypes());
 
         MethodInfo tryDataImplGet = tryDataImpl.findUniqueMethod("get", 1);
         HiddenContentTypes hctTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, NO_VALUE);
-        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception - ", hctTryDataImplGet.detailedSortedTypes());
+        assertEquals("0=ThrowingFunction, 1=Object, 2=Exception, 3=TryDataImpl - ", hctTryDataImplGet.detailedSortedTypes());
         HiddenContentSelector hcsTryDataImplGet = tryDataImplGet.analysis().getOrDefault(HCS_METHOD, NONE);
         assertEquals("1=*", hcsTryDataImplGet.toString());
     }

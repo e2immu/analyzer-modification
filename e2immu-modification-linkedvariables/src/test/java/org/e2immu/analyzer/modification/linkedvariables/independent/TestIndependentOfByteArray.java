@@ -81,16 +81,16 @@ public class TestIndependentOfByteArray extends CommonTest {
         TypeInfo B = javaInspector.parse(INPUT1);
         List<Info> ao = prepWork(B);
         HiddenContentTypes hctB = B.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals("0=RandomAccessFile", hctB.detailedSortedTypes());
+        assertEquals("0=RandomAccessFile, 1=B", hctB.detailedSortedTypes());
 
         MethodInfo readFully = B.findUniqueMethod("readFully", 3);
         HiddenContentTypes hctReadFully = readFully.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals("0=RandomAccessFile - ", hctReadFully.detailedSortedTypes());
+        assertEquals("0=RandomAccessFile, 1=B - ", hctReadFully.detailedSortedTypes());
 
         analyzer.go(ao);
 
         MethodInfo read = B.findUniqueMethod("read", 3);
-        ParameterInfo b = read.parameters().get(0);
+        ParameterInfo b = read.parameters().getFirst();
         Statement s3 = read.methodBody().statements().get(3);
         {
             Statement s312 = ((IfElseStatement) s3).elseBlock().statements().get(2);

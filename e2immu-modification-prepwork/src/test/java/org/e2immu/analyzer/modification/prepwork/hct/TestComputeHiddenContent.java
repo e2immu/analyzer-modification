@@ -1,7 +1,6 @@
 package org.e2immu.analyzer.modification.prepwork.hct;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest;
-import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.language.cst.api.analysis.Codec;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
@@ -12,6 +11,7 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterator;
@@ -28,20 +28,24 @@ public class TestComputeHiddenContent extends CommonTest {
 
         TypeInfo list = javaInspector.compiledTypesManager().get(List.class);
         HiddenContentTypes hctList = chc.compute(list);
-        assertEquals("0=E", hctList.detailedSortedTypes());
+        assertEquals("0=E, 1=List", hctList.detailedSortedTypes());
 
         Codec codec = new CodecImpl(javaInspector.runtime(), PropertyProviderImpl::get, null,
                 null); // we don't have to decode
         Codec.Context context = new CodecImpl.ContextImpl();
         Codec.EncodedValue ev = hctList.encode(codec, context);
-        assertEquals("{\"0\":\"PE:0\",\"E\":true,\"M\":1}", ev.toString());
+        assertEquals("""
+                {"0":"PE:0","1":"Tjava.util.List","E":true,"M":2}\
+                """, ev.toString());
 
         TypeInfo mapEntry = javaInspector.compiledTypesManager().get(Map.Entry.class);
         HiddenContentTypes hctMapEntry = chc.compute(mapEntry);
-        assertEquals("0=K, 1=V", hctMapEntry.detailedSortedTypes());
+        assertEquals("0=K, 1=V, 2=Entry", hctMapEntry.detailedSortedTypes());
 
         Codec.EncodedValue ev2 = hctMapEntry.encode(codec, context);
-        assertEquals("{\"0\":\"PK:0\",\"1\":\"PV:1\",\"E\":true,\"M\":2}", ev2.toString());
+        assertEquals("""
+                {"0":"PK:0","1":"PV:1","2":"Tjava.util.Map.Entry","E":true,"M":3}\
+                """, ev2.toString());
     }
 
     @Language("java")
@@ -57,7 +61,7 @@ public class TestComputeHiddenContent extends CommonTest {
                         return s.toString();
                     }
                 }
-                static class CI implements I<Integer> {
+                final static class CI implements I<Integer> {
                     Integer i;
                     public String m(Integer i) {
                         return (i+1) + "";
@@ -95,13 +99,13 @@ public class TestComputeHiddenContent extends CommonTest {
 
         TypeInfo I = X.findSubType("I");
         HiddenContentTypes hctI = chc.compute(I);
-        assertEquals("0=T", hctI.detailedSortedTypes());
+        assertEquals("0=T, 1=I", hctI.detailedSortedTypes());
         I.analysis().set(HIDDEN_CONTENT_TYPES, hctI);
 
         TypeInfo C1 = X.findSubType("C1");
         HiddenContentTypes hctC1 = chc.compute(C1);
-        assertEquals("0=S", hctC1.detailedSortedTypes());
-        assertEquals("S=0", hctC1.detailedSortedTypeToIndex());
+        assertEquals("0=S, 1=C1", hctC1.detailedSortedTypes());
+        assertEquals("C1=1, S=0", hctC1.detailedSortedTypeToIndex());
         C1.analysis().set(HIDDEN_CONTENT_TYPES, hctC1);
 
         TypeInfo CI = X.findSubType("CI");
@@ -119,19 +123,19 @@ public class TestComputeHiddenContent extends CommonTest {
         TypeInfo object = runtime.objectTypeInfo();
         assertTrue(object.isExtensible());
         HiddenContentTypes hctObject = chc.compute(object);
-        assertEquals("", hctObject.detailedSortedTypes());
+        assertEquals("0=Object", hctObject.detailedSortedTypes());
         object.analysis().set(HIDDEN_CONTENT_TYPES, hctObject);
 
         TypeInfo comparable = javaInspector.compiledTypesManager().get(Comparable.class);
         assertTrue(object.isExtensible());
         HiddenContentTypes hctComparable = chc.compute(comparable);
-        assertEquals("0=T", hctComparable.detailedSortedTypes());
+        assertEquals("0=T, 1=Comparable", hctComparable.detailedSortedTypes());
         comparable.analysis().set(HIDDEN_CONTENT_TYPES, hctComparable);
 
         TypeInfo CO = X.findSubType("CO");
         HiddenContentTypes hctCO = chc.compute(CO);
-        assertEquals("0=Object", hctCO.detailedSortedTypes());
-        assertEquals("Object=0", hctCO.detailedSortedTypeToIndex());
+        assertEquals("0=Object, 1=CO", hctCO.detailedSortedTypes());
+        assertEquals("CO=1, Object=0", hctCO.detailedSortedTypeToIndex());
         CO.analysis().set(HIDDEN_CONTENT_TYPES, hctCO);
 
         // if a type has a self-reference, and hidden content, the type itself is part of the hidden content!
@@ -206,20 +210,20 @@ public class TestComputeHiddenContent extends CommonTest {
             TypeInfo doubleConsumer = javaInspector.compiledTypesManager().get(DoubleConsumer.class);
             assertTrue(doubleConsumer.isExtensible());
             HiddenContentTypes hctDoubleConsumer = chc.compute(doubleConsumer);
-            assertEquals("", hctDoubleConsumer.detailedSortedTypes());
+            assertEquals("0=DoubleConsumer", hctDoubleConsumer.detailedSortedTypes());
             doubleConsumer.analysis().set(HIDDEN_CONTENT_TYPES, hctDoubleConsumer);
         }
 
         TypeInfo spliterator = javaInspector.compiledTypesManager().get(Spliterator.class);
         HiddenContentTypes hctSpliterator = chc.compute(spliterator);
-        assertEquals("0=T", hctSpliterator.detailedSortedTypes());
-        assertEquals("T=0", hctSpliterator.detailedSortedTypeToIndex());
+        assertEquals("0=T, 1=Spliterator", hctSpliterator.detailedSortedTypes());
+        assertEquals("Spliterator=1, T=0", hctSpliterator.detailedSortedTypeToIndex());
         spliterator.analysis().set(HIDDEN_CONTENT_TYPES, hctSpliterator);
 
         TypeInfo spliteratorOfPrimitive = spliterator.findSubType("OfPrimitive");
         HiddenContentTypes hctSpliteratorOfPrimitive = chc.compute(spliteratorOfPrimitive);
-        assertEquals("0=T, 1=T_CONS, 2=T_SPLITR", hctSpliteratorOfPrimitive.detailedSortedTypes());
-        assertEquals("T=0, T_CONS=1, T_SPLITR=2", hctSpliteratorOfPrimitive.detailedSortedTypeToIndex());
+        assertEquals("0=T, 1=T_CONS, 2=T_SPLITR, 3=OfPrimitive", hctSpliteratorOfPrimitive.detailedSortedTypes());
+        assertEquals("OfPrimitive=3, T=0, T_CONS=1, T_SPLITR=2", hctSpliteratorOfPrimitive.detailedSortedTypeToIndex());
         spliteratorOfPrimitive.analysis().set(HIDDEN_CONTENT_TYPES, hctSpliteratorOfPrimitive);
 
         TypeInfo spliteratorOfDouble = spliterator.findSubType("OfDouble");
@@ -230,14 +234,14 @@ public class TestComputeHiddenContent extends CommonTest {
         spliteratorOfDouble.analysis().set(HIDDEN_CONTENT_TYPES, hctSpliteratorOfDouble);
 
         HiddenContentTypes hctSliceSpliterator = chc.compute(SliceSpliterator);
-        assertEquals("0=T, 1=T_SPLITR", hctSliceSpliterator.detailedSortedTypes());
-        assertEquals("T=0, T_SPLITR=1", hctSliceSpliterator.detailedSortedTypeToIndex());
+        assertEquals("0=T, 1=T_SPLITR, 2=SliceSpliterator", hctSliceSpliterator.detailedSortedTypes());
+        assertEquals("SliceSpliterator=2, T=0, T_SPLITR=1", hctSliceSpliterator.detailedSortedTypeToIndex());
         SliceSpliterator.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliterator);
 
         TypeInfo SliceSpliteratorOfPrimitive = SliceSpliterator.findSubType("OfPrimitive");
         HiddenContentTypes hctSliceSpliteratorOfPrimitive = chc.compute(SliceSpliteratorOfPrimitive);
-        assertEquals("0=T, 1=T_SPLITR, 2=T_CONS", hctSliceSpliteratorOfPrimitive.detailedSortedTypes());
-        assertEquals("T=0, T_CONS=2, T_SPLITR=1",
+        assertEquals("0=T, 1=T_SPLITR, 2=T_CONS, 3=OfPrimitive", hctSliceSpliteratorOfPrimitive.detailedSortedTypes());
+        assertEquals("OfPrimitive=3, T=0, T_CONS=2, T_SPLITR=1",
                 hctSliceSpliteratorOfPrimitive.detailedSortedTypeToIndex());
         SliceSpliteratorOfPrimitive.analysis().set(HIDDEN_CONTENT_TYPES, hctSliceSpliteratorOfPrimitive);
 
@@ -270,10 +274,10 @@ public class TestComputeHiddenContent extends CommonTest {
         ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
         TypeInfo X = javaInspector.parse(INPUT3);
         HiddenContentTypes hct = chc.compute(X);
-        assertEquals("", hct.detailedSortedTypes());
+        assertEquals("0=X", hct.detailedSortedTypes());
         MethodInfo add2 = X.findUniqueMethod("add2", 3);
         HiddenContentTypes hctMethod = chc.compute(hct, add2);
-        assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
+        assertEquals("0=X - 1=T, 2=Collection", hctMethod.detailedSortedTypes());
     }
 
 
@@ -294,11 +298,40 @@ public class TestComputeHiddenContent extends CommonTest {
     @Test
     public void test4() {
         ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
-        TypeInfo X = javaInspector.parse(INPUT3);
+        TypeInfo X = javaInspector.parse(INPUT4);
         HiddenContentTypes hct = chc.compute(X);
-        assertEquals("", hct.detailedSortedTypes());
+        assertEquals("0=X", hct.detailedSortedTypes());
         MethodInfo add2 = X.findUniqueMethod("add2", 3);
         HiddenContentTypes hctMethod = chc.compute(hct, add2);
-        assertEquals(" - 0=T, 1=Collection", hctMethod.detailedSortedTypes());
+        assertEquals("0=X - 1=T, 2=Collection", hctMethod.detailedSortedTypes());
+    }
+
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            final class X {
+                static <T> void print(T t) {
+                    System.out.print(t);
+                }
+            }
+            """;
+
+    @DisplayName("hct of PrintStream")
+    @Test
+    public void test5() {
+        ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
+        TypeInfo X = javaInspector.parse(INPUT5);
+        HiddenContentTypes hct = chc.compute(X);
+        assertEquals("", hct.detailedSortedTypes());
+        MethodInfo add2 = X.findUniqueMethod("print", 1);
+        HiddenContentTypes hctMethod = chc.compute(hct, add2);
+        assertEquals(" - 0=T", hctMethod.detailedSortedTypes());
+
+        TypeInfo printStream = javaInspector.compiledTypesManager().getOrLoad(PrintStream.class);
+        HiddenContentTypes hctPrintStream = printStream.analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () ->
+                chc.compute(printStream));
+        assertNotNull(hctPrintStream);
+        assertEquals(1, hctPrintStream.types().size());
     }
 }

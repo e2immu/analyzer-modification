@@ -139,16 +139,16 @@ public class TestLinkFunctional extends CommonTest {
         MethodInfo test = (MethodInfo) analysisOrder.stream()
                 .filter(i -> "a.b.X.$0.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
         HiddenContentTypes hctTest = test.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals("0=Stream, 1=M - ", hctTest.detailedSortedTypes());
+        assertEquals("0=X, 1=Stream, 2=M - ", hctTest.detailedSortedTypes());
 
         MethodInfo test1 = (MethodInfo) analysisOrder.stream()
                 .filter(i -> "a.b.X.$1.test(a.b.X.M)".equals(i.fullyQualifiedName())).findFirst().orElseThrow();
         HiddenContentTypes hctTest1 = test1.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals("0=Stream, 1=M, 2=Optional - ", hctTest1.detailedSortedTypes());
+        assertEquals("0=X, 1=Stream, 2=M, 3=Optional - ", hctTest1.detailedSortedTypes());
 
         MethodInfo m3 = X.findUniqueMethod("m3", 1);
         HiddenContentTypes hctM3 = m3.analysis().getOrDefault(HiddenContentTypes.HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals(" - 0=Stream, 1=M", hctM3.detailedSortedTypes());
+        assertEquals("0=X - 1=Stream, 2=M", hctM3.detailedSortedTypes());
 
         analyzer.go(analysisOrder);
 
@@ -290,9 +290,9 @@ public class TestLinkFunctional extends CommonTest {
         assertEquals("0=T, 1=R", function.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.class).detailedSortedTypes());
         MethodInfo m1 = X.findUniqueMethod("m1", 2);
-        assertEquals(" - 0=X, 1=Y, 2=Stream, 3=Function", m1.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+        assertEquals("0=P - 1=X, 2=Y, 3=Stream, 4=Function", m1.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.class).detailedSortedTypes());
-        assertEquals("1=0,2=*", m1.analysis().getOrNull(HiddenContentSelector.HCS_METHOD,
+        assertEquals("2=0,3=*", m1.analysis().getOrNull(HiddenContentSelector.HCS_METHOD,
                 HiddenContentSelector.class).toString());
 
         analyzer.go(analysisOrder);
