@@ -129,12 +129,12 @@ public class TestLinkToReturnValueListGet extends CommonTest {
         MethodInfo arrayListConstructor = typeInfo.findConstructor(collectionTypeInfo);
         assertEquals("java.util.ArrayList.<init>(java.util.Collection<? extends E>)", arrayListConstructor.fullyQualifiedName());
         HiddenContentTypes methodHct = arrayListConstructor.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
-        assertEquals("0=E - 1=Collection", methodHct.detailedSortedTypes());
-        assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
+        assertEquals("0=E, 1=ArrayList - 2=Collection", methodHct.detailedSortedTypes());
+        assertEquals("ArrayList:ArrayList, E - <init>:Collection", methodHct.toString());
 
         ParameterInfo p0 = arrayListConstructor.parameters().getFirst();
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
-        assertEquals("0=0,1=*", paramHcs.toString());
+        assertEquals("0=0,2=*", paramHcs.toString());
         assertSame(ValueImpl.IndependentImpl.INDEPENDENT_HC, p0.analysis()
                 .getOrDefault(PropertyImpl.INDEPENDENT_PARAMETER, ValueImpl.IndependentImpl.DEPENDENT));
         List<Info> analysisOrder = prepWork(X);

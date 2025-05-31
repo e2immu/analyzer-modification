@@ -287,7 +287,7 @@ public class TestLinkFunctional extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
 
         TypeInfo function = javaInspector.compiledTypesManager().get(Function.class);
-        assertEquals("0=T, 1=R", function.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
+        assertEquals("0=T, 1=R, 2=Function", function.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,
                 HiddenContentTypes.class).detailedSortedTypes());
         MethodInfo m1 = X.findUniqueMethod("m1", 2);
         assertEquals("0=P - 1=X, 2=Y, 3=Stream, 4=Function", m1.analysis().getOrNull(HiddenContentTypes.HIDDEN_CONTENT_TYPES,

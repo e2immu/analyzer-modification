@@ -340,13 +340,13 @@ public class TestLinkBasics extends CommonTest {
         assertEquals("java.util.ArrayList.<init>(java.util.Collection<? extends E>)", methodInfo.fullyQualifiedName());
         HiddenContentTypes methodHct = methodInfo.analysis().getOrDefault(HIDDEN_CONTENT_TYPES, HiddenContentTypes.NO_VALUE);
         assertEquals("0=E, 1=ArrayList - 2=Collection", methodHct.detailedSortedTypes());
-        assertEquals("ArrayList:E - <init>:Collection", methodHct.toString());
+        assertEquals("ArrayList:ArrayList, E - <init>:Collection", methodHct.toString());
         HiddenContentSelector methodHcs = methodInfo.analysis().getOrDefault(HCS_METHOD, HiddenContentSelector.NONE);
-        assertEquals("0=0", methodHcs.toString());
+        assertEquals("0=0,1=*", methodHcs.toString());
 
         ParameterInfo p0 = methodInfo.parameters().getFirst();
         HiddenContentSelector paramHcs = p0.analysis().getOrDefault(HCS_PARAMETER, HiddenContentSelector.NONE);
-        assertEquals("0=0,1=*", paramHcs.toString());
+        assertEquals("0=0,2=*", paramHcs.toString());
     }
 
     @Language("java")

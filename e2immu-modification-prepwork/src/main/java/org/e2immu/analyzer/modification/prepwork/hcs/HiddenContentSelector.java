@@ -313,7 +313,7 @@ public class HiddenContentSelector implements Value {
      */
     Map<Indices, ParameterizedType> extract(Runtime runtime, ParameterizedType type) {
         assert this != NONE;
-        return map.values().stream().collect(Collectors.toUnmodifiableMap(i -> i, i -> extract(runtime, type, i)));
+        return map.values().stream().distinct().collect(Collectors.toUnmodifiableMap(i -> i, i -> extract(runtime, type, i)));
     }
 
     private ParameterizedType extract(Runtime runtime, ParameterizedType type, Indices i) {
