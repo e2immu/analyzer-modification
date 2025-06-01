@@ -47,8 +47,8 @@ public record StaticValuesImpl(ParameterizedType type,
         StaticValues sv = (StaticValues) newValue;
 
         return (type == null || type.equals(sv.type()))
-               && (expression == null || expression.equals(sv.expression()))
-               && (multipleExpressions || !sv.multipleExpressions())
+               // when switching to multiple expressions, sv.expression() may become null
+               && (sv.multipleExpressions() || expression == null || expression.equals(sv.expression()))
                && values.entrySet().stream().allMatch(e -> {
             Expression inSv = sv.values().get(e.getKey());
             return inSv != null; // they have not disappeared

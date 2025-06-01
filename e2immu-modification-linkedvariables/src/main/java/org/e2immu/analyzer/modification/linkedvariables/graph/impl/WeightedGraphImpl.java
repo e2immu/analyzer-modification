@@ -73,8 +73,8 @@ public class WeightedGraphImpl extends Freezable implements WeightedGraph {
              Links from the return variable are asymmetrical
              */
             LV min = node.dependsOn.merge(target, linkLevel, LV::min);
+            Node n = getOrCreate(target);
             if (!(v instanceof ReturnVariable)) {
-                Node n = getOrCreate(target);
                 if (n.dependsOn == null) {
                     n.dependsOn = new LinkedHashMap<>();
                 }
