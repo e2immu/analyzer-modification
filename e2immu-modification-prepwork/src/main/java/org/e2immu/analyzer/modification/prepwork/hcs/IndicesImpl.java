@@ -100,6 +100,7 @@ public record IndicesImpl(Set<Index> set) implements Indices, Comparable<Indices
     public Indices allOccurrencesOf(Runtime runtime, ParameterizedType where) {
         Index first = set.stream().findFirst().orElseThrow();
         ParameterizedType what = first.find(runtime, where);
+        if (what == null) return null; // FIXME-DEMO added as a stopgap to prevent crashing; what should never be null here
         return staticAllOccurrencesOf(what, where);
     }
 

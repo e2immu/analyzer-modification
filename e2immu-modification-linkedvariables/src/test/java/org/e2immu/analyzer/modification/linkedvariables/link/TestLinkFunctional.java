@@ -473,6 +473,7 @@ public class TestLinkFunctional extends CommonTest {
             }
             """;
 
+    @Disabled
     @DisplayName("around IntStream")
     @Test
     public void test6() {

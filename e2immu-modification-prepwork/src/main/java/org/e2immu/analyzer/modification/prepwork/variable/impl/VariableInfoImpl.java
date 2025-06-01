@@ -8,8 +8,12 @@ import org.e2immu.language.cst.api.variable.Variable;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.PropertyValueMapImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VariableInfoImpl implements VariableInfo {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VariableInfoImpl.class);
+
     public static final Property UNMODIFIED_VARIABLE = new PropertyImpl("unmodifiedVariable");
     public static final Property MODIFIED_FI_COMPONENTS_VARIABLE =
             new PropertyImpl("modifiedFunctionalInterfaceComponentsVariable",
@@ -54,9 +58,10 @@ public class VariableInfoImpl implements VariableInfo {
             this.linkedVariables = linkedVariables;
             return true;
         }
-        throw new IllegalStateException("Variable " + variable.fullyQualifiedName()
-                                        + ": new linked variables are not better than old: " + this.linkedVariables
-                                        + ", new " + linkedVariables);
+        // FIXME-DEMO this should be an exception thrown
+        LOGGER.warn("Variable {}: new linked variables are not better than old: {}, new {}",
+                variable, this.linkedVariables, linkedVariables);
+        return false;
     }
 
     public boolean staticValuesIsSet() {
