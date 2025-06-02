@@ -35,11 +35,11 @@ public class ComputeCallGraph {
     private final Predicate<TypeInfo> externalsToAccept;
 
     private static final long CODE_STRUCTURE_BITS = 40;
-    private static final long CODE_STRUCTURE = 1L << CODE_STRUCTURE_BITS;
+    public static final long CODE_STRUCTURE = 1L << CODE_STRUCTURE_BITS;
     private static final long TYPE_HIERARCHY_BITS = 32;
-    private static final long TYPE_HIERARCHY = 1L << TYPE_HIERARCHY_BITS;
+    public static final long TYPE_HIERARCHY = 1L << TYPE_HIERARCHY_BITS;
     private static final long TYPES_IN_DECLARATION_BITS = 16;
-    private static final long TYPES_IN_DECLARATION = 1L << TYPES_IN_DECLARATION_BITS;
+    public static final long TYPES_IN_DECLARATION = 1L << TYPES_IN_DECLARATION_BITS;
     private static final long REFERENCES = 1;
 
     private G<Info> graph;
