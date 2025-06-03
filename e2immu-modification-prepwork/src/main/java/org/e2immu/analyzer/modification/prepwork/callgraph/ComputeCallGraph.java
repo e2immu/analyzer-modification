@@ -131,10 +131,14 @@ public class ComputeCallGraph {
         if (typeInfo.parentClass() != null) addType(typeInfo, typeInfo.parentClass(), TYPE_HIERARCHY); // B
         typeInfo.typeParameters().forEach(tp -> tp.typeBounds()
                 .forEach(pt -> addType(typeInfo, pt, TYPES_IN_DECLARATION))); // C
-
+        doAnnotations(typeInfo, TYPES_IN_DECLARATION);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
+            doAnnotations(mi, TYPES_IN_DECLARATION);
             mi.exceptionTypes().forEach(pt -> addType(mi, pt, TYPES_IN_DECLARATION)); // C
-            mi.parameters().forEach(pi -> addType(mi, pi.parameterizedType(), TYPES_IN_DECLARATION)); // C
+            mi.parameters().forEach(pi -> {
+                doAnnotations(pi, TYPES_IN_DECLARATION);
+                addType(mi, pi.parameterizedType(), TYPES_IN_DECLARATION);
+            }); // C
             if (mi.hasReturnValue()) { // C
                 addType(mi, mi.returnType(), TYPES_IN_DECLARATION); // needed because of immutable computation in independent
             }
@@ -147,6 +151,7 @@ public class ComputeCallGraph {
             mi.methodBody().visit(visitor); // D
         });
         typeInfo.fields().forEach(fi -> {
+            doAnnotations(fi, TYPES_IN_DECLARATION);
             addType(fi, fi.type(), TYPES_IN_DECLARATION); // C
             builder.mergeEdge(typeInfo, fi, CODE_STRUCTURE); // A
             if (fi.initializer() != null && !fi.initializer().isEmpty()) {
@@ -154,6 +159,13 @@ public class ComputeCallGraph {
                 fi.initializer().visit(visitor); // D
             }
         });
+    }
+
+    private void doAnnotations(Info from, long weight) {
+        from.annotations().stream()
+                .flatMap(ae -> ae.typesReferenced().map(Element.TypeReference::typeInfo))
+                .filter(externalsToAccept)
+                .forEach(to -> builder.mergeEdge(from, to, weight));
     }
 
     class Visitor implements Predicate<Element> {
@@ -164,6 +176,7 @@ public class ComputeCallGraph {
         }
 
         public boolean test(Element e) {
+            if (!e.annotations().isEmpty()) doAnnotations(info, REFERENCES);
             if (e instanceof VariableExpression ve
                 && ve.variable() instanceof FieldReference fr
                 && accept(fr.fieldInfo().owner())) {
@@ -254,6 +267,10 @@ public class ComputeCallGraph {
             return isRecursion(owner.enclosingMethod(), to);
         }
         return false;
+    }
+
+    private void addType(Info from, TypeInfo to, long edgeValue) {
+        builder.mergeEdge(from, to, edgeValue);
     }
 
     private void addType(Info from, ParameterizedType pt, long edgeValue) {
