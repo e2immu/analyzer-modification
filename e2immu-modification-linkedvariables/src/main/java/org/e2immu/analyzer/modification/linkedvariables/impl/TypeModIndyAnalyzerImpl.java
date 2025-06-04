@@ -162,15 +162,19 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         }
 
         private void handleExplicitlyEmptyMethod(MethodInfo methodInfo) {
-            methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE);
-            methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
-            DECIDE.debug("MI: Decide non-modifying of method {} = true", methodInfo);
-            DECIDE.debug("MI: Decide independent of method {} = independent", methodInfo);
+            if (methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.NON_MODIFYING_METHOD, TRUE)) {
+                DECIDE.debug("MI: Decide non-modifying of method {} = true", methodInfo);
+            }
+            if (methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT)) {
+                DECIDE.debug("MI: Decide independent of method {} = independent", methodInfo);
+            }
             for (ParameterInfo pi : methodInfo.parameters()) {
-                pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
-                pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
-                DECIDE.debug("MI: Decide unmodified of parameter {} = true", pi);
-                DECIDE.debug("MI: Decide independent of parameter {} = independent", pi);
+                if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE)) {
+                    DECIDE.debug("MI: Decide unmodified of parameter {} = true", pi);
+                }
+                if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT)) {
+                    DECIDE.debug("MI: Decide independent of parameter {} = independent", pi);
+                }
             }
         }
 
@@ -198,11 +202,13 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         }
 
         private void handleGetter(MethodInfo methodInfo, Independent independentFromType) {
-            methodInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_METHOD, independentFromType);
-            DECIDE.debug("MI: Decide independent of method {} = {}}", methodInfo, independentFromType);
+            if (methodInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_METHOD, independentFromType)) {
+                DECIDE.debug("MI: Decide independent of method {} = {}}", methodInfo, independentFromType);
+            }
             for (ParameterInfo pi : methodInfo.parameters()) {
-                pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
-                DECIDE.debug("MI: Decide unmodified of getter parameter: {} = true", pi);
+                if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE)) {
+                    DECIDE.debug("MI: Decide unmodified of getter parameter: {} = true", pi);
+                }
             }
         }
 
@@ -210,8 +216,9 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
             if (independentFromType.isIndependent()) {
                 // must be unmodified, otherwise, we'll have to wait for a value to come from the field
                 for (ParameterInfo pi : methodInfo.parameters()) {
-                    pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
-                    DECIDE.debug("MI: Decide unmodified of parameter because independent: {} = true", pi);
+                    if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE)) {
+                        DECIDE.debug("MI: Decide unmodified of parameter because independent: {} = true", pi);
+                    }
                 }
             } else {
                 Bool unmodifiedField = fieldValue.field().analysis().getOrNull(UNMODIFIED_FIELD,
@@ -229,11 +236,13 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                 } else {
                     for (ParameterInfo pi : methodInfo.parameters()) {
                         if (pi.index() == fieldValue.parameterIndexOfIndex()) {
-                            pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE);
-                            DECIDE.debug("MI: Decide unmodified of setter index parameter: {} = true", pi);
+                            if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, TRUE)) {
+                                DECIDE.debug("MI: Decide unmodified of setter index parameter: {} = true", pi);
+                            }
                         } else {
-                            pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, unmodifiedField);
-                            DECIDE.debug("MI: Decide unmodified of setter parameter: {} = {}", pi, unmodifiedField);
+                            if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_PARAMETER, unmodifiedField)) {
+                                DECIDE.debug("MI: Decide unmodified of setter parameter: {} = {}", pi, unmodifiedField);
+                            }
                         }
                     }
                 }
@@ -310,9 +319,7 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
 
         private Value.Independent doIndependentMethod(MethodInfo methodInfo, VariableData lastOfMainBlock) {
             if (methodInfo.isConstructor() || methodInfo.noReturnValue()) return INDEPENDENT;
-            if (methodInfo.isAbstract()) {
-                return DEPENDENT; // must be annotated otherwise
-            }
+            assert !methodInfo.isAbstract() : "Code only called when there is a method body";
             boolean fluent = methodInfo.analysis().getOrDefault(FLUENT_METHOD, FALSE).isTrue();
             if (fluent) return INDEPENDENT;
             boolean typeIsImmutable = analysisHelper.typeImmutable(methodInfo.returnType()).isImmutable();
