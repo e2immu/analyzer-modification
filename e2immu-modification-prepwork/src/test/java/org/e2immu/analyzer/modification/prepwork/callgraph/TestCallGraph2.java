@@ -1,16 +1,11 @@
 package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 import org.e2immu.analyzer.modification.prepwork.CommonTest2;
-import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
-import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.inspection.api.parser.Summary;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -187,27 +182,79 @@ public class TestCallGraph2 extends CommonTest2 {
                 "a.b.e.E1", TYPE_A_B_E1, "a.b.e.E2", TYPE_A_B_E2,
                 "a.b.f.F1", TYPE_A_B_F1, "a.b.f.F2", TYPE_A_B_F2,
                 "a.b.g.G1", TYPE_A_B_G1, "a.b.g.G2", TYPE_A_B_G2);
-        List<Info> order =init(sourcesByFqn);
+        R r = init(sourcesByFqn);
 
         /*
          D.stream() should come after a.b.c.C.strings#a.b.d.D.c
          while it comes after C.strings, it is before D.c (which is to be expected?)
          */
         assertEquals("""
-                [a.b.c.C.<init>(), a.b.c.C.asList(), a.b.c.C.get(), a.b.c.C.pop(), a.b.c.C.push(String), a.b.c.C.size(), \
-                a.b.d.D.LOGGER, a.b.e.E1.<init>(), a.b.e.E2.E2(java.sql.Connection), a.b.f.F1.E2(java.sql.Connection), \
-                a.b.f.F2.<init>(), a.b.g.G1.<init>(), a.b.g.G1.print(), \
-                a.b.c.C.strings, \
-                a.b.d.D.pop(), a.b.d.D.push(String), \
-                a.b.d.D.size(), \
-                a.b.d.D.stream(), \
-                a.b.g.G1, a.b.c.C, a.b.e.E1.fill(java.sql.Connection), a.b.e.E1.pop(), \
-                a.b.e.E1.size(), a.b.e.E1.stream(), a.b.d.D.D(a.b.c.C), a.b.e.E2.go(), a.b.g.G2.go(), a.b.g.G2.go2(), \
-                a.b.d.D.c, \
-                a.b.e.E2.con, a.b.g.G2.g1, a.b.d.D, a.b.e.E1.d, a.b.e.E1, a.b.e.E2.e1, a.b.f.F1.get(a.b.e.E1), \
-                a.b.f.F1.go(a.b.e.E1), a.b.f.F2.get(a.b.e.E1), a.b.g.G2.G2(a.b.e.E1), a.b.e.E2, a.b.f.F1.con, a.b.f.F2, \
-                a.b.g.G2.e1, a.b.f.F1, a.b.g.G2.f2, a.b.g.G2]\
-                """, order.toString());
+                [a.b.c.C.<init>(), a.b.c.C.asList(), a.b.c.C.get(), a.b.c.C.pop(), a.b.c.C.push(String), \
+                a.b.c.C.size(), a.b.e.E1.<init>(), a.b.e.E2.E2(java.sql.Connection), a.b.f.F1.E2(java.sql.Connection), \
+                a.b.f.F2.<init>(), a.b.g.G1.<init>(), a.b.g.G1.print(), a.b.c.C.strings, a.b.d.D.pop(), \
+                a.b.d.D.push(String), a.b.d.D.size(), a.b.d.D.stream(), a.b.g.G1, a.b.c.C, a.b.d.D.LOGGER, \
+                a.b.e.E1.fill(java.sql.Connection), a.b.e.E1.pop(), a.b.e.E1.size(), a.b.e.E1.stream(), \
+                a.b.d.D.D(a.b.c.C), a.b.e.E2.go(), a.b.g.G2.go(), a.b.g.G2.go2(), a.b.d.D.c, a.b.e.E2.con, \
+                a.b.g.G2.g1, a.b.d.D, a.b.e.E1.d, a.b.e.E1, a.b.e.E2.e1, a.b.f.F1.get(a.b.e.E1), a.b.f.F1.go(a.b.e.E1), \
+                a.b.f.F2.get(a.b.e.E1), a.b.g.G2.G2(a.b.e.E1), a.b.e.E2, a.b.f.F1.con, a.b.f.F2, a.b.g.G2.e1, a.b.f.F1, \
+                a.b.g.G2.f2, a.b.g.G2]\
+                """, r.analysisOrder().toString());
     }
 
+
+    @Language("java")
+    String X = """
+            package a.b;
+            import java.util.Map;
+            abstract class X {
+                protected final Map<String, Object> attributes;
+                X(Map<String,Object> attributes) {
+                    this.attributes = attributes;
+                }
+                public abstract String getEmail();
+            }
+            """;
+    @Language("java")
+    String Y = """
+            package a.b;
+            import java.util.Map;
+            public class Y extends X {
+                public Y(Map<String,Object> attributes) { super(attributes); }
+                @Override
+                public String getEmail() {
+                    return (String) attributes.get("email");
+                }
+            }
+            """;
+    @Language("java")
+    String A = """
+            package d.e;
+            import a.b.Y;
+            import java.util.Map;
+            class A {
+                private Y y = new Y(Map.of());
+            }
+            """;
+
+    @Test
+    public void test2() throws IOException {
+        Map<String, String> sourcesByFqn = Map.of("a.b.X", X, "a.b.Y", Y, "d.e.A", A);
+        R r = init(sourcesByFqn);
+
+        assertEquals("""
+                a.b.X->S->a.b.X.X(java.util.Map<String,Object>)
+                a.b.X->S->a.b.X.attributes
+                a.b.X->S->a.b.X.getEmail()
+                a.b.X.attributes->R->a.b.X.X(java.util.Map<String,Object>)
+                a.b.Y->H->a.b.X
+                a.b.Y->S->a.b.Y.Y(java.util.Map<String,Object>)
+                a.b.Y->S->a.b.Y.getEmail()
+                a.b.Y.getEmail()->R->a.b.X.attributes
+                a.b.Y.getEmail()->S->a.b.X.getEmail()
+                d.e.A->S->d.e.A.<init>()
+                d.e.A->S->d.e.A.y
+                d.e.A.y->D->a.b.Y
+                d.e.A.y->R->a.b.Y.Y(java.util.Map<String,Object>)\
+                """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
+    }
 }

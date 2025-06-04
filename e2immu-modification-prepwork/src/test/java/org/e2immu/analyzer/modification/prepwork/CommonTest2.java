@@ -2,14 +2,15 @@ package org.e2immu.analyzer.modification.prepwork;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.language.cst.api.info.Info;
-import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.inspection.api.integration.JavaInspector;
 import org.e2immu.language.inspection.api.parser.Summary;
 import org.e2immu.language.inspection.api.resource.InputConfiguration;
 import org.e2immu.language.inspection.integration.JavaInspectorImpl;
 import org.e2immu.language.inspection.resource.InputConfigurationImpl;
+import org.e2immu.util.internal.graph.G;
 import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +34,10 @@ public class CommonTest2 {
         ((Logger) LoggerFactory.getLogger("io.codelaser.jfocus.refactor")).setLevel(Level.DEBUG);
     }
 
-    protected List<Info> init(Map<String, String> sourcesByFqn) throws IOException {
+    protected record R(List<Info> analysisOrder, G<Info> dependencyGraph) {
+    }
+
+    protected R init(Map<String, String> sourcesByFqn) throws IOException {
         Map<String, String> sourcesByURIString = sourcesByFqn.entrySet()
                 .stream().collect(Collectors.toUnmodifiableMap(
                         e -> TEST_PROTOCOL_PREFIX + e.getKey(), Map.Entry::getValue));
@@ -59,12 +63,8 @@ public class CommonTest2 {
                 .setFailFast(true).setDetailedSources(true).build();
         summary = javaInspector.parse(sourcesByURIString, parseOptions);
         prepAnalyzer.initialize(javaInspector.compiledTypesManager().typesLoaded());
-        return prepAnalyzer.doPrimaryTypes(Set.copyOf(summary.types()));
-    }
-
-    protected static TypeInfo find(Summary summary, String simpleName) {
-        return summary.types().stream()
-                .filter(ti -> simpleName.equals(ti.simpleName()))
-                .findFirst().orElseThrow();
+        G<Info> graph = prepAnalyzer.doPrimaryTypesReturnGraph(Set.copyOf(summary.types()));
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        return new R(cao.go(graph), graph);
     }
 }

@@ -145,11 +145,19 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->S->a.b.X.X(int), a.b.X->S->a.b.X.initList(int), a.b.X->S->a.b.X.list, a.b.X->S->a.b.X.print(), \
-                a.b.X->S->a.b.X.rest(), a.b.X->S->a.b.X.sleep(), a.b.X.X(int)->R->a.b.X.initList(int), \
-                a.b.X.X(int)->R->a.b.X.print(), a.b.X.X(int)->R->a.b.X.sleep(), a.b.X.list->R->a.b.X.initList(int), \
+                a.b.X->S->a.b.X.X(int)
+                a.b.X->S->a.b.X.initList(int)
+                a.b.X->S->a.b.X.list
+                a.b.X->S->a.b.X.print()
+                a.b.X->S->a.b.X.rest()
+                a.b.X->S->a.b.X.sleep()
+                a.b.X.X(int)->R->a.b.X.initList(int)
+                a.b.X.X(int)->R->a.b.X.print()
+                a.b.X.X(int)->R->a.b.X.sleep()
+                a.b.X.list->R->a.b.X.initList(int)
+                a.b.X.list->R->a.b.X.sleep()
                 a.b.X.rest()->R->a.b.X.sleep()\
-                """, ComputeCallGraph.print(graph));
+                """, graph.toString("\n", ComputeCallGraph::edgeValuePrinter));
 
         assertTrue(ccg.recursiveMethods().isEmpty());
 

@@ -196,15 +196,11 @@ public class ComputeCallGraph {
             }
             if (e instanceof MethodCall mc) {
                 handleMethodCall(info, mc.methodInfo());
-                mc.parameterExpressions().forEach(pe -> pe.visit(this));
-                if (!(mc.object() instanceof VariableExpression || mc.object() instanceof TypeExpression)) {
-                    mc.object().visit(this);
-                }
-                return false;
+                return true;
             }
             if (e instanceof MethodReference mr) {
                 handleMethodCall(info, mr.methodInfo());
-                return false;
+                return true;
             }
             if (e instanceof ConstructorCall cc) {
                 TypeInfo anonymousType = cc.anonymousClass();
@@ -218,11 +214,6 @@ public class ComputeCallGraph {
                 }
                 if (cc.constructor() != null) {
                     handleMethodCall(info, cc.constructor());
-                    cc.parameterExpressions().forEach(pe -> pe.visit(this));
-                    if (cc.object() != null && !(cc.object() instanceof VariableExpression || cc.object() instanceof TypeExpression)) {
-                        cc.object().visit(this);
-                    }
-                    return false;
                 }
                 return true;
             }
