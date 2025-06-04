@@ -60,6 +60,10 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
             if (independent != null) {
                 DECIDE.debug("Ti: Decide independent of type {} = {}", typeInfo, independent);
                 typeInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_TYPE, independent);
+            } else if (activateCycleBreaking) {
+                boolean write = typeInfo.analysis().setAllowControlledOverwrite(INDEPENDENT_TYPE, INDEPENDENT);
+                assert write;
+                DECIDE.info("Ti: Decide independent of type {} = INDEPENDENT by {}", typeInfo, CYCLE_BREAKING);
             } else {
                 UNDECIDED.debug("Ti: Independent of type {} undecided, wait for internal {}, external {}", typeInfo,
                         internalWaitFor, externalWaitFor);
@@ -100,10 +104,7 @@ public class TypeIndependentAnalyzerImpl extends CommonAnalyzerImpl implements T
             }
             assert indyFromHierarchy.isAtLeastIndependentHc();
 
-            Independent fromFields = loopOverFieldsAndAbstractMethods(typeInfo);
-            if (fromFields == null) return null;
-            if (fromFields.isDependent()) return DEPENDENT;
-            return fromFields.min(indyFromHierarchy);
+            return loopOverFieldsAndAbstractMethods(typeInfo);
         }
 
         private Independent independentSuper(TypeInfo superTypeInfo) {

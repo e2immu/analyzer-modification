@@ -65,8 +65,8 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
     }
 
     @Override
-    public Output go(TypeInfo typeInfo, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor) {
-        InternalAnalyzer ia = new InternalAnalyzer();
+    public Output go(TypeInfo typeInfo, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor, boolean cycleBreakingActive) {
+        InternalAnalyzer ia = new InternalAnalyzer(cycleBreakingActive);
         try {
             ia.go(typeInfo);
         } catch (RuntimeException re) {
@@ -85,6 +85,11 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
         Map<MethodInfo, Set<MethodInfo>> waitForMethodModifications = new HashMap<>();
         Map<MethodInfo, Set<TypeInfo>> waitForTypeIndependence = new HashMap<>();
         Map<MethodInfo, Set<FieldInfo>> waitForField = new HashMap<>();
+        final boolean cycleBreakingActive;
+
+        InternalAnalyzer(boolean cycleBreakingActive) {
+            this.cycleBreakingActive = cycleBreakingActive;
+        }
 
         private void go(TypeInfo typeInfo) {
             typeInfo.constructorAndMethodStream()
@@ -149,6 +154,8 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                 if (pi.analysis().setAllowControlledOverwrite(UNMODIFIED_PARAMETER, unmodified)) {
                     DECIDE.debug("MI: unmodified of parameter {} = {}", pi, unmodified);
                 }
+            } else if (cycleBreakingActive) {
+                UNDECIDED.info("MI: Unmodified of parameter {} undecided, waitForField {}", pi, waitForField);
             } else {
                 UNDECIDED.debug("MI: Unmodified of parameter {} undecided, waitForField {}", pi, waitForField);
             }
@@ -176,8 +183,13 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
             if (independentFromType == null) {
                 waitForTypeIndependence.computeIfAbsent(methodInfo, m -> new HashSet<>())
                         .add(fieldValue.field().type().bestTypeInfo());
-                UNDECIDED.debug("MI: Independent of method {} undecided, wait for type independence {}", methodInfo,
-                        waitForTypeIndependence);
+                if (cycleBreakingActive) {
+                    UNDECIDED.info("MI: Independent of method {} undecided, wait for type independence {}", methodInfo,
+                            waitForTypeIndependence);
+                } else {
+                    UNDECIDED.debug("MI: Independent of method {} undecided, wait for type independence {}", methodInfo,
+                            waitForTypeIndependence);
+                }
             } else if (fieldValue.setter()) {
                 handleSetter(methodInfo, fieldValue, independentFromType);
             } else {
@@ -207,8 +219,13 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                 if (unmodifiedField == null) {
                     waitForField.computeIfAbsent(methodInfo, m -> new HashSet<>())
                             .add(fieldValue.field());
-                    UNDECIDED.debug("MI: Unmodified of setter parameter of {} undecided: wait for field {}",
-                            methodInfo, waitForField);
+                    if (cycleBreakingActive) {
+                        UNDECIDED.info("MI: Unmodified of setter parameter of {} undecided: wait for field {}",
+                                methodInfo, waitForField);
+                    } else {
+                        UNDECIDED.debug("MI: Unmodified of setter parameter of {} undecided: wait for field {}",
+                                methodInfo, waitForField);
+                    }
                 } else {
                     for (ParameterInfo pi : methodInfo.parameters()) {
                         if (pi.index() == fieldValue.parameterIndexOfIndex()) {
@@ -261,6 +278,10 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                 if (methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, independentMethod)) {
                     DECIDE.debug("MI: Decide independent of method {} = {}", methodInfo, independentMethod);
                 }
+            } else if (cycleBreakingActive) {
+                boolean write = methodInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_METHOD, INDEPENDENT);
+                assert write;
+                DECIDE.info("MI: Decide independent of method {} = INDEPENDENT by {}", methodInfo, CYCLE_BREAKING);
             } else {
                 UNDECIDED.debug("MI: Independent of method undecided: {}", methodInfo);
             }
@@ -270,6 +291,10 @@ public class TypeModIndyAnalyzerImpl extends CommonAnalyzerImpl implements TypeM
                     if (pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, independent)) {
                         DECIDE.debug("MI: Decide independent of parameter {} = {}", pi, independent);
                     }
+                } else if (cycleBreakingActive) {
+                    boolean write = pi.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_PARAMETER, INDEPENDENT);
+                    assert write;
+                    DECIDE.info("MI: Decide independent of parameter {} = INDEPENDENT by {}", pi, CYCLE_BREAKING);
                 } else {
                     UNDECIDED.debug("MI: Independent of parameter {} undecided", pi);
                 }

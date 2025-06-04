@@ -36,5 +36,5 @@ public interface IteratingAnalyzer extends Analyzer {
         Map<String, Integer> infoHistogram();
     }
 
-    Output analyze(List<Info> analysisOrder, Configuration configuration);
+    Output analyze(List<Info> analysisOrder);
 }

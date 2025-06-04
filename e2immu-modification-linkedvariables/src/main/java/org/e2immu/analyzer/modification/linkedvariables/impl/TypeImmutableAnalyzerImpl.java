@@ -133,6 +133,10 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             return HiddenContentTypes.hasHc(typeInfo) ? IMMUTABLE_HC : IMMUTABLE;
         }
 
+        private static boolean isNotSelf(FieldInfo fieldInfo) {
+            TypeInfo bestType = fieldInfo.type().bestTypeInfo();
+            return bestType == null || !bestType.equals(fieldInfo.owner());
+        }
 
         private Boolean loopOverFieldsAndMethods(TypeInfo typeInfo, boolean abstractMethods) {
             // fields should be private, or immutable for the type to be immutable
@@ -144,12 +148,14 @@ public class TypeImmutableAnalyzerImpl extends CommonAnalyzerImpl implements Typ
             Boolean isImmutable = true;
             for (FieldInfo fieldInfo : typeInfo.fields()) {
                 if (!fieldInfo.access().isPrivate()) {
-                    Immutable immutable = analysisHelper.typeImmutableNullIfUndecided(fieldInfo.type());
-                    if (immutable == null) {
-                        externalWaitFor.add(fieldInfo.type().bestTypeInfo());
-                        isImmutable = null;
-                    } else if (!immutable.isAtLeastImmutableHC()) {
-                        return false;
+                    if (isNotSelf(fieldInfo)) {
+                        Immutable immutable = analysisHelper.typeImmutableNullIfUndecided(fieldInfo.type());
+                        if (immutable == null) {
+                            externalWaitFor.add(fieldInfo.type().bestTypeInfo());
+                            isImmutable = null;
+                        } else if (!immutable.isAtLeastImmutableHC()) {
+                            return false;
+                        }
                     }
                 }
                 Value.Bool fieldUnmodified = fieldInfo.analysis().getOrNull(UNMODIFIED_FIELD, ValueImpl.BoolImpl.class);

@@ -20,12 +20,13 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class IteratingAnalyzerImpl implements IteratingAnalyzer {
+public class IteratingAnalyzerImpl extends CommonAnalyzerImpl implements IteratingAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(IteratingAnalyzerImpl.class);
 
     private final Runtime runtime;
 
-    public IteratingAnalyzerImpl(Runtime runtime) {
+    public IteratingAnalyzerImpl(Runtime runtime, Configuration configuration) {
+        super(configuration);
         this.runtime = runtime;
     }
 
@@ -120,7 +121,7 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
     }
 
     @Override
-    public Output analyze(List<Info> analysisOrder, Configuration configuration) {
+    public Output analyze(List<Info> analysisOrder) {
         int iterations = 0;
         int prevWaitingForSize = Integer.MAX_VALUE;
         SingleIterationAnalyzer singleIterationAnalyzer = new SingleIterationAnalyzerImpl(runtime, configuration);
@@ -128,7 +129,7 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
         boolean cycleBreakingActive = false;
         while (true) {
             ++iterations;
-            LOGGER.info("\033[31;1;4mStart iteration {}\033[0m, cycle breaking active? {}", iterations, cycleBreakingActive);
+            LOGGER.info("{}, cycle breaking active? {}", highlight("Start iteration " + iterations), cycleBreakingActive);
             SingleIterationAnalyzer.Output output = singleIterationAnalyzer.go(analysisOrder, cycleBreakingActive);
             G<Info> waitFor = output.waitFor();
             analyzerExceptions.addAll(output.analyzerExceptions());
@@ -143,21 +144,21 @@ public class IteratingAnalyzerImpl implements IteratingAnalyzer {
             if (noImprovement || cycleBreakingActive) {
                 Linearize.Result<Info> result = Linearize.linearize(waitFor);
                 Cycles<Info> cycles = result.remainingCycles();
-                if (cycleBreakingActive) {
-                    LOGGER.info("WaitingFor now {} in cycle breaking, cycles:", waitForSize);
-                    printCycles(output.waitFor(), cycles);
-                } else {
+                if (noImprovement) {
                     LOGGER.info("No improvements anymore, have {} cycles after {} iterations", cycles.size(), iterations);
                     printCycles(output.waitFor(), cycles);
                     assert !cycles.isEmpty();
-                    if (configuration.stopWhenCycleDetectedAndNoImprovements()) {
+                    if (configuration.stopWhenCycleDetectedAndNoImprovements() || cycleBreakingActive) {
                         return new OutputImpl(waitFor, cycles, iterations, output.infoHistogram(), analyzerExceptions);
                     }
                     LOGGER.info("Activating cycle breaking");
                     cycleBreakingActive = true;
+                } else {
+                    LOGGER.info("WaitingFor now {} in cycle breaking, cycles:", highlight("" + waitForSize));
+                    printCycles(output.waitFor(), cycles);
                 }
             } else {
-                LOGGER.info("WaitingFor now {}, iterating again", waitForSize);
+                LOGGER.info("WaitingFor now {}, iterating again", highlight("" + waitForSize));
             }
             prevWaitingForSize = waitForSize;
         }

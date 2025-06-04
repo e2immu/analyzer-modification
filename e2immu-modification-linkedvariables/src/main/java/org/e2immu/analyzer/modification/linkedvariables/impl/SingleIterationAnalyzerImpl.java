@@ -69,7 +69,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                 if (fieldInfo.owner().isAbstract()) {
                     shallowTypeAnalyzer.analyzeField(fieldInfo);
                 }
-                FieldAnalyzer.Output output = fieldAnalyzer.go(fieldInfo);
+                FieldAnalyzer.Output output = fieldAnalyzer.go(fieldInfo, activateCycleBreaking);
                 if (!output.waitFor().isEmpty()) builder.add(fieldInfo, output.waitFor());
                 analyzerExceptions.addAll(output.analyzerExceptions());
             } else if (info instanceof TypeInfo typeInfo) {
@@ -97,7 +97,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
                                   Map<MethodInfo, Set<MethodInfo>> methodsWaitFor,
                                   List<AnalyzerException> analyzerExceptions,
                                   G.Builder<Info> builder) {
-        Analyzer.Output output1 = typeModIndyAnalyzer.go(typeInfo, methodsWaitFor);
+        Analyzer.Output output1 = typeModIndyAnalyzer.go(typeInfo, methodsWaitFor, activateCycleBreaking);
         analyzerExceptions.addAll(output1.analyzerExceptions());
 
         TypeIndependentAnalyzer.Output output2 = typeIndependentAnalyzer.go(typeInfo,

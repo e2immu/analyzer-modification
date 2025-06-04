@@ -13,4 +13,10 @@ public abstract class CommonAnalyzerImpl {
     protected CommonAnalyzerImpl(IteratingAnalyzer.Configuration configuration) {
         this.configuration = configuration;
     }
+
+    protected static String highlight(String content) {
+        return "\033[31;1;4m" + content + "\033[0m";
+    }
+
+    protected static final String CYCLE_BREAKING = highlight("cycle breaking");
 }

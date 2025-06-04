@@ -30,5 +30,5 @@ public interface FieldAnalyzer extends Analyzer {
         Set<Info> waitFor();
     }
 
-    Output go(@Modified FieldInfo fieldInfo);
+    Output go(@Modified FieldInfo fieldInfo, boolean cycleBreakingActive);
 }

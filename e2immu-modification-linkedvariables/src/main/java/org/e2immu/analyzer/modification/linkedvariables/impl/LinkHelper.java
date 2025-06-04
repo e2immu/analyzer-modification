@@ -676,8 +676,8 @@ class LinkHelper {
                                             boolean reverse,
                                             Integer indexOfDirectlyLinkedField) {
         assert sourceTypeIn != null;
-     //   assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
-     //   assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
+        //   assert hiddenContentSelectorOfSource.compatibleWith(runtime, methodSourceType);
+        //   assert sourceLvs.compatibleWith(hiddenContentSelectorOfSource);
         assert hiddenContentSelectorOfTarget.compatibleWith(runtime, methodTargetType);
 
         ParameterizedType sourceType = ensureTypeParameters(sourceTypeIn); // Pair -> Pair<Object, Object>
@@ -723,12 +723,16 @@ class LinkHelper {
         if (immutable1.isImmutable()) return LinkedVariablesImpl.EMPTY;
         Value.Immutable immutable2 = analysisHelper.typeImmutable(currentPrimaryType, methodTargetType);
         if (immutable2.isImmutable()) return LinkedVariablesImpl.EMPTY;
-
-        return continueLinkedVariables(
-                hiddenContentSelectorOfSource,
-                sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
-                methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse,
-                indexOfDirectlyLinkedField);
+        try {
+            return continueLinkedVariables(
+                    hiddenContentSelectorOfSource,
+                    sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfFormalSource, targetType,
+                    methodTargetType, hiddenContentSelectorOfTarget, hctMethodToHctSourceSupplier, reverse,
+                    indexOfDirectlyLinkedField);
+        } catch (RuntimeException re) {
+            LOGGER.warn("Temporarily disabled exceptions, return EMPTY");
+            return LinkedVariablesImpl.EMPTY;
+        }
     }
 
     private LinkedVariables lvFunctional(Value.Independent transferIndependent,
@@ -787,11 +791,15 @@ class LinkHelper {
 
                 Value.Immutable immutable = analysisHelper.typeImmutable(currentPrimaryType, targetType);
                 if (!immutable.isImmutable()) {
-                    LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
-                            sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
-                            newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
-                            reverse, indexOfDirectlyLinkedField);
-                    lvsList.add(lvs);
+                    try {
+                        LinkedVariables lvs = continueLinkedVariables(newHiddenContentSelectorOfSource,
+                                sourceLvs, sourceIsVarArgs, transferIndependent, immutableOfSource,
+                                newTargetType, newTargetType, newHcsTarget, hctMethodToHctSourceSupplier,
+                                reverse, indexOfDirectlyLinkedField);
+                        lvsList.add(lvs);
+                    } catch (RuntimeException re) {
+                        LOGGER.warn("Temporarily disabled exceptions; return empty linking");
+                    }
                 }
             }
         }

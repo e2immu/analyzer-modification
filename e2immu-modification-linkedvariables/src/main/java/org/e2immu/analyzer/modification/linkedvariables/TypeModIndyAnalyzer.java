@@ -24,5 +24,5 @@ public interface TypeModIndyAnalyzer extends Analyzer {
 
     }
 
-    Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor);
+    Output go(TypeInfo primaryType, Map<MethodInfo, Set<MethodInfo>> methodsWaitFor, boolean cycleBreakingActive);
 }

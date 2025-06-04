@@ -47,11 +47,11 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
 
 
     @Override
-    public Output go(FieldInfo fieldInfo) {
+    public Output go(FieldInfo fieldInfo, boolean cycleBreakingActive) {
         List<AnalyzerException> analyzerExceptions = new LinkedList<>();
         InternalFieldAnalyzer analyzer = new InternalFieldAnalyzer();
         try {
-            analyzer.go(fieldInfo);
+            analyzer.go(fieldInfo, cycleBreakingActive);
         } catch (RuntimeException re) {
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
@@ -65,7 +65,7 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
     private class InternalFieldAnalyzer {
         private final Set<Info> waitFor = new HashSet<>();
 
-        private void go(FieldInfo fieldInfo) {
+        private void go(FieldInfo fieldInfo, boolean cycleBreakingActive) {
             LOGGER.debug("Do field {}", fieldInfo);
             LinkedVariables linkedVariablesDone = fieldInfo.analysis()
                     .getOrNull(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, LinkedVariablesImpl.class);
@@ -95,6 +95,10 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                     if (fieldInfo.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_FIELD, unmodified)) {
                         DECIDE.debug("FI: Decide unmodified of field {} = {}", fieldInfo, unmodified);
                     }
+                } else if (cycleBreakingActive) {
+                    boolean write = fieldInfo.analysis().setAllowControlledOverwrite(PropertyImpl.UNMODIFIED_FIELD, TRUE);
+                    assert write;
+                    DECIDE.info("FI: Decide unmodified of field {} = true by {}", fieldInfo, highlight("cycleBreaking"));
                 } else {
                     UNDECIDED.debug("FI: Unmodified of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }
@@ -103,8 +107,15 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
             LinkedVariables linkedVariables = linkedVariablesDone != null ? linkedVariablesDone
                     : computeLinkedVariables(fieldInfo, methodsReferringToField);
             if (linkedVariables == null) {
-                UNDECIDED.debug("FI: Linked variables of field {} undecided, wait for {}", fieldInfo, waitFor);
-                return;
+                if (cycleBreakingActive) {
+                    boolean write = fieldInfo.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_FIELD,
+                            LinkedVariablesImpl.EMPTY);
+                    assert write;
+                    DECIDE.info("FI: Decide linked variables of field {} = empty by {}", fieldInfo, CYCLE_BREAKING);
+                } else {
+                    UNDECIDED.debug("FI: Linked variables of field {} undecided, wait for {}", fieldInfo, waitFor);
+                    return;
+                }
             }
             if (fieldInfo.analysis().setAllowControlledOverwrite(LinkedVariablesImpl.LINKED_VARIABLES_FIELD, linkedVariables)) {
                 DECIDE.debug("FI: Decide linked variables of field {} = {}", fieldInfo, linkedVariables);
@@ -115,6 +126,10 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                     if (fieldInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_FIELD, independent)) {
                         DECIDE.debug("FI: Decide independent of field {} = {}", fieldInfo, independent);
                     }
+                } else if (cycleBreakingActive) {
+                    boolean write = fieldInfo.analysis().setAllowControlledOverwrite(PropertyImpl.INDEPENDENT_FIELD, INDEPENDENT);
+                    assert write;
+                    DECIDE.info("FI: Decide independent of field {} = INDEPENDENT by {}", fieldInfo, CYCLE_BREAKING);
                 } else {
                     UNDECIDED.debug("FI: Independent of field {} undecided, wait for {}", fieldInfo, waitFor);
                 }

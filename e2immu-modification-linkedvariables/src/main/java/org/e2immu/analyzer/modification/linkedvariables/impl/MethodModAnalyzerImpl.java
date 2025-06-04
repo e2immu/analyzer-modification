@@ -80,8 +80,7 @@ public class MethodModAnalyzerImpl extends CommonAnalyzerImpl implements MethodM
         try {
             methodAnalyzer.doMethod(methodInfo);
         } catch (RuntimeException re) {
-            LOGGER.error("Caught exception/error analyzing {} @line {}: {}", methodInfo, bestSourceLog(methodInfo),
-                    re.getMessage());
+            LOGGER.error("Caught exception/error analyzing {} @line {}", methodInfo, bestSourceLog(methodInfo), re);
             if (configuration.storeErrors()) {
                 if (!(re instanceof AnalyzerException)) {
                     methodAnalyzer.analyzerExceptions.add(new AnalyzerException(methodInfo, re));
