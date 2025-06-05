@@ -84,6 +84,10 @@ public class PrepAnalyzer {
     }
 
     public G<Info> doPrimaryTypesReturnGraph(Set<TypeInfo> primaryTypes) {
+        return doPrimaryTypesReturnComputeCallGraph(primaryTypes).graph();
+    }
+
+    public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes) {
         for (TypeInfo primaryType : primaryTypes) {
             assert primaryType.isPrimaryType();
             doType(primaryType);
@@ -95,7 +99,7 @@ public class PrepAnalyzer {
         for (TypeInfo primaryType : primaryTypes) {
             cp.go(primaryType, cg);
         }
-        return cg;
+        return ccg;
     }
 
     public List<Info> doPrimaryType(TypeInfo typeInfo) {

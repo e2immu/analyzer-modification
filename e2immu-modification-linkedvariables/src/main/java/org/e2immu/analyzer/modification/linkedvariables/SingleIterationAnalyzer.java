@@ -55,6 +55,10 @@ public interface SingleIterationAnalyzer extends Analyzer {
         Map<String, Integer> infoHistogram();
     }
 
+    default Output go(List<Info> analysisOrder, boolean activateCycleBreaking) {
+        return go(analysisOrder, activateCycleBreaking, true);
+    }
+
     Output go(List<Info> analysisOrder, boolean activateCycleBreaking, boolean firstIteration);
 
 }
