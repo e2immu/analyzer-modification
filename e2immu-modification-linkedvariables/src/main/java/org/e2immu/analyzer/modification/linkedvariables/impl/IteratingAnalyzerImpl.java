@@ -130,7 +130,8 @@ public class IteratingAnalyzerImpl extends CommonAnalyzerImpl implements Iterati
         while (true) {
             ++iterations;
             LOGGER.info("{}, cycle breaking active? {}", highlight("Start iteration " + iterations), cycleBreakingActive);
-            SingleIterationAnalyzer.Output output = singleIterationAnalyzer.go(analysisOrder, cycleBreakingActive);
+            SingleIterationAnalyzer.Output output = singleIterationAnalyzer.go(analysisOrder, cycleBreakingActive,
+                    iterations == 1);
             G<Info> waitFor = output.waitFor();
             analyzerExceptions.addAll(output.analyzerExceptions());
             boolean done = waitFor.vertices().isEmpty();

@@ -12,5 +12,5 @@ public interface AbstractMethodAnalyzer extends Analyzer {
         Set<MethodInfo> waitForMethods();
     }
 
-    Output go();
+    Output go(boolean firstIteration);
 }

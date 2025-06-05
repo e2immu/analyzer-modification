@@ -29,6 +29,7 @@ import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.H
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.NO_VALUE;
 import static org.e2immu.analyzer.modification.prepwork.variable.impl.VariableInfoImpl.MODIFIED_FI_COMPONENTS_VARIABLE;
 import static org.e2immu.language.cst.impl.analysis.PropertyImpl.*;
+import static org.e2immu.language.cst.impl.analysis.ValueImpl.IndependentImpl.DEPENDENT;
 import static org.junit.jupiter.api.Assertions.*;
 
 /*
@@ -210,11 +211,16 @@ public class TestStaticValuesOfTryData extends CommonTest {
         IteratingAnalyzer iteratingAnalyzer = new IteratingAnalyzerImpl(runtime, configuration);
         iteratingAnalyzer.analyze(analysisOrder);
 
+        testThrowingFunction(throwingFunction);
         testBuilderBody(builder);
         testBuilderBuild(builder);
         testXRun(X);
         testBody(X);
         testXMethod(X);
+    }
+
+    private void testThrowingFunction(TypeInfo throwingFunction) {
+        assertSame(DEPENDENT, throwingFunction.analysis().getOrNull(INDEPENDENT_TYPE, ValueImpl.IndependentImpl.class));
     }
 
     private void testBody(TypeInfo X) {
@@ -403,8 +409,9 @@ public class TestStaticValuesOfTryData extends CommonTest {
                     .getOrNull(StaticValuesImpl.STATIC_VALUES_METHOD, StaticValuesImpl.class).toString());
             Value.Bool body0Unmodified = body0.analysis().getOrNull(UNMODIFIED_PARAMETER, ValueImpl.BoolImpl.class);
 
-            // NOTE: this needs resolving with cycle breaking; the analyzer in this test only runs a single iteration without
-            assertNull(body0Unmodified);
+            // NOTE: throwingFunction is dependent
+            // the convention for functional interfaces is that they are modified when their SAM is applied
+            assertSame(ValueImpl.BoolImpl.FALSE, body0Unmodified);
             assertTrue(body.isModifying());
         }
     }

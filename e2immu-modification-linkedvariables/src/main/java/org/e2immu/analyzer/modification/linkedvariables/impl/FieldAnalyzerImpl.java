@@ -208,19 +208,21 @@ public class FieldAnalyzerImpl extends CommonAnalyzerImpl implements FieldAnalyz
                 Value.FieldValue fieldValue = methodInfo.analysis().getOrDefault(PropertyImpl.GET_SET_FIELD,
                         ValueImpl.GetSetValueImpl.EMPTY);
                 if (fieldInfo == fieldValue.field()) {
-                    if (fieldValue.setter()) return FALSE;
+                    LOGGER.debug("Getters/setters are never modifying");
                 } else if (!methodInfo.isConstructor() && !poc.infoSet().contains(methodInfo)) {
                     Statement lastStatement = methodInfo.methodBody().lastStatement();
                     assert lastStatement != null;
                     VariableData vd = VariableDataImpl.of(lastStatement);
                     for (VariableInfo vi : vd.variableInfoIterable()) {
-                        Value.Bool v = vi.analysis().getOrNull(VariableInfoImpl.UNMODIFIED_VARIABLE,
-                                ValueImpl.BoolImpl.class);
-                        if (v == null) {
-                            waitFor.add(methodInfo);
-                            undecided = true;
-                        } else if (v.isFalse()) {
-                            return FALSE;
+                        if (vi.variable() instanceof FieldReference fr && fr.fieldInfo() == fieldInfo) {
+                            Value.Bool v = vi.analysis().getOrNull(VariableInfoImpl.UNMODIFIED_VARIABLE,
+                                    ValueImpl.BoolImpl.class);
+                            if (v == null) {
+                                waitFor.add(methodInfo);
+                                undecided = true;
+                            } else if (v.isFalse()) {
+                                return FALSE;
+                            }
                         }
                     }
                 }

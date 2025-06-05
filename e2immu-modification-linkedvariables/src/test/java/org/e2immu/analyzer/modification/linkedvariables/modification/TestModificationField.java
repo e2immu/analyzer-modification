@@ -214,7 +214,7 @@ public class TestModificationField extends CommonTest {
         assertFalse(loopCount.isPropertyFinal());
         assertFalse(blockSize.isPropertyFinal());
 
-        assertTrue(loopCount.isModified());
-        assertTrue(blockSize.isModified());
+        assertFalse(loopCount.isModified());
+        assertFalse(blockSize.isModified());
     }
 }

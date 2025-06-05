@@ -41,11 +41,11 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
 
     @Override
     public List<AnalyzerException> go(List<Info> analysisOrder) {
-        return go(analysisOrder, false).analyzerExceptions();
+        return go(analysisOrder, false, true).analyzerExceptions();
     }
 
     @Override
-    public Output go(List<Info> analysisOrder, boolean activateCycleBreaking) {
+    public Output go(List<Info> analysisOrder, boolean activateCycleBreaking, boolean firstIteration) {
         List<AnalyzerException> analyzerExceptions = new ArrayList<>();
         Map<MethodInfo, Set<MethodInfo>> methodsWaitFor = new HashMap<>();
         Set<TypeInfo> primaryTypes = new HashSet<>();
@@ -80,7 +80,7 @@ public class SingleIterationAnalyzerImpl implements SingleIterationAnalyzer, Mod
             infoHistogram.merge(info.info(), 1, Integer::sum);
         }
         AbstractMethodAnalyzer abstractMethodAnalyzer = new AbstractMethodAnalyzerImpl(configuration, primaryTypes);
-        analyzerExceptions.addAll(abstractMethodAnalyzer.go().analyzerExceptions());
+        analyzerExceptions.addAll(abstractMethodAnalyzer.go(firstIteration).analyzerExceptions());
 
         /*
         run once more, because the abstract method analyzer may have resolved independence and modification values
