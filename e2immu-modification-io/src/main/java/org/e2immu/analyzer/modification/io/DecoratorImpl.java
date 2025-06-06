@@ -93,7 +93,7 @@ public class DecoratorImpl implements Qualification.Decorator {
         if (hasAnnotations instanceof Info info) {
             Value.Message errorMessage = info.analysis().getOrDefault(PropertyImpl.ANALYZER_ERROR, ValueImpl.MessageImpl.EMPTY);
             if (!errorMessage.isEmpty()) {
-                return List.of(runtime.newSingleLineComment(errorMessage.message()));
+                return List.of(runtime.newSingleLineComment(null, errorMessage.message()));
             }
         }
         return List.of();
