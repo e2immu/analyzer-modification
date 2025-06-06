@@ -1,9 +1,9 @@
 package org.e2immu.analyzer.modification.prepwork;
 
+import org.e2immu.analyzer.modification.common.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeAnalysisOrder;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputeCallGraph;
 import org.e2immu.analyzer.modification.prepwork.callgraph.ComputePartOfConstructionFinalField;
-import org.e2immu.analyzer.modification.common.getset.GetSetHelper;
 import org.e2immu.analyzer.modification.prepwork.hcs.ComputeHCS;
 import org.e2immu.analyzer.modification.prepwork.hct.ComputeHiddenContent;
 import org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes;
@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
@@ -84,15 +85,15 @@ public class PrepAnalyzer {
     }
 
     public G<Info> doPrimaryTypesReturnGraph(Set<TypeInfo> primaryTypes) {
-        return doPrimaryTypesReturnComputeCallGraph(primaryTypes).graph();
+        return doPrimaryTypesReturnComputeCallGraph(primaryTypes, ti -> false).graph();
     }
 
-    public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes) {
+    public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes, Predicate<TypeInfo> externalsToAccept) {
         for (TypeInfo primaryType : primaryTypes) {
             assert primaryType.isPrimaryType();
             doType(primaryType);
         }
-        ComputeCallGraph ccg = new ComputeCallGraph(runtime, primaryTypes, ti -> false);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, primaryTypes, externalsToAccept);
         G<Info> cg = ccg.go().graph();
         ccg.setRecursiveMethods();
         ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
