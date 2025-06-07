@@ -356,7 +356,7 @@ public class TestVariableData extends CommonTest {
         TranslationMap tm = runtime.newTranslationMapBuilder()
                 .setClearAnalysis(true)
                 .build();
-        TypeInfo t2 = typeInfo.translate(tm);
+        TypeInfo t2 = typeInfo.translate(tm).getFirst();
         assertNotSame(typeInfo, t2);
         assertEquals("""
                 package a.b;

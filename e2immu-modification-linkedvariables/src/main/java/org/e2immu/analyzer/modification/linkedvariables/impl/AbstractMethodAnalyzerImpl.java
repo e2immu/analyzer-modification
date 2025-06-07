@@ -82,10 +82,10 @@ public class AbstractMethodAnalyzerImpl extends CommonAnalyzerImpl implements Ab
                     Set<MethodInfo> waitForOfMethod = resolve(methodInfo, entry.getValue());
                     if (waitForOfMethod.isEmpty()) {
                         iterator.remove();
-                        LOGGER.info("Removing {} from waitFor, have left: {}", methodInfo,
+                        LOGGER.debug("Removing {} from waitFor, have left: {}", methodInfo,
                                 concreteImplementationsOfAbstractMethods.keySet());
                     } else {
-                        LOGGER.info("Adding {} to waitFor, have left: {}", waitForOfMethod,
+                        LOGGER.debug("Adding {} to waitFor, have left: {}", waitForOfMethod,
                                 concreteImplementationsOfAbstractMethods.keySet());
                         waitForMethods.addAll(waitForOfMethod);
                     }
