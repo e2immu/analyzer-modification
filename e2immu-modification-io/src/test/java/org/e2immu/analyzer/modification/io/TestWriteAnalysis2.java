@@ -52,10 +52,10 @@ public class TestWriteAnalysis2 extends CommonTest {
     private static final String JSON1 = """
             [
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"partOfConstructionType":["C<init>(0)"]}, "subs":[
-             {"name": "Fn(0)", "data":{"finalField":1,"unmodifiedField":1}},
-             {"name": "Fi(1)", "data":{"finalField":1,"unmodifiedField":1}},
+             {"name": "Fn(0)", "data":{"finalField":1}},
+             {"name": "Fi(1)", "data":{"finalField":1}},
              {"name": "C<init>(0)", "data":{"hc":{"0":"Tjava.lang.Object"},"staticValuesMethod":["",[],[["F",["Ta.b.X","Fn(0)"],["variableExpression","5-23:5-33",["T",["Ta.b.X"]]]],["variableExpression","5-32:5-32",["P",["Ta.b.X","C<init>(0)","Pn(0)"]]]]]}, "sub":
-              {"name": "Pn(0)", "data":{"parameterAssignedToField":["Fn(0)"],"staticValuesParameter":["",["variableExpression","5-32:5-32",["F",["Ta.b.X","Fn(0)"],["variableExpression","5-23:5-26",["T",["Ta.b.X"]]]]],[]],"unmodifiedParameter":1}}},
+              {"name": "Pn(0)", "data":{"parameterAssignedToField":["Fn(0)"],"staticValuesParameter":["",["variableExpression","5-32:5-32",["F",["Ta.b.X","Fn(0)"],["variableExpression","5-23:5-26",["T",["Ta.b.X"]]]]],[]]}}},
              {"name": "MgetI(0)", "data":{"getSetField":["Fi(1)",false],"hc":{},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","6-25:6-25",["F",["Ta.b.X","Fi(1)"]]],[]]}},
              {"name": "MgetN(1)", "data":{"getSetField":["Fn(0)",false],"hc":{},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","7-25:7-25",["F",["Ta.b.X","Fn(0)"]]],[]]}}]}
             ]
@@ -98,13 +98,14 @@ public class TestWriteAnalysis2 extends CommonTest {
             import java.util.*;
             import org.e2immu.annotation.NotModified;
             class X {
-                record R(@NotModified Set<Integer> set, int i,@NotModified List<String> list) { }
+                record R(Set<Integer> set, int i, List<String> list) { }
                 @NotModified void setAdd(X.R r) { r.set.add(r.i); }
                 void method() {
                     List<String> l = new ArrayList<> ();
                     Set<Integer> s = new HashSet<> ();
                     X.R r = new X.R(s, 3, l);
                     setAdd(r);
+                    // at this point, s1 should have been modified, via???
                 }
             }
             """;
@@ -114,13 +115,13 @@ public class TestWriteAnalysis2 extends CommonTest {
             [
             {"name": "Ta.b.X", "data":{"hc":{"E":true},"partOfConstructionType":["C<init>(0)"]}, "subs":[
              {"name": "SR(0)", "data":{"hc":{"0":"Tjava.util.Set","1":"Tjava.util.List","M":2},"partOfConstructionType":["C<init>(0)"]}, "subs":[
-              {"name": "Fset(0)", "data":{"finalField":1,"unmodifiedField":1}},
-              {"name": "Fi(1)", "data":{"finalField":1,"unmodifiedField":1}},
-              {"name": "Flist(2)", "data":{"finalField":1,"unmodifiedField":1}},
+              {"name": "Fset(0)", "data":{"finalField":1}},
+              {"name": "Fi(1)", "data":{"finalField":1}},
+              {"name": "Flist(2)", "data":{"finalField":1}},
               {"name": "C<init>(0)", "data":{"hc":{"2":"Tjava.lang.Object","M":2},"hcsMethod":{"0":[[0]],"1":[[1]]},"staticValuesMethod":["",[],[["F",["Ta.b.X","SR(0)","Fi(1)"],["variableExpression","7-32:7-36",["T",["Ta.b.X","SR(0)"]]]],["variableExpression","7-32:7-36",["P",["Ta.b.X","SR(0)","C<init>(0)","Pi(1)"]]],["F",["Ta.b.X","SR(0)","Flist(2)"],["variableExpression","7-39:7-55",["T",["Ta.b.X","SR(0)"]]]],["variableExpression","7-39:7-55",["P",["Ta.b.X","SR(0)","C<init>(0)","Plist(2)"]]],["F",["Ta.b.X","SR(0)","Fset(0)"],["variableExpression","7-14:7-29",["T",["Ta.b.X","SR(0)"]]]],["variableExpression","7-14:7-29",["P",["Ta.b.X","SR(0)","C<init>(0)","Pset(0)"]]]]]}, "subs":[
-               {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]},"parameterAssignedToField":["Fset(0)"],"staticValuesParameter":["",["variableExpression","7-14:7-29",["F",["Ta.b.X","SR(0)","Fset(0)"]]],[]],"unmodifiedParameter":1}},
-               {"name": "Pi(1)", "data":{"parameterAssignedToField":["Fi(1)"],"staticValuesParameter":["",["variableExpression","7-32:7-36",["F",["Ta.b.X","SR(0)","Fi(1)"]]],[]],"unmodifiedParameter":1}},
-               {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]},"parameterAssignedToField":["Flist(2)"],"staticValuesParameter":["",["variableExpression","7-39:7-55",["F",["Ta.b.X","SR(0)","Flist(2)"]]],[]],"unmodifiedParameter":1}}]},
+               {"name": "Pset(0)", "data":{"hcsParameter":{"0":[[-1]]},"parameterAssignedToField":["Fset(0)"],"staticValuesParameter":["",["variableExpression","7-14:7-29",["F",["Ta.b.X","SR(0)","Fset(0)"]]],[]]}},
+               {"name": "Pi(1)", "data":{"parameterAssignedToField":["Fi(1)"],"staticValuesParameter":["",["variableExpression","7-32:7-36",["F",["Ta.b.X","SR(0)","Fi(1)"]]],[]]}},
+               {"name": "Plist(2)", "data":{"hcsParameter":{"1":[[-1]]},"parameterAssignedToField":["Flist(2)"],"staticValuesParameter":["",["variableExpression","7-39:7-55",["F",["Ta.b.X","SR(0)","Flist(2)"]]],[]]}}]},
               {"name": "Mset(0)", "data":{"getSetField":["Fset(0)",false],"hc":{"M":2},"hcsMethod":{"0":[[-1]]},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","7-14:7-29",["F",["Ta.b.X","SR(0)","Fset(0)"]]],[]]}},
               {"name": "Mi(1)", "data":{"getSetField":["Fi(1)",false],"hc":{"M":2},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","7-32:7-36",["F",["Ta.b.X","SR(0)","Fi(1)"]]],[]]}},
               {"name": "Mlist(2)", "data":{"getSetField":["Flist(2)",false],"hc":{"M":2},"hcsMethod":{"1":[[-1]]},"nonModifyingMethod":1,"staticValuesMethod":["",["variableExpression","7-39:7-55",["F",["Ta.b.X","SR(0)","Flist(2)"]]],[]]}}]},
