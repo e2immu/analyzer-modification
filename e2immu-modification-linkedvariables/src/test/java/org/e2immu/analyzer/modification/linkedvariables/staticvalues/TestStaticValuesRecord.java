@@ -436,7 +436,7 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableData vd0 = VariableDataImpl.of(bLvc);
             VariableInfo bVi0 = vd0.variableInfo(b);
             // code of ExpressionAnalyzer.methodCallStaticValue
-            assertEquals("Type a.b.X.Builder E=new Builder() this.function=String::length, variables[0]=\"a\"",
+            assertEquals("Type a.b.X.Builder E=new Builder() this.function=String::length, variables[0]=stringConstant@14-78:14-80",
                     bVi0.staticValues().toString());
         }
         {
@@ -445,7 +445,7 @@ public class TestStaticValuesRecord extends CommonTest {
             VariableData vd1 = VariableDataImpl.of(rLvc);
             VariableInfo rVi1 = vd1.variableInfo(r);
             // code of ExpressionAnalyzer.checkCaseForBuilder
-            assertEquals("Type a.b.X.R E=new Builder() this.function=String::length, variables[0]=\"a\"",
+            assertEquals("Type a.b.X.R E=new Builder() this.function=String::length, variables[0]=stringConstant@14-78:14-80",
                     rVi1.staticValues().toString());
         }
         {
