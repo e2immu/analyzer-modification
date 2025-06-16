@@ -223,6 +223,12 @@ public class ComputeCallGraph {
                 //handleMethodCall(info, lambda.methodInfo()); is this needed?
                 return false;
             }
+            if (e instanceof TypeExpression te) {
+                addType(info, te.parameterizedType(), REFERENCES);
+            }
+            if (e instanceof ClassExpression ce) {
+                addType(info, ce.type(), REFERENCES);
+            }
             return true;
         }
     }

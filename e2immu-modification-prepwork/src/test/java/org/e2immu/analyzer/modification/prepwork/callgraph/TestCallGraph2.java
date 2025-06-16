@@ -257,4 +257,31 @@ public class TestCallGraph2 extends CommonTest2 {
                 d.e.A.y->R->a.b.Y.Y(java.util.Map<String,Object>)\
                 """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
     }
+
+    @Language("java")
+    String A3 = """
+            package a.b;
+            class A {
+                String s = B.class.getName();
+            }
+            """;
+
+    @Language("java")
+    String B3 = """
+            package a.b;
+            class B { }
+            """;
+
+    @Test
+    public void test3() throws IOException {
+        Map<String, String> sourcesByFqn = Map.of("a.b.A", A3, "a.b.B", B3);
+        R r = init(sourcesByFqn);
+
+        assertEquals("""
+                a.b.A->S->a.b.A.<init>()
+                a.b.A->S->a.b.A.s
+                a.b.A.s->R->a.b.B
+                a.b.B->S->a.b.B.<init>()\
+                """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
+    }
 }
