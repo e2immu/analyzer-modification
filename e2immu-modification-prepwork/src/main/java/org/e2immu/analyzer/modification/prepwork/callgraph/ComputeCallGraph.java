@@ -231,6 +231,15 @@ public class ComputeCallGraph {
             if (e instanceof ClassExpression ce) {
                 addType(info, ce.type(), REFERENCES);
             }
+            if (e instanceof InstanceOf io) {
+                addType(info, io.testType(), REFERENCES);
+            }
+            if (e instanceof Cast cast) {
+                addType(info, cast.parameterizedType(), REFERENCES);
+            }
+            if (e instanceof SwitchExpression) {
+                // FIXME TODO Java 23+
+            }
             return true;
         }
     }
