@@ -224,7 +224,9 @@ public class ComputeCallGraph {
                 return false;
             }
             if (e instanceof TypeExpression te) {
-                addType(info, te.parameterizedType(), REFERENCES);
+                if (!info.typeInfo().isEnclosedIn(te.parameterizedType().typeInfo())) {
+                    addType(info, te.parameterizedType(), REFERENCES);
+                } // else: recursion in lambdas
             }
             if (e instanceof ClassExpression ce) {
                 addType(info, ce.type(), REFERENCES);
