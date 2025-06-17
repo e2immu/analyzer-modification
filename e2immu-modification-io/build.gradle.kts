@@ -14,7 +14,7 @@ group = "org.e2immu"
 
 repositories {
     maven {
-        url = uri(project.findProperty("codeartifactUri") as String)
+        url = uri(project.findProperty("codeartifactPublicUri") as String)
         credentials {
             username = "aws"
             password = project.findProperty("codeartifactToken") as String
@@ -76,7 +76,7 @@ tasks.test {
 publishing {
     repositories {
         maven {
-            url = uri(project.findProperty("publishUri") as String)
+            url = uri(project.findProperty("publishPublicUri") as String)
             credentials {
                 username = project.findProperty("publishUsername") as String
                 password = project.findProperty("publishPassword") as String
