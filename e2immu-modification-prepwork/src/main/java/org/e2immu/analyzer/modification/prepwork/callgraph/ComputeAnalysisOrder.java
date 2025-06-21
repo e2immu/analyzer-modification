@@ -21,7 +21,7 @@ public class ComputeAnalysisOrder {
         Set<V<Info>> subSet = callGraph.vertices().stream()
                 .filter(v -> !v.t().typeInfo().compilationUnit().externalLibrary())
                 .collect(Collectors.toUnmodifiableSet());
-        G<Info> subGraph = callGraph.subGraph(subSet);
+        G<Info> subGraph = callGraph.subGraph(subSet, l -> l >= ComputeCallGraph.REFERENCES);
         Linearize.Result<Info> result = Linearize.linearize(subGraph, Linearize.LinearizationMode.ALL);
         return result.asList(Comparator.comparing(Info::fullyQualifiedName));
     }

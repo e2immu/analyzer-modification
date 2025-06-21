@@ -3,6 +3,7 @@ package org.e2immu.analyzer.modification.prepwork.callgraph;
 
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.element.Element;
+import org.e2immu.language.cst.api.element.JavaDoc;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -34,13 +35,15 @@ public class ComputeCallGraph {
     private final G.Builder<Info> builder = new G.Builder<>(Long::sum);
     private final Predicate<TypeInfo> externalsToAccept;
 
-    private static final long CODE_STRUCTURE_BITS = 40;
+    private static final long CODE_STRUCTURE_BITS = 48;
     public static final long CODE_STRUCTURE = 1L << CODE_STRUCTURE_BITS;
-    private static final long TYPE_HIERARCHY_BITS = 32;
+    private static final long TYPE_HIERARCHY_BITS = 40;
     public static final long TYPE_HIERARCHY = 1L << TYPE_HIERARCHY_BITS;
-    private static final long TYPES_IN_DECLARATION_BITS = 16;
+    private static final long TYPES_IN_DECLARATION_BITS = 32;
     public static final long TYPES_IN_DECLARATION = 1L << TYPES_IN_DECLARATION_BITS;
-    private static final long REFERENCES = 1;
+    private static final long REFERENCES_BITS = 16;
+    public static final long REFERENCES = 1L << REFERENCES_BITS;
+    private static final long DOC_REFERENCES = 1;
 
     private G<Info> graph;
 
@@ -56,6 +59,10 @@ public class ComputeCallGraph {
         this.externalsToAccept = externalsToAccept;
     }
 
+    public static boolean isAtLeastReference(long value) {
+        return value >= REFERENCES;
+    }
+
     public static String print(G<Info> graph) {
         return graph.toString(", ", ComputeCallGraph::edgeValuePrinter);
     }
@@ -65,7 +72,8 @@ public class ComputeCallGraph {
         if (value >= CODE_STRUCTURE) sb.append("S");
         if ((value & (CODE_STRUCTURE - 1)) >= TYPE_HIERARCHY) sb.append("H");
         if ((value & (TYPE_HIERARCHY - 1)) >= TYPES_IN_DECLARATION) sb.append("D");
-        if ((value & (TYPES_IN_DECLARATION - 1)) >= 1) sb.append("R");
+        if ((value & (TYPES_IN_DECLARATION - 1)) >= REFERENCES) sb.append("R");
+        if ((value & (REFERENCES - 1)) >= 1) sb.append("d");
         return sb.toString();
     }
 
@@ -122,6 +130,7 @@ public class ComputeCallGraph {
     private void go(TypeInfo typeInfo) {
         builder.addVertex(typeInfo);
 
+        doJavadoc(typeInfo);
         typeInfo.subTypes().forEach(st -> {
             builder.mergeEdge(typeInfo, st, CODE_STRUCTURE); // A
             go(st);
@@ -133,6 +142,7 @@ public class ComputeCallGraph {
                 .forEach(pt -> addType(typeInfo, pt, TYPES_IN_DECLARATION))); // C
         doAnnotations(typeInfo, TYPES_IN_DECLARATION);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
+            doJavadoc(mi);
             doAnnotations(mi, TYPES_IN_DECLARATION);
             mi.exceptionTypes().forEach(pt -> addType(mi, pt, TYPES_IN_DECLARATION)); // C
             mi.parameters().forEach(pi -> {
@@ -151,6 +161,7 @@ public class ComputeCallGraph {
             mi.methodBody().visit(visitor); // D
         });
         typeInfo.fields().forEach(fi -> {
+            doJavadoc(fi);
             doAnnotations(fi, TYPES_IN_DECLARATION);
             addType(fi, fi.type(), TYPES_IN_DECLARATION); // C
             builder.mergeEdge(typeInfo, fi, CODE_STRUCTURE); // A
@@ -159,6 +170,16 @@ public class ComputeCallGraph {
                 fi.initializer().visit(visitor); // D
             }
         });
+    }
+
+    private void doJavadoc(Info from) {
+        if (from.javaDoc() != null) {
+            for (JavaDoc.Tag tag : from.javaDoc().tags()) {
+                if (tag.resolvedReference() instanceof Info to) {
+                    builder.mergeEdge(from, to, DOC_REFERENCES);
+                }
+            }
+        }
     }
 
     private void doAnnotations(Info from, long weight) {

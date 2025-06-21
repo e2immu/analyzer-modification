@@ -205,4 +205,36 @@ public class TestCallGraph extends CommonTest {
                 a.b.X.Z.<init>(a.b.X.Y), a.b.X.Z.y(), a.b.X.Z.y, a.b.X.Z, a.b.X.getZ(), a.b.X.z, a.b.X]\
                 """, analysisOrder.toString());
     }
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            class X {
+                /**
+                 * link to {@link Y}
+                 */
+                interface I { int i(); }
+                record Y(int i) implements I {}
+            }
+            """;
+
+    @DisplayName("javadoc reference")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
+        G<Info> graph = ccg.go().graph();
+        assertEquals("""
+                a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.I, a.b.X->S->a.b.X.Y, a.b.X.I->S->a.b.X.I.i(), \
+                a.b.X.I->d->a.b.X.Y, a.b.X.Y->H->a.b.X.I, a.b.X.Y->S->a.b.X.Y.<init>(int), a.b.X.Y->S->a.b.X.Y.i, \
+                a.b.X.Y->S->a.b.X.Y.i(), a.b.X.Y.i()->S->a.b.X.I.i(), a.b.X.Y.i->R->a.b.X.Y.<init>(int), \
+                a.b.X.Y.i->R->a.b.X.Y.i()\
+                """, ComputeCallGraph.print(graph));
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        List<Info> analysisOrder = cao.go(graph);
+        assertEquals("""
+                [a.b.X.<init>(), a.b.X.I.i(), a.b.X.Y.<init>(int), a.b.X.I, a.b.X.Y.i(), a.b.X.Y.i, a.b.X.Y, a.b.X]\
+                """, analysisOrder.toString());
+    }
 }
