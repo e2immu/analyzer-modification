@@ -270,4 +270,40 @@ public class TestLambda extends CommonTest {
                 a.b.X.diffLines(java.util.List<a.b.X.R>,java.util.List<a.b.X.R>):0:list1, a.b.X.diffLines(java.util.List<a.b.X.R>,java.util.List<a.b.X.R>):1:list2, r1, r2\
                 """, vd1.knownVariableNamesToString());
     }
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import java.util.function.Function;
+            public class X {
+                Long m(Function<String, Long> function) {
+                    return function.apply("s");
+                }
+                record  R(long id) {}
+                R makeR(String s) {
+                    return new R(s.length());
+                }
+                void method() {
+                    Long id = m(status -> {
+                      String string = status.toLowerCase();
+                      return makeR(string).id;
+                    });
+                    int[] array = { 10, 20, 0, 15, 0, 5 };
+                    for (int i = 0; i < array.length; i++) {
+                      final int index = i;
+                      array[index] ++;
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("variable in lambda")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doPrimaryType(X);
+
+    }
+
 }
