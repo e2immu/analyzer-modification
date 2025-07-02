@@ -40,7 +40,13 @@ public class LoadAnalyzedPackageFiles {
                 if (jarUrl == null) {
                     LOGGER.warn("Cannot find resource {}", dir);
                 } else {
-                    countPrimaryTypes += processJsonJar(codec, jarUrl);
+                    try {
+                        countPrimaryTypes += processJsonJar(codec, jarUrl);
+                    } catch (Throwable t) {
+                        LOGGER.error("Caught an exception processing {}", jarUrl);
+                        LOGGER.error("Current jdk: {}", ToolChain.currentJre());
+                        throw t;
+                    }
                 }
             } else {
                 File directory = new File(dir);
