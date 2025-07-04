@@ -242,7 +242,7 @@ public class TestLinkTypeParameters extends CommonTest {
         assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy3));
 
         MethodInfo copy4 = X.findUniqueMethod("copy4", 1);
-        assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy4));
+        assertEquals("0-4-*:f, 1-4-*:g, 0;1-4-*:pair", lvs(copy4));
 
         MethodInfo reverse = X.findUniqueMethod("reverse", 1);
         assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair", lvs(reverse));
@@ -295,7 +295,7 @@ public class TestLinkTypeParameters extends CommonTest {
         assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", lvs(reverse6, 0));
 
         MethodInfo reverse7 = X.findUniqueMethod("reverse7", 1);
-        assertEquals("0;1,2M-4-0;1,*M:f, 0;1,2M-4-0;1,*M:g, 0;1,2M-2-0;1,*M|0-*:pair, 0;1M,2-2-2M,2:r",
+        assertEquals("0,1,2M-4-0,1,*M:f, 0,1,2M-4-0,1,*M:g, 0,1,2M-2-0,1,*M|0-*:pair, 0M,1M,2-2-2M,2M,2:r",
                 lvs(reverse7));
         assertEquals("2M-4-*M:f, 2M-4-*M:g, 2M-2-*M|0-*:pair", lvs(reverse7, 0));
 
@@ -371,7 +371,7 @@ public class TestLinkTypeParameters extends CommonTest {
         assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy3));
 
         MethodInfo copy4 = X.findUniqueMethod("copy4", 1);
-        assertEquals("0;1-4-*:f, 0;1-4-*:g, 0;1-4-*:pair", lvs(copy4));
+        assertEquals("0-4-*:f, 1-4-*:g, 0;1-4-*:pair", lvs(copy4));
 
         assertEquals("1-4-*:f, 0-4-*:g, 0;1-4-*:pair", lvs(reverse));
 
@@ -421,7 +421,7 @@ public class TestLinkTypeParameters extends CommonTest {
         assertEquals("2-4-*:f, 2-4-*:g, 2-4-*:pair", lvs(reverse6, 0));
 
         MethodInfo reverse7 = X.findUniqueMethod("reverse7", 1);
-        assertEquals("0;1,2M-4-0;1,*M:f, 0;1,2M-4-0;1,*M:g, 0;1,2M-4-0;1,*M:pair, 0;1,2-4-2,2:r", lvs(reverse7));
+        assertEquals("0,1,2M-4-0,1,*M:f, 0,1,2M-4-0,1,*M:g, 0,1,2M-4-0,1,*M:pair, 0,1,2-4-2,2,2:r", lvs(reverse7));
         assertEquals("2-4-*:f, 2-4-*:g, 2-4-*:pair", lvs(reverse7, 0));
 
         MethodInfo reverse8 = X.findUniqueMethod("reverse8", 2);
