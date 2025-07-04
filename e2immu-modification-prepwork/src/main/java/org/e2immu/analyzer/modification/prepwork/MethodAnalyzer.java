@@ -556,8 +556,10 @@ public class MethodAnalyzer {
         Set<LocalVariable> localComponents = localComponents(variable);
         if (localComponents.isEmpty()) return true;
         for (LocalVariable localComponent : localComponents) {
-            VariableInfo vi = vd.variableInfo(localComponent);
-            if (index.compareTo(vi.assignments().indexOfDefinition()) < 0) return false;
+            VariableInfoContainer vic = vd.variableInfoContainerOrNull(localComponent.fullyQualifiedName());
+            if (vic != null && index.compareTo(vic.best().assignments().indexOfDefinition()) < 0) {
+                return false;
+            }
         }
         return true;
     }
@@ -802,7 +804,7 @@ public class MethodAnalyzer {
                 if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
                     prepAnalyzer.handleSyntheticArrayConstructor(cc);
                 }
-                if(prepAnalyzer.trackObjectCreations()) {
+                if (prepAnalyzer.trackObjectCreations()) {
                     ObjectCreationVariable ocv = new ObjectCreationVariableImpl(currentMethod, cc.source().compact(), cc.parameterizedType());
                     assignedAdd(ocv);
                 }
