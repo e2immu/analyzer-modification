@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -28,9 +29,15 @@ public class WriteAnalysis {
     private static final Logger LOGGER = LoggerFactory.getLogger(WriteAnalysis.class);
 
     private final Runtime runtime;
+    private final Predicate<TypeInfo> typePredicate;
 
     public WriteAnalysis(Runtime runtime) {
+        this(runtime, ti -> true);
+    }
+
+    public WriteAnalysis(Runtime runtime, Predicate<TypeInfo> typePredicate) {
         this.runtime = runtime;
+        this.typePredicate = typePredicate;
     }
 
     public void write(String destinationDirectory, Trie<TypeInfo> typeTrie) throws IOException {
@@ -83,7 +90,9 @@ public class WriteAnalysis {
             osw.write("[");
             AtomicBoolean first = new AtomicBoolean(true);
             for (TypeInfo typeInfo : list) {
-                writePrimary(osw, codec, first, typeInfo);
+                if(typePredicate.test(typeInfo)) {
+                    writePrimary(osw, codec, first, typeInfo);
+                }
             }
             osw.write("\n]\n");
         }
@@ -111,15 +120,17 @@ public class WriteAnalysis {
         return codec.encode(context, methodInfo, "" + index, stream, subs);
     }
 
-    private static Codec.EncodedValue writeType(Codec codec, Codec.Context context, TypeInfo typeInfo, int index) {
+    private Codec.EncodedValue writeType(Codec codec, Codec.Context context, TypeInfo typeInfo, int index) {
         List<Codec.EncodedValue> subs = new ArrayList<>();
 
         int sc = 0;
         for (TypeInfo subType : typeInfo.subTypes()) {
-            context.push(subType);
-            Codec.EncodedValue sub = writeType(codec, context, subType, sc);
-            context.pop();
-            subs.add(sub);
+            if (typePredicate.test(subType)) {
+                context.push(subType);
+                Codec.EncodedValue sub = writeType(codec, context, subType, sc);
+                context.pop();
+                subs.add(sub);
+            }
             sc++;
         }
 
@@ -150,7 +161,7 @@ public class WriteAnalysis {
         return codec.encode(context, typeInfo, "" + index, stream, subs);
     }
 
-    private static void writePrimary(OutputStreamWriter osw,
+    private void writePrimary(OutputStreamWriter osw,
                                      Codec codec,
                                      AtomicBoolean first,
                                      TypeInfo primaryType) throws IOException {
