@@ -20,6 +20,7 @@ public class ShallowAnalyzer {
     private final AnnotationProvider annotationProvider;
     private final List<Message> messages = new LinkedList<>();
     private final boolean onlyPublic;
+    private final DebugVisitor debugVisitor;
 
     /*
     from type = from return type, field type, parameter type
@@ -48,9 +49,15 @@ public class ShallowAnalyzer {
     }
 
     public ShallowAnalyzer(Runtime runtime, AnnotationProvider annotationProvider, boolean onlyPublic) {
+        this(runtime, annotationProvider, onlyPublic, null);
+    }
+
+    public ShallowAnalyzer(Runtime runtime, AnnotationProvider annotationProvider, boolean onlyPublic,
+                           DebugVisitor debugVisitor) {
         this.runtime = runtime;
         this.annotationProvider = annotationProvider;
         this.onlyPublic = onlyPublic;
+        this.debugVisitor = debugVisitor;
     }
 
     private boolean acceptAccess(Info info) {
@@ -58,13 +65,14 @@ public class ShallowAnalyzer {
     }
 
     public Result go(List<TypeInfo> types) {
-        ShallowTypeAnalyzer shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, annotationProvider, onlyPublic);
-        ShallowMethodAnalyzer shallowMethodAnalyzer = new ShallowMethodAnalyzer(runtime, annotationProvider);
+        if(debugVisitor != null) debugVisitor.inputTypes(types);
         List<TypeInfo> allTypes = types.stream().flatMap(TypeInfo::recursiveSubTypeStream)
                 .filter(this::acceptAccess)
                 .flatMap(t -> Stream.concat(Stream.of(t), t.recursiveSuperTypeStream()))
                 .distinct()
                 .toList();
+        if (debugVisitor != null) debugVisitor.allTypes(allTypes);
+
         G.Builder<TypeInfo> graphBuilder = new G.Builder<>(Long::sum);
         for (TypeInfo typeInfo : allTypes) {
             List<TypeInfo> allSuperTypes = typeInfo.recursiveSuperTypeStream()
@@ -73,18 +81,26 @@ public class ShallowAnalyzer {
             graphBuilder.add(typeInfo, allSuperTypes);
         }
         G<TypeInfo> typeGraph = graphBuilder.build();
+        if (debugVisitor != null) debugVisitor.typeGraph(typeGraph);
         Linearize.Result<TypeInfo> linearize = Linearize.linearize(typeGraph, Linearize.LinearizationMode.ALL);
         List<TypeInfo> sorted = linearize.asList(Comparator.comparing(TypeInfo::fullyQualifiedName));
+        if (debugVisitor != null) debugVisitor.sortedLinearized(sorted);
         Map<Element, InfoData> dataMap = new HashMap<>();
+
+        ShallowTypeAnalyzer shallowTypeAnalyzer = new ShallowTypeAnalyzer(runtime, annotationProvider, onlyPublic);
         for (TypeInfo typeInfo : sorted) {
             dataMap.putAll(shallowTypeAnalyzer.analyze(typeInfo));
         }
+        if (debugVisitor != null) debugVisitor.dataMapAfterTypeAnalyzer(dataMap);
+
+        ShallowMethodAnalyzer shallowMethodAnalyzer = new ShallowMethodAnalyzer(runtime, annotationProvider);
         for (TypeInfo typeInfo : sorted) {
             dataMap.putAll(shallowTypeAnalyzer.analyzeFields(typeInfo));
             typeInfo.constructorAndMethodStream()
                     .filter(this::acceptAccess)
                     .forEach(mi -> dataMap.putAll(shallowMethodAnalyzer.analyze(mi)));
         }
+        if (debugVisitor != null) debugVisitor.dataMapAfterFieldMethodAnalyzer(dataMap);
         for (TypeInfo typeInfo : sorted) {
             if (acceptAccess(typeInfo)) {
                 shallowTypeAnalyzer.check(typeInfo);
