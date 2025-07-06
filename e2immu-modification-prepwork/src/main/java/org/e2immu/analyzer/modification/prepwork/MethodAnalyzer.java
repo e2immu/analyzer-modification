@@ -676,6 +676,9 @@ public class MethodAnalyzer {
                 if (as.message() != null) as.message().visit(v);
             } else if (statement instanceof ExplicitConstructorInvocation eci) {
                 eci.parameterExpressions().forEach(e -> e.visit(v));
+            } else if (statement instanceof LocalTypeDeclaration ltd) {
+                v.handleInnerClass(ltd.typeInfo());
+                eval = false;
             }
         }
         if (eval) {
@@ -779,26 +782,7 @@ public class MethodAnalyzer {
                 // important: check anonymous type first, it can have constructor != null
                 TypeInfo anonymousClass = cc.anonymousClass();
                 if (anonymousClass != null) {
-                    VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(anonymousClass);
-                    if (prepAnalyzer.recurseIntoAnonymous) {
-                        prepAnalyzer.doType(anonymousClass);
-                    }
-
-                    Set<FieldInfo> localFields = new HashSet<>(anonymousClass.fields());
-                    Set<TypeInfo> typeHierarchy = new HashSet<>();
-                    typeHierarchy.add(anonymousClass);
-                    typeHierarchy.addAll(anonymousClass.superTypesExcludingJavaLangObject());
-                    typeHierarchy.add(runtime.objectTypeInfo());
-                    anonymousClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
-                    anonymousClass.fields().forEach(f -> {
-                        if (f.initializer() != null && !f.initializer().isEmpty()) {
-                            copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy,
-                                    variableInfoMap);
-                        }
-                    });
-                    anonymousClass.constructorAndMethodStream()
-                            .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy,
-                                    variableInfoMap));
+                    handleInnerClass(anonymousClass);
                     return true; // so that the arguments get processed; the current visitor ignores the anonymous class
                 }
                 if (cc.constructor() != null && cc.constructor().isSyntheticArrayConstructor()) {
@@ -875,6 +859,29 @@ public class MethodAnalyzer {
                 return false;
             }
             return true;
+        }
+
+        private void handleInnerClass(TypeInfo innerClass) {
+            VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(innerClass);
+            if (prepAnalyzer.recurseIntoAnonymous) {
+                prepAnalyzer.doType(innerClass);
+            }
+
+            Set<FieldInfo> localFields = new HashSet<>(innerClass.fields());
+            Set<TypeInfo> typeHierarchy = new HashSet<>();
+            typeHierarchy.add(innerClass);
+            typeHierarchy.addAll(innerClass.superTypesExcludingJavaLangObject());
+            typeHierarchy.add(runtime.objectTypeInfo());
+            innerClass.superTypesExcludingJavaLangObject().forEach(st -> localFields.addAll(st.fields()));
+            innerClass.fields().forEach(f -> {
+                if (f.initializer() != null && !f.initializer().isEmpty()) {
+                    copyReadsFromAnonymousMethod(f.analysisOfInitializer(), localFields, typeHierarchy,
+                            variableInfoMap);
+                }
+            });
+            innerClass.constructorAndMethodStream()
+                    .forEach(mi -> copyReadsFromAnonymousMethod(mi, localFields, typeHierarchy,
+                            variableInfoMap));
         }
 
         // This annotation only exists here through @Modified("...") annotations; not through analysis, which comes later
