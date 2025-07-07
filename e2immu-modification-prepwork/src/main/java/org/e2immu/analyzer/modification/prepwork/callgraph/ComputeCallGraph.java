@@ -217,6 +217,7 @@ public class ComputeCallGraph {
             }
             if (e instanceof MethodCall mc) {
                 handleMethodCall(info, mc.methodInfo());
+                mc.typeArguments().forEach(pt -> addType(info, pt, REFERENCES));
                 return true;
             }
             if (e instanceof MethodReference mr) {
@@ -225,6 +226,7 @@ public class ComputeCallGraph {
             }
             if (e instanceof ConstructorCall cc) {
                 TypeInfo anonymousType = cc.anonymousClass();
+                cc.typeArguments().forEach(pt -> addType(info, pt, REFERENCES));
                 // important: check anonymous type first, it can have constructor != null
                 if (anonymousType != null) {
                     handleAnonymousType(info, anonymousType); // B
