@@ -253,7 +253,7 @@ public class TestCallGraph2 extends CommonTest2 {
                 a.b.Y.getEmail()->S->a.b.X.getEmail()
                 d.e.A->S->d.e.A.<init>()
                 d.e.A->S->d.e.A.y
-                d.e.A.y->D->a.b.Y
+                d.e.A.y->DR->a.b.Y
                 d.e.A.y->R->a.b.Y.Y(java.util.Map<String,Object>)\
                 """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
     }
