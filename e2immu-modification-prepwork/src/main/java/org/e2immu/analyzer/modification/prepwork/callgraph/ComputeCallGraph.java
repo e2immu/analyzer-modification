@@ -227,6 +227,9 @@ public class ComputeCallGraph {
             if (e instanceof ConstructorCall cc) {
                 TypeInfo anonymousType = cc.anonymousClass();
                 cc.typeArguments().forEach(pt -> addType(info, pt, REFERENCES));
+                // new ArrayList<X>, we must refer to X
+                addType(info, cc.parameterizedType(), REFERENCES);
+
                 // important: check anonymous type first, it can have constructor != null
                 if (anonymousType != null) {
                     handleAnonymousType(info, anonymousType); // B
