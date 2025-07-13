@@ -209,7 +209,7 @@ class ExpressionAnalyzer {
                     }
                     return builder
                             .merge(evalValue)
-                            .merge(io.patternVariable(), evalValue.linkedVariables())
+                            .merge(io.patternVariable().localVariable(), evalValue.linkedVariables())
                             .setLinkedVariables(evalValue.linkedVariables())
                             .build();
                 }

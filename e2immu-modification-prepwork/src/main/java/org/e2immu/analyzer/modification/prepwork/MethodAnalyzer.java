@@ -811,10 +811,10 @@ public class MethodAnalyzer {
             }
 
             if (e instanceof InstanceOf instanceOf && instanceOf.patternVariable() != null) {
-                seenFirstTime.put(instanceOf.patternVariable(), index);
-                assignedAdd(instanceOf.patternVariable());
+                seenFirstTime.put(instanceOf.patternVariable().localVariable(), index);
+                assignedAdd(instanceOf.patternVariable().localVariable());
                 String scope = computePatternVariableScope();
-                restrictToScope.put(instanceOf.patternVariable(), scope);
+                restrictToScope.put(instanceOf.patternVariable().localVariable(), scope);
             }
             if (e instanceof Assignment a) {
                 assignedAdd(a.variableTarget());
