@@ -26,7 +26,7 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
         this.merge = haveMerge ? new SetOnce<>() : null;
         assert evaluation == null || evaluation.variable() == variable;
         assert previousOrInitial.isLeft() && previousOrInitial.getLeft().variable() == variable
-               || previousOrInitial.isRight() && previousOrInitial.getRight().variable() == variable;
+                || previousOrInitial.isRight() && previousOrInitial.getRight().variable() == variable;
     }
 
     public void setMerge(VariableInfoImpl merge) {
@@ -136,7 +136,15 @@ public class VariableInfoContainerImpl implements VariableInfoContainer {
 
     @Override
     public VariableInfo bestCurrentlyComputed() {
-        if(merge != null && merge.isSet()) return merge.get();
+        if (merge != null && merge.isSet()) return merge.get();
         return evaluation;
+    }
+
+    @Override
+    public String indexOfDefinition() {
+        if (evaluation != null) return evaluation.assignments().indexOfDefinition();
+        if (merge != null && merge.isSet()) return merge.get().assignments().indexOfDefinition();
+        if (previousOrInitial.isRight()) return previousOrInitial.getRight().assignments().indexOfDefinition();
+        return previousOrInitial.getLeft().indexOfDefinition();
     }
 }

@@ -119,14 +119,14 @@ public class MethodAnalyzer {
             this.closure = parent.closure;
         }
 
-        public boolean acceptLimitedScope(Variable variable, String indexOfDefinition, String index) {
-            String i = limitedScopeOfPatternVariablesGet(variable, indexOfDefinition);
+        public boolean acceptLimitedScope(VariableData variableData, Variable variable, String indexOfDefinition, String index) {
+            String i = limitedScopeOfPatternVariablesGet(variableData, variable, indexOfDefinition);
             if (i != null) {
                 return Util.inScopeOf(i, index);
             }
             // go up, maybe it was defined higher up
             if (parent != null) {
-                return parent.acceptLimitedScope(variable, indexOfDefinition, index);
+                return parent.acceptLimitedScope(variableData, variable, indexOfDefinition, index);
             }
             return true;
         }
@@ -160,8 +160,32 @@ public class MethodAnalyzer {
             }
         }
 
-        public String limitedScopeOfPatternVariablesGet(Variable v, String indexOfDefinition) {
-            return limitedScopeOfPatternVariables.get(indexOfDefinition + "-" + v.simpleName());
+        public String limitedScopeOfPatternVariablesGet(VariableData variableData, Variable v, String indexOfDefinition) {
+            String scope = limitedScopeOfPatternVariables.get(indexOfDefinition + "-" + v.simpleName());
+            if (scope != null) return scope;
+            if (v instanceof FieldReference fr && fr.scopeVariable() != null) {
+                String indexOfDefinitionScope = variableData.indexOfDefinitionOrNull(fr.scopeVariable());
+                return indexOfDefinitionScope == null ? null
+                        : limitedScopeOfPatternVariablesGet(variableData, fr.scopeVariable(), indexOfDefinitionScope);
+            }
+            if (v instanceof DependentVariable dv) {
+                String indexOfDefinitionAv = dv.arrayVariable() == null ? null
+                        : variableData.indexOfDefinitionOrNull(dv.arrayVariable());
+                String s1 = indexOfDefinitionAv == null ? null
+                        : limitedScopeOfPatternVariablesGet(variableData, dv.arrayVariable(), indexOfDefinitionAv);
+                String indexOfDefinitionIv = dv.indexVariable() == null ? null
+                        : variableData.indexOfDefinitionOrNull(dv.indexVariable());
+                String s2 = dv.indexVariable() == null ? null
+                        : limitedScopeOfPatternVariablesGet(variableData, dv.indexVariable(), indexOfDefinitionIv);
+                if (s2 == null) return s1;
+                if (s1 == null) return s2;
+                String t1 = Util.stripStage(s1);
+                String t2 = Util.stripStage(s2);
+                if (t1.contains(t2)) return t2;// the most restrictive
+                if (t2.contains(t1)) return t1;
+                throw new UnsupportedOperationException("disjoint, is this possible?");
+            }
+            return null;
         }
 
         public void limitedScopeOfPatternVariablesPut(Variable v, String indexOfDefinition, String limitedScope) {
@@ -360,7 +384,7 @@ public class MethodAnalyzer {
             Variable variable = vi.variable();
             VariableData closureVic = iv.closure.get(variable.fullyQualifiedName());
             if (closureVic != null ||
-                    Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(vi.variable(), indexOfDefinition, index)) {
+                    Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(previousVd, vi.variable(), indexOfDefinition, index)) {
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
                         readWriteData.isRead(variable, vi), closureVic);
@@ -467,7 +491,7 @@ public class MethodAnalyzer {
     /*
     Variables can be local to a block, in which case they are NOT transferred to the merge.
     Fields occurring in one of the blocks are kept in the merge.
-    Scopes of fields that and array variables may survive in the following conditions: TODO
+    Scopes of fields that and array variables may survive in the following conditions:
     Pattern variables may survive, if they occurred in a "negative" expression: "if(!(e instanceof X x)) { throw ... }"
 
     Some variables already exist, but are not referenced in any of the blocks at all.
@@ -487,7 +511,7 @@ public class MethodAnalyzer {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
                 if (vic == null || vic.hasMerge()) {
                     if (copyToMerge(index, vi.variable(), vd, iv.closure)
-                            && iv.acceptLimitedScope(vi.variable(), vi.assignments().indexOfDefinition(), index)) {
+                            && iv.acceptLimitedScope(vd, vi.variable(), vi.assignments().indexOfDefinition(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
                 }
@@ -868,8 +892,8 @@ public class MethodAnalyzer {
                 seenFirstTime.put(lv, index);
                 assignedAdd(lv);
                 restrictToScope.put(lv, scope);
-            } else if(recordPattern.recordType() != null) {
-                for(RecordPattern rp: recordPattern.patterns()) {
+            } else if (recordPattern.recordType() != null) {
+                for (RecordPattern rp : recordPattern.patterns()) {
                     processRecordPattern(rp, scope);
                 }
             }

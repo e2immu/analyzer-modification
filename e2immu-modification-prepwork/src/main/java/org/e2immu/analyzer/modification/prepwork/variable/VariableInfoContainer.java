@@ -73,4 +73,5 @@ public interface VariableInfoContainer {
 
     VariableInfo bestCurrentlyComputed();
 
+    String indexOfDefinition();
 }

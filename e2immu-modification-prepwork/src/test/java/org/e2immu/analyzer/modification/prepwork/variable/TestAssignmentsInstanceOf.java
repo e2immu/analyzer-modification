@@ -6,6 +6,8 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.statement.IfElseStatement;
+import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.statement.WhileStatement;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -120,14 +122,52 @@ public class TestAssignmentsInstanceOf extends CommonTest {
                     void setT(T t) { this.t = t; }
                 }
                 static void method(Exception exception, T tt1, T tt2) {
-                    if(exception instanceof MyException my && tt2.equals(my.getT())) {
-                        System.out.println(my);
+                    if (exception instanceof MyException my1 && tt2.equals(my1.getT())) {
+                        System.out.println(my1.getMessage());
+                    } else {
+                        System.out.println("?");
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("instanceof, negative part")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+        MethodInfo method = X.findUniqueMethod("method", 3);
+        IfElseStatement ifElse = (IfElseStatement) method.methodBody().statements().getFirst();
+        Statement statement = ifElse.elseBlock().statements().getFirst();
+        VariableData vdWhile = VariableDataImpl.of(statement);
+        // we should not see anything related to my1 here!! not my1, not my1.t ~ my1.getT()
+        // neither should tt1 and tt2 be present, they are not used here
+        assertEquals("""
+                X.method(Exception,X.T,X.T):0:exception, X.method(Exception,X.T,X.T):2:tt2, java.lang.System.out\
+                """, vdWhile.knownVariableNamesToString());
+    }
+
+
+    @Language("java")
+    public static final String INPUT3b = """
+            import java.io.IOException;
+            public class X {
+                interface T { }
+                static class MyException extends RuntimeException {
+                    T t;
+                    T getT() { return t; }
+                    void setT(T t) { this.t = t; }
+                }
+                static void method(Exception exception, T tt1, T tt2) {
+                    if (exception instanceof MyException my && tt2.equals(my.getT())) {
+                        System.out.println(my.getMessage());
                     } else {
                         while (exception instanceof RuntimeException e) {
                             String msg = e.getMessage();
                             System.out.println("e = " + msg.toLowerCase());
                             exception = (Exception) e.getCause();
-                            if(e.getCause() instanceof MyException my && tt1.equals(my.getT())) {
+                            if (e.getCause() instanceof MyException my && tt1.equals(my.getT())) {
                                 break;
                             }
                         }
@@ -136,13 +176,12 @@ public class TestAssignmentsInstanceOf extends CommonTest {
             }
             """;
 
-    @DisplayName("instanceof in while")
+    // this is the full version of test3; originally caught as a problem due to re-use of "my"
+    @DisplayName("instanceof, negative part; re-use variable name")
     @Test
-    public void test3() {
-        TypeInfo X = javaInspector.parse(INPUT3);
+    public void test3b() {
+        TypeInfo X = javaInspector.parse(INPUT3b);
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.doPrimaryType(X);
-        MethodInfo method = X.findUniqueMethod("method", 3);
-
     }
 }

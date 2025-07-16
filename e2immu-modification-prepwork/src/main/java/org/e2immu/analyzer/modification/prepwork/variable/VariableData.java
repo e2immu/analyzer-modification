@@ -20,6 +20,12 @@ public interface VariableData extends Value {
         return variableInfo(variable, Stage.MERGE);
     }
 
+    default String indexOfDefinitionOrNull(Variable variable) {
+        VariableInfoContainer vic = variableInfoContainerOrNull(variable.fullyQualifiedName());
+        if(vic == null) return null;
+        return vic.indexOfDefinition();
+    }
+
     VariableInfo variableInfo(Variable variable, Stage stage);
 
     VariableInfoContainer variableInfoContainerOrNull(String fullyQualifiedName);
