@@ -796,7 +796,7 @@ public class MethodAnalyzer {
             if (e instanceof Lambda lambda) {
                 // we plan to catch all variables that we already know, but not to introduce NEW variables
                 VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(lambda.methodInfo().typeInfo());
-                if (prepAnalyzer.recurseIntoAnonymous) {
+                if (!prepAnalyzer.options.doNotRecurseIntoAnonymous()) {
                     prepAnalyzer.doType(lambda.methodInfo().typeInfo());
                 }
                 copyReadsFromAnonymousMethod(lambda.methodInfo(), Set.of(), Set.of(lambda.methodInfo().typeInfo()),
@@ -901,7 +901,7 @@ public class MethodAnalyzer {
 
         private void handleInnerClass(TypeInfo innerClass) {
             VariableInfoMap variableInfoMap = ensureLocalVariableNamesOfEnclosingType(innerClass);
-            if (prepAnalyzer.recurseIntoAnonymous) {
+            if (!prepAnalyzer.options.doNotRecurseIntoAnonymous()) {
                 prepAnalyzer.doType(innerClass);
             }
 

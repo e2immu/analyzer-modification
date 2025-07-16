@@ -15,31 +15,56 @@ import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
 import org.e2immu.util.internal.graph.V;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class ComputePartOfConstructionFinalField {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ComputePartOfConstructionFinalField.class);
+
     public static final Value.SetOfInfo EMPTY_PART_OF_CONSTRUCTION = new ValueImpl.SetOfInfoImpl(Set.of());
     public static final Property PART_OF_CONSTRUCTION = new PropertyImpl("partOfConstructionType", EMPTY_PART_OF_CONSTRUCTION);
 
-    public void go(TypeInfo primaryType, G<Info> callGraph) {
-        assert primaryType.isPrimaryType() : "Only call on primary types, and " + primaryType + " is not one!";
-        internalGo(primaryType, callGraph);
+    private final boolean parallel;
+
+    public ComputePartOfConstructionFinalField(boolean parallel) {
+        this.parallel = parallel;
     }
 
-    private void internalGo(TypeInfo typeInfo, G<Info> callGraph) {
-        typeInfo.subTypes().forEach(st -> internalGo(st, callGraph));
+    /*
+    We must have all constructors and methods, also those in anonymous types. Extracting them from the call graph
+    is cheaper than visiting
+     */
+    public void go(G<Info> cg) {
+        if (parallel) {
+            cg.vertices().parallelStream()
+                    .filter(v -> v.t() instanceof MethodInfo)
+                    .map(v -> (MethodInfo) v.t())
+                    .collect(Collectors.groupingByConcurrent(MethodInfo::primaryType, Collectors.toList()))
+                    .forEach((primaryType, methodsAndConstructors)
+                            -> internalGo(primaryType, methodsAndConstructors, cg));
+        } else {
+            cg.vertices().stream()
+                    .filter(v -> v.t() instanceof MethodInfo)
+                    .map(v -> (MethodInfo) v.t())
+                    .collect(Collectors.groupingBy(MethodInfo::primaryType, Collectors.toList()))
+                    .forEach((primaryType, methodsAndConstructors)
+                            -> internalGo(primaryType, methodsAndConstructors, cg));
+        }
+    }
+
+    private void internalGo(TypeInfo typeInfo, List<MethodInfo> constructorsAndMethodsOfPrimaryType, G<Info> callGraph) {
+        LOGGER.debug("Handling {}", typeInfo);
+        typeInfo.subTypes().forEach(st -> internalGo(st, constructorsAndMethodsOfPrimaryType, callGraph));
 
         Value.SetOfInfo setOfInfo = typeInfo.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
         if (setOfInfo != null) {
             return; // we're going to assume that all FINAL_FIELDS are set as well
         }
 
-        Set<MethodInfo> partOfConstruction = computePartOfConstruction(typeInfo, callGraph);
+        Set<MethodInfo> partOfConstruction = computePartOfConstruction(typeInfo, constructorsAndMethodsOfPrimaryType, callGraph);
         typeInfo.analysis().set(PART_OF_CONSTRUCTION, new ValueImpl.SetOfInfoImpl(partOfConstruction));
         Map<FieldInfo, Boolean> effectivelyFinalFieldMap = computeEffectivelyFinalFields(typeInfo, callGraph, partOfConstruction);
         for (Map.Entry<FieldInfo, Boolean> entry : effectivelyFinalFieldMap.entrySet()) {
@@ -60,15 +85,17 @@ public class ComputePartOfConstructionFinalField {
 
             // edges from field to method
             V<Info> v = callGraph.vertex(fieldInfo);
-            Map<V<Info>, Long> edges = callGraph.edges(v);
-            if (edges != null) {
-                for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
-                    if (entry.getKey().t() instanceof MethodInfo methodInfo
-                        && notInConstructionOfSameStaticType(methodInfo, fieldInfo, partOfConstruction)) {
-                        // so methodInfo references toField... check whether that is an assignment, or simply a read
-                        boolean isAssigned = isAssigned(methodInfo, fieldInfo);
-                        if (isAssigned) {
-                            effectivelyFinalFieldMap.put(fieldInfo, false);
+            if (v != null) {
+                Map<V<Info>, Long> edges = callGraph.edges(v);
+                if (edges != null) {
+                    for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
+                        if (entry.getKey().t() instanceof MethodInfo methodInfo
+                                && notInConstructionOfSameStaticType(methodInfo, fieldInfo, partOfConstruction)) {
+                            // so methodInfo references toField... check whether that is an assignment, or simply a read
+                            boolean isAssigned = isAssigned(methodInfo, fieldInfo);
+                            if (isAssigned) {
+                                effectivelyFinalFieldMap.put(fieldInfo, false);
+                            }
                         }
                     }
                 }
@@ -104,32 +131,33 @@ public class ComputePartOfConstructionFinalField {
                 .anyMatch(vi -> !vi.assignments().isEmpty());
     }
 
-    private Set<MethodInfo> computePartOfConstruction(TypeInfo typeInfo, G<Info> callGraph) {
+    private Set<MethodInfo> computePartOfConstruction(TypeInfo typeInfo,
+                                                      List<MethodInfo> constructorsAndMethodsOfPrimaryType,
+                                                      G<Info> callGraph) {
         Set<MethodInfo> calledFromConstruction = new HashSet<>();
         Set<MethodInfo> calledFromOutside = new HashSet<>();
 
         boolean changes = true;
         while (changes) {
             changes = false;
-            for (V<Info> v : callGraph.vertices()) {
-                if (v.t() instanceof MethodInfo methodInfo) {
-                    if (methodInfo.isConstructor()) {
-                        changes |= calledFromConstruction.add(methodInfo);
-                    } else if (!methodInfo.access().isPrivate()) {
-                        changes |= calledFromOutside.add(methodInfo);
-                    }
-                    boolean isCalledFromConstruction = calledFromConstruction.contains(methodInfo);
-                    boolean isCalledFromOutside = calledFromOutside.contains(methodInfo);
-                    Map<V<Info>, Long> edges = callGraph.edges(v);
-                    if (edges != null) {
-                        for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
-                            if (entry.getKey().t() instanceof MethodInfo toMethod) {
-                                if (isCalledFromConstruction) {
-                                    changes |= calledFromConstruction.add(toMethod);
-                                }
-                                if (isCalledFromOutside && !toMethod.isConstructor()) {
-                                    changes |= calledFromOutside.add(toMethod);
-                                }
+            for (MethodInfo methodInfo : constructorsAndMethodsOfPrimaryType) {
+                if (methodInfo.isConstructor()) {
+                    changes |= calledFromConstruction.add(methodInfo);
+                } else if (!methodInfo.access().isPrivate()) {
+                    changes |= calledFromOutside.add(methodInfo);
+                }
+                boolean isCalledFromConstruction = calledFromConstruction.contains(methodInfo);
+                boolean isCalledFromOutside = calledFromOutside.contains(methodInfo);
+                V<Info> v = callGraph.vertex(methodInfo);
+                Map<V<Info>, Long> edges = callGraph.edges(v);
+                if (edges != null) {
+                    for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
+                        if (entry.getKey().t() instanceof MethodInfo toMethod) {
+                            if (isCalledFromConstruction) {
+                                changes |= calledFromConstruction.add(toMethod);
+                            }
+                            if (isCalledFromOutside && !toMethod.isConstructor()) {
+                                changes |= calledFromOutside.add(toMethod);
                             }
                         }
                     }
@@ -145,7 +173,7 @@ public class ComputePartOfConstructionFinalField {
 
     private boolean canBePartOfConstruction(MethodInfo mi) {
         return mi.isConstructor()
-               || mi.access().isPrivate() && mi.typeInfo().enclosingMethod() == null
-               || mi.typeInfo().enclosingMethod() != null && canBePartOfConstruction(mi.typeInfo().enclosingMethod());
+                || mi.access().isPrivate() && mi.typeInfo().enclosingMethod() == null
+                || mi.typeInfo().enclosingMethod() != null && canBePartOfConstruction(mi.typeInfo().enclosingMethod());
     }
 }

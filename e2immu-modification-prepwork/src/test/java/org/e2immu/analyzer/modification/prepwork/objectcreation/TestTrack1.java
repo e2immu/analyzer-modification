@@ -56,7 +56,8 @@ public class TestTrack1 extends CommonTest {
     @Test
     public void test1() {
         TypeInfo X = javaInspector.parse(INPUT1);
-        PrepAnalyzer analyzer = new PrepAnalyzer(runtime, true, true);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime,
+                new PrepAnalyzer.Options.Builder().setTrackObjectCreations(true).build());
         {
             MethodInfo makeList = X.findUniqueMethod("makeList", 0);
             analyzer.doMethod(makeList);

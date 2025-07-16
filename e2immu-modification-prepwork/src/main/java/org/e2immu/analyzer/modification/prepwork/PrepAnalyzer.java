@@ -21,6 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static org.e2immu.analyzer.modification.prepwork.hct.HiddenContentTypes.HIDDEN_CONTENT_TYPES;
 
@@ -42,29 +43,50 @@ public class PrepAnalyzer {
     private final ComputeHiddenContent computeHiddenContent;
     private final ComputeHCS computeHCS;
     private final Runtime runtime;
-    final boolean recurseIntoAnonymous;
+    final Options options;
     private int typesProcessed;
-    private final boolean trackObjectCreations;
 
     public PrepAnalyzer(Runtime runtime) {
-        this(runtime, true, false);
+        this(runtime, new Options.Builder().build());
     }
 
-    public PrepAnalyzer(Runtime runtime, boolean recurseIntoAnonymous) {
-        this(runtime, recurseIntoAnonymous, false);
+    public record Options(boolean doNotRecurseIntoAnonymous, boolean trackObjectCreations, boolean parallel) {
+        public static class Builder {
+            boolean doNotRecurseIntoAnonymous;
+            boolean trackObjectCreations;
+            boolean parallel;
+
+            public Builder setDoNotRecurseIntoAnonymous(boolean doNotRecurseIntoAnonymous) {
+                this.doNotRecurseIntoAnonymous = doNotRecurseIntoAnonymous;
+                return this;
+            }
+
+            public Builder setParallel(boolean parallel) {
+                this.parallel = parallel;
+                return this;
+            }
+
+            public Builder setTrackObjectCreations(boolean trackObjectCreations) {
+                this.trackObjectCreations = trackObjectCreations;
+                return this;
+            }
+
+            public Options build() {
+                return new Options(doNotRecurseIntoAnonymous, trackObjectCreations, parallel);
+            }
+        }
     }
 
-    public PrepAnalyzer(Runtime runtime, boolean recurseIntoAnonymous, boolean trackObjectCreations) {
+    public PrepAnalyzer(Runtime runtime, Options options) {
         methodAnalyzer = new MethodAnalyzer(runtime, this);
         computeHiddenContent = new ComputeHiddenContent(runtime);
         computeHCS = new ComputeHCS(runtime);
         this.runtime = runtime;
-        this.recurseIntoAnonymous = recurseIntoAnonymous;
-        this.trackObjectCreations = trackObjectCreations;
+        this.options = options;
     }
 
     boolean trackObjectCreations() {
-        return trackObjectCreations;
+        return options.trackObjectCreations();
     }
 
     /*
@@ -88,18 +110,19 @@ public class PrepAnalyzer {
         return doPrimaryTypesReturnComputeCallGraph(primaryTypes, ti -> false).graph();
     }
 
-    public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes, Predicate<TypeInfo> externalsToAccept) {
+    public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes,
+                                                                 Predicate<TypeInfo> externalsToAccept) {
         for (TypeInfo primaryType : primaryTypes) {
             assert primaryType.isPrimaryType();
             doType(primaryType);
         }
+        LOGGER.info("Start compute call graph");
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, primaryTypes, externalsToAccept);
         G<Info> cg = ccg.go().graph();
+        LOGGER.info("Start recursive methods");
         ccg.setRecursiveMethods();
-        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField();
-        for (TypeInfo primaryType : primaryTypes) {
-            cp.go(primaryType, cg);
-        }
+        ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField(options.parallel);
+        cp.go(cg);
         return ccg;
     }
 
@@ -118,8 +141,8 @@ public class PrepAnalyzer {
            why? because we must create variables in VariableData for each call to a getter
            therefore, all getters need to be known before they are being used.
 
-           this is the most simple form of analysis order required here.
-           the "linkedvariables" analyzer requires a more complicated one, computed in the statements below.
+           this is the simplest form of analysis order required here.
+           the "linked variables" analyzer requires a more complicated one, computed in the statements below.
         */
 
             gettersAndSetters.forEach(this::doMethod);

@@ -194,7 +194,8 @@ public class TestTrackObjectCreation extends CommonTest {
     }
 
     private void analyze(TypeInfo X) {
-        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime, true, true);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime,
+                new PrepAnalyzer.Options.Builder().setTrackObjectCreations(true).build());
         List<Info> analysisOrder = prepAnalyzer.doPrimaryType(X);
         IteratingAnalyzer.Configuration configuration = new IteratingAnalyzerImpl.ConfigurationBuilder()
                 .setTrackObjectCreations(true)
