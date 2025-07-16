@@ -9,6 +9,7 @@ import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.analysis.PropertyValueMap;
 import org.e2immu.language.cst.api.analysis.Value;
 import org.e2immu.language.cst.api.element.Element;
+import org.e2immu.language.cst.api.element.RecordPattern;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.FieldInfo;
 import org.e2immu.language.cst.api.info.MethodInfo;
@@ -359,7 +360,7 @@ public class MethodAnalyzer {
             Variable variable = vi.variable();
             VariableData closureVic = iv.closure.get(variable.fullyQualifiedName());
             if (closureVic != null ||
-                Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(vi.variable(), indexOfDefinition, index)) {
+                    Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(vi.variable(), indexOfDefinition, index)) {
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
                         readWriteData.isRead(variable, vi), closureVic);
@@ -428,8 +429,8 @@ public class MethodAnalyzer {
             }
             VariableData vd = doStatement(methodInfo, statement, previous, first, iv);
             if (statement instanceof BreakStatement
-                || statement instanceof ReturnStatement
-                || statementGuaranteedToExit(indexOfFirstStatement, vd, iv)) {
+                    || statement instanceof ReturnStatement
+                    || statementGuaranteedToExit(indexOfFirstStatement, vd, iv)) {
                 if (indexOfFirstStatement != null) {
                     lastOfEachSubBlock.put(indexOfFirstStatement, vd);
                     if (!fallThrough.isEmpty()) {
@@ -486,7 +487,7 @@ public class MethodAnalyzer {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
                 if (vic == null || vic.hasMerge()) {
                     if (copyToMerge(index, vi.variable(), vd, iv.closure)
-                        && iv.acceptLimitedScope(vi.variable(), vi.assignments().indexOfDefinition(), index)) {
+                            && iv.acceptLimitedScope(vi.variable(), vi.assignments().indexOfDefinition(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
                 }
@@ -747,6 +748,7 @@ public class MethodAnalyzer {
             } else {
                 indices.add(index);
             }
+            assert variable != null;
             if (!knownVariableNames.contains(variable.fullyQualifiedName()) && !seenFirstTime.containsKey(variable)) {
                 seenFirstTime.put(variable, index);
             }
@@ -811,10 +813,9 @@ public class MethodAnalyzer {
             }
 
             if (e instanceof InstanceOf instanceOf && instanceOf.patternVariable() != null) {
-                seenFirstTime.put(instanceOf.patternVariable().localVariable(), index);
-                assignedAdd(instanceOf.patternVariable().localVariable());
                 String scope = computePatternVariableScope();
-                restrictToScope.put(instanceOf.patternVariable().localVariable(), scope);
+                RecordPattern recordPattern = instanceOf.patternVariable();
+                processRecordPattern(recordPattern, scope);
             }
             if (e instanceof Assignment a) {
                 assignedAdd(a.variableTarget());
@@ -859,6 +860,19 @@ public class MethodAnalyzer {
                 return false;
             }
             return true;
+        }
+
+        private void processRecordPattern(RecordPattern recordPattern, String scope) {
+            if (recordPattern.localVariable() != null) {
+                LocalVariable lv = recordPattern.localVariable();
+                seenFirstTime.put(lv, index);
+                assignedAdd(lv);
+                restrictToScope.put(lv, scope);
+            } else if(recordPattern.recordType() != null) {
+                for(RecordPattern rp: recordPattern.patterns()) {
+                    processRecordPattern(rp, scope);
+                }
+            }
         }
 
         private void handleInnerClass(TypeInfo innerClass) {
@@ -961,11 +975,11 @@ public class MethodAnalyzer {
             }
             if (v instanceof FieldReference fr) {
                 return !localFields.contains(fr.fieldInfo())
-                       && (fr.scopeVariable() == null || acceptForCopy(fr.scopeVariable(), localFields, typeHierarchy, closure));
+                        && (fr.scopeVariable() == null || acceptForCopy(fr.scopeVariable(), localFields, typeHierarchy, closure));
             }
             if (v instanceof DependentVariable dv) {
                 return (dv.arrayVariable() == null || acceptForCopy(dv.arrayVariable(), localFields, typeHierarchy, closure))
-                       && (dv.indexVariable() == null || acceptForCopy(dv.indexVariable(), localFields, typeHierarchy, closure));
+                        && (dv.indexVariable() == null || acceptForCopy(dv.indexVariable(), localFields, typeHierarchy, closure));
             }
             throw new UnsupportedOperationException();
         }

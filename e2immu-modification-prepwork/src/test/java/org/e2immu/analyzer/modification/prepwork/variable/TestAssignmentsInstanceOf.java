@@ -107,4 +107,42 @@ public class TestAssignmentsInstanceOf extends CommonTest {
         assertEquals("D:0.0.0, A:[0.0.0]", vi001.assignments().toString());
         assertEquals("Type String", vi001.variable().parameterizedType().toString());
     }
+
+
+    @Language("java")
+    public static final String INPUT3 = """
+            import java.io.IOException;
+            public class X {
+                interface T { }
+                static class MyException extends RuntimeException {
+                    T t;
+                    T getT() { return t; }
+                    void setT(T t) { this.t = t; }
+                }
+                static void method(Exception exception, T tt1, T tt2) {
+                    if(exception instanceof MyException my && tt2.equals(my.getT())) {
+                        System.out.println(my);
+                    } else {
+                        while (exception instanceof RuntimeException e) {
+                            String msg = e.getMessage();
+                            System.out.println("e = " + msg.toLowerCase());
+                            exception = (Exception) e.getCause();
+                            if(e.getCause() instanceof MyException my && tt1.equals(my.getT())) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("instanceof in while")
+    @Test
+    public void test3() {
+        TypeInfo X = javaInspector.parse(INPUT3);
+        PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
+        prepAnalyzer.doPrimaryType(X);
+        MethodInfo method = X.findUniqueMethod("method", 3);
+
+    }
 }
