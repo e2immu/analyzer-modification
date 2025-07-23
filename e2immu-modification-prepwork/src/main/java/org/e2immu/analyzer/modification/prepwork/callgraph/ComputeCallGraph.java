@@ -10,6 +10,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
+import org.e2immu.language.cst.api.statement.TryStatement;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.impl.analysis.PropertyImpl;
@@ -199,16 +200,16 @@ public class ComputeCallGraph {
         public boolean test(Element e) {
             if (!e.annotations().isEmpty()) doAnnotations(info, REFERENCES);
             if (e instanceof VariableExpression ve
-                && ve.variable() instanceof FieldReference fr
-                && accept(fr.fieldInfo().owner())) {
+                    && ve.variable() instanceof FieldReference fr
+                    && accept(fr.fieldInfo().owner())) {
                 // inside a type, an accessor should come before its field
                 // outside a type, we want the field to have been processed first
                 // see e.g. TestStaticValuesRecord,2
                 handleFieldAccess(info, fr);
             }
             if (e instanceof Assignment a
-                && a.variableTarget() instanceof FieldReference fr
-                && accept(fr.fieldInfo().owner().primaryType())) {
+                    && a.variableTarget() instanceof FieldReference fr
+                    && accept(fr.fieldInfo().owner().primaryType())) {
                 handleFieldAccess(info, fr);
             }
             if (e instanceof LocalVariableCreation lvc) {
@@ -263,8 +264,8 @@ public class ComputeCallGraph {
             if (e instanceof Cast cast) {
                 addType(info, cast.parameterizedType(), REFERENCES);
             }
-            if (e instanceof SwitchExpression) {
-                // FIXME TODO Java 23+
+            if (e instanceof TryStatement.CatchClause catchClause) {
+                catchClause.exceptionTypes().forEach(et -> addType(info, et, REFERENCES));
             }
             return true;
         }

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -235,6 +236,43 @@ public class TestCallGraph extends CommonTest {
         List<Info> analysisOrder = cao.go(graph);
         assertEquals("""
                 [a.b.X.<init>(), a.b.X.I.i(), a.b.X.Y.<init>(int), a.b.X.I, a.b.X.Y.i(), a.b.X.Y.i, a.b.X.Y, a.b.X]\
+                """, analysisOrder.toString());
+    }
+
+
+    @Language("java")
+    private static final String INPUT6 = """
+            package a.b;
+            import java.io.IOException;
+            import java.io.InvalidClassException;
+            class X {
+                public void m() {
+                    try {
+                        System.out.println("A");
+                    } catch(IOException | InvalidClassException ioe) {
+                        System.out.println("B");
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("catch clauses")
+    @Test
+    public void test6() {
+        TypeInfo X = javaInspector.parse(INPUT6);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, Set.of(X), _ -> true);
+        G<Info> graph = ccg.go().graph();
+        assertEquals("""
+                a.b.X->H->java.lang.Object, a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.m(), \
+                a.b.X.m()->R->java.io.IOException, a.b.X.m()->R->java.io.InvalidClassException, \
+                a.b.X.m()->R->java.io.PrintStream.println(String), \
+                a.b.X.m()->R->java.lang.System, a.b.X.m()->R->java.lang.System.out\
+                """, ComputeCallGraph.print(graph));
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        List<Info> analysisOrder = cao.go(graph);
+        assertEquals("""
+                [a.b.X.<init>(), a.b.X.m(), a.b.X]\
                 """, analysisOrder.toString());
     }
 }
