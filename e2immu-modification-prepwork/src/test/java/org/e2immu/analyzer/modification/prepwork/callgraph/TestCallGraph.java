@@ -275,4 +275,41 @@ public class TestCallGraph extends CommonTest {
                 [a.b.X.<init>(), a.b.X.m(), a.b.X]\
                 """, analysisOrder.toString());
     }
+
+    @Language("java")
+    private static final String INPUT7 = """
+            package a.b;
+            import java.io.IOException;
+            import java.io.InvalidClassException;
+            class X {
+                public void m(Exception e) {
+                    switch(e) {
+                        case IOException ioe -> System.out.println("A");
+                        case InvalidClassException ice -> System.out.println("B");
+                        default -> { }
+                    }
+                }
+            }
+            """;
+
+    @DisplayName("switch cases")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        ComputeCallGraph ccg = new ComputeCallGraph(runtime, Set.of(X), _ -> true);
+        G<Info> graph = ccg.go().graph();
+        assertEquals("""
+                a.b.X->H->java.lang.Object, a.b.X->S->a.b.X.<init>(), a.b.X->S->a.b.X.m(Exception), \
+                a.b.X.m(Exception)->D->java.lang.Exception, a.b.X.m(Exception)->R->java.io.IOException, \
+                a.b.X.m(Exception)->R->java.io.InvalidClassException, \
+                a.b.X.m(Exception)->R->java.io.PrintStream.println(String), a.b.X.m(Exception)->R->java.lang.System, \
+                a.b.X.m(Exception)->R->java.lang.System.out\
+                """, ComputeCallGraph.print(graph));
+
+        ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
+        List<Info> analysisOrder = cao.go(graph);
+        assertEquals("""
+                [a.b.X.<init>(), a.b.X.m(Exception), a.b.X]\
+                """, analysisOrder.toString());
+    }
 }

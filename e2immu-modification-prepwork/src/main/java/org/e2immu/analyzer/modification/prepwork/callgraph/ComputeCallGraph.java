@@ -4,12 +4,14 @@ package org.e2immu.analyzer.modification.prepwork.callgraph;
 import org.e2immu.language.cst.api.analysis.Property;
 import org.e2immu.language.cst.api.element.Element;
 import org.e2immu.language.cst.api.element.JavaDoc;
+import org.e2immu.language.cst.api.element.RecordPattern;
 import org.e2immu.language.cst.api.expression.*;
 import org.e2immu.language.cst.api.info.Info;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.LocalVariableCreation;
+import org.e2immu.language.cst.api.statement.SwitchEntry;
 import org.e2immu.language.cst.api.statement.TryStatement;
 import org.e2immu.language.cst.api.type.ParameterizedType;
 import org.e2immu.language.cst.api.variable.FieldReference;
@@ -266,6 +268,13 @@ public class ComputeCallGraph {
             }
             if (e instanceof TryStatement.CatchClause catchClause) {
                 catchClause.exceptionTypes().forEach(et -> addType(info, et, REFERENCES));
+            }
+            if (e instanceof RecordPattern rp) {
+                if (rp.localVariable() != null) {
+                    addType(info, rp.localVariable().parameterizedType(), REFERENCES);
+                } else if (rp.recordType() != null) {
+                    addType(info, rp.recordType(), REFERENCES);
+                }
             }
             return true;
         }
