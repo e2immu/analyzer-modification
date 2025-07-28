@@ -294,7 +294,7 @@ public class TestComputeHiddenContent extends CommonTest {
     @Test
     public void test4() {
         ComputeHiddenContent chc = new ComputeHiddenContent(javaInspector.runtime());
-        TypeInfo X = javaInspector.parse(INPUT3);
+        TypeInfo X = javaInspector.parse(INPUT4);
         HiddenContentTypes hct = chc.compute(X);
         assertEquals("", hct.detailedSortedTypes());
         MethodInfo add2 = X.findUniqueMethod("add2", 3);
