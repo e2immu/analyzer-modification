@@ -5,7 +5,7 @@ import org.e2immu.analyzer.modification.prepwork.PrepAnalyzer;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
-import org.e2immu.language.cst.api.statement.Statement;
+import org.e2immu.language.cst.api.statement.*;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -377,5 +377,44 @@ public class TestAssignmentsSwitch extends CommonTest {
         VariableInfo index2Vi = vdLast.variableInfo("index2");
         assertEquals("D:3, A:[3, 6.0.0.0.4, 6.0.0.0.6]", index2Vi.assignments().toString());
         assertEquals("6.0.0.0.4, 6.0.0.0.6", index2Vi.reads().toString());
+    }
+
+
+    @Language("java")
+    public static final String INPUT7 = """
+            package a.b;
+            class X {
+                 private void method(Exception e) {
+                     switch (e) {
+                         case IndexOutOfBoundsException i -> {
+                             if (i.getCause() != null) {
+                                 System.out.println(i.getMessage());
+                             }
+                             throw i;
+                         }
+                         case RuntimeException _ ->{
+                             System.out.println("re");
+                             return;
+                         }
+                         default -> throw e;
+                     }
+                     System.out.println("at end");
+                 }
+            }
+            """;
+
+    @DisplayName("increments in array indices")
+    @Test
+    public void test7() {
+        TypeInfo X = javaInspector.parse(INPUT7);
+        MethodInfo method = X.findUniqueMethod("method", 1);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doMethod(method);
+        SwitchStatementNewStyle ns = (SwitchStatementNewStyle) method.methodBody().statements().getFirst();
+        SwitchEntry se0 = ns.entries().getFirst();
+        IfElseStatement ifElse = (IfElseStatement) ((Block)se0.statement()).statements().getFirst();
+        VariableData vd = VariableDataImpl.of(ifElse);
+        VariableInfoContainer vicI = vd.variableInfoContainerOrNull("i");
+        assertTrue(vicI.hasMerge());
     }
 }

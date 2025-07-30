@@ -6,6 +6,7 @@ import org.e2immu.analyzer.modification.prepwork.variable.impl.Assignments;
 import org.e2immu.analyzer.modification.prepwork.variable.impl.VariableDataImpl;
 import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
+import org.e2immu.language.cst.api.statement.IfElseStatement;
 import org.e2immu.language.cst.api.statement.ReturnStatement;
 import org.e2immu.language.cst.api.statement.Statement;
 import org.e2immu.language.cst.api.statement.TryStatement;
@@ -229,4 +230,89 @@ public class TestAssignmentsTry extends CommonTest {
         assertFalse(vic0.hasMerge());
     }
 
+
+    @Language("java")
+    private static final String INPUT5 = """
+            package a.b;
+            class X {
+                static class MyException extends RuntimeException {
+                    public long errorCode = 3;
+                }
+                static char get(String in, int i) throws MyException {
+                    try {
+                        return in.charAt(i);
+                    } catch (IndexOutOfBoundsException e) {
+                        throw new MyException();
+                    }
+                }
+                static char method(String in, int i) {
+                    char c;
+                    try {
+                        c = get(in, i);
+                    } catch (MyException e) {
+                        if (e.errorCode > 3) {
+                            throw e;
+                        }
+                        for(int k=0; k<i; k++) {
+                            System.out.println("k = "+k+" e = "+e);
+                        }
+                    }
+                    return c;
+                }
+            }
+            """;
+
+    @DisplayName("variable not yet set")
+    @Test
+    public void test5() {
+        TypeInfo X = javaInspector.parse(INPUT5);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doMethod(method);
+        VariableData vdMethod = VariableDataImpl.of(method);
+        assertNotNull(vdMethod);
+    }
+
+
+    @Language("java")
+    private static final String INPUT5a = """
+            package a.b;
+            class X {
+                static class MyException extends RuntimeException {
+                    public long errorCode = 3;
+                }
+                static char get(String in, int i) throws MyException {
+                    try {
+                        return in.charAt(i);
+                    } catch (IndexOutOfBoundsException e) {
+                        throw new MyException();
+                    }
+                }
+                static char method(String in, int i) {
+                    char c;
+                    try {
+                        c = get(in, i);
+                    } catch (MyException e) {
+                        if (e.errorCode > 3) {
+                            throw e;
+                        }
+                    }
+                    return c;
+                }
+            }
+            """;
+
+    @Test
+    public void test5a() {
+        TypeInfo X = javaInspector.parse(INPUT5a);
+        MethodInfo method = X.findUniqueMethod("method", 2);
+        PrepAnalyzer analyzer = new PrepAnalyzer(runtime);
+        analyzer.doMethod(method);
+        TryStatement ts = (TryStatement) method.methodBody().statements().get(1);
+        IfElseStatement ifStmt = (IfElseStatement) ts.catchClauses().getFirst().block().statements().getFirst();
+        VariableData vdIf = VariableDataImpl.of(ifStmt);
+        assertNotNull(vdIf);
+        VariableInfoContainer vicE = vdIf.variableInfoContainerOrNull("e");
+        assertTrue(vicE.hasMerge());
+    }
 }
