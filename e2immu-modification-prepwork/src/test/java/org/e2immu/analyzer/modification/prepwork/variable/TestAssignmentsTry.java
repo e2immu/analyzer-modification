@@ -50,7 +50,7 @@ public class TestAssignmentsTry extends CommonTest {
         assertEquals("a.b.X.method(String,int), a.b.X.method(String,int):0:in, a.b.X.method(String,int):1:i, c, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
 
-        VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
+        VariableInfo inVi = vdMethod.variableInfo(method.parameters().getFirst().fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
         assertEquals("1.0.0", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
@@ -71,7 +71,7 @@ public class TestAssignmentsTry extends CommonTest {
                     char d;
                     try {
                         c = in.charAt(i);
-                    } catch (IndexOutOfBoundsException e) {
+                    } catch (IndexOutOfBoundsException _) {
                         c = '2';
                     } finally {
                         d = '9';
@@ -94,7 +94,7 @@ public class TestAssignmentsTry extends CommonTest {
         assertEquals("a.b.X.method(String,int), a.b.X.method(String,int):0:in, a.b.X.method(String,int):1:i, c, d, java.lang.System.out",
                 vdMethod.knownVariableNamesToString());
 
-        VariableInfo inVi = vdMethod.variableInfo(method.parameters().get(0).fullyQualifiedName());
+        VariableInfo inVi = vdMethod.variableInfo(method.parameters().getFirst().fullyQualifiedName());
         assertEquals("in", inVi.variable().simpleName());
         assertEquals("2.0.0", inVi.reads().toString());
         assertEquals("D:-, A:[]", inVi.assignments().toString());
@@ -222,10 +222,10 @@ public class TestAssignmentsTry extends CommonTest {
 
     private static void testCatchClause(TryStatement ts, int ccIndex) {
         TryStatement.CatchClause cc0 = ts.catchClauses().get(ccIndex);
-        ReturnStatement rs0 = (ReturnStatement) cc0.block().statements().get(0);
+        ReturnStatement rs0 = (ReturnStatement) cc0.block().statements().getFirst();
         VariableData vdRs0 = VariableDataImpl.of(rs0);
         VariableInfoContainer vic0 = vdRs0.variableInfoContainerOrNull("e");
-        assertTrue(vic0.isInitial());
+        assertFalse(vic0.isInitial()); // synthetic LVC is the initial
         assertTrue(vic0.hasEvaluation());
         assertFalse(vic0.hasMerge());
     }
@@ -262,7 +262,6 @@ public class TestAssignmentsTry extends CommonTest {
             }
             """;
 
-    @DisplayName("variable not yet set")
     @Test
     public void test5() {
         TypeInfo X = javaInspector.parse(INPUT5);
@@ -314,5 +313,8 @@ public class TestAssignmentsTry extends CommonTest {
         assertNotNull(vdIf);
         VariableInfoContainer vicE = vdIf.variableInfoContainerOrNull("e");
         assertTrue(vicE.hasMerge());
+        VariableInfo viE = vicE.best();
+        assertEquals("D:1.1.0, A:[]", viE.assignments().toString());
+        assertEquals("1.1.0-E, 1.1.0.0.0", viE.reads().toString());
     }
 }

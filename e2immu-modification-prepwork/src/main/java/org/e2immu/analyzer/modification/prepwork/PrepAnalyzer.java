@@ -14,12 +14,14 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.statement.Block;
 import org.e2immu.util.internal.graph.G;
+import org.e2immu.util.internal.graph.util.TimedLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -39,6 +41,8 @@ at the level of the method
  */
 public class PrepAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(PrepAnalyzer.class);
+    private static final TimedLogger TIMED_LOGGER = new TimedLogger(LOGGER, 1000);
+
     private final MethodAnalyzer methodAnalyzer;
     private final ComputeHiddenContent computeHiddenContent;
     private final ComputeHCS computeHCS;
@@ -112,10 +116,22 @@ public class PrepAnalyzer {
 
     public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes,
                                                                  Predicate<TypeInfo> externalsToAccept) {
-        for (TypeInfo primaryType : primaryTypes) {
+        return doPrimaryTypesReturnComputeCallGraph(primaryTypes, externalsToAccept, false);
+    }
+
+    public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes,
+                                                                 Predicate<TypeInfo> externalsToAccept,
+                                                                 boolean parallel) {
+        AtomicInteger count = new AtomicInteger();
+        int total = primaryTypes.size();
+        Stream<TypeInfo> stream = parallel ? primaryTypes.parallelStream() : primaryTypes.stream();
+        stream.forEach(primaryType -> {
             assert primaryType.isPrimaryType();
             doType(primaryType);
-        }
+            TIMED_LOGGER.info("Done {} of {} primary types", count, total);
+            count.incrementAndGet();
+        });
+        
         LOGGER.info("Start compute call graph");
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, primaryTypes, externalsToAccept);
         G<Info> cg = ccg.go().graph();

@@ -403,7 +403,6 @@ public class TestAssignmentsSwitch extends CommonTest {
             }
             """;
 
-    @DisplayName("increments in array indices")
     @Test
     public void test7() {
         TypeInfo X = javaInspector.parse(INPUT7);

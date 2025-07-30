@@ -268,11 +268,11 @@ public class MethodAnalyzer {
                                                VariableData vdOfParent,
                                                InternalVariables iv) {
         Stream<Block> blockStream;
-        if (parentStatement instanceof TryStatement ts && !(ts.resources().isEmpty())) {
-            Block.Builder bb = runtime.newBlockBuilder();
-            bb.addStatements(ts.resources());
-            bb.addStatements(ts.block().statements());
-            blockStream = Stream.concat(Stream.of(bb.build()), ts.otherBlocksStream());
+        // variables created in catch clauses and record patterns are represented as LVCs
+        if (parentStatement instanceof TryStatement ts) {
+            blockStream = tryStatementBlockStream(ts);
+        } else if (parentStatement instanceof SwitchStatementNewStyle ns) {
+            blockStream = newStyleSwitchStatementBlockStream(ns);
         } else {
             blockStream = parentStatement.subBlockStream();
         }
@@ -281,6 +281,52 @@ public class MethodAnalyzer {
                 .collect(Collectors.toUnmodifiableMap(
                         block -> block.statements().getFirst().source().index(),
                         block -> doBlock(methodInfo, block, vdOfParent, iv)));
+    }
+
+    private Stream<Block> newStyleSwitchStatementBlockStream(SwitchStatementNewStyle ns) {
+        return ns.entries().stream().map(se -> {
+            Block block = se.statementAsBlock();
+            if (se.patternVariable() == null || block.isEmpty()) {
+                return block;
+            }
+            Block.Builder bb = runtime.newBlockBuilder();
+            se.patternVariable().variableStreamDescend().forEach(v -> {
+                LocalVariable lv = (LocalVariable) v;
+                if (!lv.isUnnamed()) {
+                    // the index of the synthetic statement must be the index of the first statement in the block,
+                    // for the merge to work later on
+                    LocalVariableCreation lvc = runtime.newLocalVariableCreationBuilder()
+                            .setSource(block.statements().getFirst().source())
+                            .setLocalVariable(lv.withAssignmentExpression(runtime.newEmptyExpression())).build();
+                    bb.addStatement(lvc);
+                }
+            });
+            bb.addStatements(block.statements());
+            return bb.build();
+        });
+    }
+
+    private Stream<Block> tryStatementBlockStream(TryStatement ts) {
+        Stream<Block> main;
+        if (ts.resources().isEmpty()) {
+            main = Stream.of(ts.block());
+        } else {
+            Block.Builder bb = runtime.newBlockBuilder();
+            bb.addStatements(ts.resources());
+            bb.addStatements(ts.block().statements());
+            main = Stream.of(bb.build());
+        }
+        Stream<Block> catchStream = ts.catchClauses().stream().map(cc -> {
+            if (cc.catchVariable().isUnnamed() || cc.block().isEmpty()) return cc.block();
+            Block.Builder bb = runtime.newBlockBuilder();
+            LocalVariableCreation lvc = runtime.newLocalVariableCreationBuilder()
+                    .setSource(cc.block().statements().getFirst().source())
+                    .setLocalVariable(cc.catchVariable().withAssignmentExpression(runtime.newEmptyExpression())).build();
+            bb.addStatement(lvc);
+            bb.addStatements(cc.block().statements());
+            return bb.build();
+        });
+        return Stream.concat(Stream.concat(main, catchStream), Stream.of(ts.finallyBlock()));
     }
 
     private VariableData doBlock(MethodInfo methodInfo,
@@ -384,7 +430,7 @@ public class MethodAnalyzer {
             Variable variable = vi.variable();
             VariableData closureVic = iv.closure.get(variable.fullyQualifiedName());
             if (closureVic != null ||
-                    Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(previousVd, vi.variable(), indexOfDefinition, index)) {
+                Util.inScopeOf(indexOfDefinition, index) && iv.acceptLimitedScope(previousVd, vi.variable(), indexOfDefinition, index)) {
 
                 VariableInfoImpl eval = new VariableInfoImpl(variable, readWriteData.assignmentIds(variable, vi),
                         readWriteData.isRead(variable, vi), closureVic);
@@ -453,8 +499,8 @@ public class MethodAnalyzer {
             }
             VariableData vd = doStatement(methodInfo, statement, previous, first, iv);
             if (statement instanceof BreakStatement
-                    || statement instanceof ReturnStatement
-                    || statementGuaranteedToExit(indexOfFirstStatement, vd, iv)) {
+                || statement instanceof ReturnStatement
+                || statementGuaranteedToExit(indexOfFirstStatement, vd, iv)) {
                 if (indexOfFirstStatement != null) {
                     lastOfEachSubBlock.put(indexOfFirstStatement, vd);
                     if (!fallThrough.isEmpty()) {
@@ -511,7 +557,7 @@ public class MethodAnalyzer {
                 VariableInfoContainer vic = vdStatement.variableInfoContainerOrNull(vi.variable().fullyQualifiedName());
                 if (vic == null || vic.hasMerge()) {
                     if (copyToMerge(index, vi.variable(), vd, iv.closure)
-                            && iv.acceptLimitedScope(vd, vi.variable(), vi.assignments().indexOfDefinition(), index)) {
+                        && iv.acceptLimitedScope(vd, vi.variable(), vi.assignments().indexOfDefinition(), index)) {
                         map.computeIfAbsent(vi.variable(), v -> new TreeMap<>()).put(subIndex, vi);
                     }
                 }
@@ -999,11 +1045,11 @@ public class MethodAnalyzer {
             }
             if (v instanceof FieldReference fr) {
                 return !localFields.contains(fr.fieldInfo())
-                        && (fr.scopeVariable() == null || acceptForCopy(fr.scopeVariable(), localFields, typeHierarchy, closure));
+                       && (fr.scopeVariable() == null || acceptForCopy(fr.scopeVariable(), localFields, typeHierarchy, closure));
             }
             if (v instanceof DependentVariable dv) {
                 return (dv.arrayVariable() == null || acceptForCopy(dv.arrayVariable(), localFields, typeHierarchy, closure))
-                        && (dv.indexVariable() == null || acceptForCopy(dv.indexVariable(), localFields, typeHierarchy, closure));
+                       && (dv.indexVariable() == null || acceptForCopy(dv.indexVariable(), localFields, typeHierarchy, closure));
             }
             throw new UnsupportedOperationException();
         }
