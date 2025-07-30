@@ -15,19 +15,23 @@ import org.e2immu.language.cst.impl.analysis.PropertyImpl;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.e2immu.util.internal.graph.G;
 import org.e2immu.util.internal.graph.V;
+import org.e2immu.util.internal.graph.util.TimedLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class ComputePartOfConstructionFinalField {
     private static final Logger LOGGER = LoggerFactory.getLogger(ComputePartOfConstructionFinalField.class);
+    private static final TimedLogger TIMED_LOGGER = new TimedLogger(LOGGER, 1000);
 
     public static final Value.SetOfInfo EMPTY_PART_OF_CONSTRUCTION = new ValueImpl.SetOfInfoImpl(Set.of());
     public static final Property PART_OF_CONSTRUCTION = new PropertyImpl("partOfConstructionType", EMPTY_PART_OF_CONSTRUCTION);
 
     private final boolean parallel;
+    private final AtomicInteger count = new AtomicInteger();
 
     public ComputePartOfConstructionFinalField(boolean parallel) {
         this.parallel = parallel;
@@ -56,7 +60,9 @@ public class ComputePartOfConstructionFinalField {
     }
 
     private void internalGo(TypeInfo typeInfo, List<MethodInfo> constructorsAndMethodsOfPrimaryType, G<Info> callGraph) {
-        LOGGER.debug("Handling {}", typeInfo);
+        TIMED_LOGGER.info("Done {}", count);
+        count.incrementAndGet();
+
         typeInfo.subTypes().forEach(st -> internalGo(st, constructorsAndMethodsOfPrimaryType, callGraph));
 
         Value.SetOfInfo setOfInfo = typeInfo.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
@@ -90,7 +96,7 @@ public class ComputePartOfConstructionFinalField {
                 if (edges != null) {
                     for (Map.Entry<V<Info>, Long> entry : edges.entrySet()) {
                         if (entry.getKey().t() instanceof MethodInfo methodInfo
-                                && notInConstructionOfSameStaticType(methodInfo, fieldInfo, partOfConstruction)) {
+                            && notInConstructionOfSameStaticType(methodInfo, fieldInfo, partOfConstruction)) {
                             // so methodInfo references toField... check whether that is an assignment, or simply a read
                             boolean isAssigned = isAssigned(methodInfo, fieldInfo);
                             if (isAssigned) {
@@ -173,7 +179,7 @@ public class ComputePartOfConstructionFinalField {
 
     private boolean canBePartOfConstruction(MethodInfo mi) {
         return mi.isConstructor()
-                || mi.access().isPrivate() && mi.typeInfo().enclosingMethod() == null
-                || mi.typeInfo().enclosingMethod() != null && canBePartOfConstruction(mi.typeInfo().enclosingMethod());
+               || mi.access().isPrivate() && mi.typeInfo().enclosingMethod() == null
+               || mi.typeInfo().enclosingMethod() != null && canBePartOfConstruction(mi.typeInfo().enclosingMethod());
     }
 }

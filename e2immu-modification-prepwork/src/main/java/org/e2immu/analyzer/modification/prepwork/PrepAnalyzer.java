@@ -131,14 +131,16 @@ public class PrepAnalyzer {
             TIMED_LOGGER.info("Done {} of {} primary types", count, total);
             count.incrementAndGet();
         });
-        
+
         LOGGER.info("Start compute call graph");
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, primaryTypes, externalsToAccept);
         G<Info> cg = ccg.go().graph();
-        LOGGER.info("Start recursive methods");
+        LOGGER.info("Set recursive methods");
         ccg.setRecursiveMethods();
+        LOGGER.info("Start compute part of construction, final field");
         ComputePartOfConstructionFinalField cp = new ComputePartOfConstructionFinalField(options.parallel);
         cp.go(cg);
+        LOGGER.info("Done, returning ComputeCallGraph object");
         return ccg;
     }
 
@@ -178,10 +180,7 @@ public class PrepAnalyzer {
         // recurse
         typeInfo.subTypes().forEach(this::doType);
         typeInfo.constructorAndMethodStream().forEach(mi -> {
-            if (!mi.analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) {
-                HiddenContentTypes hctMethod = computeHiddenContent.compute(hctType, mi);
-                mi.analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
-            }
+            mi.analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () -> computeHiddenContent.compute(hctType, mi));
             computeHCS.doHiddenContentSelector(mi);
             boolean isGetSet = !mi.isConstructor() && GetSetHelper.doGetSetAnalysis(mi, mi.methodBody());
             if (isGetSet) {
@@ -195,15 +194,13 @@ public class PrepAnalyzer {
 
     // called from MethodAnalyzer
     void handleSyntheticArrayConstructor(ConstructorCall cc) {
-        if (!cc.constructor().analysis().haveAnalyzedValueFor(HIDDEN_CONTENT_TYPES)) {
+        cc.constructor().analysis().getOrCreate(HIDDEN_CONTENT_TYPES, () -> {
             // synthetic array constructors are not stored listed in typeInfo.constructorAndMethodStream()
             HiddenContentTypes hctConstructorType = cc.constructor().typeInfo().analysis().getOrCreate(HIDDEN_CONTENT_TYPES,
                     () -> computeHiddenContent.compute(cc.constructor().typeInfo()));
-            HiddenContentTypes hctMethod = computeHiddenContent.compute(hctConstructorType, cc.constructor());
-            cc.constructor().analysis().set(HIDDEN_CONTENT_TYPES, hctMethod);
-            computeHCS.doHiddenContentSelector(cc.constructor());
-            // not adding it to "otherConstructorsAndMethods"
-        }
+            return computeHiddenContent.compute(hctConstructorType, cc.constructor());
+        });
+        computeHCS.doHiddenContentSelector(cc.constructor());
     }
 
     public void initialize(List<TypeInfo> typesLoaded) {
