@@ -190,14 +190,14 @@ public class TestCallGraph2 extends CommonTest2 {
          */
         assertEquals("""
                 [a.b.c.C.<init>(), a.b.c.C.asList(), a.b.c.C.get(), a.b.c.C.pop(), a.b.c.C.push(String), \
-                a.b.c.C.size(), a.b.e.E1.<init>(), a.b.e.E2.E2(java.sql.Connection), a.b.f.F1.E2(java.sql.Connection), \
-                a.b.f.F2.<init>(), a.b.g.G1.<init>(), a.b.g.G1.print(), a.b.c.C.strings, a.b.d.D.pop(), \
-                a.b.d.D.push(String), a.b.d.D.size(), a.b.d.D.stream(), a.b.g.G1, a.b.c.C, a.b.d.D.LOGGER, \
-                a.b.e.E1.fill(java.sql.Connection), a.b.e.E1.pop(), a.b.e.E1.size(), a.b.e.E1.stream(), \
-                a.b.d.D.D(a.b.c.C), a.b.e.E2.go(), a.b.g.G2.go(), a.b.g.G2.go2(), a.b.d.D.c, a.b.e.E2.con, \
-                a.b.g.G2.g1, a.b.d.D, a.b.e.E1.d, a.b.e.E1, a.b.e.E2.e1, a.b.f.F1.get(a.b.e.E1), a.b.f.F1.go(a.b.e.E1), \
-                a.b.f.F2.get(a.b.e.E1), a.b.g.G2.G2(a.b.e.E1), a.b.e.E2, a.b.f.F1.con, a.b.f.F2, a.b.g.G2.e1, a.b.f.F1, \
-                a.b.g.G2.f2, a.b.g.G2]\
+                a.b.c.C.size(), a.b.e.E1.<init>(), a.b.e.E2.<init>(java.sql.Connection), \
+                a.b.f.F1.<init>(java.sql.Connection), a.b.f.F2.<init>(), a.b.g.G1.<init>(), a.b.g.G1.print(), \
+                a.b.c.C.strings, a.b.d.D.pop(), a.b.d.D.push(String), a.b.d.D.size(), a.b.d.D.stream(), a.b.g.G1, \
+                a.b.c.C, a.b.d.D.LOGGER, a.b.e.E1.fill(java.sql.Connection), a.b.e.E1.pop(), a.b.e.E1.size(), \
+                a.b.e.E1.stream(), a.b.d.D.<init>(a.b.c.C), a.b.e.E2.go(), a.b.g.G2.go(), a.b.g.G2.go2(), \
+                a.b.d.D.c, a.b.e.E2.con, a.b.g.G2.g1, a.b.d.D, a.b.e.E1.d, a.b.e.E1, a.b.e.E2.e1, \
+                a.b.f.F1.get(a.b.e.E1), a.b.f.F1.go(a.b.e.E1), a.b.f.F2.get(a.b.e.E1), a.b.g.G2.<init>(a.b.e.E1), \
+                a.b.e.E2, a.b.f.F1.con, a.b.f.F2, a.b.g.G2.e1, a.b.f.F1, a.b.g.G2.f2, a.b.g.G2]\
                 """, r.analysisOrder().toString());
     }
 
@@ -242,19 +242,20 @@ public class TestCallGraph2 extends CommonTest2 {
         R r = init(sourcesByFqn);
 
         assertEquals("""
-                a.b.X->S->a.b.X.X(java.util.Map<String,Object>)
+                a.b.X->S->a.b.X.<init>(java.util.Map<String,Object>)
                 a.b.X->S->a.b.X.attributes
                 a.b.X->S->a.b.X.getEmail()
-                a.b.X.attributes->R->a.b.X.X(java.util.Map<String,Object>)
+                a.b.X.attributes->R->a.b.X.<init>(java.util.Map<String,Object>)
                 a.b.Y->H->a.b.X
-                a.b.Y->S->a.b.Y.Y(java.util.Map<String,Object>)
+                a.b.Y->S->a.b.Y.<init>(java.util.Map<String,Object>)
                 a.b.Y->S->a.b.Y.getEmail()
+                a.b.Y.<init>(java.util.Map<String,Object>)->S->a.b.X.<init>(java.util.Map<String,Object>)
                 a.b.Y.getEmail()->R->a.b.X.attributes
                 a.b.Y.getEmail()->S->a.b.X.getEmail()
                 d.e.A->S->d.e.A.<init>()
                 d.e.A->S->d.e.A.y
                 d.e.A.y->DR->a.b.Y
-                d.e.A.y->R->a.b.Y.Y(java.util.Map<String,Object>)\
+                d.e.A.y->R->a.b.Y.<init>(java.util.Map<String,Object>)\
                 """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
     }
 

@@ -146,15 +146,15 @@ public class TestCallGraph extends CommonTest {
         ComputeCallGraph ccg = new ComputeCallGraph(runtime, X);
         G<Info> graph = ccg.go().graph();
         assertEquals("""
-                a.b.X->S->a.b.X.X(int)
+                a.b.X->S->a.b.X.<init>(int)
                 a.b.X->S->a.b.X.initList(int)
                 a.b.X->S->a.b.X.list
                 a.b.X->S->a.b.X.print()
                 a.b.X->S->a.b.X.rest()
                 a.b.X->S->a.b.X.sleep()
-                a.b.X.X(int)->R->a.b.X.initList(int)
-                a.b.X.X(int)->R->a.b.X.print()
-                a.b.X.X(int)->R->a.b.X.sleep()
+                a.b.X.<init>(int)->R->a.b.X.initList(int)
+                a.b.X.<init>(int)->R->a.b.X.print()
+                a.b.X.<init>(int)->R->a.b.X.sleep()
                 a.b.X.list->R->a.b.X.initList(int)
                 a.b.X.list->R->a.b.X.sleep()
                 a.b.X.rest()->R->a.b.X.sleep()\
@@ -165,7 +165,7 @@ public class TestCallGraph extends CommonTest {
         ComputeAnalysisOrder cao = new ComputeAnalysisOrder();
         List<Info> analysisOrder = cao.go(graph);
         assertEquals("""
-                [a.b.X.initList(int), a.b.X.print(), a.b.X.sleep(), a.b.X.X(int), a.b.X.list, a.b.X.rest(), a.b.X]\
+                [a.b.X.initList(int), a.b.X.print(), a.b.X.sleep(), a.b.X.<init>(int), a.b.X.list, a.b.X.rest(), a.b.X]\
                 """, analysisOrder.toString());
     }
 

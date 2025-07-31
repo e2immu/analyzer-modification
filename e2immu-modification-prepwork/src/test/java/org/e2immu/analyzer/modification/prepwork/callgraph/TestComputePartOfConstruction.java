@@ -33,7 +33,7 @@ public class TestComputePartOfConstruction extends CommonTest {
 
         Value.SetOfInfo setOfInfo = X.analysis().getOrNull(PART_OF_CONSTRUCTION, ValueImpl.SetOfInfoImpl.class);
         assertNotNull(setOfInfo);
-        assertEquals("[a.b.X.X(int), a.b.X.initList(int)]",
+        assertEquals("[a.b.X.<init>(int), a.b.X.initList(int)]",
                 setOfInfo.infoSet().stream().map(Object::toString).sorted().toList().toString());
 
         FieldInfo list = X.getFieldByName("list", true);
@@ -80,7 +80,7 @@ public class TestComputePartOfConstruction extends CommonTest {
                 exceptionThrown.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).toString());
 
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");
-        assertEquals("SetOfInfoImpl[infoSet=[a.b.X.LoopDataImpl.LoopDataImpl(a.b.X.Exit)]]",
+        assertEquals("SetOfInfoImpl[infoSet=[a.b.X.LoopDataImpl.<init>(a.b.X.Exit)]]",
                 loopDataImpl.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).toString());
 
         FieldInfo exit = loopDataImpl.getFieldByName("exit", true);
@@ -114,7 +114,7 @@ public class TestComputePartOfConstruction extends CommonTest {
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.doPrimaryType(X);
 
-        assertEquals("[a.b.X.X()]",
+        assertEquals("[a.b.X.<init>()]",
                 X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).infoSet().toString());
     }
 
@@ -149,7 +149,7 @@ public class TestComputePartOfConstruction extends CommonTest {
         PrepAnalyzer prepAnalyzer = new PrepAnalyzer(runtime);
         prepAnalyzer.doPrimaryType(X);
 
-        assertEquals("[a.b.X.X()]",
+        assertEquals("[a.b.X.<init>()]",
                 X.analysis().getOrDefault(PART_OF_CONSTRUCTION, EMPTY_PART_OF_CONSTRUCTION).infoSet().toString());
     }
 }

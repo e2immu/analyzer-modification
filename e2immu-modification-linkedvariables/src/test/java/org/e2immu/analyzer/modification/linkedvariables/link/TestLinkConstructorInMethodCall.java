@@ -64,10 +64,9 @@ public class TestLinkConstructorInMethodCall extends CommonTest {
         List<Info> analysisOrder = prepWork(X);
         assertEquals("""
                 [a.b.X.<init>(), a.b.X.ExceptionThrown.<init>(Exception), a.b.X.ExceptionThrown.exception(), \
-                a.b.X.Exit, a.b.X.LoopData.withException(Exception), a.b.X.ExceptionThrown.exception, \
-                a.b.X.LoopData, a.b.X.LoopDataImpl.LoopDataImpl(a.b.X.Exit), a.b.X.ExceptionThrown, \
-                a.b.X.LoopDataImpl.exit, a.b.X.LoopDataImpl.withException(Exception), \
-                a.b.X.LoopDataImpl, a.b.X]\
+                a.b.X.Exit, a.b.X.LoopData.withException(Exception), a.b.X.ExceptionThrown.exception, a.b.X.LoopData, \
+                a.b.X.LoopDataImpl.<init>(a.b.X.Exit), a.b.X.ExceptionThrown, a.b.X.LoopDataImpl.exit, \
+                a.b.X.LoopDataImpl.withException(Exception), a.b.X.LoopDataImpl, a.b.X]\
                 """, analysisOrder.toString());
 
         TypeInfo loopDataImpl = X.findSubType("LoopDataImpl");

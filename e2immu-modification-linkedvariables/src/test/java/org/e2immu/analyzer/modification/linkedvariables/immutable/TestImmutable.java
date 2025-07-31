@@ -50,7 +50,7 @@ public class TestImmutable extends CommonTest {
         assertEquals("""
                 [a.b.X.<init>(), a.b.X.M.<init>(), a.b.X.M.setI(int), a.b.X.R.<init>(String,int), a.b.X.R.i(), \
                 a.b.X.R.s(), a.b.X.RM.i(), a.b.X.RT.<init>(String,T), a.b.X.RT.s(), a.b.X.RT.t(), a.b.X.M.i, a.b.X.R.i, \
-                a.b.X.R.s, a.b.X.RT.s, a.b.X.RT.t, a.b.X.M, a.b.X.R, a.b.X.RT, a.b.X.MF.MF(a.b.X.M), \
+                a.b.X.R.s, a.b.X.RT.s, a.b.X.RT.t, a.b.X.M, a.b.X.R, a.b.X.RT, a.b.X.MF.<init>(a.b.X.M), \
                 a.b.X.RM.<init>(a.b.X.M,int), a.b.X.RM.m(), a.b.X.MF.m, a.b.X.RM.i, a.b.X.RM.m, a.b.X.MF, a.b.X.RM, a.b.X]\
                 """, ao.toString());
         analyzer.go(ao);
@@ -264,11 +264,11 @@ public class TestImmutable extends CommonTest {
         TypeInfo X = javaInspector.parse(INPUT4);
         List<Info> ao = prepWork(X);
         assertEquals("""
-                [a.b.X.<init>(), a.b.X.Break.Break(int), a.b.X.Continue.Continue(int), a.b.X.Continue.level(), \
-                a.b.X.ExceptionThrown.ExceptionThrown(Exception), a.b.X.ExceptionThrown.exception(), a.b.X.Exit, \
-                a.b.X.Return.Return(Object), a.b.X.Return.value(), a.b.X.Break.level, a.b.X.Continue.level, \
-                a.b.X.ExceptionThrown.exception, a.b.X.Return.value, a.b.X.Break, a.b.X.Continue, \
-                a.b.X.ExceptionThrown, a.b.X.Return, a.b.X]\
+                [a.b.X.<init>(), a.b.X.Break.<init>(int), a.b.X.Continue.<init>(int), a.b.X.Continue.level(), \
+                a.b.X.ExceptionThrown.<init>(Exception), a.b.X.ExceptionThrown.exception(), a.b.X.Exit, \
+                a.b.X.Return.<init>(Object), a.b.X.Return.value(), a.b.X.Break.level, a.b.X.Continue.level, \
+                a.b.X.ExceptionThrown.exception, a.b.X.Return.value, a.b.X.Break, a.b.X.Continue, a.b.X.ExceptionThrown, \
+                a.b.X.Return, a.b.X]\
                 """, ao.toString());
         analyzer.go(ao);
 
