@@ -12,6 +12,7 @@ module org.e2immu.analyzer.modification.linkedvariables {
     requires org.slf4j;
 
     exports org.e2immu.analyzer.modification.linkedvariables;
+    exports org.e2immu.analyzer.modification.linkedvariables.impl;
     exports org.e2immu.analyzer.modification.linkedvariables.graph;
     exports org.e2immu.analyzer.modification.linkedvariables.io;
     exports org.e2immu.analyzer.modification.linkedvariables.staticvalues;
