@@ -285,4 +285,44 @@ public class TestCallGraph2 extends CommonTest2 {
                 a.b.B->S->a.b.B.<init>()\
                 """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
     }
+
+    @Language("java")
+    String SOURCE_X = """
+            package a.b;
+            class X {
+                String s;  // package-private
+                String getString() { return s; }
+            }
+            """;
+
+    @Language("java")
+    String SOURCE_Y = """
+            package a.b;
+            class Y {
+                X x = new X();
+                String getFromX() {
+                    return x.s;  // accessible - same package
+                }
+            }
+            """;
+
+    @Test
+    public void test4() throws IOException {
+        Map<String, String> sourcesByFqn = Map.of("a.b.X", SOURCE_X, "a.b.Y", SOURCE_Y);
+        R r = init(sourcesByFqn);
+
+        assertEquals("""
+                a.b.X->S->a.b.X.<init>()
+                a.b.X->S->a.b.X.getString()
+                a.b.X->S->a.b.X.s
+                a.b.X.s->R->a.b.X.getString()
+                a.b.Y->S->a.b.Y.<init>()
+                a.b.Y->S->a.b.Y.getFromX()
+                a.b.Y->S->a.b.Y.x
+                a.b.Y.getFromX()->R->a.b.X.s
+                a.b.Y.x->DR->a.b.X
+                a.b.Y.x->R->a.b.X.<init>()
+                a.b.Y.x->R->a.b.Y.getFromX()\
+                """, r.dependencyGraph().toString("\n", ComputeCallGraph::edgeValuePrinter));
+    }
 }
