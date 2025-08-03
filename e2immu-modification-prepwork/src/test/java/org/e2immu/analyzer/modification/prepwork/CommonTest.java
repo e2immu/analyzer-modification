@@ -39,7 +39,7 @@ public class CommonTest {
     public void beforeEach() throws IOException {
         javaInspector = new JavaInspectorImpl();
         InputConfigurationImpl.Builder builder = new InputConfigurationImpl.Builder()
-                .addClassPath(InputConfigurationImpl.GRADLE_DEFAULT)
+                .addClassPath(InputConfigurationImpl.DEFAULT_MODULES)
                 .addClassPath(JavaInspectorImpl.E2IMMU_SUPPORT)
                 // NOTE: no access to ToolChain
                 .addClassPath(JAR_WITH_PATH_PREFIX + "org/junit/jupiter/api")

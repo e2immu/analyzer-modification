@@ -82,7 +82,7 @@ public class TestLoadAnalyzedPackageFiles {
     public void test2() throws IOException {
         JavaInspectorImpl javaInspector = new JavaInspectorImpl();
         InputConfigurationImpl.Builder inputConfiguration = new InputConfigurationImpl.Builder()
-                .addClassPath(InputConfigurationImpl.GRADLE_DEFAULT)
+                .addClassPath(InputConfigurationImpl.DEFAULT_MODULES)
                 .addClassPath(ToolChain.CLASSPATH_SLF4J_LOGBACK)
                 .addClassPath(ToolChain.CLASSPATH_JUNIT)
                 .addClassPath(JavaInspectorImpl.E2IMMU_SUPPORT);
