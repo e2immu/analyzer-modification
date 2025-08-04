@@ -42,6 +42,8 @@ at the level of the method
 public class PrepAnalyzer {
     private static final Logger LOGGER = LoggerFactory.getLogger(PrepAnalyzer.class);
     private static final TimedLogger TIMED_LOGGER = new TimedLogger(LOGGER, 1000);
+    public static final Predicate<TypeInfo> DO_NOT_ACCEPT_EXTERNALS =
+            t -> t.compilationUnit() != null && !t.compilationUnit().externalLibrary();
 
     private final MethodAnalyzer methodAnalyzer;
     private final ComputeHiddenContent computeHiddenContent;
@@ -111,7 +113,7 @@ public class PrepAnalyzer {
     }
 
     public G<Info> doPrimaryTypesReturnGraph(Set<TypeInfo> primaryTypes) {
-        return doPrimaryTypesReturnComputeCallGraph(primaryTypes, ti -> false).graph();
+        return doPrimaryTypesReturnComputeCallGraph(primaryTypes, DO_NOT_ACCEPT_EXTERNALS).graph();
     }
 
     public ComputeCallGraph doPrimaryTypesReturnComputeCallGraph(Set<TypeInfo> primaryTypes,
