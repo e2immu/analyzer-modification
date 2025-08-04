@@ -94,11 +94,20 @@ public class TestReadFieldReferences extends CommonTest {
             TypeInfo X = javaInspector.parse(INPUT);
             List<Info> analysisOrder = prepWork(X);
             assertEquals("""
-                    [a.b.X.$11.applyAsInt(int), a.b.X.$3.applyAsInt(int), a.b.X.$7.applyAsInt(int), a.b.X.<init>(), \
-                    a.b.X.nxmCosTableX, a.b.X.nxmCosTableY, a.b.X.pixelRange(int), a.b.X.$11, a.b.X.$3, a.b.X.$7, \
-                    a.b.X.$10, a.b.X.$10.test(int), a.b.X.$2, a.b.X.$2.test(int), a.b.X.$6, a.b.X.$6.test(int), \
-                    a.b.X.M, a.b.X.N, a.b.X.method(double[][],int[][]), a.b.X]\
-                    """, analysisOrder.toString());
+                   [a.b.X.$11.applyAsInt(int), a.b.X.$3.applyAsInt(int), a.b.X.$7.applyAsInt(int), a.b.X.<init>(), \
+                   a.b.X.nxmCosTableX, a.b.X.nxmCosTableY, a.b.X.pixelRange(int), \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop, \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopData, \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopData.get(int), \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder, \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder.<init>(), \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder.build(), \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder.iterator(java.util.Iterator<?>), \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopDataImpl.Builder.set(int,Object), \
+                   org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.run(org.e2immu.analyzer.modification.linkedvariables.staticvalues.Loop.LoopData), \
+                   a.b.X.$11, a.b.X.$3, a.b.X.$7, a.b.X.$10, a.b.X.$10.test(int), a.b.X.$2, a.b.X.$2.test(int), \
+                   a.b.X.$6, a.b.X.$6.test(int), a.b.X.M, a.b.X.N, a.b.X.method(double[][],int[][]), a.b.X]\
+                   """, analysisOrder.toString());
 
             MethodInfo methodInfo = X.findUniqueMethod("method", 2);
             Block innerLoop = methodInfo.methodBody().statements().get(7).block().statements().getFirst().block();
