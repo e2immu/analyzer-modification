@@ -8,7 +8,7 @@ import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.type.TypeParameter;
+import org.e2immu.language.cst.api.info.TypeParameter;
 import org.e2immu.language.cst.api.variable.Variable;
 
 import java.util.*;

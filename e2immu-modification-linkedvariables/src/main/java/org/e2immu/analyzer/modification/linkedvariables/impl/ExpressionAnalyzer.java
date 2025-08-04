@@ -24,7 +24,7 @@ import org.e2immu.language.cst.api.statement.SwitchEntry;
 import org.e2immu.language.cst.api.translate.TranslationMap;
 import org.e2immu.language.cst.api.type.NamedType;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.type.TypeParameter;
+import org.e2immu.language.cst.api.info.TypeParameter;
 import org.e2immu.language.cst.api.variable.DependentVariable;
 import org.e2immu.language.cst.api.variable.FieldReference;
 import org.e2immu.language.cst.api.variable.This;

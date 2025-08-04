@@ -12,7 +12,7 @@ import org.e2immu.language.cst.api.info.MethodInfo;
 import org.e2immu.language.cst.api.info.TypeInfo;
 import org.e2immu.language.cst.api.runtime.Runtime;
 import org.e2immu.language.cst.api.type.ParameterizedType;
-import org.e2immu.language.cst.api.type.TypeParameter;
+import org.e2immu.language.cst.api.info.TypeParameter;
 import org.e2immu.language.cst.impl.analysis.ValueImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
