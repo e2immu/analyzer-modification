@@ -83,6 +83,17 @@ public class ComputeCallGraph {
         return sb.toString();
     }
 
+    public static int weightedSumInteractions(long l, int docsWeight, int refsWeight, int declarationWeight,
+                                              int hierarchyWeight, int codeStructureWeight) {
+        int docs = (int) (l & (REFERENCES));
+        int refs = (int) ((l & (TYPES_IN_DECLARATION - 1)) >> REFERENCES_BITS);
+        int declaration = (int) ((l & (TYPE_HIERARCHY - 1)) >> TYPES_IN_DECLARATION_BITS);
+        int hierarchy = (int) ((l & (CODE_STRUCTURE - 1)) >> TYPE_HIERARCHY_BITS);
+        int codeStructure = (int) (l >> CODE_STRUCTURE_BITS);
+        return docs * docsWeight + refs * refsWeight + declaration * declarationWeight + hierarchy * hierarchyWeight
+               + codeStructure * codeStructureWeight;
+    }
+
     public ComputeCallGraph go() {
         primaryTypes.forEach(this::go);
         graph = builder.build();
